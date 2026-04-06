@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { getWeeksForMonth, getMonthOptions, formatWeekShort } from '@/lib/periods';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
@@ -16,9 +16,23 @@ export function PeriodFilter() {
 
   const currentLabel = formatWeekShort(currentPeriod.weekStart, currentPeriod.weekEnd);
   const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label ?? '';
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Закривати при кліку поза dropdown
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    // Невеликий delay щоб не перехопити клік що відкрив
+    const timer = setTimeout(() => document.addEventListener('click', handler), 10);
+    return () => { clearTimeout(timer); document.removeEventListener('click', handler); };
+  }, [open]);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#e2e7ef] hover:border-[#066aab]/30 hover:shadow-sm transition-all cursor-pointer"
@@ -30,9 +44,6 @@ export function PeriodFilter() {
 
       {open && (
         <>
-          {/* Backdrop */}
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-
           {/* Dropdown */}
           <div className="absolute top-full mt-2 left-0 z-50 w-[320px] bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] border border-[#e2e7ef] overflow-hidden">
             {/* Month selector */}
