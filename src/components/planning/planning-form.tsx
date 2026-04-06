@@ -328,7 +328,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
                   {/* Видалити */}
                   {!row.completed ? (
-                    <button onClick={() => removeForecast(row.clientId1c)}
+                    <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
                       className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -435,7 +435,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                     </p>
 
                     {/* Видалити */}
-                    <button onClick={() => setGapClosures(prev => prev.filter((_, j) => j !== i))}
+                    <button onClick={() => setGapClosures(prev => prev.filter((_, j) => j !== i))} aria-label="Видалити клієнта"
                       className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

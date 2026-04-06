@@ -5,13 +5,18 @@ export function formatUSD(amount: number): string {
   }).format(amount);
 }
 
-export function formatPercent(value: number): string {
+/** Відсоток зі знаком: "+5.2%" або "-3.1%" */
+export function formatSignedPct(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
+/** Відсоток без знака: "5.2%" */
 export function formatPct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
+
+/** @deprecated — використовуйте formatSignedPct */
+export const formatPercent = formatSignedPct;
 
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr);

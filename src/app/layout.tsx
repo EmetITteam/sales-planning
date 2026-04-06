@@ -10,7 +10,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 const jetbrains = JetBrains_Mono({
-  variable: "--font-geist-mono",
+  variable: "--font-mono",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });

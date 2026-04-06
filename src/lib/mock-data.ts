@@ -10,7 +10,7 @@ import type {
   TMSummaryCard,
 } from './types';
 
-// === Тестовые пользователи ===
+// === Тестові користувачі ===
 export const MOCK_USERS: Record<string, UserSession> = {
   'feshchenko@emet.com': {
     login: 'feshchenko@emet.com',
@@ -46,7 +46,7 @@ export const MOCK_USERS: Record<string, UserSession> = {
   },
 };
 
-// === Сегменты (ТМ) ===
+// === Сегменти (ТМ) ===
 export const SEGMENTS = [
   { code: 'PETARAN', name: 'Petaran' },
   { code: 'ELLANSE', name: 'Ellanse' },
@@ -58,7 +58,7 @@ export const SEGMENTS = [
   { code: 'OTHER', name: 'Інші ТМ' },
 ];
 
-// === Планы продаж ===
+// === Плани продажів ===
 export const MOCK_SALES_PLAN: SalesPlanResponse = {
   plans: [
     { segmentCode: 'PETARAN', segmentName: 'Petaran', planAmount: 7490, currency: 'USD' },
@@ -75,7 +75,7 @@ export const MOCK_SALES_PLAN: SalesPlanResponse = {
   periodEnd: '2026-03-31',
 };
 
-// === Факт продаж ===
+// === Факт продажів ===
 export const MOCK_SALES_FACT: SalesFactResponse = {
   facts: [
     { segmentCode: 'PETARAN', totalAmount: 378, clients: [{ clientId: 'C001', clientName: 'Бліндовська Яна Олександрівна', amount: 378, lastSaleDate: '2026-03-05' }] },
@@ -89,7 +89,7 @@ export const MOCK_SALES_FACT: SalesFactResponse = {
   ],
 };
 
-// === Клиенты по сегменту (пример для Petaran) ===
+// === Клієнти по сегменту (приклад для Petaran) ===
 export const MOCK_CLIENTS_PETARAN: Client1C[] = [
   { clientId: 'C001', clientName: 'Бліндовська Яна Олександрівна', category: 'active', lastPurchaseDate: '2026-03-05', lastPurchaseAmount: 378, totalYTD: 756, meetingsThisMonth: 1, callsThisMonth: 3, phone: '+380501234567', address: 'м. Дніпро' },
   { clientId: 'C002', clientName: 'Андрущук Катерина Миколаївна', category: 'active', lastPurchaseDate: '2026-02-10', lastPurchaseAmount: 378, totalYTD: 378, meetingsThisMonth: 0, callsThisMonth: 2, phone: '+380509876543', address: 'м. Дніпро' },
@@ -130,9 +130,9 @@ export const MOCK_GAP_CLOSURES: GapClosureRow[] = [
   { clientId1c: 'C105', clientName: 'Калина Ольга Сергіївна', category: 'Сплячий', potentialAmount: 252, action: 'зідвон, продаж акції', deadline: '2026-04-09', factAmount: 0, lastPurchaseDate: '2025-09-12', lastPurchaseAmount: 252 },
 ];
 
-// === Сводные карточки для дашборда менеджера ===
+// === Зведені картки для дашборду менеджера ===
 export function getMockTMSummaries(): TMSummaryCard[] {
-  const now = new Date(2026, 2, 8); // 8 марта 2026
+  const now = new Date(2026, 2, 8); // 8 березня 2026
   const daysInMonth = 31;
   const dayOfMonth = now.getDate();
   const expectedPct = (dayOfMonth / daysInMonth) * 100;
@@ -158,7 +158,7 @@ export function getMockTMSummaries(): TMSummaryCard[] {
   });
 }
 
-// === Данные региона для РМ ===
+// === Дані регіону для РМ ===
 export const MOCK_REGION_DATA: RegionDataResponse = {
   regionName: 'Дніпро',
   regionCode: 'DNP',

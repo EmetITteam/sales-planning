@@ -1,17 +1,17 @@
-// === Роли ===
+// === Ролі ===
 export type UserRole = 'manager' | 'rm' | 'director';
 
-// === Данные пользователя (из 1С при логине) ===
+// === Дані користувача (з 1С при логіні) ===
 export interface UserSession {
   login: string;
   fullName: string;
   role: UserRole;
   region: string;
   regionCode: string;
-  managedUsers: string[]; // логины подчинённых (для РМ/директора)
+  managedUsers: string[]; // логіни підлеглих (для РМ/директора)
 }
 
-// === Сегменты (ТМ) ===
+// === Сегменти (ТМ) ===
 export interface SegmentPlan {
   segmentCode: string;
   segmentName: string;
@@ -26,7 +26,7 @@ export interface SalesPlanResponse {
   periodEnd: string;
 }
 
-// === Факт продаж ===
+// === Факт продажів ===
 export interface ClientSale {
   clientId: string;
   clientName: string;
@@ -44,7 +44,7 @@ export interface SalesFactResponse {
   facts: SegmentFact[];
 }
 
-// === Клиенты по сегменту ===
+// === Клієнти по сегменту ===
 export interface Client1C {
   clientId: string;
   clientName: string;
@@ -58,7 +58,7 @@ export interface Client1C {
   address: string;
 }
 
-// === Данные региона (для РМ) ===
+// === Дані регіону (для РМ) ===
 export interface ManagerSegmentData {
   segmentCode: string;
   segmentName: string;
@@ -79,7 +79,7 @@ export interface RegionDataResponse {
   managers: ManagerRegionData[];
 }
 
-// === Сводка по всем регионам (для директора) ===
+// === Зведення по всіх регіонах (для директора) ===
 export interface RegionSummary {
   regionName: string;
   regionCode: string;
@@ -133,7 +133,7 @@ export interface GapActions {
   action3: string;
 }
 
-// === Сводная карточка ТМ на дашборде ===
+// === Зведена картка ТМ на дашборді ===
 export interface TMSummaryCard {
   segmentCode: string;
   segmentName: string;
@@ -148,7 +148,7 @@ export interface TMSummaryCard {
   status: 'submitted' | 'draft' | 'empty';
 }
 
-// === Период ===
+// === Період ===
 export interface PeriodInfo {
   id: number;
   weekStart: string;

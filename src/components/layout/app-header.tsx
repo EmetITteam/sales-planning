@@ -22,8 +22,8 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLE_COLORS: Record<string, string> = {
   manager: 'bg-[#c5e3f6] text-[#055a91]',
-  rm: 'bg-[#c5e3f6] text-[#055a91]',
-  director: 'bg-[#c5e3f6] text-[#055a91]',
+  rm: 'bg-[#e8d5f5] text-[#6b21a8]',
+  director: 'bg-[#fde68a] text-[#92400e]',
 };
 
 export function AppHeader() {
