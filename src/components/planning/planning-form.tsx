@@ -13,7 +13,7 @@ import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapAc
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
   ArrowUpRight, ArrowDownRight, Trash2, Plus, Check, Phone, Calendar,
-  AlertTriangle, Clock, Lock,
+  AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw,
 } from 'lucide-react';
 
 interface PlanningFormProps {
