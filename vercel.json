@@ -1,4 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npx next build --no-turbopack"
+  "buildCommand": "next build --webpack"
 }
