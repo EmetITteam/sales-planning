@@ -158,6 +158,31 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
         </div>
       </div>
 
+      {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === */}
+      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+        <div className="px-5 py-3 border-b border-[#e2e7ef]">
+          <h3 className="text-[14px] font-bold">Дані по клієнтах по ТМ</h3>
+        </div>
+        <div className="divide-y divide-[#f0f2f8]">
+          {categories.map(cat => (
+            <div key={cat.category} className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-3">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb]">{CAT_ICONS[cat.category]}</div>
+              <p className="text-[13px] font-medium">{cat.label}</p>
+              <div className="text-right"><p className="text-[10px] text-muted-foreground">Кількість</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
+              <div className="text-right"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono">{formatUSD(cat.expectedAmount)}</p></div>
+              <div className="text-right"><p className="text-[10px] text-muted-foreground">Закрив. %</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
+            </div>
+          ))}
+          <div className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-3 bg-[#f4f7fb]">
+            <div />
+            <p className="text-[13px] font-bold">Всього</p>
+            <p className="text-[14px] font-bold text-right">{totalCatClients}</p>
+            <p className="text-[14px] font-bold font-mono text-right">{formatUSD(totalCatAmount)}</p>
+            <p className="text-[14px] font-bold text-[#066aab] text-right">{totalCatPct.toFixed(1)}%</p>
+          </div>
+        </div>
+      </div>
+
       {/* === ПРОГНОЗ ПО АКТИВНИХ КЛІЄНТАХ === */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -301,18 +326,31 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
         </div>
 
         {gapClosures.length > 0 && (
-          <div className="space-y-2.5">
+          <div>
+            {/* Заголовки колонок */}
+            <div className="grid grid-cols-[36px_1fr_80px_1fr_130px_65px_32px] gap-2 px-5 mb-1">
+              <div />
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Потенціал</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Дія</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Термін</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Факт</p>
+              <div />
+            </div>
+
+            <div className="space-y-2">
             {gapClosures.map((row, i) => {
               const hasFact = row.factAmount > 0;
               return (
                 <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
-                  <div className="flex items-center gap-3 px-5 py-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
+                  <div className="grid grid-cols-[36px_1fr_80px_1fr_130px_65px_32px] gap-2 items-center px-5 py-3">
+                    {/* Іконка */}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
                       {hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
                     </div>
 
-                    {/* Клієнт + категорія + ост. покупка */}
-                    <div className="min-w-[170px]">
+                    {/* Клієнт */}
+                    <div className="min-w-0">
                       {row.manuallyAdded ? (
                         <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)}
                           className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
@@ -320,50 +358,42 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
                         <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
                       )}
                       <div className="flex items-center gap-2 mt-0.5">
-                        {row.category && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>
-                        )}
-                        <span className="text-[10px] text-muted-foreground">
+                        {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}
+                        <span className="text-[10px] text-muted-foreground truncate">
                           {row.lastPurchaseDate ? `${formatDate(row.lastPurchaseDate)} · ${formatUSD(row.lastPurchaseAmount)}` : ''}
                         </span>
                       </div>
                     </div>
 
-                    <div className="shrink-0">
-                      <p className="text-[10px] text-muted-foreground text-center mb-0.5">Потенціал</p>
-                      <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
-                        className="h-8 w-[80px] text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
-                    </div>
+                    {/* Потенціал */}
+                    <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
+                      className="h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
 
-                    <div className="flex-1 min-w-[130px]">
-                      <p className="text-[10px] text-muted-foreground mb-0.5">Дія</p>
-                      <Input value={row.action} onChange={(e) => updateGap(i, 'action', e.target.value)}
-                        className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Що зробити..." />
-                    </div>
+                    {/* Дія */}
+                    <Input value={row.action} onChange={(e) => updateGap(i, 'action', e.target.value)}
+                      className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Що зробити..." />
 
-                    <div className="shrink-0">
-                      <p className="text-[10px] text-muted-foreground mb-0.5">Термін</p>
-                      <Input type="date" value={row.deadline} onChange={(e) => updateGap(i, 'deadline', e.target.value)}
-                        className="h-8 w-[130px] text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
-                    </div>
+                    {/* Термін */}
+                    <Input type="date" value={row.deadline} onChange={(e) => updateGap(i, 'deadline', e.target.value)}
+                      className="h-8 w-full text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
 
-                    <div className="shrink-0 min-w-[65px]">
-                      <p className="text-[10px] text-muted-foreground text-right mb-0.5">Факт</p>
-                      <p className={`text-[14px] font-bold text-right ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
-                        {hasFact ? formatUSD(row.factAmount) : '—'}
-                      </p>
-                    </div>
+                    {/* Факт */}
+                    <p className={`text-[14px] font-bold text-right ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
+                      {hasFact ? formatUSD(row.factAmount) : '—'}
+                    </p>
 
+                    {/* Видалити */}
                     <button onClick={() => setGapClosures(prev => prev.filter((_, j) => j !== i))}
-                      className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer shrink-0">
+                      className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
               );
             })}
+            </div>
 
-            <div className="bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
+            <div className="mt-3 bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
               <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold">{formatUSD(gapTotal)}</p></div>
               <div className="w-px h-8 bg-amber-200/40" />
               <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600">{formatUSD(gapFactTotal)}</p></div>
