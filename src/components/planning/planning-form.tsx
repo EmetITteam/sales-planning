@@ -9,7 +9,7 @@ import { formatUSD, formatDate } from '@/lib/format';
 import { useAppStore } from '@/lib/store';
 import { getDaysInPeriod } from '@/lib/periods';
 import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, SEGMENTS } from '@/lib/mock-data';
-import type { ForecastRow, GapClosureRow, Client1C, GapActions } from '@/lib/types';
+import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
   ArrowUpRight, ArrowDownRight, Trash2, Plus, Check, Phone, Calendar,
