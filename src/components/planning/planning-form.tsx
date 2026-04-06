@@ -26,6 +26,8 @@ const STAGE_OPTIONS = [
   { value: 'meeting', label: 'Зустріч', icon: Calendar },
 ];
 
+const STAGE_LABELS: Record<string, string> = { call: 'Дзвінок', meeting: 'Зустріч' };
+
 export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
   const plan = MOCK_SALES_PLAN.plans.find(p => p.segmentCode === segmentCode);
@@ -171,98 +173,93 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
           </Button>
         </div>
 
-        <div className="space-y-2.5">
+        {/* Заголовок колонок */}
+        <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 px-5 mb-1">
+          <div />
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Прогноз</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Етап</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Статус</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Коментар</p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Факт</p>
+          <div />
+        </div>
+
+        <div className="space-y-2">
           {sortedForecasts.map((row) => {
             const StageIcon = row.stage === 'meeting' ? Calendar : Phone;
             return (
-              <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-75' : ''}`}>
-                <div className="flex items-center gap-3 px-5 py-3">
-                  {/* Статус */}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'
-                  }`}>
+              <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
+                <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 items-center px-5 py-3">
+                  {/* Іконка статусу */}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
                     {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
                   </div>
 
-                  {/* Клієнт + ост. покупка */}
-                  <div className="min-w-[180px]">
+                  {/* Клієнт */}
+                  <div className="min-w-0">
                     <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      Ост. покупка: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · {formatUSD(row.lastPurchaseAmount)}
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · {formatUSD(row.lastPurchaseAmount)}
                     </p>
                   </div>
 
-                  {/* Сума прогнозу */}
-                  <div className="shrink-0">
-                    <p className="text-[10px] text-muted-foreground text-center mb-0.5">Прогноз</p>
-                    {row.completed ? (
-                      <div className="flex items-center gap-1 h-8 px-2">
-                        <Lock className="h-3 w-3 text-muted-foreground/40" />
-                        <span className="text-[14px] font-bold text-muted-foreground">{formatUSD(row.forecastAmount)}</span>
-                      </div>
-                    ) : (
-                      <Input type="number" value={row.forecastAmount}
-                        onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
-                        className="h-8 w-[80px] text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
-                    )}
-                  </div>
+                  {/* Прогноз */}
+                  {row.completed ? (
+                    <div className="flex items-center justify-end gap-1">
+                      <Lock className="h-3 w-3 text-muted-foreground/40" />
+                      <span className="text-[14px] font-bold text-muted-foreground">{formatUSD(row.forecastAmount)}</span>
+                    </div>
+                  ) : (
+                    <Input type="number" value={row.forecastAmount}
+                      onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
+                      className="h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
+                  )}
 
-                  {/* Етап (dropdown) */}
-                  <div className="shrink-0">
-                    <p className="text-[10px] text-muted-foreground text-center mb-0.5">Етап</p>
-                    <Select value={row.stage || undefined} onValueChange={(v) => { if (v) updateForecast(row.clientId1c, 'stage', v); }}>
-                      <SelectTrigger className="h-8 w-[120px] text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]">
-                        <SelectValue placeholder="Оберіть..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STAGE_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            <span className="flex items-center gap-1.5">
-                              <opt.icon className="h-3 w-3" /> {opt.label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* Етап */}
+                  <Select value={row.stage || undefined} onValueChange={(v) => { if (v) updateForecast(row.clientId1c, 'stage', v); }}>
+                    <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]">
+                      <SelectValue placeholder="Оберіть..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STAGE_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <span className="flex items-center gap-1.5">
+                            <opt.icon className="h-3 w-3" /> {opt.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                  {/* Виконано (з 1С) */}
-                  <div className="shrink-0">
-                    <p className="text-[10px] text-muted-foreground text-center mb-0.5">Статус</p>
-                    {row.stage ? (
-                      <div className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[11px] font-semibold ${
-                        row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        <StageIcon className="h-3 w-3" />
-                        {row.stageDone ? 'Виконано' : 'Очікується'}
-                      </div>
-                    ) : (
-                      <div className="h-8 flex items-center text-[11px] text-muted-foreground/40">—</div>
-                    )}
-                  </div>
+                  {/* Статус */}
+                  {row.stage ? (
+                    <div className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold ${
+                      row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      <StageIcon className="h-3 w-3" />
+                      {row.stageDone ? 'Виконано' : 'Очікується'}
+                    </div>
+                  ) : (
+                    <div className="h-8 flex items-center justify-center text-[11px] text-muted-foreground/40">—</div>
+                  )}
 
                   {/* Коментар */}
-                  <div className="flex-1 min-w-[140px]">
-                    <p className="text-[10px] text-muted-foreground mb-0.5">Коментар</p>
-                    <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                      className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль дзвінка/зустрічі..." />
-                  </div>
+                  <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
+                    className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль..." />
 
                   {/* Факт */}
-                  <div className="shrink-0 min-w-[70px]">
-                    <p className="text-[10px] text-muted-foreground text-right mb-0.5">Факт</p>
-                    <p className={`text-[14px] font-bold text-right ${row.factAmount > 0 ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
-                      {row.factAmount > 0 ? formatUSD(row.factAmount) : '—'}
-                    </p>
-                  </div>
+                  <p className={`text-[14px] font-bold text-right ${row.factAmount > 0 ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
+                    {row.factAmount > 0 ? formatUSD(row.factAmount) : '—'}
+                  </p>
 
                   {/* Видалити */}
-                  {!row.completed && (
+                  {!row.completed ? (
                     <button onClick={() => removeForecast(row.clientId1c)}
-                      className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer shrink-0">
+                      className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
-                  )}
+                  ) : <div />}
                 </div>
               </div>
             );

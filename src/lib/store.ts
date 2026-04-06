@@ -13,10 +13,10 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   user: null,
   currentPeriod: {
-    id: 1,
-    weekStart: '2026-03-02',
-    weekEnd: '2026-03-08',
-    month: '2026-03-01',
+    id: 2,
+    weekStart: '2026-04-01',
+    weekEnd: '2026-04-12',
+    month: '2026-04-01',
     isActive: true,
   },
   designVariant: 'cards',

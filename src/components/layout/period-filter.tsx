@@ -8,7 +8,7 @@ import { Calendar, ChevronDown, Check } from 'lucide-react';
 export function PeriodFilter() {
   const { currentPeriod, setCurrentPeriod } = useAppStore();
   const [open, setOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('2026-03');
+  const [selectedMonth, setSelectedMonth] = useState('2026-04');
 
   const months = getMonthOptions();
   const [year, month] = selectedMonth.split('-').map(Number);
