@@ -7,7 +7,7 @@ import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import {
   DollarSign, Target, TrendingUp, ChevronRight,
-  ClipboardCheck, ArrowUpRight, ArrowDownRight, Users, UserPlus, RefreshCw,
+  ClipboardCheck, Users, UserPlus, RefreshCw,
 } from 'lucide-react';
 
 export function ManagerDashboard() {
@@ -56,14 +56,6 @@ export function ManagerDashboard() {
               <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${m.gradient} text-white shadow-lg`}>
                 {m.icon}
               </div>
-              {m.badge && (
-                <span className={`inline-flex items-center gap-0.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                  m.badge.positive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                }`}>
-                  {m.badge.positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                  {m.badge.text}
-                </span>
-              )}
             </div>
             <div className="mt-4">
               <p className="text-[13px] font-medium text-muted-foreground">{m.label}</p>
