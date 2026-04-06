@@ -8,7 +8,7 @@ import { ClientSearchModal } from './client-search-modal';
 import { formatUSD, formatDate } from '@/lib/format';
 import { useAppStore } from '@/lib/store';
 import { getDaysInPeriod } from '@/lib/periods';
-import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, SEGMENTS } from '@/lib/mock-data';
+import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, SEGMENTS } from '@/lib/mock-data';
 import type { ForecastRow, GapClosureRow, Client1C, GapActions } from '@/lib/types';
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
@@ -73,6 +73,26 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
   const gapFromExpected = Math.max(0, expectedAmount - factAmount);
   // Розрив після прогнозу = розрив − прогноз незавершених
   const gapAfterForecast = Math.max(0, gapFromExpected - pendingForecastTotal);
+
+  // Категорії клієнтів (з 1С)
+  const activeClients = MOCK_CLIENTS_PETARAN.filter(c => c.category === 'active');
+  const sleepingClients = MOCK_CLIENTS_PETARAN.filter(c => c.category === 'sleeping' || c.category === 'lost');
+  const activeSum = activeClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
+  const sleepingSum = sleepingClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
+  const categories: ClientCategorySummary[] = [
+    { category: 'active', label: 'Активні клієнти', clientCount: activeClients.length, expectedAmount: activeSum, planCoveragePercent: planAmount > 0 ? (activeSum / planAmount) * 100 : 0 },
+    { category: 'new', label: 'Нові клієнти по ТМ', clientCount: 0, expectedAmount: 0, planCoveragePercent: 0 },
+    { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingClients.length, expectedAmount: sleepingSum, planCoveragePercent: planAmount > 0 ? (sleepingSum / planAmount) * 100 : 0 },
+  ];
+  const totalCatClients = categories.reduce((s, c) => s + c.clientCount, 0);
+  const totalCatAmount = categories.reduce((s, c) => s + c.expectedAmount, 0);
+  const totalCatPct = planAmount > 0 ? (totalCatAmount / planAmount) * 100 : 0;
+
+  const CAT_ICONS: Record<string, React.ReactNode> = {
+    active: <Users className="h-4 w-4 text-[#066aab]" />,
+    new: <UserPlus className="h-4 w-4 text-emerald-600" />,
+    sleeping_lost: <RefreshCw className="h-4 w-4 text-amber-600" />,
+  };
 
   const updateForecast = (clientId: string, field: keyof ForecastRow, value: string | number | boolean) => {
     setForecasts(prev => prev.map(f => {
