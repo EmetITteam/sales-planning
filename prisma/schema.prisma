@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -28,9 +27,9 @@ model User {
 
 model Period {
   id        Int      @id @default(autoincrement())
-  weekStart Date     @unique @map("week_start")
-  weekEnd   Date     @map("week_end")
-  month     Date
+  weekStart DateTime @map("week_start") @db.Date
+  weekEnd   DateTime @unique @map("week_end") @db.Date
+  month     DateTime @db.Date
   isActive  Boolean  @default(false) @map("is_active")
   createdBy Int?     @map("created_by")
   createdAt DateTime @default(now()) @map("created_at")
@@ -48,15 +47,13 @@ model Forecast {
   periodId       Int      @map("period_id")
   userId         Int      @map("user_id")
   segmentCode    String   @map("segment_code") @db.VarChar(50)
-  clientId1c     String?  @map("client_id_1c") @db.VarChar(50)
+  clientId1c     String   @map("client_id_1c") @db.VarChar(50)
   clientName     String   @map("client_name") @db.VarChar(255)
-  clientType     String   @map("client_type") @db.VarChar(20)
   forecastAmount Decimal  @map("forecast_amount") @db.Decimal(12, 2)
-  probability    Int
-  dealStage      String?  @map("deal_stage")
-  nextStep       String?  @map("next_step")
-  risk           String?
-  managerName    String?  @map("manager_name") @db.VarChar(255)
+  stage          String?  @db.VarChar(20)       // Дзвінок / Зустріч
+  stageComment   String?  @map("stage_comment")
+  completed      Boolean  @default(false)
+  manuallyAdded  Boolean  @default(false) @map("manually_added")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -74,11 +71,13 @@ model GapClosure {
   periodId        Int       @map("period_id")
   userId          Int       @map("user_id")
   segmentCode     String    @map("segment_code") @db.VarChar(50)
+  clientId1c      String    @map("client_id_1c") @db.VarChar(50)
   clientName      String    @map("client_name") @db.VarChar(255)
-  clientId1c      String?   @map("client_id_1c") @db.VarChar(50)
+  category        String?   @db.VarChar(50)
   potentialAmount Decimal   @map("potential_amount") @db.Decimal(12, 2)
-  action          String
+  action          String?
   deadline        DateTime? @db.Date
+  manuallyAdded   Boolean   @default(false) @map("manually_added")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -90,16 +89,17 @@ model GapClosure {
 }
 
 model PeriodSummary {
-  id               Int       @id @default(autoincrement())
-  periodId         Int       @map("period_id")
-  userId           Int       @map("user_id")
-  segmentCode      String    @map("segment_code") @db.VarChar(50)
-  monthForecastPct Decimal?  @map("month_forecast_pct") @db.Decimal(5, 2)
-  commentary       String?
-  status           String    @default("draft") @db.VarChar(20)
-  submittedAt      DateTime? @map("submitted_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                 Int       @id @default(autoincrement())
+  periodId           Int       @map("period_id")
+  userId             Int       @map("user_id")
+  segmentCode        String    @map("segment_code") @db.VarChar(50)
+  monthForecastPct   Decimal?  @map("month_forecast_pct") @db.Decimal(5, 2)
+  monthForecastUsd   Decimal?  @map("month_forecast_usd") @db.Decimal(12, 2)
+  gapAction1         String?   @map("gap_action_1")
+  gapAction2         String?   @map("gap_action_2")
+  gapAction3         String?   @map("gap_action_3")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
   period Period @relation(fields: [periodId], references: [id])
   user   User   @relation(fields: [userId], references: [id])

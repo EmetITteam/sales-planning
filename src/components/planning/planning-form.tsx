@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
 import { formatUSD, formatDate } from '@/lib/format';
+import { savePlanning } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { getDaysInPeriod } from '@/lib/periods';
 import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, SEGMENTS } from '@/lib/mock-data';
@@ -42,6 +43,29 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
   const [monthForecastUsd, setMonthForecastUsd] = useState('');
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveResult(null);
+    const result = await savePlanning({
+      userId: 1, // TODO: реальний userId з авторизації
+      segmentCode,
+      periodId: currentPeriod.id,
+      forecasts,
+      gapClosures,
+      monthForecastPct,
+      monthForecastUsd,
+      gapActions,
+    });
+    setSaving(false);
+    setSaveResult(result.success
+      ? { ok: true, msg: 'Збережено!' }
+      : { ok: false, msg: result.error || 'Помилка збереження' }
+    );
+    setTimeout(() => setSaveResult(null), 3000);
+  };
 
   const planAmount = plan?.planAmount ?? 0;
   const factAmount = fact?.totalAmount ?? 0;
@@ -441,9 +465,24 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
       </div>
 
       {/* Зберегти */}
-      <div className="flex items-center justify-end pb-8">
-        <Button className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-11 px-6 text-[14px] font-semibold">
-          <Save className="h-4 w-4" /> Зберегти
+      <div className="flex items-center justify-end gap-3 pb-8">
+        {saveResult && (
+          <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${
+            saveResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+          }`}>
+            {saveResult.msg}
+          </span>
+        )}
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+        >
+          {saving ? (
+            <><span className="animate-spin">⏳</span> Зберігаю...</>
+          ) : (
+            <><Save className="h-4 w-4" /> Зберегти</>
+          )}
         </Button>
       </div>
 
