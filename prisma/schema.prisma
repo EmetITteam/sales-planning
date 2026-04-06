@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  login       String    @unique @db.VarChar(100)
+  fullName    String    @map("full_name") @db.VarChar(255)
+  role        String    @db.VarChar(20)
+  region      String?   @db.VarChar(100)
+  regionCode  String?   @map("region_code") @db.VarChar(10)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  forecasts       Forecast[]
+  gapClosures     GapClosure[]
+  periodSummaries PeriodSummary[]
+  createdPeriods  Period[]
+
+  @@map("users")
+}
+
+model Period {
+  id        Int      @id @default(autoincrement())
+  weekStart Date     @unique @map("week_start")
+  weekEnd   Date     @map("week_end")
+  month     Date
+  isActive  Boolean  @default(false) @map("is_active")
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  creator         User?           @relation(fields: [createdBy], references: [id])
+  forecasts       Forecast[]
+  gapClosures     GapClosure[]
+  periodSummaries PeriodSummary[]
+
+  @@map("periods")
+}
+
+model Forecast {
+  id             Int      @id @default(autoincrement())
+  periodId       Int      @map("period_id")
+  userId         Int      @map("user_id")
+  segmentCode    String   @map("segment_code") @db.VarChar(50)
+  clientId1c     String?  @map("client_id_1c") @db.VarChar(50)
+  clientName     String   @map("client_name") @db.VarChar(255)
+  clientType     String   @map("client_type") @db.VarChar(20)
+  forecastAmount Decimal  @map("forecast_amount") @db.Decimal(12, 2)
+  probability    Int
+  dealStage      String?  @map("deal_stage")
+  nextStep       String?  @map("next_step")
+  risk           String?
+  managerName    String?  @map("manager_name") @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  period Period @relation(fields: [periodId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([periodId, userId, segmentCode, clientId1c])
+  @@index([periodId, userId])
+  @@index([segmentCode])
+  @@map("forecasts")
+}
+
+model GapClosure {
+  id              Int       @id @default(autoincrement())
+  periodId        Int       @map("period_id")
+  userId          Int       @map("user_id")
+  segmentCode     String    @map("segment_code") @db.VarChar(50)
+  clientName      String    @map("client_name") @db.VarChar(255)
+  clientId1c      String?   @map("client_id_1c") @db.VarChar(50)
+  potentialAmount Decimal   @map("potential_amount") @db.Decimal(12, 2)
+  action          String
+  deadline        DateTime? @db.Date
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  period Period @relation(fields: [periodId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([periodId, userId])
+  @@map("gap_closures")
+}
+
+model PeriodSummary {
+  id               Int       @id @default(autoincrement())
+  periodId         Int       @map("period_id")
+  userId           Int       @map("user_id")
+  segmentCode      String    @map("segment_code") @db.VarChar(50)
+  monthForecastPct Decimal?  @map("month_forecast_pct") @db.Decimal(5, 2)
+  commentary       String?
+  status           String    @default("draft") @db.VarChar(20)
+  submittedAt      DateTime? @map("submitted_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  period Period @relation(fields: [periodId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([periodId, userId, segmentCode])
+  @@index([periodId])
+  @@map("period_summaries")
+}
