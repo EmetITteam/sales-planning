@@ -194,35 +194,43 @@ export const MOCK_REGION_DATA: RegionDataResponse = {
   ],
 };
 
-// === Данные всех регионов для директора ===
+// === Фіксовані дані регіонів для директора (без Math.random) ===
+function makeSegments(base: number[]): { segmentCode: string; segmentName: string; planAmount: number; factAmount: number; factPercent: number }[] {
+  return SEGMENTS.map((s, i) => {
+    const plan = base[i * 2] ?? 5000;
+    const fact = base[i * 2 + 1] ?? 1000;
+    return { segmentCode: s.code, segmentName: s.name, planAmount: plan, factAmount: fact, factPercent: plan > 0 ? Math.round((fact / plan) * 1000) / 10 : 0 };
+  });
+}
+
 export const MOCK_ALL_REGIONS: RegionSummary[] = [
   MOCK_REGION_DATA,
   {
     regionName: 'Київ', regionCode: 'KYV',
     managers: [
-      { login: 'm1@emet.com', name: 'Коваленко Ірина', segments: SEGMENTS.map(s => ({ segmentCode: s.code, segmentName: s.name, planAmount: Math.round(Math.random() * 15000 + 3000), factAmount: Math.round(Math.random() * 8000 + 500), factPercent: Math.round(Math.random() * 40 + 5) })) },
-      { login: 'm2@emet.com', name: 'Бондаренко Олег', segments: SEGMENTS.map(s => ({ segmentCode: s.code, segmentName: s.name, planAmount: Math.round(Math.random() * 15000 + 3000), factAmount: Math.round(Math.random() * 8000 + 500), factPercent: Math.round(Math.random() * 40 + 5) })) },
-      { login: 'm3@emet.com', name: 'Савченко Марія', segments: SEGMENTS.map(s => ({ segmentCode: s.code, segmentName: s.name, planAmount: Math.round(Math.random() * 15000 + 3000), factAmount: Math.round(Math.random() * 8000 + 500), factPercent: Math.round(Math.random() * 40 + 5) })) },
+      { login: 'm1@emet.com', name: 'Коваленко Ірина', segments: makeSegments([8500, 2100, 12000, 4400, 4200, 890, 6100, 3350, 7800, 1900, 15200, 4100, 18000, 5600, 9200, 2800]) },
+      { login: 'm2@emet.com', name: 'Бондаренко Олег', segments: makeSegments([7200, 1600, 9800, 3200, 3800, 720, 5400, 2800, 6500, 1400, 13800, 3600, 16500, 4200, 8100, 2100]) },
+      { login: 'm3@emet.com', name: 'Савченко Марія', segments: makeSegments([6800, 1900, 11200, 5100, 3500, 950, 4800, 2100, 5900, 1650, 12400, 3900, 15200, 4800, 7600, 2400]) },
     ],
   },
   {
     regionName: 'Одеса', regionCode: 'ODS',
     managers: [
-      { login: 'm4@emet.com', name: 'Мельник Тетяна', segments: SEGMENTS.map(s => ({ segmentCode: s.code, segmentName: s.name, planAmount: Math.round(Math.random() * 12000 + 2000), factAmount: Math.round(Math.random() * 6000 + 300), factPercent: Math.round(Math.random() * 35 + 8) })) },
-      { login: 'm5@emet.com', name: 'Шевченко Дмитро', segments: SEGMENTS.map(s => ({ segmentCode: s.code, segmentName: s.name, planAmount: Math.round(Math.random() * 12000 + 2000), factAmount: Math.round(Math.random() * 6000 + 300), factPercent: Math.round(Math.random() * 35 + 8) })) },
+      { login: 'm4@emet.com', name: 'Мельник Тетяна', segments: makeSegments([5200, 1100, 8400, 2800, 2800, 560, 4200, 1900, 5100, 1200, 10800, 2900, 13500, 3400, 6200, 1800]) },
+      { login: 'm5@emet.com', name: 'Шевченко Дмитро', segments: makeSegments([4800, 980, 7600, 2400, 2500, 480, 3800, 1650, 4600, 1050, 9500, 2500, 12200, 3100, 5800, 1500]) },
     ],
   },
   {
     regionName: 'Львів', regionCode: 'LVV',
     managers: [
-      { login: 'm6@emet.com', name: 'Гончарук Олена', segments: SEGMENTS.map(s => ({ segmentCode: s.code, segmentName: s.name, planAmount: Math.round(Math.random() * 10000 + 2000), factAmount: Math.round(Math.random() * 5000 + 200), factPercent: Math.round(Math.random() * 30 + 10) })) },
+      { login: 'm6@emet.com', name: 'Гончарук Олена', segments: makeSegments([4500, 1250, 7200, 2900, 2200, 650, 3600, 1800, 4200, 980, 8900, 2800, 11200, 3600, 5200, 1650]) },
     ],
   },
   {
     regionName: 'Харків', regionCode: 'KHK',
     managers: [
-      { login: 'm7@emet.com', name: 'Лисенко Андрій', segments: SEGMENTS.map(s => ({ segmentCode: s.code, segmentName: s.name, planAmount: Math.round(Math.random() * 13000 + 3000), factAmount: Math.round(Math.random() * 7000 + 500), factPercent: Math.round(Math.random() * 45 + 3) })) },
-      { login: 'm8@emet.com', name: 'Кравченко Юлія', segments: SEGMENTS.map(s => ({ segmentCode: s.code, segmentName: s.name, planAmount: Math.round(Math.random() * 13000 + 3000), factAmount: Math.round(Math.random() * 7000 + 500), factPercent: Math.round(Math.random() * 45 + 3) })) },
+      { login: 'm7@emet.com', name: 'Лисенко Андрій', segments: makeSegments([6200, 1400, 9200, 3100, 3200, 710, 4600, 2200, 5800, 1350, 11800, 3200, 14800, 4100, 7100, 2100]) },
+      { login: 'm8@emet.com', name: 'Кравченко Юлія', segments: makeSegments([5800, 1250, 8800, 2800, 3000, 620, 4200, 1900, 5400, 1200, 11200, 2900, 14200, 3800, 6800, 1950]) },
     ],
   },
 ];
