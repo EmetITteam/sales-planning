@@ -479,7 +479,10 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
           className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
         >
           {saving ? (
-            <><span className="animate-spin">⏳</span> Зберігаю...</>
+            <>
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              Зберігаю...
+            </>
           ) : (
             <><Save className="h-4 w-4" /> Зберегти</>
           )}
