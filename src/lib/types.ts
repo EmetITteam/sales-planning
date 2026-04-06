@@ -86,6 +86,15 @@ export interface RegionSummary {
   managers: ManagerRegionData[];
 }
 
+// === Зведена по категоріях клієнтів ===
+export interface ClientCategorySummary {
+  category: 'active' | 'new' | 'sleeping_lost';
+  label: string;
+  clientCount: number;
+  expectedAmount: number;
+  planCoveragePercent: number; // закривають % виконання плану
+}
+
 // === Прогноз (ручной ввод, хранится в PostgreSQL) ===
 export interface ForecastRow {
   id?: number;
@@ -97,6 +106,7 @@ export interface ForecastRow {
   dealStage: string;
   nextStep: string;
   risk: string;
+  managerName: string;
 }
 
 // === Закрытие разрыва ===
@@ -106,7 +116,8 @@ export interface GapClosureRow {
   clientId1c: string | null;
   potentialAmount: number;
   action: string;
-  deadline: string | null;
+  deadline: string;
+  comment: string;
 }
 
 // === Сводная карточка ТМ на дашборде ===

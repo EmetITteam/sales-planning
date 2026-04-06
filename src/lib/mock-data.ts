@@ -6,6 +6,7 @@ import type {
   RegionDataResponse,
   RegionSummary,
   ForecastRow,
+  GapClosureRow,
   TMSummaryCard,
 } from './types';
 
@@ -104,16 +105,29 @@ export const MOCK_CLIENTS_PETARAN: Client1C[] = [
   { clientId: 'C102', clientName: 'Булдакова Регіна', category: 'sleeping', lastPurchaseDate: '2025-10-05', lastPurchaseAmount: 252, totalYTD: 0, meetingsThisMonth: 0, callsThisMonth: 0, phone: '+380661234568', address: 'м. Шахтарськ' },
 ];
 
-// === Тестовые прогнозы для Petaran ===
+// === Тестовые прогнозы для Petaran (з менеджером) ===
 export const MOCK_FORECASTS_PETARAN: ForecastRow[] = [
-  { clientId1c: 'C002', clientName: 'Андрущук Катерина Миколаївна', clientType: 'active', forecastAmount: 378, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції', nextStep: 'поки не планує замовляти, приїде 8 квітня', risk: 'працює закордоном, залежить від перевізника' },
-  { clientId1c: 'C003', clientName: 'Гімішлі Анастасія Миколаївна', clientType: 'active', forecastAmount: 252, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції', nextStep: 'запросити на навчання 24.03 під закупку 2х флаконів', risk: 'мало працює колагеностимуляторами' },
-  { clientId1c: 'C004', clientName: 'Головатая Алла', clientType: 'active', forecastAmount: 252, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції', nextStep: 'запросити на навчання 24.03 під закупку 2х флаконів', risk: 'працює закордоном, раз на місяць приїзджає' },
-  { clientId1c: 'C005', clientName: 'Календа Марина', clientType: 'active', forecastAmount: 252, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції', nextStep: 'запросити на навчання 24.03 під закупку 2х флаконів', risk: 'купила 5 флаконів, падкая на акції' },
-  { clientId1c: 'C008', clientName: 'Ліпунова Аліна Олександрівна', clientType: 'active', forecastAmount: 378, probability: 30, dealStage: '13.03 зідзвон і продаж акції', nextStep: 'запросити на навчання 24.03', risk: 'може замовити у конкурентів' },
-  { clientId1c: 'C001', clientName: 'Бліндовська Яна Олександрівна', clientType: 'active', forecastAmount: 378, probability: 100, dealStage: 'купила акцію', nextStep: '', risk: '' },
-  { clientId1c: 'C009', clientName: 'Воронько Катерина Олександрівна', clientType: 'active', forecastAmount: 595, probability: 30, dealStage: 'зідзвон до 13.03', nextStep: 'пропокувати купити акцію від 5 флаконів', risk: 'не відповідає на телефонні дзвінки' },
-  { clientId1c: 'C100', clientName: 'Карапиш Лариса Володимирівна', clientType: 'active', forecastAmount: 378, probability: 100, dealStage: 'купила', nextStep: '', risk: '' },
+  { clientId1c: 'C002', clientName: 'Андрущук Катерина Миколаївна', clientType: 'active', forecastAmount: 378, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: 'поки не планує замовляти, приїде 8 квітня на навчання Ellanse', risk: 'працює закордоном, залежить від перевізника', managerName: 'Фещенко' },
+  { clientId1c: 'C003', clientName: 'Гімішлі Анастасія Миколаївна', clientType: 'active', forecastAmount: 252, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: 'запросити на навчання 24.03 під закупку 2х флаконів', risk: 'мало працює колагеностимуляторами', managerName: 'Фещенко' },
+  { clientId1c: 'C004', clientName: 'Головатая Алла', clientType: 'active', forecastAmount: 252, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: 'запросити на навчання 24.03 під закупку 2х флаконів', risk: 'працює закордоном, раз на місяць приїзджає', managerName: 'Фещенко' },
+  { clientId1c: 'C005', clientName: 'Календа Марина', clientType: 'active', forecastAmount: 252, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: 'запросити на навчання 24.03 під закупку 2х флаконів', risk: 'купила 5 флаконів, падкая на акції', managerName: 'Фещенко' },
+  { clientId1c: 'C008', clientName: 'Ліпунова Аліна Олександрівна', clientType: 'active', forecastAmount: 378, probability: 30, dealStage: '13.03 зідзвон і продаж акції, 12.03 повертається з відпустки', nextStep: 'запросити на навчання 24.03 під закупку 2х флаконів', risk: 'може замовити у конкурентів', managerName: 'Фещенко' },
+  { clientId1c: 'C001', clientName: 'Бліндовська Яна Олександрівна', clientType: 'active', forecastAmount: 378, probability: 100, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: '', risk: 'купила акцію', managerName: 'Сірик' },
+  { clientId1c: 'C009', clientName: 'Воронько Катерина Олександрівна', clientType: 'active', forecastAmount: 595, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: 'пропокувати купити акцію від 5 флаконів до кінця місяця', risk: 'не відповідає на телефонні дзвінки', managerName: 'Сірик' },
+  { clientId1c: 'C100', clientName: 'Карапиш Лариса Володимирівна', clientType: 'active', forecastAmount: 378, probability: 100, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: '', risk: 'купила', managerName: 'Сірик' },
+  { clientId1c: 'C006', clientName: 'Карпенко Вікторія', clientType: 'active', forecastAmount: 252, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: 'запросити на навчання 24.03 під закупку 2х флаконів', risk: 'купила у минулому місяці, не впевнена', managerName: 'Фещенко' },
+  { clientId1c: 'C007', clientName: "Лисенко Дар'я (Почетна)", clientType: 'active', forecastAmount: 252, probability: 30, dealStage: 'зідзвон до 13.03, продаж акції що діє до 15.03', nextStep: 'до 21 квітня не буде в країні', risk: 'в пошуку підходящіх пацієнтів', managerName: 'Фещенко' },
+];
+
+// === Закриття розриву (з Excel) ===
+export const MOCK_GAP_CLOSURES: GapClosureRow[] = [
+  { clientName: 'Астровська Катерина Юріївна', clientId1c: 'C101', potentialAmount: 378, action: 'зідвон, продаж акції що діє до 15.03', deadline: '2026-03-11', comment: 'їде на інтершарм, замовить після повернення якщо ще буде актуально' },
+  { clientName: 'Булдакова Регіна', clientId1c: 'C102', potentialAmount: 252, action: 'зідвон, продаж акції що діє до 15.03', deadline: '2026-03-11', comment: 'працює в Шахтарську не купує наперед, нагадування 13.03' },
+  { clientName: 'Вакуленко Катерина Олексіївна', clientId1c: null, potentialAmount: 378, action: 'зідвон, продаж акції що діє до 15.03', deadline: '2026-03-12', comment: 'співпрацює з усіма компаніями, амбассадор Тотіса' },
+  { clientName: 'Дячок Олена Олексіївна', clientId1c: null, potentialAmount: 378, action: 'провела презентацію, очікую на замовлення', deadline: '2026-03-12', comment: 'купила акцію' },
+  { clientName: 'Калина Ольга Сергіївна', clientId1c: null, potentialAmount: 252, action: 'зідвон, продаж акції що діє до 15.03', deadline: '2026-03-13', comment: 'працює в Нікополі не закупається наперед, лише під клієнта' },
+  { clientName: 'Ковпак Елена Васильевна', clientId1c: null, potentialAmount: 252, action: 'записана на навчання 24.03', deadline: '2026-03-24', comment: '' },
+  { clientName: 'Малеева Алена', clientId1c: null, potentialAmount: 252, action: 'зустріч, продаж акції', deadline: '2026-03-17', comment: 'зламала руку, на реабілітації, хоче купити' },
 ];
 
 // === Сводные карточки для дашборда менеджера ===
