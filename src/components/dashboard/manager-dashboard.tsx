@@ -41,17 +41,14 @@ export function ManagerDashboard() {
           },
           {
             label: 'Факт', value: formatUSD(totalFact),
-            badge: totalPct >= 20
-              ? { text: `+${(totalPct - 22.73).toFixed(1)}%`, positive: true }
-              : { text: `${(totalPct - 22.73).toFixed(1)}%`, positive: false },
             icon: <DollarSign className="h-5 w-5" />,
             gradient: 'from-emerald-500 to-teal-600',
           },
           {
             label: 'Виконання', value: formatPct(totalPct),
-            subtitle: 'Очікуване: 22.7%',
+            subtitle: `Очікуване: 22.7% · Відхилення: ${(totalPct - 22.73) >= 0 ? '+' : ''}${(totalPct - 22.73).toFixed(1)}%`,
             icon: <TrendingUp className="h-5 w-5" />,
-            gradient: 'from-[#066aab] to-[#0880cc]',
+            gradient: (totalPct - 22.73) >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600',
           },
         ].map((m) => (
           <div key={m.label} className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.06)] transition-shadow duration-300">
