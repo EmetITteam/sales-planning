@@ -1,6 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "next build",
-  "installCommand": "npm install",
-  "ignoreCommand": ""
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "next build"
 }
