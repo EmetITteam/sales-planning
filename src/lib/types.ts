@@ -95,21 +95,18 @@ export interface ClientCategorySummary {
   planCoveragePercent: number; // закривають % виконання плану
 }
 
-// === Прогноз (ручной ввод, хранится в PostgreSQL) ===
+// === Прогноз (новий шаблон КВІТЕНЬ) ===
 export interface ForecastRow {
   id?: number;
   clientId1c: string | null;
   clientName: string;
   clientType: string;
   forecastAmount: number;
-  probability: 100 | 70 | 30;
   dealStage: string;
-  nextStep: string;
-  risk: string;
-  managerName: string;
+  factAmount: number; // факт на дату звіту (з 1С)
 }
 
-// === Закрытие разрыва ===
+// === Закриття розриву ===
 export interface GapClosureRow {
   id?: number;
   clientName: string;
@@ -117,7 +114,14 @@ export interface GapClosureRow {
   potentialAmount: number;
   action: string;
   deadline: string;
-  comment: string;
+  factAmount: number; // факт на дату звіту (з 1С)
+}
+
+// === Дії для закриття розриву (текстовий блок) ===
+export interface GapActions {
+  action1: string;
+  action2: string;
+  action3: string;
 }
 
 // === Сводная карточка ТМ на дашборде ===
