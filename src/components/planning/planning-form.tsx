@@ -1,23 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
-import { formatUSD } from '@/lib/format';
-import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, SEGMENTS } from '@/lib/mock-data';
-import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
-import { ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Trash2, Plus, Users, UserPlus, RefreshCw, AlertTriangle, Check } from 'lucide-react';
+import { formatUSD, formatDate } from '@/lib/format';
+import { useAppStore } from '@/lib/store';
+import { getDaysInPeriod } from '@/lib/periods';
+import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, SEGMENTS } from '@/lib/mock-data';
+import type { ForecastRow, GapClosureRow, Client1C, GapActions } from '@/lib/types';
+import {
+  ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
+  ArrowUpRight, ArrowDownRight, Trash2, Plus, Check, Phone, Calendar,
+  AlertTriangle, Clock, Lock,
+} from 'lucide-react';
 
 interface PlanningFormProps {
   segmentCode: string;
   onBack: () => void;
 }
 
+const STAGE_OPTIONS = [
+  { value: 'call', label: 'Дзвінок', icon: Phone },
+  { value: 'meeting', label: 'Зустріч', icon: Calendar },
+];
+
 export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
   const plan = MOCK_SALES_PLAN.plans.find(p => p.segmentCode === segmentCode);
   const fact = MOCK_SALES_FACT.facts.find(f => f.segmentCode === segmentCode);
+  const { currentPeriod } = useAppStore();
 
   const [forecasts, setForecasts] = useState<ForecastRow[]>(
     segmentCode === 'PETARAN' ? MOCK_FORECASTS_PETARAN : []
@@ -32,42 +45,67 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
 
   const planAmount = plan?.planAmount ?? 0;
   const factAmount = fact?.totalAmount ?? 0;
+
+  // Розрахунок очікуваного по наростаючому періоду
+  const daysInPeriod = getDaysInPeriod(currentPeriod.weekEnd);
+  const daysInMonth = new Date(2026, 3 + 1, 0).getDate(); // 30 для квітня
+  const expectedAmount = (planAmount / daysInMonth) * daysInPeriod;
+  const expectedPct = (expectedAmount / planAmount) * 100;
   const factPct = planAmount > 0 ? (factAmount / planAmount) * 100 : 0;
-  const expectedPct = 16.67; // 5/30 для квітня
   const deviation = factPct - expectedPct;
 
-  const forecastTotal = forecasts.reduce((sum, f) => sum + f.forecastAmount, 0);
-  const forecastFactTotal = forecasts.reduce((sum, f) => sum + f.factAmount, 0);
-  const gapTotal = gapClosures.reduce((sum, g) => sum + g.potentialAmount, 0);
-  const gapFactTotal = gapClosures.reduce((sum, g) => sum + g.factAmount, 0);
-  const gap = planAmount - forecastTotal;
+  // Сортовані прогнози: невиконані зверху, виконані знизу
+  const sortedForecasts = useMemo(() => {
+    return [...forecasts].sort((a, b) => {
+      if (a.completed === b.completed) return 0;
+      return a.completed ? 1 : -1;
+    });
+  }, [forecasts]);
 
-  // Категорії клієнтів
-  const activeClients = MOCK_CLIENTS_PETARAN.filter(c => c.category === 'active');
-  const sleepingClients = MOCK_CLIENTS_PETARAN.filter(c => c.category === 'sleeping' || c.category === 'lost');
-  const activeSum = activeClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
-  const sleepingSum = sleepingClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
-  const categories: ClientCategorySummary[] = [
-    { category: 'active', label: 'Активні клієнти', clientCount: activeClients.length, expectedAmount: activeSum, planCoveragePercent: planAmount > 0 ? (activeSum / planAmount) * 100 : 0 },
-    { category: 'new', label: 'Нові клієнти по ТМ', clientCount: 0, expectedAmount: 0, planCoveragePercent: 0 },
-    { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingClients.length, expectedAmount: sleepingSum, planCoveragePercent: planAmount > 0 ? (sleepingSum / planAmount) * 100 : 0 },
-  ];
-  const totalCatClients = categories.reduce((s, c) => s + c.clientCount, 0);
-  const totalCatAmount = categories.reduce((s, c) => s + c.expectedAmount, 0);
-  const totalCatPct = planAmount > 0 ? (totalCatAmount / planAmount) * 100 : 0;
+  const forecastTotal = forecasts.reduce((s, f) => s + f.forecastAmount, 0);
+  const forecastFactTotal = forecasts.reduce((s, f) => s + f.factAmount, 0);
+  const pendingForecastTotal = forecasts.filter(f => !f.completed).reduce((s, f) => s + f.forecastAmount, 0);
 
-  const updateForecast = (i: number, field: keyof ForecastRow, value: string | number) => {
-    setForecasts(prev => { const n = [...prev]; n[i] = { ...n[i], [field]: value }; return n; });
+  const gapTotal = gapClosures.reduce((s, g) => s + g.potentialAmount, 0);
+  const gapFactTotal = gapClosures.reduce((s, g) => s + g.factAmount, 0);
+
+  // Розрив = очікуване на період − факт
+  const gapFromExpected = Math.max(0, expectedAmount - factAmount);
+  // Розрив після прогнозу = розрив − прогноз незавершених
+  const gapAfterForecast = Math.max(0, gapFromExpected - pendingForecastTotal);
+
+  const updateForecast = (clientId: string, field: keyof ForecastRow, value: string | number | boolean) => {
+    setForecasts(prev => prev.map(f => {
+      if (f.clientId1c !== clientId) return f;
+      const updated = { ...f, [field]: value };
+      // Автовиконання: факт >= прогноз
+      if (field === 'factAmount' && typeof value === 'number') {
+        updated.completed = value >= updated.forecastAmount;
+      }
+      return updated;
+    }));
   };
+
   const updateGap = (i: number, field: keyof GapClosureRow, value: string | number) => {
     setGapClosures(prev => { const n = [...prev]; n[i] = { ...n[i], [field]: value }; return n; });
   };
-  const addClient = (client: Client1C) => {
-    setForecasts(prev => [...prev, { clientId1c: client.clientId, clientName: client.clientName, clientType: client.category, forecastAmount: client.lastPurchaseAmount || 0, dealStage: '', factAmount: 0 }]);
+
+  const removeForecast = (clientId: string) => {
+    setForecasts(prev => prev.filter(f => f.clientId1c !== clientId));
   };
 
-  const existingIds = forecasts.map(f => f.clientId1c).filter(Boolean) as string[];
-  const CAT_ICONS = { active: <Users className="h-4 w-4 text-[#066aab]" />, new: <UserPlus className="h-4 w-4 text-emerald-600" />, sleeping_lost: <RefreshCw className="h-4 w-4 text-amber-600" /> };
+  const addClient = (client: Client1C) => {
+    setForecasts(prev => [...prev, {
+      clientId1c: client.clientId, clientName: client.clientName,
+      forecastAmount: client.lastPurchaseAmount || 0,
+      stage: '', stageComment: '', stageDone: false,
+      factAmount: 0, lastPurchaseDate: client.lastPurchaseDate,
+      lastPurchaseAmount: client.lastPurchaseAmount,
+      completed: false, manuallyAdded: true,
+    }]);
+  };
+
+  const existingIds = forecasts.map(f => f.clientId1c);
 
   return (
     <div className="space-y-6">
@@ -81,13 +119,13 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">Квітень 2026</span>
       </div>
 
-      {/* Metrics — з Прогноз місяця $ */}
+      {/* Метрики */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
-          { label: 'План', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]' },
+          { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]' },
+          { label: `Очікуване (${daysInPeriod}д)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]' },
           { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct } },
           { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600' },
-          { label: 'Прогноз клієнтів', value: formatUSD(forecastTotal), icon: <TrendingUp className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]' },
         ].map(m => (
           <div key={m.label} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
             <div className="flex items-center gap-2.5 mb-2">
@@ -102,111 +140,129 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
             <p className="text-xl font-extrabold tracking-tight">{m.value}</p>
           </div>
         ))}
-        {/* Прогноз місяця % */}
         <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
-          <p className="text-[11px] text-muted-foreground font-medium mb-1">Прогноз місяця %</p>
+          <p className="text-[11px] text-muted-foreground font-medium mb-1">Прогноз %</p>
           <div className="flex items-baseline gap-1">
             <Input type="number" value={monthForecastPct} onChange={(e) => setMonthForecastPct(e.target.value)}
               className="h-9 w-20 text-xl font-extrabold border-[#e8ebf4] bg-[#f6f8fc] rounded-xl" />
             <span className="text-lg font-bold text-muted-foreground">%</span>
           </div>
         </div>
-        {/* Прогноз місяця $ */}
         <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
-          <p className="text-[11px] text-muted-foreground font-medium mb-1">Прогноз місяця $</p>
+          <p className="text-[11px] text-muted-foreground font-medium mb-1">Прогноз $</p>
           <div className="flex items-baseline gap-1">
             <span className="text-sm text-muted-foreground">$</span>
             <Input type="number" value={monthForecastUsd} onChange={(e) => setMonthForecastUsd(e.target.value)}
-              placeholder={String(planAmount)}
-              className="h-9 w-24 text-xl font-extrabold border-[#e8ebf4] bg-[#f6f8fc] rounded-xl" />
+              placeholder={String(planAmount)} className="h-9 w-24 text-xl font-extrabold border-[#e8ebf4] bg-[#f6f8fc] rounded-xl" />
           </div>
         </div>
       </div>
 
-      {/* Дані по клієнтах */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
-        <div className="px-5 py-3 border-b border-[#e2e7ef]">
-          <h3 className="text-[14px] font-bold">Дані по клієнтах по ТМ</h3>
-        </div>
-        <div className="divide-y divide-[#f0f2f8]">
-          {categories.map(cat => (
-            <div key={cat.category} className="flex items-center gap-4 px-5 py-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb]">{CAT_ICONS[cat.category]}</div>
-              <p className="flex-1 text-[13px] font-medium">{cat.label}</p>
-              <div className="text-right min-w-[70px]"><p className="text-[10px] text-muted-foreground">Кількість</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
-              <div className="text-right min-w-[90px]"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono">{formatUSD(cat.expectedAmount)}</p></div>
-              <div className="text-right min-w-[80px]"><p className="text-[10px] text-muted-foreground">Закривають %</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
-            </div>
-          ))}
-          <div className="flex items-center gap-4 px-5 py-3 bg-[#f4f7fb]">
-            <div className="w-8" />
-            <p className="flex-1 text-[13px] font-bold">Всього</p>
-            <div className="text-right min-w-[70px]"><p className="text-[14px] font-bold">{totalCatClients}</p></div>
-            <div className="text-right min-w-[90px]"><p className="text-[14px] font-bold font-mono">{formatUSD(totalCatAmount)}</p></div>
-            <div className="text-right min-w-[80px]"><p className="text-[14px] font-bold text-[#066aab]">{totalCatPct.toFixed(1)}%</p></div>
-          </div>
-        </div>
-      </div>
-
-      {/* === ПРОГНОЗ ПО КЛІЄНТАХ (спрощений: Клієнт | Сума | Етап угоди | Факт) === */}
+      {/* === ПРОГНОЗ ПО АКТИВНИХ КЛІЄНТАХ === */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[15px] font-bold">Прогноз по клієнтах <span className="text-muted-foreground font-normal">({forecasts.length})</span></h3>
+          <div>
+            <h3 className="text-[15px] font-bold">Прогноз по активних клієнтах</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Клієнти які купували цей сегмент за останні 3 місяці</p>
+          </div>
           <Button onClick={() => setSearchOpen(true)}
             className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
             <Search className="h-3.5 w-3.5" /> Додати клієнта
           </Button>
         </div>
 
-        <div className="space-y-3">
-          {forecasts.map((row, i) => {
-            const hasFact = row.factAmount > 0;
-            const factMatch = hasFact && row.factAmount >= row.forecastAmount;
+        <div className="space-y-2.5">
+          {sortedForecasts.map((row) => {
+            const StageIcon = row.stage === 'meeting' ? Calendar : Phone;
             return (
-              <div key={row.clientId1c ?? i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
-                <div className="flex items-center gap-4 px-5 py-3">
-                  {/* Статус факту */}
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                    factMatch ? 'bg-emerald-100' : hasFact ? 'bg-amber-100' : 'bg-[#f4f7fb]'
+              <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-75' : ''}`}>
+                <div className="flex items-center gap-3 px-5 py-3">
+                  {/* Статус */}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'
                   }`}>
-                    {factMatch ? <Check className="h-4 w-4 text-emerald-600" /> :
-                     hasFact ? <DollarSign className="h-4 w-4 text-amber-600" /> :
-                     <span className="text-[12px] font-bold text-muted-foreground">{i + 1}</span>}
+                    {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
                   </div>
 
-                  {/* Клієнт */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-semibold truncate">{row.clientName}</p>
+                  {/* Клієнт + ост. покупка */}
+                  <div className="min-w-[180px]">
+                    <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Ост. покупка: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · {formatUSD(row.lastPurchaseAmount)}
+                    </p>
                   </div>
 
-                  {/* Сума */}
+                  {/* Сума прогнозу */}
                   <div className="shrink-0">
-                    <p className="text-[10px] text-muted-foreground text-right">Сума</p>
-                    <Input type="number" value={row.forecastAmount}
-                      onChange={(e) => updateForecast(i, 'forecastAmount', parseFloat(e.target.value) || 0)}
-                      className="h-8 w-[80px] text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
+                    <p className="text-[10px] text-muted-foreground text-center mb-0.5">Прогноз</p>
+                    {row.completed ? (
+                      <div className="flex items-center gap-1 h-8 px-2">
+                        <Lock className="h-3 w-3 text-muted-foreground/40" />
+                        <span className="text-[14px] font-bold text-muted-foreground">{formatUSD(row.forecastAmount)}</span>
+                      </div>
+                    ) : (
+                      <Input type="number" value={row.forecastAmount}
+                        onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
+                        className="h-8 w-[80px] text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
+                    )}
                   </div>
 
-                  {/* Етап угоди */}
-                  <div className="flex-1 min-w-[200px]">
-                    <p className="text-[10px] text-muted-foreground">Етап угоди</p>
-                    <Input value={row.dealStage} onChange={(e) => updateForecast(i, 'dealStage', e.target.value)}
-                      className="h-8 text-[13px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Опис етапу..." />
+                  {/* Етап (dropdown) */}
+                  <div className="shrink-0">
+                    <p className="text-[10px] text-muted-foreground text-center mb-0.5">Етап</p>
+                    <Select value={row.stage || undefined} onValueChange={(v) => { if (v) updateForecast(row.clientId1c, 'stage', v); }}>
+                      <SelectTrigger className="h-8 w-[120px] text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]">
+                        <SelectValue placeholder="Оберіть..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STAGE_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <span className="flex items-center gap-1.5">
+                              <opt.icon className="h-3 w-3" /> {opt.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* Факт на дату звіту */}
-                  <div className="shrink-0 min-w-[80px]">
-                    <p className="text-[10px] text-muted-foreground text-right">Факт</p>
-                    <p className={`text-[14px] font-bold text-right ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/40'}`}>
-                      {hasFact ? formatUSD(row.factAmount) : '—'}
+                  {/* Виконано (з 1С) */}
+                  <div className="shrink-0">
+                    <p className="text-[10px] text-muted-foreground text-center mb-0.5">Статус</p>
+                    {row.stage ? (
+                      <div className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[11px] font-semibold ${
+                        row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        <StageIcon className="h-3 w-3" />
+                        {row.stageDone ? 'Виконано' : 'Очікується'}
+                      </div>
+                    ) : (
+                      <div className="h-8 flex items-center text-[11px] text-muted-foreground/40">—</div>
+                    )}
+                  </div>
+
+                  {/* Коментар */}
+                  <div className="flex-1 min-w-[140px]">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Коментар</p>
+                    <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
+                      className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль дзвінка/зустрічі..." />
+                  </div>
+
+                  {/* Факт */}
+                  <div className="shrink-0 min-w-[70px]">
+                    <p className="text-[10px] text-muted-foreground text-right mb-0.5">Факт</p>
+                    <p className={`text-[14px] font-bold text-right ${row.factAmount > 0 ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
+                      {row.factAmount > 0 ? formatUSD(row.factAmount) : '—'}
                     </p>
                   </div>
 
                   {/* Видалити */}
-                  <button onClick={() => setForecasts(prev => prev.filter((_, j) => j !== i))}
-                    className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer shrink-0">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {!row.completed && (
+                    <button onClick={() => removeForecast(row.clientId1c)}
+                      className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer shrink-0">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -215,14 +271,14 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
 
         {/* Підсумок прогнозу */}
         {forecasts.length > 0 && (
-          <div className="mt-3 bg-[#f4f7fb] rounded-2xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div><span className="text-[11px] text-muted-foreground">Всього план</span><p className="text-lg font-extrabold">{formatUSD(forecastTotal)}</p></div>
-              <div className="w-px h-8 bg-[#e2e7ef]" />
-              <div><span className="text-[11px] text-muted-foreground">Всього факт</span><p className="text-lg font-extrabold text-emerald-600">{formatUSD(forecastFactTotal)}</p></div>
-              <div className="w-px h-8 bg-[#e2e7ef]" />
-              <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{forecasts.length}</p></div>
-            </div>
+          <div className="mt-3 bg-[#f4f7fb] rounded-2xl p-4 flex items-center gap-6 flex-wrap">
+            <div><span className="text-[11px] text-muted-foreground">Прогноз</span><p className="text-lg font-extrabold">{formatUSD(forecastTotal)}</p></div>
+            <div className="w-px h-8 bg-[#e2e7ef]" />
+            <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600">{formatUSD(forecastFactTotal)}</p></div>
+            <div className="w-px h-8 bg-[#e2e7ef]" />
+            <div><span className="text-[11px] text-muted-foreground">Незавершено</span><p className="text-lg font-extrabold">{formatUSD(pendingForecastTotal)}</p></div>
+            <div className="w-px h-8 bg-[#e2e7ef]" />
+            <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{forecasts.length} <span className="text-emerald-600 text-sm">({forecasts.filter(f => f.completed).length} ✓)</span></p></div>
           </div>
         )}
       </div>
@@ -230,57 +286,81 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
       {/* === ЗАКРИТТЯ РОЗРИВУ === */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <h3 className="text-[15px] font-bold">Закриття розриву</h3>
-            {gap > 0 ? (
-              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600">
-                <AlertTriangle className="h-3 w-3" /> Розрив: {formatUSD(gap)}
-              </span>
-            ) : (
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600">План покрито</span>
-            )}
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="text-[15px] font-bold">Закриття розриву</h3>
+              {gapAfterForecast > 0 ? (
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600">
+                  <AlertTriangle className="h-3 w-3" /> {formatUSD(Math.round(gapAfterForecast))}
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600">Покрито</span>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Очікуване {formatUSD(Math.round(expectedAmount))} − факт {formatUSD(factAmount)} − прогноз {formatUSD(pendingForecastTotal)} = розрив {formatUSD(Math.round(gapAfterForecast))}
+            </p>
           </div>
-          <Button onClick={() => setGapClosures(prev => [...prev, { clientName: '', clientId1c: null, potentialAmount: 0, action: '', deadline: '', factAmount: 0 }])}
+          <Button onClick={() => setGapClosures(prev => [...prev, { clientId1c: '', clientName: '', category: '', potentialAmount: 0, action: '', deadline: '', factAmount: 0, lastPurchaseDate: null, lastPurchaseAmount: 0, manuallyAdded: true }])}
             variant="outline" className="gap-1.5 text-[12px] h-8 rounded-xl border-[#c5e3f6] text-[#066aab] hover:bg-[#e8f4fc]">
             <Plus className="h-3.5 w-3.5" /> Додати
           </Button>
         </div>
 
         {gapClosures.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {gapClosures.map((row, i) => {
               const hasFact = row.factAmount > 0;
               return (
                 <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
-                  <div className="flex items-center gap-4 px-5 py-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
                       {hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)}
-                        className="h-8 text-[14px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
+
+                    {/* Клієнт + категорія + ост. покупка */}
+                    <div className="min-w-[170px]">
+                      {row.manuallyAdded ? (
+                        <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)}
+                          className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
+                      ) : (
+                        <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {row.category && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground">
+                          {row.lastPurchaseDate ? `${formatDate(row.lastPurchaseDate)} · ${formatUSD(row.lastPurchaseAmount)}` : ''}
+                        </span>
+                      </div>
                     </div>
+
                     <div className="shrink-0">
-                      <p className="text-[10px] text-muted-foreground text-right">Потенціал</p>
+                      <p className="text-[10px] text-muted-foreground text-center mb-0.5">Потенціал</p>
                       <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
                         className="h-8 w-[80px] text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
                     </div>
-                    <div className="flex-1 min-w-[160px]">
-                      <p className="text-[10px] text-muted-foreground">Дія</p>
+
+                    <div className="flex-1 min-w-[130px]">
+                      <p className="text-[10px] text-muted-foreground mb-0.5">Дія</p>
                       <Input value={row.action} onChange={(e) => updateGap(i, 'action', e.target.value)}
-                        className="h-8 text-[13px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Що зробити..." />
+                        className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Що зробити..." />
                     </div>
+
                     <div className="shrink-0">
-                      <p className="text-[10px] text-muted-foreground">Термін</p>
+                      <p className="text-[10px] text-muted-foreground mb-0.5">Термін</p>
                       <Input type="date" value={row.deadline} onChange={(e) => updateGap(i, 'deadline', e.target.value)}
                         className="h-8 w-[130px] text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
                     </div>
-                    <div className="shrink-0 min-w-[70px]">
-                      <p className="text-[10px] text-muted-foreground text-right">Факт</p>
-                      <p className={`text-[14px] font-bold text-right ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/40'}`}>
+
+                    <div className="shrink-0 min-w-[65px]">
+                      <p className="text-[10px] text-muted-foreground text-right mb-0.5">Факт</p>
+                      <p className={`text-[14px] font-bold text-right ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
                         {hasFact ? formatUSD(row.factAmount) : '—'}
                       </p>
                     </div>
+
                     <button onClick={() => setGapClosures(prev => prev.filter((_, j) => j !== i))}
                       className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer shrink-0">
                       <Trash2 className="h-3.5 w-3.5" />
@@ -290,33 +370,28 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
               );
             })}
 
-            {/* Підсумок розриву */}
-            <div className="bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6">
+            <div className="bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
               <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold">{formatUSD(gapTotal)}</p></div>
               <div className="w-px h-8 bg-amber-200/40" />
-              <div><span className="text-[11px] text-muted-foreground">Факт закриття</span><p className="text-lg font-extrabold text-emerald-600">{formatUSD(gapFactTotal)}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600">{formatUSD(gapFactTotal)}</p></div>
               <div className="w-px h-8 bg-amber-200/40" />
-              <div><span className="text-[11px] text-muted-foreground">Всього</span><p className="text-lg font-extrabold">{formatUSD(gapTotal + forecastTotal)}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{gapClosures.length}</p></div>
             </div>
           </div>
         )}
       </div>
 
-      {/* === ДІЇ ДЛЯ ЗАКРИТТЯ РОЗРИВУ (текстовий блок) === */}
+      {/* Дії для закриття */}
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
         <div className="px-5 py-3 border-b border-[#e2e7ef]">
-          <h3 className="text-[14px] font-bold">Дії, що буде застосовано для закриття розриву</h3>
+          <h3 className="text-[14px] font-bold">Дії для закриття розриву</h3>
         </div>
         <div className="px-5 py-4 space-y-3">
           {(['action1', 'action2', 'action3'] as const).map((key, i) => (
             <div key={key} className="flex items-center gap-3">
               <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#f4f7fb] text-[12px] font-bold text-muted-foreground shrink-0">{i + 1}</span>
-              <Input
-                value={gapActions[key]}
-                onChange={(e) => setGapActions(prev => ({ ...prev, [key]: e.target.value }))}
-                className="h-9 text-[13px] rounded-xl border-[#e8ebf4] bg-[#fafbfe]"
-                placeholder={`Дія ${i + 1}...`}
-              />
+              <Input value={gapActions[key]} onChange={(e) => setGapActions(prev => ({ ...prev, [key]: e.target.value }))}
+                className="h-9 text-[13px] rounded-xl border-[#e8ebf4] bg-[#fafbfe]" placeholder={`Дія ${i + 1}...`} />
             </div>
           ))}
         </div>

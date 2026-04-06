@@ -95,26 +95,35 @@ export interface ClientCategorySummary {
   planCoveragePercent: number; // закривають % виконання плану
 }
 
-// === Прогноз (новий шаблон КВІТЕНЬ) ===
+// === Прогноз по активних клієнтах ===
 export interface ForecastRow {
   id?: number;
-  clientId1c: string | null;
+  clientId1c: string;
   clientName: string;
-  clientType: string;
-  forecastAmount: number;
-  dealStage: string;
-  factAmount: number; // факт на дату звіту (з 1С)
+  forecastAmount: number;           // скільки очікує продаж
+  stage: 'call' | 'meeting' | '';   // етап: дзвінок або зустріч
+  stageComment: string;             // коментар (ціль дзвінка/зустрічі)
+  stageDone: boolean;               // чи виконано (перевірка з 1С)
+  factAmount: number;               // факт продажів наростаючий (з 1С)
+  lastPurchaseDate: string | null;  // дата останньої покупки по сегменту (з 1С)
+  lastPurchaseAmount: number;       // сума останньої покупки по сегменту (з 1С)
+  completed: boolean;               // факт >= прогноз → зафіксовано
+  manuallyAdded?: boolean;          // додано вручну (не авто)
 }
 
-// === Закриття розриву ===
+// === Закриття розриву (неактивні категорії) ===
 export interface GapClosureRow {
   id?: number;
+  clientId1c: string;
   clientName: string;
-  clientId1c: string | null;
+  category: string;                 // категорія з регістру 1С (сплячий, втрачений, БЗ)
   potentialAmount: number;
   action: string;
   deadline: string;
-  factAmount: number; // факт на дату звіту (з 1С)
+  factAmount: number;               // факт продажів наростаючий (з 1С)
+  lastPurchaseDate: string | null;  // дата останньої покупки по сегменту (з 1С)
+  lastPurchaseAmount: number;       // сума останньої покупки по сегменту (з 1С)
+  manuallyAdded?: boolean;
 }
 
 // === Дії для закриття розриву (текстовий блок) ===

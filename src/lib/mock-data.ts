@@ -105,27 +105,29 @@ export const MOCK_CLIENTS_PETARAN: Client1C[] = [
   { clientId: 'C102', clientName: 'Булдакова Регіна', category: 'sleeping', lastPurchaseDate: '2025-10-05', lastPurchaseAmount: 252, totalYTD: 0, meetingsThisMonth: 0, callsThisMonth: 0, phone: '+380661234568', address: 'м. Шахтарськ' },
 ];
 
-// === Прогнози для Petaran (новий шаблон — без ймовірності, з фактом) ===
+// === Прогноз по активних (купували за останні 3 міс) ===
 export const MOCK_FORECASTS_PETARAN: ForecastRow[] = [
-  { clientId1c: 'C002', clientName: 'Андрущук Катерина Миколаївна', clientType: 'active', forecastAmount: 378, dealStage: 'зідзвон, продаж акції', factAmount: 0 },
-  { clientId1c: 'C003', clientName: 'Гімішлі Анастасія Миколаївна', clientType: 'active', forecastAmount: 252, dealStage: 'запросити на навчання під закупку', factAmount: 0 },
-  { clientId1c: 'C004', clientName: 'Головатая Алла', clientType: 'active', forecastAmount: 252, dealStage: 'зідзвон, продаж акції', factAmount: 0 },
-  { clientId1c: 'C005', clientName: 'Календа Марина', clientType: 'active', forecastAmount: 252, dealStage: 'зідзвон, продаж акції', factAmount: 0 },
-  { clientId1c: 'C008', clientName: 'Ліпунова Аліна Олександрівна', clientType: 'active', forecastAmount: 378, dealStage: 'зідзвон і продаж акції', factAmount: 0 },
-  { clientId1c: 'C001', clientName: 'Бліндовська Яна Олександрівна', clientType: 'active', forecastAmount: 378, dealStage: 'продаж акції', factAmount: 378 },
-  { clientId1c: 'C009', clientName: 'Воронько Катерина Олександрівна', clientType: 'active', forecastAmount: 595, dealStage: 'зідзвон, акція від 5 флаконів', factAmount: 0 },
-  { clientId1c: 'C100', clientName: 'Карапиш Лариса Володимирівна', clientType: 'active', forecastAmount: 378, dealStage: 'продаж акції', factAmount: 378 },
-  { clientId1c: 'C006', clientName: 'Карпенко Вікторія', clientType: 'active', forecastAmount: 252, dealStage: 'зідзвон, продаж акції', factAmount: 0 },
-  { clientId1c: 'C007', clientName: "Лисенко Дар'я (Почетна)", clientType: 'active', forecastAmount: 252, dealStage: 'зідзвон, продаж акції', factAmount: 0 },
+  // Невиконані (зверху)
+  { clientId1c: 'C002', clientName: 'Андрущук Катерина Миколаївна', forecastAmount: 378, stage: 'call', stageComment: 'продаж акції', stageDone: true, factAmount: 0, lastPurchaseDate: '2026-02-10', lastPurchaseAmount: 378, completed: false },
+  { clientId1c: 'C003', clientName: 'Гімішлі Анастасія Миколаївна', forecastAmount: 252, stage: 'call', stageComment: 'запросити на навчання', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-01-20', lastPurchaseAmount: 252, completed: false },
+  { clientId1c: 'C004', clientName: 'Головатая Алла', forecastAmount: 252, stage: 'meeting', stageComment: 'зустріч в офісі', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-02-15', lastPurchaseAmount: 252, completed: false },
+  { clientId1c: 'C005', clientName: 'Календа Марина', forecastAmount: 252, stage: 'call', stageComment: 'продаж акції', stageDone: true, factAmount: 0, lastPurchaseDate: '2026-02-25', lastPurchaseAmount: 252, completed: false },
+  { clientId1c: 'C008', clientName: 'Ліпунова Аліна Олександрівна', forecastAmount: 378, stage: 'call', stageComment: 'продаж акції після відпустки', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-01-30', lastPurchaseAmount: 378, completed: false },
+  { clientId1c: 'C009', clientName: 'Воронько Катерина Олександрівна', forecastAmount: 595, stage: 'call', stageComment: 'акція від 5 флаконів', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-02-05', lastPurchaseAmount: 595, completed: false },
+  { clientId1c: 'C006', clientName: 'Карпенко Вікторія', forecastAmount: 252, stage: 'call', stageComment: 'нагадування', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-02-28', lastPurchaseAmount: 252, completed: false },
+  { clientId1c: 'C007', clientName: "Лисенко Дар'я (Почетна)", forecastAmount: 252, stage: 'call', stageComment: 'продаж акції', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-02-20', lastPurchaseAmount: 252, completed: false },
+  // Виконані (знизу)
+  { clientId1c: 'C001', clientName: 'Бліндовська Яна Олександрівна', forecastAmount: 378, stage: 'call', stageComment: 'продаж акції', stageDone: true, factAmount: 378, lastPurchaseDate: '2026-04-03', lastPurchaseAmount: 378, completed: true },
+  { clientId1c: 'C100', clientName: 'Карапиш Лариса Володимирівна', forecastAmount: 378, stage: 'meeting', stageComment: 'зустріч + продаж', stageDone: true, factAmount: 378, lastPurchaseDate: '2026-04-04', lastPurchaseAmount: 378, completed: true },
 ];
 
-// === Закриття розриву (новий шаблон — з фактом) ===
+// === Закриття розриву (неактивні — сплячі, втрачені, БЗ) ===
 export const MOCK_GAP_CLOSURES: GapClosureRow[] = [
-  { clientName: 'Астровська Катерина Юріївна', clientId1c: 'C101', potentialAmount: 378, action: 'зідвон, продаж акції', deadline: '2026-04-07', factAmount: 0 },
-  { clientName: 'Булдакова Регіна', clientId1c: 'C102', potentialAmount: 252, action: 'зідвон, нагадування', deadline: '2026-04-07', factAmount: 0 },
-  { clientName: 'Вакуленко Катерина Олексіївна', clientId1c: null, potentialAmount: 378, action: 'зідвон, продаж акції', deadline: '2026-04-08', factAmount: 378 },
-  { clientName: 'Дячок Олена Олексіївна', clientId1c: null, potentialAmount: 378, action: 'презентація, очікую замовлення', deadline: '2026-04-08', factAmount: 0 },
-  { clientName: 'Калина Ольга Сергіївна', clientId1c: null, potentialAmount: 252, action: 'зідвон, продаж акції', deadline: '2026-04-09', factAmount: 0 },
+  { clientId1c: 'C101', clientName: 'Астровська Катерина Юріївна', category: 'Сплячий', potentialAmount: 378, action: 'зідвон, продаж акції', deadline: '2026-04-07', factAmount: 0, lastPurchaseDate: '2025-11-10', lastPurchaseAmount: 378 },
+  { clientId1c: 'C102', clientName: 'Булдакова Регіна', category: 'Сплячий', potentialAmount: 252, action: 'зідвон, нагадування', deadline: '2026-04-07', factAmount: 0, lastPurchaseDate: '2025-10-05', lastPurchaseAmount: 252 },
+  { clientId1c: 'C103', clientName: 'Вакуленко Катерина Олексіївна', category: 'Втрачений', potentialAmount: 378, action: 'зідвон, продаж акції', deadline: '2026-04-08', factAmount: 378, lastPurchaseDate: '2025-06-15', lastPurchaseAmount: 378 },
+  { clientId1c: 'C104', clientName: 'Дячок Олена Олексіївна', category: 'БЗ', potentialAmount: 378, action: 'презентація', deadline: '2026-04-08', factAmount: 0, lastPurchaseDate: '2025-08-20', lastPurchaseAmount: 252 },
+  { clientId1c: 'C105', clientName: 'Калина Ольга Сергіївна', category: 'Сплячий', potentialAmount: 252, action: 'зідвон, продаж акції', deadline: '2026-04-09', factAmount: 0, lastPurchaseDate: '2025-09-12', lastPurchaseAmount: 252 },
 ];
 
 // === Сводные карточки для дашборда менеджера ===
