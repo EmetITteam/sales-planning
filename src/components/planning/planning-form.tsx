@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
 import { formatUSD, formatDate } from '@/lib/format';
-import { savePlanning } from '@/lib/api';
+import { savePlanning, loadPlanning } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-import { getDaysInPeriod } from '@/lib/periods';
+import { getDaysInPeriod, getMonthName } from '@/lib/periods';
 import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, SEGMENTS } from '@/lib/mock-data';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
@@ -47,6 +47,53 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // FEATURE: завантаження збережених даних з Supabase
+  useEffect(() => {
+    // TODO: отримати реальний userId з useAppStore(s => s.user) замість hardcoded 1
+    const userId = 1;
+    loadPlanning(userId, segmentCode, currentPeriod.id).then(data => {
+      if (!data) return; // fallback на mock дані
+      if (data.forecasts.length > 0) {
+        setForecasts(data.forecasts.map(f => ({
+          clientId1c: f.client_id_1c,
+          clientName: f.client_name,
+          forecastAmount: f.forecast_amount,
+          stage: (f.stage || '') as ForecastRow['stage'],
+          stageComment: f.stage_comment || '',
+          stageDone: false,
+          factAmount: 0,
+          lastPurchaseDate: null,
+          lastPurchaseAmount: 0,
+          completed: f.completed,
+          manuallyAdded: f.manually_added,
+        })));
+      }
+      if (data.gapClosures.length > 0) {
+        setGapClosures(data.gapClosures.map(g => ({
+          clientId1c: g.client_id_1c,
+          clientName: g.client_name,
+          category: g.category || '',
+          potentialAmount: g.potential_amount,
+          action: g.action || '',
+          deadline: g.deadline || '',
+          factAmount: 0,
+          lastPurchaseDate: null,
+          lastPurchaseAmount: 0,
+          manuallyAdded: g.manually_added,
+        })));
+      }
+      if (data.summary) {
+        if (data.summary.month_forecast_pct !== null) setMonthForecastPct(String(data.summary.month_forecast_pct));
+        if (data.summary.month_forecast_usd !== null) setMonthForecastUsd(String(data.summary.month_forecast_usd));
+        setGapActions({
+          action1: data.summary.gap_action_1 || '',
+          action2: data.summary.gap_action_2 || '',
+          action3: data.summary.gap_action_3 || '',
+        });
+      }
+    });
+  }, [segmentCode, currentPeriod.id]);
+
   const handleSave = async () => {
     setSaving(true);
     setSaveResult(null);
@@ -73,7 +120,9 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
   // Розрахунок очікуваного по наростаючому періоду
   const daysInPeriod = getDaysInPeriod(currentPeriod.weekEnd);
-  const daysInMonth = new Date(2026, 3 + 1, 0).getDate(); // 30 для квітня
+  const periodMonth = new Date(currentPeriod.month);
+  const daysInMonth = new Date(periodMonth.getFullYear(), periodMonth.getMonth() + 1, 0).getDate();
+  const periodLabel = getMonthName(periodMonth.getFullYear(), periodMonth.getMonth());
   const expectedAmount = (planAmount / daysInMonth) * daysInPeriod;
   const expectedPct = (expectedAmount / planAmount) * 100;
   const factPct = planAmount > 0 ? (factAmount / planAmount) * 100 : 0;
@@ -96,8 +145,8 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
   // Розрив = очікуване на період − факт
   const gapFromExpected = Math.max(0, expectedAmount - factAmount);
-  // Розрив після прогнозу = розрив − прогноз незавершених
-  const gapAfterForecast = Math.max(0, gapFromExpected - pendingForecastTotal);
+  // Розрив після прогнозу = розрив − прогноз незавершених − факт закриття розриву
+  const gapAfterForecast = Math.max(0, gapFromExpected - pendingForecastTotal - gapFactTotal);
 
   // Категорії клієнтів (з 1С)
   const activeClients = MOCK_CLIENTS_PETARAN.filter(c => c.category === 'active');
@@ -161,7 +210,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
         </button>
         <span className="text-muted-foreground/40">/</span>
         <span className="text-[15px] font-bold">{segment?.name}</span>
-        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">Квітень 2026</span>
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">{periodLabel}</span>
         {readOnly && (
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 flex items-center gap-1">
             <Eye className="h-3 w-3" /> Перегляд
@@ -194,6 +243,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
           <p className="text-[11px] text-muted-foreground font-medium mb-1">Прогноз %</p>
           <div className="flex items-baseline gap-1">
             <Input type="number" value={monthForecastPct} onChange={(e) => setMonthForecastPct(e.target.value)}
+              disabled={readOnly}
               className="h-9 w-20 text-xl font-extrabold border-[#e8ebf4] bg-[#f6f8fc] rounded-xl" />
             <span className="text-lg font-bold text-muted-foreground">%</span>
           </div>
@@ -203,6 +253,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
           <div className="flex items-baseline gap-1">
             <span className="text-sm text-muted-foreground">$</span>
             <Input type="number" value={monthForecastUsd} onChange={(e) => setMonthForecastUsd(e.target.value)}
+              disabled={readOnly}
               placeholder={String(planAmount)} className="h-9 w-24 text-xl font-extrabold border-[#e8ebf4] bg-[#f6f8fc] rounded-xl" />
           </div>
         </div>
@@ -288,12 +339,13 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                   ) : (
                     <Input type="number" value={row.forecastAmount}
                       onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
+                      disabled={readOnly}
                       className="h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
                   )}
 
                   {/* Етап */}
-                  <Select value={row.stage || undefined} onValueChange={(v) => { if (v) updateForecast(row.clientId1c, 'stage', v); }}>
-                    <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]">
+                  <Select value={row.stage || undefined} onValueChange={(v) => { if (v) updateForecast(row.clientId1c, 'stage', v); }} disabled={readOnly}>
+                    <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
                       <SelectValue placeholder="Оберіть..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -319,6 +371,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
                   {/* Коментар */}
                   <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
+                    disabled={readOnly}
                     className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль..." />
 
                   {/* Факт */}
@@ -327,7 +380,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                   </p>
 
                   {/* Видалити */}
-                  {!row.completed ? (
+                  {!readOnly && !row.completed ? (
                     <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
                       className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                       <Trash2 className="h-3.5 w-3.5" />
@@ -371,10 +424,12 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
               Очікуване {formatUSD(Math.round(expectedAmount))} − факт {formatUSD(factAmount)} − прогноз {formatUSD(pendingForecastTotal)} = розрив {formatUSD(Math.round(gapAfterForecast))}
             </p>
           </div>
-          <Button onClick={() => setGapClosures(prev => [...prev, { clientId1c: '', clientName: '', category: '', potentialAmount: 0, action: '', deadline: '', factAmount: 0, lastPurchaseDate: null, lastPurchaseAmount: 0, manuallyAdded: true }])}
-            variant="outline" className="gap-1.5 text-[12px] h-8 rounded-xl border-[#c5e3f6] text-[#066aab] hover:bg-[#e8f4fc]">
-            <Plus className="h-3.5 w-3.5" /> Додати
-          </Button>
+          {!readOnly && (
+            <Button onClick={() => setGapClosures(prev => [...prev, { clientId1c: '', clientName: '', category: '', potentialAmount: 0, action: '', deadline: '', factAmount: 0, lastPurchaseDate: null, lastPurchaseAmount: 0, manuallyAdded: true }])}
+              variant="outline" className="gap-1.5 text-[12px] h-8 rounded-xl border-[#c5e3f6] text-[#066aab] hover:bg-[#e8f4fc]">
+              <Plus className="h-3.5 w-3.5" /> Додати
+            </Button>
+          )}
         </div>
 
         {gapClosures.length > 0 && (
@@ -405,6 +460,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                     <div className="min-w-0">
                       {row.manuallyAdded ? (
                         <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)}
+                          disabled={readOnly}
                           className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
                       ) : (
                         <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
@@ -419,14 +475,17 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
                     {/* Потенціал */}
                     <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
+                      disabled={readOnly}
                       className="h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
 
                     {/* Дія */}
                     <Input value={row.action} onChange={(e) => updateGap(i, 'action', e.target.value)}
+                      disabled={readOnly}
                       className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Що зробити..." />
 
                     {/* Термін */}
                     <Input type="date" value={row.deadline} onChange={(e) => updateGap(i, 'deadline', e.target.value)}
+                      disabled={readOnly}
                       className="h-8 w-full text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
 
                     {/* Факт */}
@@ -435,10 +494,12 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                     </p>
 
                     {/* Видалити */}
-                    <button onClick={() => setGapClosures(prev => prev.filter((_, j) => j !== i))} aria-label="Видалити клієнта"
-                      className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {!readOnly ? (
+                      <button onClick={() => setGapClosures(prev => prev.filter((_, j) => j !== i))} aria-label="Видалити клієнта"
+                        className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    ) : <div />}
                   </div>
                 </div>
               );
@@ -466,6 +527,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
             <div key={key} className="flex items-center gap-3">
               <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#f4f7fb] text-[12px] font-bold text-muted-foreground shrink-0">{i + 1}</span>
               <Input value={gapActions[key]} onChange={(e) => setGapActions(prev => ({ ...prev, [key]: e.target.value }))}
+                disabled={readOnly}
                 className="h-9 text-[13px] rounded-xl border-[#e8ebf4] bg-[#fafbfe]" placeholder={`Дія ${i + 1}...`} />
             </div>
           ))}
@@ -497,7 +559,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
         </Button>
       </div>
 
-      <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} />
+      <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} segmentCode={segmentCode} />
     </div>
   );
 }

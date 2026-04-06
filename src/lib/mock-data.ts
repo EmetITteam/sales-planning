@@ -132,7 +132,7 @@ export const MOCK_GAP_CLOSURES: GapClosureRow[] = [
 
 // === Зведені картки для дашборду менеджера ===
 export function getMockTMSummaries(): TMSummaryCard[] {
-  const now = new Date(2026, 2, 8); // 8 березня 2026
+  const now = new Date();
   const daysInMonth = 31;
   const dayOfMonth = now.getDate();
   const expectedPct = (dayOfMonth / daysInMonth) * 100;

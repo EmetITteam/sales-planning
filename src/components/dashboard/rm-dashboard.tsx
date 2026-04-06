@@ -7,9 +7,13 @@ import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
 import { Target, DollarSign, TrendingUp, Users, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
 
+interface RMDashboardProps {
+  regionCode?: string;
+}
+
 type RMView = 'dashboard' | 'myPlanning' | 'viewManager';
 
-export function RMDashboard() {
+export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const [view, setView] = useState<RMView>('dashboard');
   const [selectedManager, setSelectedManager] = useState<string>('');
 
@@ -40,11 +44,13 @@ export function RMDashboard() {
     );
   }
 
-  // Перегляд менеджера — read-only (поки що показуємо форму Petaran)
+  // Перегляд менеджера — read-only
   if (view === 'viewManager') {
+    const manager = region.managers.find(m => m.login === selectedManager);
+    const firstSegment = manager?.segments[0]?.segmentCode ?? 'PETARAN';
     return (
       <PlanningForm
-        segmentCode="PETARAN"
+        segmentCode={firstSegment}
         onBack={() => setView('dashboard')}
         readOnly
       />

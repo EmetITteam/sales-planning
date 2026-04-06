@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { formatUSD } from '@/lib/format';
+import { getMonthName } from '@/lib/periods';
 import { ArrowLeft, Check, X, Phone, Calendar, Target, DollarSign, TrendingUp, Users } from 'lucide-react';
 
 interface ClientControlViewProps { onBack: () => void; }
@@ -70,7 +71,7 @@ export function ClientControlView({ onBack }: ClientControlViewProps) {
         </button>
         <span className="text-muted-foreground/40">/</span>
         <span className="text-[15px] font-bold">Контроль виконання</span>
-        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">Березень 2026</span>
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">{getMonthName(new Date().getFullYear(), new Date().getMonth())}</span>
       </div>
 
       {/* Metrics */}

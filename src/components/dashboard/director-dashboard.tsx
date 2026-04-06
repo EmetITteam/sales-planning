@@ -42,7 +42,7 @@ export function DirectorDashboard() {
         <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Всі регіони
         </button>
-        <RMDashboard />
+        <RMDashboard regionCode={selectedRegion} />
       </div>
     );
   }

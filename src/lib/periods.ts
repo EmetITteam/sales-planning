@@ -37,7 +37,7 @@ export function getWeeksForMonth(year: number, month: number): PeriodInfo[] {
   }
 
   // Поточний тиждень
-  const now = new Date(2026, 3, 6); // 6 квітня для демо
+  const now = new Date();
   for (let i = 0; i < weeks.length; i++) {
     const we = new Date(weeks[i].weekEnd);
     const prevEnd = i > 0 ? new Date(weeks[i - 1].weekEnd) : new Date(year, month, 0);
@@ -49,13 +49,27 @@ export function getWeeksForMonth(year: number, month: number): PeriodInfo[] {
   return weeks;
 }
 
+const MONTH_NAMES_UK = [
+  'Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
+  'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень',
+];
+
+export function getMonthName(year: number, month: number): string {
+  return `${MONTH_NAMES_UK[month]} ${year}`;
+}
+
 export function getMonthOptions() {
-  return [
-    { value: '2026-01', label: 'Січень 2026' },
-    { value: '2026-02', label: 'Лютий 2026' },
-    { value: '2026-03', label: 'Березень 2026' },
-    { value: '2026-04', label: 'Квітень 2026' },
-  ];
+  const now = new Date();
+  const options: { value: string; label: string }[] = [];
+  for (let offset = -3; offset <= 3; offset++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const value = `${y}-${String(m + 1).padStart(2, '0')}`;
+    const label = `${MONTH_NAMES_UK[m]} ${y}`;
+    options.push({ value, label });
+  }
+  return options;
 }
 
 export function formatWeekShort(weekStart: string, weekEnd: string): string {

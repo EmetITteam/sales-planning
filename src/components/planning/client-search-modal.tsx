@@ -13,6 +13,7 @@ interface ClientSearchModalProps {
   onClose: () => void;
   onSelect: (client: Client1C) => void;
   excludeIds: string[];
+  segmentCode?: string; // для майбутньої інтеграції з 1С
 }
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
@@ -23,10 +24,11 @@ const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
   none: { label: 'Без категорії', color: 'bg-gray-50 text-gray-600' },
 };
 
-export function ClientSearchModal({ open, onClose, onSelect, excludeIds }: ClientSearchModalProps) {
+export function ClientSearchModal({ open, onClose, onSelect, excludeIds, segmentCode }: ClientSearchModalProps) {
   const [query, setQuery] = useState('');
 
-  // В реальности — вызов 1С action findClient
+  // В реальности — вызов 1С action findClient з фільтром по segmentCode
+  // TODO: використовувати segmentCode для запиту до 1С замість MOCK_CLIENTS_PETARAN
   const allClients = MOCK_CLIENTS_PETARAN.filter(c => !excludeIds.includes(c.clientId));
   const filtered = query.length >= 2
     ? allClients.filter(c => c.clientName.toLowerCase().includes(query.toLowerCase()))
