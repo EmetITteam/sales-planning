@@ -1,10 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { formatUSD, getTrafficLight } from '@/lib/format';
 import { MOCK_ALL_REGIONS, SEGMENTS } from '@/lib/mock-data';
+import { RMDashboard } from './rm-dashboard';
 import { Target, DollarSign, TrendingUp, MapPin, Users, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
+type DirView = 'dashboard' | 'region';
+
 export function DirectorDashboard() {
+  const [view, setView] = useState<DirView>('dashboard');
+  const [selectedRegion, setSelectedRegion] = useState('');
   const regions = MOCK_ALL_REGIONS;
 
   const regionSummaries = regions.map(region => {
@@ -28,6 +34,18 @@ export function DirectorDashboard() {
   const grandFact = regionSummaries.reduce((s, r) => s + r.totalFact, 0);
   const grandPct = grandPlan > 0 ? (grandFact / grandPlan) * 100 : 0;
   const totalManagers = regions.reduce((s, r) => s + r.managers.length, 0);
+
+  // Drill-down в регіон — показуємо дашборд РМ
+  if (view === 'region') {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+          <ChevronRight className="h-4 w-4 rotate-180" /> Всі регіони
+        </button>
+        <RMDashboard />
+      </div>
+    );
+  }
 
   const segGrandTotals = SEGMENTS.map(seg => {
     let plan = 0, fact = 0;
@@ -65,21 +83,22 @@ export function DirectorDashboard() {
         ))}
       </div>
 
-      {/* Region cards */}
+      {/* Region cards — клікабельні */}
       <div>
         <h3 className="text-[15px] font-bold mb-4">Регіони</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {regionSummaries.map(region => {
             const tl = getTrafficLight(region.pct, 22.73);
-            // Top 3 segments by fact
             const topSegs = SEGMENTS
               .map(seg => ({ ...seg, fact: region.segTotals[seg.code]?.fact ?? 0, plan: region.segTotals[seg.code]?.plan ?? 0 }))
               .sort((a, b) => b.fact - a.fact)
               .slice(0, 4);
 
             return (
-              <div key={region.regionCode} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer group">
-                {/* Header */}
+              <div key={region.regionCode}
+                onClick={() => { setSelectedRegion(region.regionCode); setView('region'); }}
+                className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer group"
+              >
                 <div className="flex items-center justify-between px-5 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center">
@@ -106,8 +125,6 @@ export function DirectorDashboard() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] transition-colors" />
                   </div>
                 </div>
-
-                {/* Top TMs */}
                 <div className="px-5 pb-4">
                   <div className="flex gap-2 flex-wrap">
                     {topSegs.map(seg => {
@@ -132,7 +149,7 @@ export function DirectorDashboard() {
         </div>
       </div>
 
-      {/* TM summary row */}
+      {/* TM summary */}
       <div>
         <h3 className="text-[15px] font-bold mb-4">Зведена по ТМ</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

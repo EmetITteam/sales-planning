@@ -14,12 +14,13 @@ import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapAc
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
   ArrowUpRight, ArrowDownRight, Trash2, Plus, Check, Phone, Calendar,
-  AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw,
+  AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw, Eye,
 } from 'lucide-react';
 
 interface PlanningFormProps {
   segmentCode: string;
   onBack: () => void;
+  readOnly?: boolean;
 }
 
 const STAGE_OPTIONS = [
@@ -27,7 +28,7 @@ const STAGE_OPTIONS = [
   { value: 'Зустріч', icon: Calendar },
 ];
 
-export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
+export function PlanningForm({ segmentCode, onBack, readOnly = false }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
   const plan = MOCK_SALES_PLAN.plans.find(p => p.segmentCode === segmentCode);
   const fact = MOCK_SALES_FACT.facts.find(f => f.segmentCode === segmentCode);
@@ -161,6 +162,11 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
         <span className="text-muted-foreground/40">/</span>
         <span className="text-[15px] font-bold">{segment?.name}</span>
         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">Квітень 2026</span>
+        {readOnly && (
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 flex items-center gap-1">
+            <Eye className="h-3 w-3" /> Перегляд
+          </span>
+        )}
       </div>
 
       {/* Метрики */}
@@ -234,10 +240,12 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
             <h3 className="text-[15px] font-bold">Прогноз по активних клієнтах</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">Клієнти які купували цей сегмент за останні 3 місяці</p>
           </div>
-          <Button onClick={() => setSearchOpen(true)}
-            className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
-            <Search className="h-3.5 w-3.5" /> Додати клієнта
-          </Button>
+          {!readOnly && (
+            <Button onClick={() => setSearchOpen(true)}
+              className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
+              <Search className="h-3.5 w-3.5" /> Додати клієнта
+            </Button>
+          )}
         </div>
 
         {/* Заголовок колонок */}

@@ -6,8 +6,8 @@ import { formatUSD, formatPct, getTrafficLight } from '@/lib/format';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import {
-  DollarSign, Target, TrendingUp, Users, ChevronRight,
-  ClipboardCheck, ArrowUpRight, ArrowDownRight,
+  DollarSign, Target, TrendingUp, ChevronRight,
+  ClipboardCheck, ArrowUpRight, ArrowDownRight, Users, UserPlus, RefreshCw,
 } from 'lucide-react';
 
 export function ManagerDashboard() {
@@ -18,10 +18,16 @@ export function ManagerDashboard() {
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0;
-  const totalClients = summaries.reduce((s, t) => s + t.clientCount, 0);
 
   if (view === 'plan' && selectedSegment) return <PlanningForm segmentCode={selectedSegment} onBack={() => setView('dashboard')} />;
   if (view === 'control') return <ClientControlView onBack={() => setView('dashboard')} />;
+
+  // Мок: факт по категоріях клієнтів (буде з 1С)
+  const clientStats = {
+    active: { total: 131, bought: 28, amount: 12450 },
+    sleeping: { total: 45, bought: 5, amount: 1890 },
+    newClients: { total: 8, bought: 2, amount: 680 },
+  };
 
   return (
     <div className="space-y-8">
@@ -32,7 +38,6 @@ export function ManagerDashboard() {
             label: 'План місяця', value: formatUSD(totalPlan),
             icon: <Target className="h-5 w-5" />,
             gradient: 'from-[#066aab] to-[#0880cc]',
-            lightBg: 'bg-[#e8f4fc]', lightText: 'text-[#066aab]',
           },
           {
             label: 'Факт', value: formatUSD(totalFact),
@@ -41,26 +46,17 @@ export function ManagerDashboard() {
               : { text: `${(totalPct - 22.73).toFixed(1)}%`, positive: false },
             icon: <DollarSign className="h-5 w-5" />,
             gradient: 'from-emerald-500 to-teal-600',
-            lightBg: 'bg-emerald-50', lightText: 'text-emerald-600',
           },
           {
             label: 'Виконання', value: formatPct(totalPct),
             subtitle: 'Очікуване: 22.7%',
             icon: <TrendingUp className="h-5 w-5" />,
             gradient: 'from-[#066aab] to-[#0880cc]',
-            lightBg: 'bg-[#e8f4fc]', lightText: 'text-[#066aab]',
-          },
-          {
-            label: 'Клієнтів', value: String(totalClients),
-            subtitle: 'з фактом у цьому місяці',
-            icon: <Users className="h-5 w-5" />,
-            gradient: 'from-amber-500 to-orange-600',
-            lightBg: 'bg-amber-50', lightText: 'text-amber-600',
           },
         ].map((m) => (
           <div key={m.label} className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.06)] transition-shadow duration-300">
             <div className="flex items-start justify-between">
-              <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${m.gradient} text-white shadow-lg shadow-${m.gradient.split('-')[1]}/20`}>
+              <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${m.gradient} text-white shadow-lg`}>
                 {m.icon}
               </div>
               {m.badge && (
@@ -77,10 +73,54 @@ export function ManagerDashboard() {
               <p className="text-2xl font-extrabold tracking-tight mt-0.5">{m.value}</p>
               {m.subtitle && <p className="text-[11px] text-muted-foreground mt-1">{m.subtitle}</p>}
             </div>
-            {/* Decorative gradient blur */}
             <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br ${m.gradient} opacity-[0.06] blur-2xl`} />
           </div>
         ))}
+
+        {/* Клієнти по категоріях — факт купівель */}
+        <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
+          <p className="text-[13px] font-medium text-muted-foreground mb-3">Клієнти — факт купівель</p>
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-[#066aab]" />
+                <span className="text-[12px] font-medium">Активні</span>
+              </div>
+              <span className="text-[13px] font-bold">
+                <span className="text-emerald-600">{clientStats.active.bought}</span>
+                <span className="text-muted-foreground font-normal"> / {clientStats.active.total}</span>
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-amber-500" />
+                <span className="text-[12px] font-medium">Сплячі</span>
+              </div>
+              <span className="text-[13px] font-bold">
+                <span className="text-emerald-600">{clientStats.sleeping.bought}</span>
+                <span className="text-muted-foreground font-normal"> / {clientStats.sleeping.total}</span>
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-emerald-500" />
+                <span className="text-[12px] font-medium">Нові</span>
+              </div>
+              <span className="text-[13px] font-bold">
+                <span className="text-emerald-600">{clientStats.newClients.bought}</span>
+                <span className="text-muted-foreground font-normal"> / {clientStats.newClients.total}</span>
+              </span>
+            </div>
+          </div>
+          <div className="mt-2.5 pt-2.5 border-t border-[#f0f2f8]">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">Всього купили</span>
+              <span className="text-[14px] font-extrabold text-emerald-600">
+                {clientStats.active.bought + clientStats.sleeping.bought + clientStats.newClients.bought}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Control banner */}
@@ -104,14 +144,12 @@ export function ManagerDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {summaries.map((tm) => {
             const tl = getTrafficLight(tm.factPercent, tm.expectedPercent);
-            const deviation = tm.factPercent - tm.expectedPercent;
             return (
               <button
                 key={tm.segmentCode}
                 onClick={() => { setSelectedSegment(tm.segmentCode); setView('plan'); }}
                 className="group text-left bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer hover:-translate-y-0.5 relative overflow-hidden"
               >
-                {/* Top: name + status */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
                     <div className={`w-3 h-3 rounded-full ${tl.dot} shadow-sm`} />
@@ -121,8 +159,6 @@ export function ManagerDashboard() {
                     {tl.label}
                   </span>
                 </div>
-
-                {/* Progress bar */}
                 <div className="mb-4">
                   <div className="flex items-baseline justify-between mb-2">
                     <span className="text-2xl font-extrabold tracking-tight">{formatPct(tm.factPercent)}</span>
@@ -135,8 +171,6 @@ export function ManagerDashboard() {
                     />
                   </div>
                 </div>
-
-                {/* Bottom stats */}
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">План</p>
@@ -151,8 +185,6 @@ export function ManagerDashboard() {
                     <p className="text-[14px] font-bold mt-0.5">{tm.clientCount}</p>
                   </div>
                 </div>
-
-                {/* Hover arrow */}
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <ChevronRight className="h-5 w-5 text-[#066aab]" />
                 </div>
