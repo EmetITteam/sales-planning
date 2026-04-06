@@ -1,32 +1,40 @@
 import type { PeriodInfo } from './types';
 
-// Генерация недель для месяца
+function toDateStr(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+// Генерация недель строго в рамках месяца
 export function getWeeksForMonth(year: number, month: number): PeriodInfo[] {
   const weeks: PeriodInfo[] = [];
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
+  const monthFirst = new Date(year, month, 1);
+  const monthLast = new Date(year, month + 1, 0);
 
-  // Найти первый понедельник
-  let current = new Date(firstDay);
-  const dayOfWeek = current.getDay();
-  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  current.setDate(current.getDate() + diffToMonday);
-
+  // Начинаем всегда с 1-го числа месяца
+  let weekStart = new Date(monthFirst);
   let id = 1;
-  while (current <= lastDay) {
-    const weekStart = new Date(current);
-    const weekEnd = new Date(current);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+
+  while (weekStart <= monthLast) {
+    // Конец недели — ближайшее воскресенье, но не позже последнего дня месяца
+    const dayOfWeek = weekStart.getDay(); // 0=вс, 1=пн...
+    const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + daysUntilSunday);
+
+    // Обрезаем по последнему дню месяца
+    const clampedEnd = weekEnd > monthLast ? monthLast : weekEnd;
 
     weeks.push({
       id: id++,
-      weekStart: weekStart.toISOString().split('T')[0],
-      weekEnd: weekEnd.toISOString().split('T')[0],
+      weekStart: toDateStr(weekStart),
+      weekEnd: toDateStr(clampedEnd),
       month: `${year}-${String(month + 1).padStart(2, '0')}-01`,
       isActive: false,
     });
 
-    current.setDate(current.getDate() + 7);
+    // Следующая неделя начинается на следующий день после конца текущей
+    weekStart = new Date(clampedEnd);
+    weekStart.setDate(weekStart.getDate() + 1);
   }
 
   // Пометить текущую неделю активной
