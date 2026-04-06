@@ -101,7 +101,7 @@ export interface ForecastRow {
   clientId1c: string;
   clientName: string;
   forecastAmount: number;           // скільки очікує продаж
-  stage: 'call' | 'meeting' | '';   // етап: дзвінок або зустріч
+  stage: 'Дзвінок' | 'Зустріч' | '';   // етап: дзвінок або зустріч
   stageComment: string;             // коментар (ціль дзвінка/зустрічі)
   stageDone: boolean;               // чи виконано (перевірка з 1С)
   factAmount: number;               // факт продажів наростаючий (з 1С)

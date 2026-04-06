@@ -22,11 +22,9 @@ interface PlanningFormProps {
 }
 
 const STAGE_OPTIONS = [
-  { value: 'call', label: 'Дзвінок', icon: Phone },
-  { value: 'meeting', label: 'Зустріч', icon: Calendar },
+  { value: 'Дзвінок', icon: Phone },
+  { value: 'Зустріч', icon: Calendar },
 ];
-
-const STAGE_LABELS: Record<string, string> = { call: 'Дзвінок', meeting: 'Зустріч' };
 
 export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
@@ -187,7 +185,7 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
 
         <div className="space-y-2">
           {sortedForecasts.map((row) => {
-            const StageIcon = row.stage === 'meeting' ? Calendar : Phone;
+            const StageIcon = row.stage === 'Зустріч' ? Calendar : Phone;
             return (
               <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
                 <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 items-center px-5 py-3">
@@ -224,9 +222,7 @@ export function PlanningForm({ segmentCode, onBack }: PlanningFormProps) {
                     <SelectContent>
                       {STAGE_OPTIONS.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>
-                          <span className="flex items-center gap-1.5">
-                            <opt.icon className="h-3 w-3" /> {opt.label}
-                          </span>
+                          {opt.value}
                         </SelectItem>
                       ))}
                     </SelectContent>

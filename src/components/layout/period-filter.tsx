@@ -59,10 +59,10 @@ export function PeriodFilter() {
             <div className="px-2 py-2 max-h-[250px] overflow-y-auto">
               <p className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{currentMonthLabel} — тижні</p>
               {weeks.map((w, i) => {
-                const isSelected = w.weekStart === currentPeriod.weekStart;
+                const isSelected = w.weekEnd === currentPeriod.weekEnd;
                 return (
                   <button
-                    key={w.weekStart}
+                    key={w.weekEnd}
                     onClick={() => { setCurrentPeriod(w); setOpen(false); }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
                       isSelected
