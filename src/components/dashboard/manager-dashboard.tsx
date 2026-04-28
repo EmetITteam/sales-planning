@@ -18,6 +18,7 @@ export function ManagerDashboard() {
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0;
+  const totalPrevFact = summaries.reduce((s, t) => s + (t.prevMonthFactAmount ?? 0), 0);
 
   // Зважена сума по всіх сегментах для трьох процентів "Виконання"
   const totalCalcPct = summaries.length > 0
@@ -44,31 +45,35 @@ export function ManagerDashboard() {
     <div className="space-y-8">
       {/* Hero metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {[
-          {
-            label: 'План місяця', value: formatUSD(totalPlan),
-            icon: <Target className="h-5 w-5" />,
-            gradient: 'from-[#066aab] to-[#0880cc]',
-          },
-          {
-            label: 'Факт', value: formatUSD(totalFact),
-            icon: <DollarSign className="h-5 w-5" />,
-            gradient: 'from-emerald-500 to-teal-600',
-          },
-        ].map((m) => (
-          <div key={m.label} className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.06)] transition-shadow duration-300">
-            <div className="flex items-start justify-between">
-              <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${m.gradient} text-white shadow-lg`}>
-                {m.icon}
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-[13px] font-medium text-muted-foreground">{m.label}</p>
-              <p className="text-2xl font-extrabold tracking-tight mt-0.5 amount">{m.value}</p>
-            </div>
-            <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br ${m.gradient} opacity-[0.06] blur-2xl`} />
+        {/* План місяця */}
+        <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
+          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg"><Target className="h-5 w-5" /></div>
+          <div className="mt-4">
+            <p className="text-[13px] font-medium text-muted-foreground">План місяця</p>
+            <p className="text-2xl font-extrabold tracking-tight mt-0.5 amount">{formatUSD(totalPlan)}</p>
           </div>
-        ))}
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br from-[#066aab] to-[#0880cc] opacity-[0.06] blur-2xl" />
+        </div>
+
+        {/* Факт + vs минулий місяць */}
+        <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
+          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg"><DollarSign className="h-5 w-5" /></div>
+          <div className="mt-4">
+            <p className="text-[13px] font-medium text-muted-foreground">Факт</p>
+            <p className="text-2xl font-extrabold tracking-tight mt-0.5 amount">{formatUSD(totalFact)}</p>
+            {totalPrevFact > 0 && (() => {
+              const dyn = totalFact - totalPrevFact;
+              const better = dyn >= 0;
+              const Arrow = better ? TrendingUp : TrendingDown;
+              return (
+                <p className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                </p>
+              );
+            })()}
+          </div>
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 opacity-[0.06] blur-2xl" />
+        </div>
 
         {/* Виконання — поточний факт + норма календаря + прогноз run-rate + очікуваний (план менеджера) */}
         <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
