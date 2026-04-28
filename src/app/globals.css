@@ -120,11 +120,38 @@
 
 /* v2.1: режим "Сховати суми" — для оперативок (регіони не бачать суми один одного).
    Активується через <body data-hide-amounts="true"> у app-header.tsx.
-   Лаконічний blur замість плашки — як у Stripe/Linear. */
-body[data-hide-amounts="true"] .amount,
-body[data-hide-amounts="true"] .amount * {
-  filter: blur(5px);
+   Підмінюємо цифри на символи $ (а-ля Monobank з прапорцями). */
+body[data-hide-amounts="true"] .amount {
+  color: transparent !important;
+  position: relative;
   user-select: none;
+  -webkit-text-fill-color: transparent;
+}
+body[data-hide-amounts="true"] .amount * {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+}
+body[data-hide-amounts="true"] .amount::after {
+  content: '$ $ $';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: #066aab;
+  -webkit-text-fill-color: #066aab;
+  font-weight: inherit;
+  font-size: inherit;
+  letter-spacing: 0.2em;
   pointer-events: none;
-  transition: filter 0.15s ease;
+  opacity: 0.6;
+}
+/* Праве вирівнювання: коли .amount всередині text-right колонки — піктограми праворуч */
+body[data-hide-amounts="true"] .text-right .amount::after,
+body[data-hide-amounts="true"] [class*="justify-end"] .amount::after,
+body[data-hide-amounts="true"] [class*="text-right"] .amount::after {
+  justify-content: flex-end;
 }
