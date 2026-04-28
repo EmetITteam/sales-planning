@@ -153,16 +153,14 @@ export function DirectorDashboard() {
           {regionSummaries.map(region => {
             const tl = getTrafficLight(region.pct, calcPct);
             const regionDeviation = region.pct - calcPct;
-            const topSegs = SEGMENTS
-              .map(seg => ({
-                ...seg,
-                fact: region.segTotals[seg.code]?.fact ?? 0,
-                plan: region.segTotals[seg.code]?.plan ?? 0,
-                prevFact: region.segTotals[seg.code]?.prevFact ?? 0,
-                prevPlan: region.segTotals[seg.code]?.prevPlan ?? 0,
-              }))
-              .sort((a, b) => b.fact - a.fact)
-              .slice(0, 4);
+            // Усі бренди регіону у таблиці (не топ-4 чипи)
+            const allSegs = SEGMENTS.map(seg => ({
+              ...seg,
+              fact: region.segTotals[seg.code]?.fact ?? 0,
+              plan: region.segTotals[seg.code]?.plan ?? 0,
+              prevFact: region.segTotals[seg.code]?.prevFact ?? 0,
+              prevPlan: region.segTotals[seg.code]?.prevPlan ?? 0,
+            }));
 
             return (
               <div key={region.regionCode}
@@ -215,9 +213,19 @@ export function DirectorDashboard() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] transition-colors" />
                   </div>
                 </div>
+                {/* Таблиця всіх 9 брендів регіону */}
                 <div className="px-5 pb-4">
-                  <div className="flex gap-2 flex-wrap">
-                    {topSegs.map(seg => {
+                  <div className="rounded-xl bg-[#f4f7fb] overflow-hidden">
+                    {/* Заголовок таблиці */}
+                    <div className="grid grid-cols-[16px_1fr_60px_70px_90px_140px] gap-2 px-3 py-2 border-b border-[#e2e7ef] text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <div />
+                      <div>Бренд</div>
+                      <div className="text-right">%</div>
+                      <div className="text-right">vs Норма</div>
+                      <div className="text-right">Факт</div>
+                      <div className="text-right">vs Мин. міс.</div>
+                    </div>
+                    {allSegs.map(seg => {
                       const segPct = seg.plan > 0 ? (seg.fact / seg.plan) * 100 : 0;
                       const segPrevPct = seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0;
                       const segTl = getTrafficLight(segPct, calcPct);
@@ -226,24 +234,28 @@ export function DirectorDashboard() {
                       const dynPct = segPct - segPrevPct;
                       const dynBetter = dyn >= 0;
                       const Arrow = dynBetter ? TrendingUp : TrendingDown;
+                      const isInactive = seg.plan === 0 && seg.fact === 0;
                       return (
-                        <div key={seg.code} className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-[#f4f7fb] min-w-[160px]">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${segTl.dot}`} />
-                            <span className="text-[11px] font-semibold text-foreground/80">{seg.name}</span>
-                            <span className={`text-[10px] font-bold ml-auto ${segTl.color}`}>{segPct.toFixed(0)}%</span>
-                            <span className={`text-[9px] font-bold ${segDev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                              {segDev >= 0 ? '+' : ''}{segDev.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-[10px] text-muted-foreground font-mono amount">{formatUSD(seg.fact)}</p>
-                            {seg.prevFact > 0 && (
-                              <p className={`text-[9px] font-semibold flex items-center gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        <div
+                          key={seg.code}
+                          className={`grid grid-cols-[16px_1fr_60px_70px_90px_140px] gap-2 px-3 py-2 items-center text-[11px] border-b border-[#e8ebf4] last:border-b-0 ${isInactive ? 'opacity-40' : ''}`}
+                        >
+                          <div className={`w-2 h-2 rounded-full ${segTl.dot}`} />
+                          <span className="font-semibold text-foreground/80 truncate">{seg.name}</span>
+                          <span className={`text-right font-bold ${segTl.color}`}>{segPct.toFixed(0)}%</span>
+                          <span className={`text-right font-bold ${segDev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {segDev >= 0 ? '+' : ''}{segDev.toFixed(1)}%
+                          </span>
+                          <span className="text-right text-muted-foreground font-mono amount">{formatUSD(seg.fact)}</span>
+                          <div className="text-right">
+                            {seg.prevFact > 0 ? (
+                              <span className={`inline-flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 <Arrow className="h-2.5 w-2.5" />
                                 <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
                                 <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-                              </p>
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/40">—</span>
                             )}
                           </div>
                         </div>

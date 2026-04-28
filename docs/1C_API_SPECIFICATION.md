@@ -215,8 +215,8 @@ Authorization: Basic <base64(login:password)>
 4. Якщо клієнт не купував жодного бренду — `purchases: []` (але клієнта все одно включати)
 5. Бренди без закупок для цього клієнта — НЕ включати в `purchases[]`
 
-**8 сегментів (брендів):**
-- Petaran, Ellanse, EXOXE, ESSE, Neuramis, Neuronox, Vitaran, Інші ТМ
+**9 сегментів (брендів):**
+- Petaran, Ellanse, EXOXE, ESSE, Neuramis, Neuronox, Vitaran, **IUSE**, Інші ТМ
 
 **Важливо:**
 - Суми в доларах (USD) — вони вже є в регістрі

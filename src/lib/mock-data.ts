@@ -58,6 +58,7 @@ export const SEGMENTS = [
   { code: 'NEURAMIS', name: 'Neuramis' },
   { code: 'NEURONOX', name: 'Neuronox' },
   { code: 'VITARAN', name: 'Vitaran' },
+  { code: 'IUSE', name: 'IUSE' },
   { code: 'OTHER', name: 'Інші ТМ' },
 ];
 
@@ -71,6 +72,7 @@ export const MOCK_SALES_PLAN: SalesPlanResponse = {
     { segmentCode: 'NEURAMIS', segmentName: 'Neuramis', planAmount: 5254, currency: 'USD' },
     { segmentCode: 'NEURONOX', segmentName: 'Neuronox', planAmount: 14452, currency: 'USD' },
     { segmentCode: 'VITARAN', segmentName: 'Vitaran', planAmount: 28782, currency: 'USD' },
+    { segmentCode: 'IUSE', segmentName: 'IUSE', planAmount: 5000, currency: 'USD' },
     { segmentCode: 'OTHER', segmentName: 'Інші ТМ', planAmount: 12306, currency: 'USD' },
   ],
   exchangeRate: 41.35,
@@ -88,6 +90,7 @@ export const MOCK_SALES_FACT: SalesFactResponse = {
     { segmentCode: 'NEURAMIS', totalAmount: 738, clients: [{ clientId: 'C040', clientName: 'Перекрест Катерина', amount: 69, lastSaleDate: '2026-03-04' }, { clientId: 'C041', clientName: 'Миронова Яна', amount: 669, lastSaleDate: '2026-03-06' }] },
     { segmentCode: 'NEURONOX', totalAmount: 1935, clients: [{ clientId: 'C050', clientName: 'Клініка Гіппократ', amount: 540, lastSaleDate: '2026-03-06' }, { clientId: 'C051', clientName: 'Тараненко Альона', amount: 285, lastSaleDate: '2026-03-05' }, { clientId: 'C052', clientName: 'Федоренко Надія', amount: 285, lastSaleDate: '2026-03-05' }, { clientId: 'C053', clientName: 'Посунько Юлія', amount: 380, lastSaleDate: '2026-03-06' }, { clientId: 'C054', clientName: 'Одінцова Інна', amount: 445, lastSaleDate: '2026-03-07' }] },
     { segmentCode: 'VITARAN', totalAmount: 5212, clients: [{ clientId: 'C060', clientName: 'Різні клієнти', amount: 5212, lastSaleDate: '2026-03-08' }] },
+    { segmentCode: 'IUSE', totalAmount: 320, clients: [{ clientId: 'C080', clientName: 'Різні клієнти', amount: 320, lastSaleDate: '2026-03-08' }] },
     { segmentCode: 'OTHER', totalAmount: 2860, clients: [{ clientId: 'C070', clientName: 'Різні клієнти', amount: 2860, lastSaleDate: '2026-03-08' }] },
   ],
 };
@@ -257,6 +260,7 @@ export const MOCK_REGION_DATA: RegionDataResponse = {
         { segmentCode: 'NEURAMIS', segmentName: 'Neuramis', ...withPrevMonth(2627, 369, 2500, 420) },
         { segmentCode: 'NEURONOX', segmentName: 'Neuronox', ...withPrevMonth(7226, 968, 6900, 1100) },
         { segmentCode: 'VITARAN', segmentName: 'Vitaran', ...withPrevMonth(14391, 2606, 13800, 2900) },
+        { segmentCode: 'IUSE', segmentName: 'IUSE', ...withPrevMonth(2500, 160, 2400, 180) },
         { segmentCode: 'OTHER', segmentName: 'Інші ТМ', ...withPrevMonth(6153, 1430, 5900, 1690) },
       ],
     },
@@ -272,6 +276,7 @@ export const MOCK_REGION_DATA: RegionDataResponse = {
         { segmentCode: 'NEURAMIS', segmentName: 'Neuramis', ...withPrevMonth(2627, 369, 2550, 290) },
         { segmentCode: 'NEURONOX', segmentName: 'Neuronox', ...withPrevMonth(7226, 967, 7100, 980) },
         { segmentCode: 'VITARAN', segmentName: 'Vitaran', ...withPrevMonth(14391, 2606, 14200, 2400) },
+        { segmentCode: 'IUSE', segmentName: 'IUSE', ...withPrevMonth(2500, 145, 2400, 130) },
         { segmentCode: 'OTHER', segmentName: 'Інші ТМ', ...withPrevMonth(6153, 1430, 6050, 1555) },
       ],
     },
