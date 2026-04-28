@@ -205,6 +205,7 @@ export function DirectorDashboard() {
               brand={brand}
               calcPct={calcPct}
               asOfDate={asOfDate}
+              onRegionClick={(regionCode) => { setSelectedRegion(regionCode); setView('region'); }}
             />
           ))}
         </div>
@@ -232,9 +233,10 @@ interface BrandRegionGroupProps {
   };
   calcPct: number;
   asOfDate: Date;
+  onRegionClick: (regionCode: string) => void;
 }
 
-function BrandRegionGroup({ brand, calcPct, asOfDate }: BrandRegionGroupProps) {
+function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick }: BrandRegionGroupProps) {
   const [expanded, setExpanded] = useState(false);
   const totalPrevPct = brand.totalPrevPlan > 0 ? (brand.totalPrevFact / brand.totalPrevPlan) * 100 : 0;
 
@@ -273,6 +275,7 @@ function BrandRegionGroup({ brand, calcPct, asOfDate }: BrandRegionGroupProps) {
                 prevMonthFactAmount={r.prevFact}
                 prevMonthFactPercent={rPrevPct}
                 hasManagerPlan={false}
+                onClick={() => onRegionClick(r.regionCode)}
               />
             );
           })}
