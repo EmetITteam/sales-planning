@@ -6,7 +6,8 @@ import { getMonthProgressPct } from '@/lib/working-days';
 import { MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { RMDashboard } from './rm-dashboard';
-import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, Users, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { BrandRow } from './brand-row';
+import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, Users, ChevronRight, ChevronDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 type DirView = 'dashboard' | 'region';
 
@@ -71,6 +72,27 @@ export function DirectorDashboard() {
       </div>
     );
   }
+
+  // Розбивка кожного бренду по регіонах — для другого блоку у директора
+  const brandsByRegion = SEGMENTS.map(seg => {
+    const perRegion = regionSummaries.map(r => ({
+      regionCode: r.regionCode,
+      regionName: r.regionName,
+      plan: r.segTotals[seg.code]?.plan ?? 0,
+      fact: r.segTotals[seg.code]?.fact ?? 0,
+      prevFact: r.segTotals[seg.code]?.prevFact ?? 0,
+      prevPlan: r.segTotals[seg.code]?.prevPlan ?? 0,
+    }));
+    const totalPlan = perRegion.reduce((s, x) => s + x.plan, 0);
+    const totalFact = perRegion.reduce((s, x) => s + x.fact, 0);
+    const totalPrevFact = perRegion.reduce((s, x) => s + x.prevFact, 0);
+    const totalPrevPlan = perRegion.reduce((s, x) => s + x.prevPlan, 0);
+    return {
+      code: seg.code, name: seg.name,
+      totalPlan, totalFact, totalPrevFact, totalPrevPlan,
+      regions: perRegion,
+    };
+  });
 
   const segGrandTotals = SEGMENTS.map(seg => {
     let plan = 0, fact = 0, prevFact = 0, prevPlan = 0;
@@ -213,55 +235,20 @@ export function DirectorDashboard() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] transition-colors" />
                   </div>
                 </div>
-                {/* Таблиця всіх 9 брендів регіону */}
-                <div className="px-5 pb-4">
-                  <div className="rounded-xl bg-[#f4f7fb] overflow-hidden">
-                    {/* Заголовок таблиці */}
-                    <div className="grid grid-cols-[16px_1fr_60px_70px_90px_140px] gap-2 px-3 py-2 border-b border-[#e2e7ef] text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                      <div />
-                      <div>Бренд</div>
-                      <div className="text-right">%</div>
-                      <div className="text-right">vs Норма</div>
-                      <div className="text-right">Факт</div>
-                      <div className="text-right">vs Мин. міс.</div>
-                    </div>
-                    {allSegs.map(seg => {
-                      const segPct = seg.plan > 0 ? (seg.fact / seg.plan) * 100 : 0;
-                      const segPrevPct = seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0;
-                      const segTl = getTrafficLight(segPct, calcPct);
-                      const segDev = segPct - calcPct;
-                      const dyn = seg.fact - seg.prevFact;
-                      const dynPct = segPct - segPrevPct;
-                      const dynBetter = dyn >= 0;
-                      const Arrow = dynBetter ? TrendingUp : TrendingDown;
-                      const isInactive = seg.plan === 0 && seg.fact === 0;
-                      return (
-                        <div
-                          key={seg.code}
-                          className={`grid grid-cols-[16px_1fr_60px_70px_90px_140px] gap-2 px-3 py-2 items-center text-[11px] border-b border-[#e8ebf4] last:border-b-0 ${isInactive ? 'opacity-40' : ''}`}
-                        >
-                          <div className={`w-2 h-2 rounded-full ${segTl.dot}`} />
-                          <span className="font-semibold text-foreground/80 truncate">{seg.name}</span>
-                          <span className={`text-right font-bold ${segTl.color}`}>{segPct.toFixed(0)}%</span>
-                          <span className={`text-right font-bold ${segDev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {segDev >= 0 ? '+' : ''}{segDev.toFixed(1)}%
-                          </span>
-                          <span className="text-right text-muted-foreground font-mono amount">{formatUSD(seg.fact)}</span>
-                          <div className="text-right">
-                            {seg.prevFact > 0 ? (
-                              <span className={`inline-flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                <Arrow className="h-2.5 w-2.5" />
-                                <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
-                                <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/40">—</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                {/* Бренди регіону — список BrandRow */}
+                <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-[#fafbfe]">
+                  {allSegs.map(seg => (
+                    <BrandRow
+                      key={seg.code}
+                      segmentName={seg.name}
+                      planAmount={seg.plan}
+                      factAmount={seg.fact}
+                      calcPct={calcPct}
+                      asOfDate={asOfDate}
+                      prevMonthFactAmount={seg.prevFact}
+                      prevMonthFactPercent={seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0}
+                    />
+                  ))}
                 </div>
               </div>
             );
@@ -269,50 +256,85 @@ export function DirectorDashboard() {
         </div>
       </div>
 
-      {/* TM summary — з відхиленням від норми + динамікою vs минулий місяць */}
+      {/* По брендах з розбивкою по регіонах — згруповані аккордеони */}
       <div>
-        <h3 className="text-[15px] font-bold mb-4">Зведена по ТМ</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {segGrandTotals.map(seg => {
-            const tl = getTrafficLight(seg.pct, calcPct);
-            const dyn = seg.fact - seg.prevFact;
-            const segPrevPct = seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0;
-            const dynPct = seg.pct - segPrevPct;
-            const dynBetter = dyn >= 0;
-            const Arrow = dynBetter ? TrendingUp : TrendingDown;
+        <h3 className="text-[15px] font-bold mb-4">По брендах — з розбивкою по регіонах</h3>
+        <div className="space-y-3">
+          {brandsByRegion.map(brand => (
+            <BrandRegionGroup
+              key={brand.code}
+              brand={brand}
+              calcPct={calcPct}
+              asOfDate={asOfDate}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface BrandRegionGroupProps {
+  brand: {
+    code: string;
+    name: string;
+    totalPlan: number;
+    totalFact: number;
+    totalPrevFact: number;
+    totalPrevPlan: number;
+    regions: Array<{
+      regionCode: string;
+      regionName: string;
+      plan: number;
+      fact: number;
+      prevFact: number;
+      prevPlan: number;
+    }>;
+  };
+  calcPct: number;
+  asOfDate: Date;
+}
+
+function BrandRegionGroup({ brand, calcPct, asOfDate }: BrandRegionGroupProps) {
+  const [expanded, setExpanded] = useState(false);
+  const totalPrevPct = brand.totalPrevPlan > 0 ? (brand.totalPrevFact / brand.totalPrevPlan) * 100 : 0;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+      {/* Заголовок-сводка по бренду — реюзаем BrandRow */}
+      <BrandRow
+        segmentName={brand.name}
+        planAmount={brand.totalPlan}
+        factAmount={brand.totalFact}
+        calcPct={calcPct}
+        asOfDate={asOfDate}
+        prevMonthFactAmount={brand.totalPrevFact}
+        prevMonthFactPercent={totalPrevPct}
+        onClick={() => setExpanded(!expanded)}
+      />
+      {/* Розгорнутий список регіонів */}
+      {expanded && (
+        <div className="px-3 md:px-5 py-3 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 ml-1">
+            <ChevronDown className="inline h-3 w-3 mr-1" />Регіони
+          </p>
+          {brand.regions.map(r => {
+            const rPrevPct = r.prevPlan > 0 ? (r.prevFact / r.prevPlan) * 100 : 0;
             return (
-              <div key={seg.code} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={`w-2.5 h-2.5 rounded-full ${tl.dot}`} />
-                  <span className="text-[13px] font-bold">{seg.name}</span>
-                  <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${tl.bg} ${tl.color}`}>{tl.label}</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-extrabold">{seg.pct.toFixed(1)}%</span>
-                  <span className={`text-[12px] font-bold ${seg.deviation >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {seg.deviation >= 0 ? '+' : ''}{seg.deviation.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mt-2 mb-2">
-                  <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
-                    style={{ width: `${Math.min(seg.pct * 2, 100)}%` }} />
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-2">
-                  <span className="amount">{formatUSD(seg.fact)}</span>
-                  <span className="amount">{formatUSD(seg.plan)}</span>
-                </div>
-                {seg.prevFact > 0 && (
-                  <p className={`text-[10px] font-semibold flex items-center gap-1 pt-1.5 border-t border-[#f0f2f8] ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    <Arrow className="h-3 w-3" />
-                    vs мин. міс.: <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
-                    <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-                  </p>
-                )}
-              </div>
+              <BrandRow
+                key={r.regionCode}
+                segmentName={r.regionName}
+                planAmount={r.plan}
+                factAmount={r.fact}
+                calcPct={calcPct}
+                asOfDate={asOfDate}
+                prevMonthFactAmount={r.prevFact}
+                prevMonthFactPercent={rPrevPct}
+              />
             );
           })}
         </div>
-      </div>
+      )}
     </div>
   );
 }

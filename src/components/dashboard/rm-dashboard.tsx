@@ -7,7 +7,8 @@ import { MOCK_REGION_DATA, SEGMENTS, getFactScaleRatio } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
-import { Target, DollarSign, TrendingUp, TrendingDown, Users, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
+import { BrandRow } from './brand-row';
+import { Target, DollarSign, TrendingUp, TrendingDown, Users, MapPin, ChevronRight, ClipboardList, Eye, ChevronDown } from 'lucide-react';
 
 interface RMDashboardProps {
   regionCode?: string;
@@ -249,43 +250,20 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   </div>
                 </div>
 
-                {/* TM breakdown — з відхиленням від норми та динамікою vs минулий місяць */}
-                <div className="px-6 pb-4">
-                  <div className="flex gap-2 flex-wrap">
-                    {manager.segments.map(seg => {
-                      const tl = getTrafficLight(seg.factPercent, calcPct);
-                      const dev = seg.factPercent - calcPct;
-                      const prev = seg.prevMonthFactAmount ?? 0;
-                      const dyn = seg.factAmount - prev;
-                      const dynPct = seg.factPercent - (seg.prevMonthFactPercent ?? 0);
-                      const dynBetter = dyn >= 0;
-                      const Arrow = dynBetter ? TrendingUp : TrendingDown;
-                      return (
-                        <div key={seg.segmentCode} className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-[#f4f7fb] min-w-[170px]">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${tl.dot}`} />
-                            <span className="text-[11px] font-semibold text-foreground/80">{seg.segmentName}</span>
-                            <span className={`text-[10px] font-bold ml-auto ${tl.color}`}>{seg.factPercent.toFixed(0)}%</span>
-                            <span className={`text-[9px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                              {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-[10px] text-muted-foreground font-mono">
-                              <span className="amount">{formatUSD(seg.factAmount)}</span> <span className="text-muted-foreground/50 amount">/ {formatUSD(seg.planAmount)}</span>
-                            </p>
-                            {prev > 0 && (
-                              <p className={`text-[9px] font-semibold flex items-center gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                <Arrow className="h-2.5 w-2.5" />
-                                <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
-                                <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                {/* Бренди менеджера — список BrandRow */}
+                <div className="px-3 md:px-6 pb-4 space-y-1.5 bg-[#fafbfe]">
+                  {manager.segments.map(seg => (
+                    <BrandRow
+                      key={seg.segmentCode}
+                      segmentName={seg.segmentName}
+                      planAmount={seg.planAmount}
+                      factAmount={seg.factAmount}
+                      calcPct={calcPct}
+                      asOfDate={asOfDate}
+                      prevMonthFactAmount={seg.prevMonthFactAmount}
+                      prevMonthFactPercent={seg.prevMonthFactPercent}
+                    />
+                  ))}
                 </div>
               </div>
             );
@@ -293,47 +271,22 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         </div>
       </div>
 
-      {/* Region TM summary — з відхиленням від норми + динамікою vs минулий місяць */}
+      {/* Зведена по ТМ — рядки бренд за регіоном */}
       <div>
-        <h3 className="text-[15px] font-bold mb-4">Зведена по ТМ</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {regionTotals.map(rt => {
-            const tl = getTrafficLight(rt.pct, calcPct);
-            const dyn = rt.totalFact - rt.prevFact;
-            const dynPct = rt.pct - rt.prevPct;
-            const dynBetter = dyn >= 0;
-            const Arrow = dynBetter ? TrendingUp : TrendingDown;
-            return (
-              <div key={rt.code} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={`w-2.5 h-2.5 rounded-full ${tl.dot}`} />
-                  <span className="text-[13px] font-bold">{rt.name}</span>
-                  <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${tl.bg} ${tl.color}`}>{tl.label}</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-extrabold">{rt.pct.toFixed(1)}%</span>
-                  <span className={`text-[12px] font-bold ${rt.deviation >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {rt.deviation >= 0 ? '+' : ''}{rt.deviation.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mt-2 mb-2">
-                  <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
-                    style={{ width: `${Math.min(rt.pct * 2, 100)}%` }} />
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-2">
-                  <span className="amount">{formatUSD(rt.totalFact)}</span>
-                  <span className="amount">{formatUSD(rt.totalPlan)}</span>
-                </div>
-                {rt.prevFact > 0 && (
-                  <p className={`text-[10px] font-semibold flex items-center gap-1 pt-1.5 border-t border-[#f0f2f8] ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    <Arrow className="h-3 w-3" />
-                    vs мин. міс.: <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
-                    <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-                  </p>
-                )}
-              </div>
-            );
-          })}
+        <h3 className="text-[15px] font-bold mb-4">Зведена по ТМ — регіон {region.regionName}</h3>
+        <div className="space-y-2">
+          {regionTotals.map(rt => (
+            <BrandRow
+              key={rt.code}
+              segmentName={rt.name}
+              planAmount={rt.totalPlan}
+              factAmount={rt.totalFact}
+              calcPct={calcPct}
+              asOfDate={asOfDate}
+              prevMonthFactAmount={rt.prevFact}
+              prevMonthFactPercent={rt.prevPct}
+            />
+          ))}
         </div>
       </div>
     </div>
