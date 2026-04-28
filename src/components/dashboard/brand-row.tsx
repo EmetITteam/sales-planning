@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatUSD, formatPct, getTrafficLight, calcForecastPercent } from '@/lib/format';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 
@@ -28,6 +28,13 @@ export interface BrandRowProps {
   onClick?: () => void;
   /** Read-only: без hover-ефекту і chevron */
   readOnly?: boolean;
+  /**
+   * Якщо true — chevron вказує на accordion (вниз/вгору при expanded),
+   * якщо false (default) — chevron вправо (drill-down).
+   */
+  expandable?: boolean;
+  /** Стан акордеона — для розвороту chevron */
+  expanded?: boolean;
 }
 
 export function BrandRow({
@@ -43,6 +50,8 @@ export function BrandRow({
   prevMonthFactPercent,
   onClick,
   readOnly,
+  expandable,
+  expanded,
 }: BrandRowProps) {
   const factPercent = planAmount > 0 ? (factAmount / planAmount) * 100 : 0;
   const tl = getTrafficLight(factPercent, calcPct);
@@ -124,10 +133,11 @@ export function BrandRow({
           </div>
           <p className="text-[10px] mt-1 truncate flex items-center gap-2">
             <span><span className="text-amber-600">●</span> Прогноз: <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
-            <span className="text-muted-foreground/40">·</span>
-            <span><span className="text-[#066aab]">●</span> Очік.: <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
-            {!hasManagerPlan && (
-              <span className="text-amber-600 font-semibold">· план не заповнено</span>
+            {hasManagerPlan && (
+              <>
+                <span className="text-muted-foreground/40">·</span>
+                <span><span className="text-[#066aab]">●</span> Очік.: <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
+              </>
             )}
           </p>
         </div>
@@ -168,9 +178,13 @@ export function BrandRow({
           )}
         </div>
 
-        {/* 9. Chevron */}
+        {/* 9. Chevron — drill-down (вправо) або accordion (вниз/обертається) */}
         {onClick ? (
-          <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] group-hover:translate-x-0.5 transition-all" />
+          expandable ? (
+            <ChevronDown className={`h-4 w-4 text-muted-foreground/40 group-hover:text-[#066aab] transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] group-hover:translate-x-0.5 transition-all" />
+          )
         ) : <div />}
       </div>
 
@@ -187,7 +201,11 @@ export function BrandRow({
           <span className={`text-[10px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
             {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
           </span>
-          {onClick && <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />}
+          {onClick && (
+            expandable
+              ? <ChevronDown className={`h-4 w-4 text-muted-foreground/30 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+              : <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+          )}
         </div>
 
         {/* Mobile прогрес-бар */}
@@ -209,7 +227,9 @@ export function BrandRow({
         {/* Mobile низ: проценти + суми + динаміка */}
         <div className="flex items-center gap-3 text-[11px] flex-wrap">
           <span><span className="text-amber-600">●</span> Прогноз <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
-          <span><span className="text-[#066aab]">●</span> Очік. <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
+          {hasManagerPlan && (
+            <span><span className="text-[#066aab]">●</span> Очік. <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
+          )}
           <span className="text-muted-foreground">|</span>
           <span>План <span className="font-bold amount">{formatUSD(planAmount)}</span></span>
           <span>Факт <span className="font-bold amount">{formatUSD(factAmount)}</span></span>

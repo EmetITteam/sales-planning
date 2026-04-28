@@ -7,7 +7,7 @@ import { MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { RMDashboard } from './rm-dashboard';
 import { BrandRow } from './brand-row';
-import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, Users, ChevronRight, ChevronDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, Users, ChevronRight, ChevronDown } from 'lucide-react';
 
 type DirView = 'dashboard' | 'region';
 
@@ -168,14 +168,11 @@ export function DirectorDashboard() {
         </div>
       </div>
 
-      {/* Region cards — клікабельні */}
+      {/* Region cards — accordion (тап = розгорнути), drill-down через окрему іконку */}
       <div>
         <h3 className="text-[15px] font-bold mb-4">Регіони</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-3">
           {regionSummaries.map(region => {
-            const tl = getTrafficLight(region.pct, calcPct);
-            const regionDeviation = region.pct - calcPct;
-            // Усі бренди регіону у таблиці (не топ-4 чипи)
             const allSegs = SEGMENTS.map(seg => ({
               ...seg,
               fact: region.segTotals[seg.code]?.fact ?? 0,
@@ -185,72 +182,14 @@ export function DirectorDashboard() {
             }));
 
             return (
-              <div key={region.regionCode}
-                onClick={() => { setSelectedRegion(region.regionCode); setView('region'); }}
-                className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer group"
-              >
-                <div className="flex items-center justify-between px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center">
-                      <MapPin className="h-5 w-5 text-[#066aab]" />
-                    </div>
-                    <div>
-                      <p className="text-[14px] font-bold">{region.regionName}</p>
-                      <p className="text-[11px] text-muted-foreground">{region.managers.length} менеджерів</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт / План</p>
-                      <p className="text-[14px] font-bold font-mono"><span className="amount">{formatUSD(region.totalFact)}</span> <span className="text-muted-foreground/50 font-normal amount">/ {formatUSD(region.totalPlan)}</span></p>
-                    </div>
-                    {region.totalPrevFact > 0 && (() => {
-                      const dynAmount = region.totalFact - region.totalPrevFact;
-                      const dynPct = region.pct - region.prevPct;
-                      const dynBetter = dynAmount >= 0;
-                      return (
-                        <div className="text-right">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">vs мин. міс.</p>
-                          <p className={`text-[12px] font-bold flex items-center justify-end gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                            <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-                          </p>
-                          <p className={`text-[10px] font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {dynBetter ? '+' : ''}{dynPct.toFixed(1)}%
-                          </p>
-                        </div>
-                      );
-                    })()}
-                    <div className="flex flex-col items-center gap-0.5">
-                      <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
-                        <div className={`h-full rounded-full ${region.pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
-                          style={{ width: `${Math.min(region.pct * 2, 100)}%` }} />
-                      </div>
-                      <span className={`text-[11px] font-bold ${tl.color}`}>{region.pct.toFixed(1)}%</span>
-                      <span className={`text-[10px] font-bold ${regionDeviation >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {regionDeviation >= 0 ? '+' : ''}{regionDeviation.toFixed(1)}%
-                      </span>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${tl.bg} ${tl.color}`}>{tl.label}</span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] transition-colors" />
-                  </div>
-                </div>
-                {/* Бренди регіону — список BrandRow */}
-                <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-[#fafbfe]">
-                  {allSegs.map(seg => (
-                    <BrandRow
-                      key={seg.code}
-                      segmentName={seg.name}
-                      planAmount={seg.plan}
-                      factAmount={seg.fact}
-                      calcPct={calcPct}
-                      asOfDate={asOfDate}
-                      prevMonthFactAmount={seg.prevFact}
-                      prevMonthFactPercent={seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0}
-                    />
-                  ))}
-                </div>
-              </div>
+              <RegionAccordion
+                key={region.regionCode}
+                region={region}
+                allSegs={allSegs}
+                calcPct={calcPct}
+                asOfDate={asOfDate}
+                onDrillDown={() => { setSelectedRegion(region.regionCode); setView('region'); }}
+              />
             );
           })}
         </div>
@@ -310,7 +249,10 @@ function BrandRegionGroup({ brand, calcPct, asOfDate }: BrandRegionGroupProps) {
         asOfDate={asOfDate}
         prevMonthFactAmount={brand.totalPrevFact}
         prevMonthFactPercent={totalPrevPct}
+        hasManagerPlan={false}
         onClick={() => setExpanded(!expanded)}
+        expandable
+        expanded={expanded}
       />
       {/* Розгорнутий список регіонів */}
       {expanded && (
@@ -330,9 +272,124 @@ function BrandRegionGroup({ brand, calcPct, asOfDate }: BrandRegionGroupProps) {
                 asOfDate={asOfDate}
                 prevMonthFactAmount={r.prevFact}
                 prevMonthFactPercent={rPrevPct}
+                hasManagerPlan={false}
               />
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface RegionAccordionProps {
+  region: {
+    regionCode: string;
+    regionName: string;
+    managers: Array<unknown>;
+    totalPlan: number;
+    totalFact: number;
+    totalPrevFact: number;
+    totalPrevPlan: number;
+    pct: number;
+    prevPct: number;
+  };
+  allSegs: Array<{
+    code: string;
+    name: string;
+    plan: number;
+    fact: number;
+    prevFact: number;
+    prevPlan: number;
+  }>;
+  calcPct: number;
+  asOfDate: Date;
+  onDrillDown: () => void;
+}
+
+function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: RegionAccordionProps) {
+  const [expanded, setExpanded] = useState(false);
+  const tl = getTrafficLight(region.pct, calcPct);
+  const regionDeviation = region.pct - calcPct;
+  const dynAmount = region.totalFact - region.totalPrevFact;
+  const dynPct = region.pct - region.prevPct;
+  const dynBetter = dynAmount >= 0;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+      {/* Header — кликабельний для accordion. Drill-down — окрема кнопка справа. */}
+      <div
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center justify-between px-4 md:px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
+            <MapPin className="h-5 w-5 text-[#066aab]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-bold truncate">{region.regionName}</p>
+            <p className="text-[11px] text-muted-foreground">{region.managers.length} менеджерів</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 md:gap-4 flex-wrap justify-end">
+          <div className="text-right">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт / План</p>
+            <p className="text-[14px] font-bold font-mono">
+              <span className="amount">{formatUSD(region.totalFact)}</span>
+              <span className="text-muted-foreground/50 font-normal"> / </span>
+              <span className="amount text-muted-foreground/70">{formatUSD(region.totalPlan)}</span>
+            </p>
+          </div>
+          {region.totalPrevFact > 0 && (
+            <div className="text-right">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">vs мин. міс.</p>
+              <p className={`text-[12px] font-bold flex items-center justify-end gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+              </p>
+              <p className={`text-[10px] font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {dynBetter ? '+' : ''}{dynPct.toFixed(1)}%
+              </p>
+            </div>
+          )}
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div className={`h-full rounded-full ${region.pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+                style={{ width: `${Math.min(region.pct, 100)}%` }} />
+            </div>
+            <span className={`text-[11px] font-bold ${tl.color}`}>{region.pct.toFixed(1)}%</span>
+            <span className={`text-[10px] font-bold ${regionDeviation >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {regionDeviation >= 0 ? '+' : ''}{regionDeviation.toFixed(1)}%
+            </span>
+          </div>
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground/40 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          {/* Drill-down кнопка — окремий клік, stopPropagation */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
+            title="Перейти у дашборд регіону (планування менеджерів)"
+            className="p-1.5 rounded-lg hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+      {/* Розгорнутий список брендів */}
+      {expanded && (
+        <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
+          {allSegs.map(seg => (
+            <BrandRow
+              key={seg.code}
+              segmentName={seg.name}
+              planAmount={seg.plan}
+              factAmount={seg.fact}
+              calcPct={calcPct}
+              asOfDate={asOfDate}
+              prevMonthFactAmount={seg.prevFact}
+              prevMonthFactPercent={seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0}
+              hasManagerPlan={false}
+            />
+          ))}
         </div>
       )}
     </div>

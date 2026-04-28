@@ -8,7 +8,7 @@ import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
 import { BrandRow } from './brand-row';
-import { Target, DollarSign, TrendingUp, TrendingDown, Users, MapPin, ChevronRight, ClipboardList, Eye, ChevronDown } from 'lucide-react';
+import { Target, DollarSign, TrendingUp, TrendingDown, Users, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
 
 interface RMDashboardProps {
   regionCode?: string;
@@ -262,6 +262,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                       asOfDate={asOfDate}
                       prevMonthFactAmount={seg.prevMonthFactAmount}
                       prevMonthFactPercent={seg.prevMonthFactPercent}
+                      hasManagerPlan={false}
                     />
                   ))}
                 </div>
@@ -285,6 +286,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               asOfDate={asOfDate}
               prevMonthFactAmount={rt.prevFact}
               prevMonthFactPercent={rt.prevPct}
+              hasManagerPlan={false}
             />
           ))}
         </div>
