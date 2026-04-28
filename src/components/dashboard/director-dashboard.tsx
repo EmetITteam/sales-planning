@@ -320,10 +320,10 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
-      {/* Header — кликабельний для accordion. Drill-down — окрема кнопка справа. */}
+      {/* === DESKTOP (md+): один рядок === */}
       <div
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-between px-4 md:px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        className="hidden md:flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
@@ -334,7 +334,7 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
             <p className="text-[11px] text-muted-foreground">{region.managers.length} менеджерів</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 md:gap-4 flex-wrap justify-end">
+        <div className="flex items-center gap-4 justify-end">
           <div className="text-right">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт / План</p>
             <p className="text-[14px] font-bold font-mono">
@@ -367,7 +367,6 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
           </div>
           <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
           <ChevronDown className={`h-4 w-4 text-muted-foreground/40 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-          {/* Drill-down кнопка — окремий клік, stopPropagation */}
           <button
             onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
             title="Перейти у дашборд регіону (планування менеджерів)"
@@ -375,6 +374,62 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
           >
             <ChevronRight className="h-5 w-5" />
           </button>
+        </div>
+      </div>
+
+      {/* === MOBILE (<md): stacked === */}
+      <div className="md:hidden">
+        <div
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb]"
+        >
+          <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0 mt-0.5">
+            <MapPin className="h-4.5 w-4.5 text-[#066aab]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            {/* Рядок 1: назва + бейдж + chevron + drill-down */}
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-[14px] font-bold truncate flex-1">{region.regionName}</p>
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground/40 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+              <button
+                onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
+                className="p-1 rounded-lg text-muted-foreground/40 hover:text-[#066aab] hover:bg-[#e8f4fc] transition-colors cursor-pointer shrink-0"
+                title="Дашборд регіону"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            {/* Рядок 2: менеджерів + % + відхилення */}
+            <div className="flex items-center gap-2 mb-1.5 text-[11px] text-muted-foreground">
+              <span>{region.managers.length} менеджерів</span>
+              <span className="text-muted-foreground/40">·</span>
+              <span className={`font-bold ${tl.color}`}>{region.pct.toFixed(1)}%</span>
+              <span className={`font-bold ${regionDeviation >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {regionDeviation >= 0 ? '+' : ''}{regionDeviation.toFixed(1)}%
+              </span>
+            </div>
+            {/* Прогрес-бар */}
+            <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mb-2">
+              <div className={`h-full rounded-full ${region.pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+                style={{ width: `${Math.min(region.pct, 100)}%` }} />
+            </div>
+            {/* Рядок 3: суми */}
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground">
+                Факт <span className="font-bold text-foreground amount">{formatUSD(region.totalFact)}</span>
+                <span className="text-muted-foreground/50"> / </span>
+                <span className="amount text-muted-foreground/70">{formatUSD(region.totalPlan)}</span>
+              </span>
+              {region.totalPrevFact > 0 && (
+                <span className={`flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+                  <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       {/* Розгорнутий список брендів */}

@@ -200,8 +200,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                 onClick={() => { setSelectedManager(manager.login); setView('viewManager'); }}
                 className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer group"
               >
-                {/* Manager header */}
-                <div className="flex items-center justify-between px-6 py-4">
+                {/* === DESKTOP (md+): один рядок === */}
+                <div className="hidden md:flex items-center justify-between px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[14px] font-bold text-[#066aab]">
                       {manager.name.charAt(0)}
@@ -246,6 +246,39 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                     <div className="flex items-center gap-1.5 text-muted-foreground/40 group-hover:text-[#066aab] transition-colors">
                       <Eye className="h-4 w-4" />
                       <ChevronRight className="h-4 w-4" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* === MOBILE (<md): stacked === */}
+                <div className="md:hidden flex items-start gap-2.5 px-3 py-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[13px] font-bold text-[#066aab] shrink-0 mt-0.5">
+                    {manager.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-[14px] font-bold truncate flex-1">{manager.name}</p>
+                      <span className={`text-[10px] font-bold ${mTl.color}`}>{mTl.label}</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mb-1.5">
+                      <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
+                        style={{ width: `${Math.min(mPct, 100)}%` }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] flex-wrap gap-1.5">
+                      <span className="text-muted-foreground">
+                        Факт <span className="font-bold text-foreground amount">{formatUSD(mTotal)}</span>
+                        <span className="text-muted-foreground/50"> / </span>
+                        <span className="amount text-muted-foreground/70">{formatUSD(mPlan)}</span>
+                      </span>
+                      <span className="font-bold">{mPct.toFixed(1)}%</span>
+                      {prevTotal > 0 && (
+                        <span className={`flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                          <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+                          <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
