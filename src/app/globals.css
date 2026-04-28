@@ -132,7 +132,7 @@ body[data-hide-amounts="true"] .amount * {
   -webkit-text-fill-color: transparent;
 }
 body[data-hide-amounts="true"] .amount::after {
-  content: '$ $ $';
+  content: '$$$';
   position: absolute;
   left: 0;
   right: 0;
@@ -143,15 +143,15 @@ body[data-hide-amounts="true"] .amount::after {
   justify-content: flex-start;
   color: #066aab;
   -webkit-text-fill-color: #066aab;
-  font-weight: inherit;
-  font-size: inherit;
-  letter-spacing: 0.2em;
+  font-weight: 700;
+  font-size: 0.85em;
+  letter-spacing: 0.05em;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.55;
 }
-/* Праве вирівнювання: коли .amount всередині text-right колонки — піктограми праворуч */
+/* Праве вирівнювання — і коли .amount сам має text-right, і коли в правому контейнері */
+body[data-hide-amounts="true"] .amount.text-right::after,
 body[data-hide-amounts="true"] .text-right .amount::after,
-body[data-hide-amounts="true"] [class*="justify-end"] .amount::after,
-body[data-hide-amounts="true"] [class*="text-right"] .amount::after {
+body[data-hide-amounts="true"] [class*="justify-end"] .amount::after {
   justify-content: flex-end;
 }
