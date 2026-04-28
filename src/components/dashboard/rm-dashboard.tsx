@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, getTrafficLight } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight } from '@/lib/format';
 import { getMonthProgressPct } from '@/lib/working-days';
-import { MOCK_REGION_DATA, SEGMENTS } from '@/lib/mock-data';
+import { MOCK_REGION_DATA, SEGMENTS, getFactScaleRatio } from '@/lib/mock-data';
+import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
 import { Target, DollarSign, TrendingUp, TrendingDown, Users, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
@@ -18,15 +19,34 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const [view, setView] = useState<RMView>('dashboard');
   const [selectedManager, setSelectedManager] = useState<string>('');
 
+  const { currentPeriod, liveMode } = useAppStore();
+  const asOfDate = liveMode ? new Date() : new Date(currentPeriod.weekEnd);
+  const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
+  const factScale = getFactScaleRatio(asOfDate);
+
   const region = MOCK_REGION_DATA;
 
-  // Норма календаря — однакова для всіх сегментів і регіонів (% робочих днів пройдено)
-  const now = new Date();
-  const calcPct = getMonthProgressPct(now.getFullYear(), now.getMonth(), now);
+  // Норма календаря — % робочих днів пройдено на дату зрізу
+  const calcPct = getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
+
+  // Масштабуємо mock-факт пропорційно дати зрізу (імітуємо getSalesFact(asOfDate))
+  const scaledManagers = region.managers.map(m => ({
+    ...m,
+    segments: m.segments.map(s => ({
+      ...s,
+      factAmount: Math.round(s.factAmount * factScale),
+      prevMonthFactAmount: s.prevMonthFactAmount !== undefined
+        ? Math.round(s.prevMonthFactAmount * factScale)
+        : undefined,
+    })),
+    totalPrevMonthFact: m.totalPrevMonthFact !== undefined
+      ? Math.round(m.totalPrevMonthFact * factScale)
+      : undefined,
+  }));
 
   const regionTotals = SEGMENTS.map(seg => {
     let totalPlan = 0, totalFact = 0, prevFact = 0, prevPlan = 0;
-    region.managers.forEach(m => {
+    scaledManagers.forEach(m => {
       const s = m.segments.find(ms => ms.segmentCode === seg.code);
       if (s) {
         totalPlan += s.planAmount;
@@ -126,7 +146,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               {grandPct - calcPct >= 0 ? '+' : ''}{(grandPct - calcPct).toFixed(1)}%
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Норма на сьогодні: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
         </div>
 
         {/* Менеджерів */}
@@ -156,7 +176,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
       <div>
         <h3 className="text-[15px] font-bold mb-4">Менеджери</h3>
         <div className="space-y-4">
-          {region.managers.map(manager => {
+          {scaledManagers.map(manager => {
             const mTotal = manager.segments.reduce((s, seg) => s + seg.factAmount, 0);
             const mPlan = manager.segments.reduce((s, seg) => s + seg.planAmount, 0);
             const mPct = mPlan > 0 ? (mTotal / mPlan) * 100 : 0;

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { getMockTMSummaries } from '@/lib/mock-data';
-import { formatUSD, formatPct, getTrafficLight } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight } from '@/lib/format';
+import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import {
@@ -14,7 +15,12 @@ export function ManagerDashboard() {
   const [view, setView] = useState<'dashboard' | 'plan' | 'control'>('dashboard');
   const [selectedSegment, setSelectedSegment] = useState('');
 
-  const summaries = getMockTMSummaries();
+  const { currentPeriod, liveMode } = useAppStore();
+  // Зріз даних: live → сьогодні, інакше → кінець обраного фільтру
+  const asOfDate = liveMode ? new Date() : new Date(currentPeriod.weekEnd);
+  const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
+
+  const summaries = getMockTMSummaries(asOfDate);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0;
@@ -31,7 +37,7 @@ export function ManagerDashboard() {
     ? summaries.reduce((s, t) => s + t.expectedPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
     : 0;
 
-  if (view === 'plan' && selectedSegment) return <PlanningForm segmentCode={selectedSegment} onBack={() => setView('dashboard')} />;
+  if (view === 'plan' && selectedSegment) return <PlanningForm segmentCode={selectedSegment} onBack={() => setView('dashboard')} readOnly={liveMode} />;
   if (view === 'control') return <ClientControlView onBack={() => setView('dashboard')} />;
 
   // Мок: факт по категоріях клієнтів (буде з 1С)
@@ -90,7 +96,7 @@ export function ManagerDashboard() {
             </span>
           </div>
           <div className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
-            <p>Норма на сьогодні: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
+            <p>Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
             <p>Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Очік. (план): <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
           </div>
         </div>

@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PeriodFilter } from './period-filter';
-import { BarChart3, LogOut, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { BarChart3, LogOut, ChevronDown, Eye, EyeOff, Zap } from 'lucide-react';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -29,7 +29,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function AppHeader() {
-  const { user, setUser } = useAppStore();
+  const { user, setUser, liveMode, setLiveMode } = useAppStore();
   const [hideAmounts, setHideAmounts] = useState(false);
 
   // Init з localStorage + синхронізація з <body data-hide-amounts>
@@ -71,8 +71,30 @@ export function AppHeader() {
 
         <div className="w-px h-6 bg-border/60 hidden sm:block" />
 
-        {/* Period filter */}
-        <PeriodFilter />
+        {/* Period filter — приглушений у live-режимі */}
+        <div className={liveMode ? 'opacity-50 pointer-events-none' : ''}>
+          <PeriodFilter />
+        </div>
+
+        {/* Live toggle — миттєвий перегляд "на сьогодні" */}
+        <button
+          onClick={() => setLiveMode(!liveMode)}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all cursor-pointer ${
+            liveMode
+              ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-sm'
+              : 'bg-white border-[#e2e7ef] text-muted-foreground hover:border-amber-200 hover:text-amber-700'
+          }`}
+          title={liveMode ? 'Перейти на звітний фільтр' : 'Перегляд "на сьогодні" (read-only)'}
+        >
+          <Zap className={`h-3.5 w-3.5 ${liveMode ? 'fill-amber-400' : ''}`} />
+          {liveMode ? 'На сьогодні' : 'На сьогодні'}
+        </button>
+
+        {liveMode && (
+          <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+            LIVE · {new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}
+          </span>
+        )}
 
         <div className="flex-1" />
 

@@ -143,16 +143,33 @@ export const MOCK_TRAININGS: Training[] = [
   { trainingId: '4475', trainingName: 'Vitaran. Інноваційні протоколи', trainingType: 'Семінар', date: '2026-06-19', regionCode: 'DNP', regionName: 'Дніпро', city: '01.Дніпро' },
 ];
 
+/**
+ * Коефіцієнт зрізу факту: passedWD / totalWD на asOfDate.
+ * Mock-фактія записана за повний місяць → множимо на цей коефіцієнт для імітації.
+ * У проді буде getSalesFact(asOfDate) з 1С — реальний факт на дату.
+ */
+export function getFactScaleRatio(asOfDate: Date): number {
+  const year = asOfDate.getFullYear();
+  const month = asOfDate.getMonth();
+  const totalWD = getWorkingDaysInMonth(year, month);
+  if (totalWD === 0) return 0;
+  const passedWD = getPassedWorkingDays(year, month, asOfDate);
+  return Math.min(passedWD / totalWD, 1);
+}
+
 // === Зведені картки для дашборду менеджера ===
-// v2.1: рахуємо три % через working-days (calc / forecast / expected).
-export function getMockTMSummaries(): TMSummaryCard[] {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+// v2.1: рахуємо три % через working-days. asOfDate — дата зрізу (фільтр або сьогодні).
+// MOCK_SALES_FACT — це факт за повний місяць; для зрізу масштабуємо пропорційно
+// до пройдених робочих днів (для демо). У проді — буде getSalesFact(asOfDate).
+export function getMockTMSummaries(asOfDate: Date = new Date()): TMSummaryCard[] {
+  const year = asOfDate.getFullYear();
+  const month = asOfDate.getMonth();
 
   const totalWD = getWorkingDaysInMonth(year, month);
-  const passedWD = getPassedWorkingDays(year, month, now);
-  const calcPct = getMonthProgressPct(year, month, now);
+  const passedWD = getPassedWorkingDays(year, month, asOfDate);
+  const calcPct = getMonthProgressPct(year, month, asOfDate);
+  // Коефіцієнт зрізу: яку частку повного-місячного факту "відкрили" на дату
+  const factScaleRatio = totalWD > 0 ? Math.min(passedWD / totalWD, 1) : 0;
 
   // Сума прогнозу і закриття розриву по сегменту PETARAN (для прикладу)
   // У боєвому коді — буде агрегувати всі прогнози по сегменту.
@@ -165,7 +182,9 @@ export function getMockTMSummaries(): TMSummaryCard[] {
 
   return MOCK_SALES_PLAN.plans.map(plan => {
     const fact = MOCK_SALES_FACT.facts.find(f => f.segmentCode === plan.segmentCode);
-    const factAmount = fact?.totalAmount ?? 0;
+    const fullMonthFact = fact?.totalAmount ?? 0;
+    // Масштабуємо повномісячний факт на pasedWD/totalWD — це імітація getSalesFact(asOfDate)
+    const factAmount = Math.round(fullMonthFact * factScaleRatio);
     const factPct = plan.planAmount > 0 ? (factAmount / plan.planAmount) * 100 : 0;
 
     const forecastSum = forecastSumByCode[plan.segmentCode] ?? 0;

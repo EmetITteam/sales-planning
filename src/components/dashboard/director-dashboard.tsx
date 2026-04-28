@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, getTrafficLight } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight } from '@/lib/format';
 import { getMonthProgressPct } from '@/lib/working-days';
-import { MOCK_ALL_REGIONS, SEGMENTS } from '@/lib/mock-data';
+import { MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio } from '@/lib/mock-data';
+import { useAppStore } from '@/lib/store';
 import { RMDashboard } from './rm-dashboard';
 import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, Users, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
@@ -12,10 +13,14 @@ type DirView = 'dashboard' | 'region';
 export function DirectorDashboard() {
   const [view, setView] = useState<DirView>('dashboard');
   const [selectedRegion, setSelectedRegion] = useState('');
+  const { currentPeriod, liveMode } = useAppStore();
+  const asOfDate = liveMode ? new Date() : new Date(currentPeriod.weekEnd);
+  const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
+  const factScale = getFactScaleRatio(asOfDate);
+
   const regions = MOCK_ALL_REGIONS;
 
-  const now = new Date();
-  const calcPct = getMonthProgressPct(now.getFullYear(), now.getMonth(), now);
+  const calcPct = getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
 
   const regionSummaries = regions.map(region => {
     let totalPlan = 0, totalFact = 0, totalPrevFact = 0, totalPrevPlan = 0;
@@ -23,14 +28,17 @@ export function DirectorDashboard() {
     SEGMENTS.forEach(seg => { segTotals[seg.code] = { plan: 0, fact: 0, prevFact: 0, prevPlan: 0 }; });
     region.managers.forEach(m => {
       m.segments.forEach(s => {
+        // Масштабуємо факт пропорційно даті зрізу — імітація getSalesFact(asOfDate)
+        const factAmount = Math.round(s.factAmount * factScale);
+        const prevMonthFactAmount = Math.round((s.prevMonthFactAmount ?? 0) * factScale);
         totalPlan += s.planAmount;
-        totalFact += s.factAmount;
-        totalPrevFact += s.prevMonthFactAmount ?? 0;
+        totalFact += factAmount;
+        totalPrevFact += prevMonthFactAmount;
         totalPrevPlan += s.prevMonthPlanAmount ?? 0;
         if (segTotals[s.segmentCode]) {
           segTotals[s.segmentCode].plan += s.planAmount;
-          segTotals[s.segmentCode].fact += s.factAmount;
-          segTotals[s.segmentCode].prevFact += s.prevMonthFactAmount ?? 0;
+          segTotals[s.segmentCode].fact += factAmount;
+          segTotals[s.segmentCode].prevFact += prevMonthFactAmount;
           segTotals[s.segmentCode].prevPlan += s.prevMonthPlanAmount ?? 0;
         }
       });
@@ -118,7 +126,7 @@ export function DirectorDashboard() {
               {grandPct - calcPct >= 0 ? '+' : ''}{(grandPct - calcPct).toFixed(1)}%
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Норма: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
