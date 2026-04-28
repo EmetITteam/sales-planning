@@ -56,6 +56,8 @@ export function DirectorDashboard() {
   const grandFact = regionSummaries.reduce((s, r) => s + r.totalFact, 0);
   const grandPct = grandPlan > 0 ? (grandFact / grandPlan) * 100 : 0;
   const grandPrevFact = regionSummaries.reduce((s, r) => s + r.totalPrevFact, 0);
+  const grandPrevPlan = regionSummaries.reduce((s, r) => s + r.totalPrevPlan, 0);
+  const grandPrevPct = grandPrevPlan > 0 ? (grandPrevFact / grandPrevPlan) * 100 : 0;
   const totalManagers = regions.reduce((s, r) => s + r.managers.length, 0);
 
   // Drill-down в регіон — показуємо дашборд РМ
@@ -105,11 +107,13 @@ export function DirectorDashboard() {
           <p className="text-2xl font-extrabold tracking-tight amount">{formatUSD(grandFact)}</p>
           {grandPrevFact > 0 && (() => {
             const dyn = grandFact - grandPrevFact;
+            const dynPct = grandPct - grandPrevPct;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
               <p className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
                 <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
               </p>
             );
           })()}
@@ -155,6 +159,7 @@ export function DirectorDashboard() {
                 fact: region.segTotals[seg.code]?.fact ?? 0,
                 plan: region.segTotals[seg.code]?.plan ?? 0,
                 prevFact: region.segTotals[seg.code]?.prevFact ?? 0,
+                prevPlan: region.segTotals[seg.code]?.prevPlan ?? 0,
               }))
               .sort((a, b) => b.fact - a.fact)
               .slice(0, 4);
@@ -214,9 +219,11 @@ export function DirectorDashboard() {
                   <div className="flex gap-2 flex-wrap">
                     {topSegs.map(seg => {
                       const segPct = seg.plan > 0 ? (seg.fact / seg.plan) * 100 : 0;
+                      const segPrevPct = seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0;
                       const segTl = getTrafficLight(segPct, calcPct);
                       const segDev = segPct - calcPct;
                       const dyn = seg.fact - seg.prevFact;
+                      const dynPct = segPct - segPrevPct;
                       const dynBetter = dyn >= 0;
                       const Arrow = dynBetter ? TrendingUp : TrendingDown;
                       return (
@@ -235,6 +242,7 @@ export function DirectorDashboard() {
                               <p className={`text-[9px] font-semibold flex items-center gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 <Arrow className="h-2.5 w-2.5" />
                                 <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
+                                <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
                               </p>
                             )}
                           </div>
@@ -256,6 +264,8 @@ export function DirectorDashboard() {
           {segGrandTotals.map(seg => {
             const tl = getTrafficLight(seg.pct, calcPct);
             const dyn = seg.fact - seg.prevFact;
+            const segPrevPct = seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0;
+            const dynPct = seg.pct - segPrevPct;
             const dynBetter = dyn >= 0;
             const Arrow = dynBetter ? TrendingUp : TrendingDown;
             return (
@@ -271,10 +281,7 @@ export function DirectorDashboard() {
                     {seg.deviation >= 0 ? '+' : ''}{seg.deviation.toFixed(1)}%
                   </span>
                 </div>
-                <p className="text-[10px] text-muted-foreground mb-1">
-                  {seg.deviation >= 0 ? 'перевиконання' : 'відставання'} від норми
-                </p>
-                <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mt-1 mb-2">
+                <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mt-2 mb-2">
                   <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
                     style={{ width: `${Math.min(seg.pct * 2, 100)}%` }} />
                 </div>
@@ -286,6 +293,7 @@ export function DirectorDashboard() {
                   <p className={`text-[10px] font-semibold flex items-center gap-1 pt-1.5 border-t border-[#f0f2f8] ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                     <Arrow className="h-3 w-3" />
                     vs мин. міс.: <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
+                    <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
                   </p>
                 )}
               </div>

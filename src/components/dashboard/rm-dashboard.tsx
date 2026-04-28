@@ -69,6 +69,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const grandFact = regionTotals.reduce((s, r) => s + r.totalFact, 0);
   const grandPct = grandPlan > 0 ? (grandFact / grandPlan) * 100 : 0;
   const grandPrevFact = regionTotals.reduce((s, r) => s + r.prevFact, 0);
+  const grandPrevPlan = regionTotals.reduce((s, r) => s + r.prevPlan, 0);
+  const grandPrevPct = grandPrevPlan > 0 ? (grandPrevFact / grandPrevPlan) * 100 : 0;
 
   // Моє планування — показує дашборд менеджера
   if (view === 'myPlanning') {
@@ -124,11 +126,13 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           <p className="text-2xl font-extrabold tracking-tight amount">{formatUSD(grandFact)}</p>
           {grandPrevFact > 0 && (() => {
             const dyn = grandFact - grandPrevFact;
+            const dynPct = grandPct - grandPrevPct;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
               <p className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
                 <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
               </p>
             );
           })()}
@@ -253,6 +257,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                       const dev = seg.factPercent - calcPct;
                       const prev = seg.prevMonthFactAmount ?? 0;
                       const dyn = seg.factAmount - prev;
+                      const dynPct = seg.factPercent - (seg.prevMonthFactPercent ?? 0);
                       const dynBetter = dyn >= 0;
                       const Arrow = dynBetter ? TrendingUp : TrendingDown;
                       return (
@@ -273,6 +278,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                               <p className={`text-[9px] font-semibold flex items-center gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 <Arrow className="h-2.5 w-2.5" />
                                 <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
+                                <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
                               </p>
                             )}
                           </div>
@@ -294,6 +300,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           {regionTotals.map(rt => {
             const tl = getTrafficLight(rt.pct, calcPct);
             const dyn = rt.totalFact - rt.prevFact;
+            const dynPct = rt.pct - rt.prevPct;
             const dynBetter = dyn >= 0;
             const Arrow = dynBetter ? TrendingUp : TrendingDown;
             return (
@@ -309,10 +316,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                     {rt.deviation >= 0 ? '+' : ''}{rt.deviation.toFixed(1)}%
                   </span>
                 </div>
-                <p className="text-[10px] text-muted-foreground mb-1">
-                  {rt.deviation >= 0 ? 'перевиконання' : 'відставання'} від норми
-                </p>
-                <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mt-1 mb-2">
+                <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mt-2 mb-2">
                   <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
                     style={{ width: `${Math.min(rt.pct * 2, 100)}%` }} />
                 </div>
@@ -324,6 +328,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   <p className={`text-[10px] font-semibold flex items-center gap-1 pt-1.5 border-t border-[#f0f2f8] ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                     <Arrow className="h-3 w-3" />
                     vs мин. міс.: <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
+                    <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
                   </p>
                 )}
               </div>

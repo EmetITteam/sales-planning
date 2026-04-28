@@ -25,6 +25,8 @@ export function ManagerDashboard() {
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0;
   const totalPrevFact = summaries.reduce((s, t) => s + (t.prevMonthFactAmount ?? 0), 0);
+  const totalPrevPlan = summaries.reduce((s, t) => s + (t.prevMonthPlanAmount ?? 0), 0);
+  const totalPrevPct = totalPrevPlan > 0 ? (totalPrevFact / totalPrevPlan) * 100 : 0;
 
   // Зважена сума по всіх сегментах для трьох процентів "Виконання"
   const totalCalcPct = summaries.length > 0
@@ -69,11 +71,13 @@ export function ManagerDashboard() {
             <p className="text-2xl font-extrabold tracking-tight mt-0.5 amount">{formatUSD(totalFact)}</p>
             {totalPrevFact > 0 && (() => {
               const dyn = totalFact - totalPrevFact;
+              const dynPct = totalPct - totalPrevPct;
               const better = dyn >= 0;
               const Arrow = better ? TrendingUp : TrendingDown;
               return (
                 <p className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
                   <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                  <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
                 </p>
               );
             })()}
@@ -195,10 +199,6 @@ export function ManagerDashboard() {
                       {tm.factPercent - tm.calcPercent >= 0 ? '+' : ''}{(tm.factPercent - tm.calcPercent).toFixed(1)}%
                     </span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">
-                    {tm.factPercent >= tm.calcPercent ? 'перевиконання' : 'відставання'} від норми
-                  </p>
-
                   {/* Прогрес-бар: заливка факту + насічка очікуваного (план менеджера) */}
                   <div className="relative w-full h-2 rounded-full bg-[#f0f2f8] overflow-visible">
                     <div
