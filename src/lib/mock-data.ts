@@ -177,6 +177,13 @@ export function getMockTMSummaries(): TMSummaryCard[] {
       ? calcExpectedPercent(factAmount, forecastSum, gapSum, plan.planAmount)
       : factPct;
 
+    // Демо prev-month: ≈90% поточного факту, ≈95% поточного плану
+    const prevMonthFactAmount = Math.round(factAmount * 0.9);
+    const prevMonthPlanAmount = Math.round(plan.planAmount * 0.95);
+    const prevMonthFactPercent = prevMonthPlanAmount > 0
+      ? Math.round((prevMonthFactAmount / prevMonthPlanAmount) * 1000) / 10
+      : 0;
+
     return {
       segmentCode: plan.segmentCode,
       segmentName: plan.segmentName,
@@ -188,6 +195,9 @@ export function getMockTMSummaries(): TMSummaryCard[] {
       expectedPercent: Math.round(expectedPct * 100) / 100,
       hasManagerPlan,
       deviationPercent: Math.round((forecastPct - calcPct) * 100) / 100,
+      prevMonthFactAmount,
+      prevMonthPlanAmount,
+      prevMonthFactPercent,
       weightedPipeline: factAmount * 1.5,
       clientCount: fact?.clients.length ?? 0,
       status: plan.segmentCode === 'ESSE' ? 'submitted' : 'draft',

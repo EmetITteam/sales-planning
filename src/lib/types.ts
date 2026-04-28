@@ -110,9 +110,13 @@ export interface ForecastRow {
   clientId1c: string;
   clientName: string;
   forecastAmount: number;           // скільки очікує продаж
-  stage: 'Дзвінок' | 'Зустріч' | '';   // етап: дзвінок або зустріч
+  stage: 'Дзвінок' | 'Зустріч' | 'Навчання' | '';   // етап: дзвінок, зустріч або навчання
   stageComment: string;             // коментар (ціль дзвінка/зустрічі)
   stageDone: boolean;               // чи виконано (перевірка з 1С)
+  // 🆕 v2.1: обучення з 1С (опц., якщо stage = "Навчання")
+  trainingId?: string;
+  trainingName?: string;
+  trainingDate?: string;            // YYYY-MM-DD
   factAmount: number;               // факт продажів наростаючий (з 1С)
   lastPurchaseDate: string | null;  // дата останньої покупки по сегменту (з 1С)
   lastPurchaseAmount: number;       // сума останньої покупки по сегменту (з 1С)
@@ -166,7 +170,7 @@ export interface GapActions {
 }
 
 // === Зведена картка ТМ на дашборді ===
-// v2.1: переосмислено три % — calc / forecast / expected. Див. README блок "Три проценти".
+// v2.1: переосмислено три % — calc / forecast / expected + порівняння з минулим місяцем.
 export interface TMSummaryCard {
   segmentCode: string;
   segmentName: string;
@@ -178,6 +182,10 @@ export interface TMSummaryCard {
   expectedPercent: number;    // 🔄 (факт + Σпрогноз менеджера + Σзакриття розриву) / план — "якщо виконає обіцянки"
   hasManagerPlan: boolean;    // 🆕 чи заповнив менеджер хоч одну строку прогнозу/розриву
   deviationPercent: number;   // forecastPercent − calcPercent (наскільки темп відхиляється від норми)
+  // 🆕 v2.1: порівняння з минулим місяцем на той самий N-й робочий день
+  prevMonthFactAmount?: number;
+  prevMonthPlanAmount?: number;
+  prevMonthFactPercent?: number;
   weightedPipeline: number;
   clientCount: number;
   status: 'submitted' | 'draft' | 'empty';

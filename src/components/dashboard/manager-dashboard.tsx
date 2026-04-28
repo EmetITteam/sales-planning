@@ -6,9 +6,8 @@ import { formatUSD, formatPct, getTrafficLight } from '@/lib/format';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import {
-  DollarSign, Target, TrendingUp, ChevronRight,
+  DollarSign, Target, TrendingUp, TrendingDown, ChevronRight,
   ClipboardCheck, Users, UserPlus, RefreshCw,
-  CalendarDays, Sparkles,
 } from 'lucide-react';
 
 export function ManagerDashboard() {
@@ -71,25 +70,23 @@ export function ManagerDashboard() {
           </div>
         ))}
 
-        {/* Виконання — три проценти (calc / forecast / expected) */}
+        {/* Виконання — поточний факт + норма календаря + прогноз run-rate + очікуваний (план менеджера) */}
         <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
           <div className="flex items-start justify-between mb-3">
-            <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${totalExpectedPct >= 100 ? 'from-emerald-500 to-teal-600' : 'from-[#066aab] to-[#0880cc]'} text-white shadow-lg`}>
+            <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${totalPct >= totalCalcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'} text-white shadow-lg`}>
               <TrendingUp className="h-5 w-5" />
             </div>
           </div>
           <p className="text-[13px] font-medium text-muted-foreground">Виконання</p>
           <div className="flex items-baseline gap-2 mt-0.5">
-            <p className="text-2xl font-extrabold tracking-tight text-[#066aab]">{formatPct(totalExpectedPct)}</p>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">очік.</span>
+            <p className="text-2xl font-extrabold tracking-tight">{formatPct(totalPct)}</p>
+            <span className={`text-[12px] font-bold ${totalPct >= totalCalcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {totalPct - totalCalcPct >= 0 ? '+' : ''}{(totalPct - totalCalcPct).toFixed(1)}%
+            </span>
           </div>
-          <div className="mt-2 flex items-center gap-3 text-[11px]">
-            <span className="flex items-center gap-1 text-slate-500">
-              <CalendarDays className="h-3 w-3" /> {formatPct(totalCalcPct)}
-            </span>
-            <span className="flex items-center gap-1 text-amber-600">
-              <Sparkles className="h-3 w-3" /> {formatPct(totalForecastPct)}
-            </span>
+          <div className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
+            <p>Норма на сьогодні: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
+            <p>Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Очік. (план): <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
           </div>
         </div>
 
@@ -159,13 +156,10 @@ export function ManagerDashboard() {
         <h3 className="text-[15px] font-bold mb-4">Торгові марки</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {summaries.map((tm) => {
-            // Світлофор: forecast (run-rate) vs calc (норма) — стійкий індикатор темпу
-            const tl = getTrafficLight(tm.forecastPercent, tm.calcPercent);
-            // Прогрес-бар нормалізуємо до 100% плану (а не до очікуваного)
+            // Світлофор: факт vs норма (calc) — чи в темпі плану
+            const tl = getTrafficLight(tm.factPercent, tm.calcPercent);
+            // Прогрес-бар нормалізуємо до 100% плану
             const factBarWidth = Math.min(tm.factPercent, 100);
-            // Позиція насічки норми (calc) і прогнозу (forecast) на шкалі 0..100% плану
-            const calcMark = Math.min(tm.calcPercent, 100);
-            const forecastMark = Math.min(tm.forecastPercent, 100);
             return (
               <button
                 key={tm.segmentCode}
@@ -182,48 +176,57 @@ export function ManagerDashboard() {
                   </span>
                 </div>
 
-                {/* Три проценти: великий "Очікуваний" + 2 мікро (Розрах. / Прогноз) */}
+                {/* Великий факт + відставання/перевиконання vs норма (з шапки) */}
                 <div className="mb-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-2xl font-extrabold tracking-tight text-[#066aab] leading-none">{formatPct(tm.expectedPercent)}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">
-                        очікуваний {!tm.hasManagerPlan && <span className="text-amber-600 font-semibold normal-case">· план не заповнено</span>}
-                      </p>
-                    </div>
-                    <div className="text-right space-y-0.5">
-                      <p className="text-[11px] text-slate-500 flex items-center justify-end gap-1">
-                        <CalendarDays className="h-3 w-3" /> Розрах. {formatPct(tm.calcPercent)}
-                      </p>
-                      <p className="text-[11px] text-amber-600 flex items-center justify-end gap-1">
-                        <Sparkles className="h-3 w-3" /> Прогноз {formatPct(tm.forecastPercent)}
-                      </p>
-                    </div>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-3xl font-extrabold tracking-tight">{formatPct(tm.factPercent)}</span>
+                    <span className={`text-[14px] font-bold ${tm.factPercent >= tm.calcPercent ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {tm.factPercent - tm.calcPercent >= 0 ? '+' : ''}{(tm.factPercent - tm.calcPercent).toFixed(1)}%
+                    </span>
                   </div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">
+                    {tm.factPercent >= tm.calcPercent ? 'перевиконання' : 'відставання'} від норми
+                  </p>
 
-                  {/* Прогрес-бар: заливка факту + насічки calc і forecast */}
+                  {/* Прогрес-бар: заливка факту + насічка очікуваного (план менеджера) */}
                   <div className="relative w-full h-2 rounded-full bg-[#f0f2f8] overflow-visible">
                     <div
                       className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc] transition-all duration-500"
                       style={{ width: `${factBarWidth}%` }}
                     />
-                    {/* Насічка норми (сіра) */}
-                    <div
-                      className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-slate-400 rounded-full"
-                      style={{ left: `calc(${calcMark}% - 1px)` }}
-                      title={`Норма: ${formatPct(tm.calcPercent)}`}
-                    />
-                    {/* Насічка прогнозу (бурштинова) */}
-                    <div
-                      className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-amber-500 rounded-full"
-                      style={{ left: `calc(${forecastMark}% - 1px)` }}
-                      title={`Прогноз: ${formatPct(tm.forecastPercent)}`}
-                    />
+                    {/* Насічка очікуваного (план менеджера) — EMET-синя */}
+                    {tm.hasManagerPlan && (
+                      <div
+                        className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-[#066aab] rounded-full"
+                        style={{ left: `calc(${Math.min(tm.expectedPercent, 100)}% - 1px)` }}
+                        title={`Очікуваний (план менеджера): ${formatPct(tm.expectedPercent)}`}
+                      />
+                    )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1.5">
-                    Факт: <span className="font-semibold">{formatPct(tm.factPercent)}</span>
+                  <p className="text-[11px] mt-1.5">
+                    <span className="text-muted-foreground">Очікуваний: </span>
+                    <span className="font-bold text-[#066aab]">{formatPct(tm.expectedPercent)}</span>
+                    {!tm.hasManagerPlan && (
+                      <span className="ml-1 text-[10px] text-amber-600 font-semibold">· план не заповнено</span>
+                    )}
                   </p>
                 </div>
+
+                {/* vs Минулий місяць — динаміка */}
+                {tm.prevMonthFactAmount !== undefined && tm.prevMonthFactAmount > 0 && (() => {
+                  const dynAmount = tm.factAmount - (tm.prevMonthFactAmount ?? 0);
+                  const dynPct = tm.factPercent - (tm.prevMonthFactPercent ?? 0);
+                  const better = dynAmount >= 0;
+                  const Arrow = better ? TrendingUp : TrendingDown;
+                  return (
+                    <div className={`mb-3 flex items-center gap-1.5 text-[11px] ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      <Arrow className="h-3 w-3" />
+                      <span className="font-semibold">vs мин. міс.:</span>
+                      <span className="amount font-bold">{better ? '+' : ''}{formatUSD(dynAmount)}</span>
+                      <span className="font-semibold">({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+                    </div>
+                  );
+                })()}
 
                 <div className="flex items-center justify-between">
                   <div>

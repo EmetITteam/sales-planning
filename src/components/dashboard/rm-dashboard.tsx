@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, getTrafficLight } from '@/lib/format';
+import { formatUSD, formatPct, getTrafficLight } from '@/lib/format';
+import { getMonthProgressPct } from '@/lib/working-days';
 import { MOCK_REGION_DATA, SEGMENTS } from '@/lib/mock-data';
 import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
@@ -19,18 +20,35 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
   const region = MOCK_REGION_DATA;
 
+  // Норма календаря — однакова для всіх сегментів і регіонів (% робочих днів пройдено)
+  const now = new Date();
+  const calcPct = getMonthProgressPct(now.getFullYear(), now.getMonth(), now);
+
   const regionTotals = SEGMENTS.map(seg => {
-    let totalPlan = 0, totalFact = 0;
+    let totalPlan = 0, totalFact = 0, prevFact = 0, prevPlan = 0;
     region.managers.forEach(m => {
       const s = m.segments.find(ms => ms.segmentCode === seg.code);
-      if (s) { totalPlan += s.planAmount; totalFact += s.factAmount; }
+      if (s) {
+        totalPlan += s.planAmount;
+        totalFact += s.factAmount;
+        prevFact += s.prevMonthFactAmount ?? 0;
+        prevPlan += s.prevMonthPlanAmount ?? 0;
+      }
     });
-    return { code: seg.code, name: seg.name, totalPlan, totalFact, pct: totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0 };
+    const pct = totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0;
+    const prevPct = prevPlan > 0 ? (prevFact / prevPlan) * 100 : 0;
+    return {
+      code: seg.code, name: seg.name,
+      totalPlan, totalFact, pct,
+      prevFact, prevPlan, prevPct,
+      deviation: pct - calcPct,
+    };
   });
 
   const grandPlan = regionTotals.reduce((s, r) => s + r.totalPlan, 0);
   const grandFact = regionTotals.reduce((s, r) => s + r.totalFact, 0);
   const grandPct = grandPlan > 0 ? (grandFact / grandPlan) * 100 : 0;
+  const grandPrevFact = regionTotals.reduce((s, r) => s + r.prevFact, 0);
 
   // Моє планування — показує дашборд менеджера
   if (view === 'myPlanning') {
@@ -72,19 +90,51 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
       {/* Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {[
-          { label: 'План регіону', value: formatUSD(grandPlan), icon: <Target className="h-5 w-5" />, grad: 'from-[#066aab] to-[#0880cc]' },
-          { label: 'Факт', value: formatUSD(grandFact), icon: <DollarSign className="h-5 w-5" />, grad: 'from-emerald-500 to-teal-600' },
-          { label: 'Виконання', value: `${grandPct.toFixed(1)}%`, icon: <TrendingUp className="h-5 w-5" />, grad: 'from-[#066aab] to-[#0880cc]' },
-          { label: 'Менеджерів', value: String(region.managers.length), icon: <Users className="h-5 w-5" />, grad: 'from-amber-500 to-orange-600' },
-        ].map(m => (
-          <div key={m.label} className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-            <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${m.grad} text-white shadow-lg mb-3`}>{m.icon}</div>
-            <p className="text-[12px] text-muted-foreground font-medium">{m.label}</p>
-            <p className={`text-2xl font-extrabold tracking-tight ${m.label === 'План регіону' || m.label === 'Факт' ? 'amount' : ''}`}>{m.value}</p>
-            <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br ${m.grad} opacity-[0.06] blur-2xl`} />
+        {/* План регіону */}
+        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
+          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg mb-3"><Target className="h-5 w-5" /></div>
+          <p className="text-[12px] text-muted-foreground font-medium">План регіону</p>
+          <p className="text-2xl font-extrabold tracking-tight amount">{formatUSD(grandPlan)}</p>
+        </div>
+
+        {/* Факт + vs мин.міс. */}
+        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
+          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg mb-3"><DollarSign className="h-5 w-5" /></div>
+          <p className="text-[12px] text-muted-foreground font-medium">Факт</p>
+          <p className="text-2xl font-extrabold tracking-tight amount">{formatUSD(grandFact)}</p>
+          {grandPrevFact > 0 && (() => {
+            const dyn = grandFact - grandPrevFact;
+            const better = dyn >= 0;
+            const Arrow = better ? TrendingUp : TrendingDown;
+            return (
+              <p className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
+              </p>
+            );
+          })()}
+        </div>
+
+        {/* Виконання + відхилення від норми */}
+        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
+          <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${grandPct >= calcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'} text-white shadow-lg mb-3`}>
+            {grandPct >= calcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
           </div>
-        ))}
+          <p className="text-[12px] text-muted-foreground font-medium">Виконання</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-2xl font-extrabold tracking-tight">{grandPct.toFixed(1)}%</p>
+            <span className={`text-[12px] font-bold ${grandPct >= calcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {grandPct - calcPct >= 0 ? '+' : ''}{(grandPct - calcPct).toFixed(1)}%
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Норма на сьогодні: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
+        </div>
+
+        {/* Менеджерів */}
+        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
+          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg mb-3"><Users className="h-5 w-5" /></div>
+          <p className="text-[12px] text-muted-foreground font-medium">Менеджерів</p>
+          <p className="text-2xl font-extrabold tracking-tight">{region.managers.length}</p>
+        </div>
       </div>
 
       {/* Моє планування */}
@@ -110,7 +160,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             const mTotal = manager.segments.reduce((s, seg) => s + seg.factAmount, 0);
             const mPlan = manager.segments.reduce((s, seg) => s + seg.planAmount, 0);
             const mPct = mPlan > 0 ? (mTotal / mPlan) * 100 : 0;
-            const mTl = getTrafficLight(mPct, 22.73);
+            const mTl = getTrafficLight(mPct, calcPct);
 
             // v2.1: динаміка vs минулий місяць на той же N-й робочий день
             const prevTotal = manager.totalPrevMonthFact ?? manager.segments.reduce((s, seg) => s + (seg.prevMonthFactAmount ?? 0), 0);
@@ -175,21 +225,37 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   </div>
                 </div>
 
-                {/* TM breakdown */}
+                {/* TM breakdown — з відхиленням від норми та динамікою vs минулий місяць */}
                 <div className="px-6 pb-4">
                   <div className="flex gap-2 flex-wrap">
                     {manager.segments.map(seg => {
-                      const tl = getTrafficLight(seg.factPercent, 22.73);
+                      const tl = getTrafficLight(seg.factPercent, calcPct);
+                      const dev = seg.factPercent - calcPct;
+                      const prev = seg.prevMonthFactAmount ?? 0;
+                      const dyn = seg.factAmount - prev;
+                      const dynBetter = dyn >= 0;
+                      const Arrow = dynBetter ? TrendingUp : TrendingDown;
                       return (
-                        <div key={seg.segmentCode} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#f4f7fb] min-w-[120px]">
-                          <div className={`w-2 h-2 rounded-full ${tl.dot}`} />
-                          <div>
-                            <p className="text-[11px] font-semibold text-foreground/80">{seg.segmentName}</p>
+                        <div key={seg.segmentCode} className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-[#f4f7fb] min-w-[170px]">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${tl.dot}`} />
+                            <span className="text-[11px] font-semibold text-foreground/80">{seg.segmentName}</span>
+                            <span className={`text-[10px] font-bold ml-auto ${tl.color}`}>{seg.factPercent.toFixed(0)}%</span>
+                            <span className={`text-[9px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
                             <p className="text-[10px] text-muted-foreground font-mono">
                               <span className="amount">{formatUSD(seg.factAmount)}</span> <span className="text-muted-foreground/50 amount">/ {formatUSD(seg.planAmount)}</span>
                             </p>
+                            {prev > 0 && (
+                              <p className={`text-[9px] font-semibold flex items-center gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                <Arrow className="h-2.5 w-2.5" />
+                                <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
+                              </p>
+                            )}
                           </div>
-                          <span className={`text-[10px] font-bold ml-auto ${tl.color}`}>{seg.factPercent.toFixed(0)}%</span>
                         </div>
                       );
                     })}
@@ -201,12 +267,15 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         </div>
       </div>
 
-      {/* Region TM summary */}
+      {/* Region TM summary — з відхиленням від норми + динамікою vs минулий місяць */}
       <div>
         <h3 className="text-[15px] font-bold mb-4">Зведена по ТМ</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {regionTotals.map(rt => {
-            const tl = getTrafficLight(rt.pct, 22.73);
+            const tl = getTrafficLight(rt.pct, calcPct);
+            const dyn = rt.totalFact - rt.prevFact;
+            const dynBetter = dyn >= 0;
+            const Arrow = dynBetter ? TrendingUp : TrendingDown;
             return (
               <div key={rt.code} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]">
                 <div className="flex items-center gap-2 mb-3">
@@ -214,15 +283,29 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   <span className="text-[13px] font-bold">{rt.name}</span>
                   <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${tl.bg} ${tl.color}`}>{tl.label}</span>
                 </div>
-                <span className="text-xl font-extrabold">{rt.pct.toFixed(1)}%</span>
-                <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mt-2 mb-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-extrabold">{rt.pct.toFixed(1)}%</span>
+                  <span className={`text-[12px] font-bold ${rt.deviation >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {rt.deviation >= 0 ? '+' : ''}{rt.deviation.toFixed(1)}%
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mb-1">
+                  {rt.deviation >= 0 ? 'перевиконання' : 'відставання'} від норми
+                </p>
+                <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mt-1 mb-2">
                   <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
                     style={{ width: `${Math.min(rt.pct * 2, 100)}%` }} />
                 </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground">
+                <div className="flex justify-between text-[10px] text-muted-foreground mb-2">
                   <span className="amount">{formatUSD(rt.totalFact)}</span>
                   <span className="amount">{formatUSD(rt.totalPlan)}</span>
                 </div>
+                {rt.prevFact > 0 && (
+                  <p className={`text-[10px] font-semibold flex items-center gap-1 pt-1.5 border-t border-[#f0f2f8] ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    <Arrow className="h-3 w-3" />
+                    vs мин. міс.: <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dyn)}</span>
+                  </p>
+                )}
               </div>
             );
           })}

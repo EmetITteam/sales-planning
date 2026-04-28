@@ -77,15 +77,15 @@ export function ClientControlView({ onBack }: ClientControlViewProps) {
       {/* Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'План по клієнтах', value: formatUSD(totalPlan), icon: <Target className="h-5 w-5" />, grad: 'from-[#066aab] to-[#0880cc]' },
-          { label: 'Факт', value: formatUSD(totalFact), icon: <DollarSign className="h-5 w-5" />, grad: 'from-emerald-500 to-teal-600' },
-          { label: 'Виконали план', value: `${doneCount} / ${DATA.length}`, icon: <TrendingUp className="h-5 w-5" />, grad: 'from-[#066aab] to-[#0880cc]' },
-          { label: 'В роботі', value: String(DATA.length - doneCount), icon: <Users className="h-5 w-5" />, grad: 'from-amber-500 to-orange-600' },
+          { label: 'План по клієнтах', value: formatUSD(totalPlan), icon: <Target className="h-5 w-5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+          { label: 'Факт', value: formatUSD(totalFact), icon: <DollarSign className="h-5 w-5" />, grad: 'from-emerald-500 to-teal-600', isAmount: true },
+          { label: 'Виконали план', value: `${doneCount} / ${DATA.length}`, icon: <TrendingUp className="h-5 w-5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: false },
+          { label: 'В роботі', value: String(DATA.length - doneCount), icon: <Users className="h-5 w-5" />, grad: 'from-amber-500 to-orange-600', isAmount: false },
         ].map(m => (
           <div key={m.label} className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
             <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${m.grad} text-white shadow-lg mb-3`}>{m.icon}</div>
             <p className="text-[12px] text-muted-foreground font-medium">{m.label}</p>
-            <p className="text-2xl font-extrabold tracking-tight">{m.value}</p>
+            <p className={`text-2xl font-extrabold tracking-tight ${m.isAmount ? 'amount' : ''}`}>{m.value}</p>
           </div>
         ))}
       </div>
@@ -137,12 +137,12 @@ export function ClientControlView({ onBack }: ClientControlViewProps) {
                 <div className="flex items-center gap-5">
                   <div className="text-right">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">План</p>
-                    <p className="text-[16px] font-bold">{formatUSD(client.monthPlan)}</p>
+                    <p className="text-[16px] font-bold amount">{formatUSD(client.monthPlan)}</p>
                   </div>
                   <div className="w-px h-8 bg-[#e8ebf4]" />
                   <div className="text-right">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт</p>
-                    <p className={`text-[16px] font-extrabold ${done ? 'text-emerald-600' : 'text-foreground'}`}>
+                    <p className={`text-[16px] font-extrabold amount ${done ? 'text-emerald-600' : 'text-foreground'}`}>
                       {formatUSD(client.monthFact)}
                     </p>
                   </div>
@@ -173,7 +173,7 @@ export function ClientControlView({ onBack }: ClientControlViewProps) {
                       </div>
                       {/* Plan amount */}
                       <div className="w-[60px] shrink-0 text-right">
-                        <span className="text-[13px] font-mono font-medium">{w.plannedAmount > 0 ? formatUSD(w.plannedAmount) : '—'}</span>
+                        <span className="text-[13px] font-mono font-medium">{w.plannedAmount > 0 ? <span className="amount">{formatUSD(w.plannedAmount)}</span> : '—'}</span>
                       </div>
                       {/* Action */}
                       <div className="flex-1 min-w-0">
@@ -200,7 +200,7 @@ export function ClientControlView({ onBack }: ClientControlViewProps) {
                       {/* Actual */}
                       <div className="w-[65px] text-right shrink-0">
                         {w.actualAmount > 0 ? (
-                          <span className="text-[13px] font-bold text-emerald-600">{formatUSD(w.actualAmount)}</span>
+                          <span className="text-[13px] font-bold text-emerald-600 amount">{formatUSD(w.actualAmount)}</span>
                         ) : (
                           <span className="text-[12px] text-muted-foreground/40">—</span>
                         )}

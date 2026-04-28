@@ -23,13 +23,9 @@ interface PlanningFormProps {
   readOnly?: boolean;
 }
 
+// Етапи доступні і в "Прогноз по активних", і в "Закриття розриву".
+// Опція "Навчання" розкриває селектор обучень з 1С (плюс поле коментаря).
 const STAGE_OPTIONS = [
-  { value: 'Дзвінок', icon: Phone },
-  { value: 'Зустріч', icon: Calendar },
-];
-
-// Етапи для блоку "Закриття розриву" — додано "Навчання" (з 1С).
-const GAP_STAGE_OPTIONS = [
   { value: 'Дзвінок', icon: Phone },
   { value: 'Зустріч', icon: Calendar },
   { value: 'Навчання', icon: GraduationCap },
@@ -47,8 +43,6 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
   const [gapClosures, setGapClosures] = useState<GapClosureRow[]>(
     segmentCode === 'PETARAN' ? MOCK_GAP_CLOSURES : []
   );
-  const [monthForecastPct, setMonthForecastPct] = useState('100');
-  const [monthForecastUsd, setMonthForecastUsd] = useState('');
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -99,8 +93,6 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
         }));
       }
       if (data.summary) {
-        if (data.summary.month_forecast_pct !== null) setMonthForecastPct(String(data.summary.month_forecast_pct));
-        if (data.summary.month_forecast_usd !== null) setMonthForecastUsd(String(data.summary.month_forecast_usd));
         setGapActions({
           action1: data.summary.gap_action_1 || '',
           action2: data.summary.gap_action_2 || '',
@@ -119,8 +111,8 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
       periodId: currentPeriod.id,
       forecasts,
       gapClosures,
-      monthForecastPct,
-      monthForecastUsd,
+      monthForecastPct: '',
+      monthForecastUsd: '',
       gapActions,
     });
     setSaving(false);
@@ -184,7 +176,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
     sleeping_lost: <RefreshCw className="h-4 w-4 text-amber-600" />,
   };
 
-  const updateForecast = (clientId: string, field: keyof ForecastRow, value: string | number | boolean) => {
+  const updateForecast = (clientId: string, field: keyof ForecastRow, value: string | number | boolean | null | undefined) => {
     setForecasts(prev => prev.map(f => {
       if (f.clientId1c !== clientId) return f;
       const updated = { ...f, [field]: value };
@@ -235,12 +227,12 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
       </div>
 
       {/* Метрики */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]' },
-          { label: `Очікуване (${daysInPeriod}д)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]' },
-          { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct } },
-          { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600' },
+          { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+          { label: `Очікуване (${daysInPeriod}д)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+          { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true },
+          { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
         ].map(m => (
           <div key={m.label} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
             <div className="flex items-center gap-2.5 mb-2">
@@ -252,27 +244,9 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
               )}
             </div>
             <p className="text-[11px] text-muted-foreground font-medium">{m.label}</p>
-            <p className="text-xl font-extrabold tracking-tight">{m.value}</p>
+            <p className={`text-xl font-extrabold tracking-tight ${m.isAmount ? 'amount' : ''}`}>{m.value}</p>
           </div>
         ))}
-        <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
-          <p className="text-[11px] text-muted-foreground font-medium mb-1">Прогноз %</p>
-          <div className="flex items-baseline gap-1">
-            <Input type="number" value={monthForecastPct} onChange={(e) => setMonthForecastPct(e.target.value)}
-              disabled={readOnly}
-              className="h-9 w-20 text-xl font-extrabold border-[#e8ebf4] bg-[#f6f8fc] rounded-xl" />
-            <span className="text-lg font-bold text-muted-foreground">%</span>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
-          <p className="text-[11px] text-muted-foreground font-medium mb-1">Прогноз $</p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-sm text-muted-foreground">$</span>
-            <Input type="number" value={monthForecastUsd} onChange={(e) => setMonthForecastUsd(e.target.value)}
-              disabled={readOnly}
-              placeholder={String(planAmount)} className="h-9 w-24 text-xl font-extrabold border-[#e8ebf4] bg-[#f6f8fc] rounded-xl" />
-          </div>
-        </div>
       </div>
 
       {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === */}
@@ -286,7 +260,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb]">{CAT_ICONS[cat.category]}</div>
               <p className="text-[13px] font-medium">{cat.label}</p>
               <div className="text-right"><p className="text-[10px] text-muted-foreground">Кількість</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
-              <div className="text-right"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono">{formatUSD(cat.expectedAmount)}</p></div>
+              <div className="text-right"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
               <div className="text-right"><p className="text-[10px] text-muted-foreground">Закрив. %</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
             </div>
           ))}
@@ -294,7 +268,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
             <div />
             <p className="text-[13px] font-bold">Всього</p>
             <p className="text-[14px] font-bold text-right">{totalCatClients}</p>
-            <p className="text-[14px] font-bold font-mono text-right">{formatUSD(totalCatAmount)}</p>
+            <p className="text-[14px] font-bold font-mono text-right amount">{formatUSD(totalCatAmount)}</p>
             <p className="text-[14px] font-bold text-[#066aab] text-right">{totalCatPct.toFixed(1)}%</p>
           </div>
         </div>
@@ -329,7 +303,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
         <div className="space-y-2">
           {sortedForecasts.map((row) => {
-            const StageIcon = row.stage === 'Зустріч' ? Calendar : Phone;
+            const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
             return (
               <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
                 <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 items-center px-5 py-3">
@@ -342,7 +316,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
                     <p className="text-[10px] text-muted-foreground truncate">
-                      Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · {formatUSD(row.lastPurchaseAmount)}
+                      Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span>
                     </p>
                   </div>
 
@@ -350,7 +324,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                   {row.completed ? (
                     <div className="flex items-center justify-end gap-1">
                       <Lock className="h-3 w-3 text-muted-foreground/40" />
-                      <span className="text-[14px] font-bold text-muted-foreground">{formatUSD(row.forecastAmount)}</span>
+                      <span className="text-[14px] font-bold text-muted-foreground amount">{formatUSD(row.forecastAmount)}</span>
                     </div>
                   ) : (
                     <Input type="number" value={row.forecastAmount}
@@ -385,14 +359,47 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                     <div className="h-8 flex items-center justify-center text-[11px] text-muted-foreground/40">—</div>
                   )}
 
-                  {/* Коментар */}
-                  <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                    disabled={readOnly}
-                    className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль..." />
+                  {/* Коментар або Навчання + коментар */}
+                  {row.stage === 'Навчання' ? (
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={row.trainingId || undefined}
+                        onValueChange={(trainingId) => {
+                          const t = MOCK_TRAININGS.find(x => x.trainingId === trainingId);
+                          updateForecast(row.clientId1c, 'trainingId', trainingId);
+                          if (t) {
+                            updateForecast(row.clientId1c, 'trainingName', t.trainingName);
+                            updateForecast(row.clientId1c, 'trainingDate', t.date);
+                          }
+                        }}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                          <SelectValue placeholder="Обрати навчання з 1С..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MOCK_TRAININGS.map(t => (
+                            <SelectItem key={t.trainingId} value={t.trainingId}>
+                              <span className="text-[12px]">
+                                {formatDate(t.date)} — {t.trainingName.length > 50 ? t.trainingName.slice(0, 50) + '…' : t.trainingName}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
+                        disabled={readOnly}
+                        className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
+                    </div>
+                  ) : (
+                    <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
+                      disabled={readOnly}
+                      className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль..." />
+                  )}
 
                   {/* Факт */}
                   <p className={`text-[14px] font-bold text-right ${row.factAmount > 0 ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
-                    {row.factAmount > 0 ? formatUSD(row.factAmount) : '—'}
+                    {row.factAmount > 0 ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
                   </p>
 
                   {/* Видалити */}
@@ -411,11 +418,11 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
         {/* Підсумок прогнозу */}
         {forecasts.length > 0 && (
           <div className="mt-3 bg-[#f4f7fb] rounded-2xl p-4 flex items-center gap-6 flex-wrap">
-            <div><span className="text-[11px] text-muted-foreground">Прогноз</span><p className="text-lg font-extrabold">{formatUSD(forecastTotal)}</p></div>
+            <div><span className="text-[11px] text-muted-foreground">Прогноз</span><p className="text-lg font-extrabold amount">{formatUSD(forecastTotal)}</p></div>
             <div className="w-px h-8 bg-[#e2e7ef]" />
-            <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600">{formatUSD(forecastFactTotal)}</p></div>
+            <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600 amount">{formatUSD(forecastFactTotal)}</p></div>
             <div className="w-px h-8 bg-[#e2e7ef]" />
-            <div><span className="text-[11px] text-muted-foreground">Незавершено</span><p className="text-lg font-extrabold">{formatUSD(pendingForecastTotal)}</p></div>
+            <div><span className="text-[11px] text-muted-foreground">Незавершено</span><p className="text-lg font-extrabold amount">{formatUSD(pendingForecastTotal)}</p></div>
             <div className="w-px h-8 bg-[#e2e7ef]" />
             <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{forecasts.length} <span className="text-emerald-600 text-sm">({forecasts.filter(f => f.completed).length} ✓)</span></p></div>
           </div>
@@ -430,14 +437,14 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
               <h3 className="text-[15px] font-bold">Закриття розриву</h3>
               {gapAfterForecast > 0 ? (
                 <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600">
-                  <AlertTriangle className="h-3 w-3" /> {formatUSD(Math.round(gapAfterForecast))}
+                  <AlertTriangle className="h-3 w-3" /> <span className="amount">{formatUSD(Math.round(gapAfterForecast))}</span>
                 </span>
               ) : (
                 <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600">Покрито</span>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Очікуване {formatUSD(Math.round(expectedAmount))} − факт {formatUSD(factAmount)} − прогноз {formatUSD(pendingForecastTotal)} = розрив {formatUSD(Math.round(gapAfterForecast))}
+              Очікуване <span className="amount">{formatUSD(Math.round(expectedAmount))}</span> − факт <span className="amount">{formatUSD(factAmount)}</span> − прогноз <span className="amount">{formatUSD(pendingForecastTotal)}</span> = розрив <span className="amount">{formatUSD(Math.round(gapAfterForecast))}</span>
             </p>
           </div>
           {!readOnly && (
@@ -486,7 +493,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                       <div className="flex items-center gap-2 mt-0.5">
                         {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}
                         <span className="text-[10px] text-muted-foreground truncate">
-                          {row.lastPurchaseDate ? `${formatDate(row.lastPurchaseDate)} · ${formatUSD(row.lastPurchaseAmount)}` : ''}
+                          {row.lastPurchaseDate ? <>{formatDate(row.lastPurchaseDate)} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span></> : ''}
                         </span>
                       </div>
                     </div>
@@ -495,7 +502,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                     {row.completed ? (
                       <div className="flex items-center justify-end gap-1">
                         <Lock className="h-3 w-3 text-muted-foreground/40" />
-                        <span className="text-[14px] font-bold text-muted-foreground">{formatUSD(row.potentialAmount)}</span>
+                        <span className="text-[14px] font-bold text-muted-foreground amount">{formatUSD(row.potentialAmount)}</span>
                       </div>
                     ) : (
                       <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
@@ -509,7 +516,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                         <SelectValue placeholder="Оберіть..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {GAP_STAGE_OPTIONS.map(opt => (
+                        {STAGE_OPTIONS.map(opt => (
                           <SelectItem key={opt.value} value={opt.value}>
                             {opt.value}
                           </SelectItem>
@@ -529,34 +536,39 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                       <div className="h-8 flex items-center justify-center text-[11px] text-muted-foreground/40">—</div>
                     )}
 
-                    {/* Дія / Навчання — умовно */}
+                    {/* Дія / Навчання — Навчання показує селектор + комментар, інакше тільки коментар */}
                     {row.stage === 'Навчання' ? (
-                      <Select
-                        value={row.trainingId || undefined}
-                        onValueChange={(trainingId) => {
-                          const t = MOCK_TRAININGS.find(x => x.trainingId === trainingId);
-                          updateGap(i, 'trainingId', trainingId);
-                          if (t) {
-                            updateGap(i, 'trainingName', t.trainingName);
-                            updateGap(i, 'trainingDate', t.date);
-                            updateGap(i, 'deadline', t.date);
-                          }
-                        }}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
-                          <SelectValue placeholder="Обрати навчання з 1С..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MOCK_TRAININGS.map(t => (
-                            <SelectItem key={t.trainingId} value={t.trainingId}>
-                              <span className="text-[12px]">
-                                {formatDate(t.date)} — {t.trainingName.length > 50 ? t.trainingName.slice(0, 50) + '…' : t.trainingName}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex flex-col gap-1">
+                        <Select
+                          value={row.trainingId || undefined}
+                          onValueChange={(trainingId) => {
+                            const t = MOCK_TRAININGS.find(x => x.trainingId === trainingId);
+                            updateGap(i, 'trainingId', trainingId);
+                            if (t) {
+                              updateGap(i, 'trainingName', t.trainingName);
+                              updateGap(i, 'trainingDate', t.date);
+                              updateGap(i, 'deadline', t.date);
+                            }
+                          }}
+                          disabled={readOnly}
+                        >
+                          <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                            <SelectValue placeholder="Обрати навчання з 1С..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MOCK_TRAININGS.map(t => (
+                              <SelectItem key={t.trainingId} value={t.trainingId}>
+                                <span className="text-[12px]">
+                                  {formatDate(t.date)} — {t.trainingName.length > 50 ? t.trainingName.slice(0, 50) + '…' : t.trainingName}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
+                          disabled={readOnly}
+                          className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
+                      </div>
                     ) : (
                       <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
                         disabled={readOnly}
@@ -565,7 +577,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
                     {/* Факт */}
                     <p className={`text-[14px] font-bold text-right ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
-                      {hasFact ? formatUSD(row.factAmount) : '—'}
+                      {hasFact ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
                     </p>
 
                     {/* Видалити */}
