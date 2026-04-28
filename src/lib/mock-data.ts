@@ -8,7 +8,10 @@ import type {
   ForecastRow,
   GapClosureRow,
   TMSummaryCard,
+  Training,
 } from './types';
+import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from './working-days';
+import { calcForecastPercent, calcExpectedPercent } from './format';
 
 // === Тестові користувачі ===
 export const MOCK_USERS: Record<string, UserSession> = {
@@ -122,25 +125,57 @@ export const MOCK_FORECASTS_PETARAN: ForecastRow[] = [
 ];
 
 // === Закриття розриву (неактивні — сплячі, втрачені, БЗ) ===
+// v2.1: уніфіковано з ForecastRow — додано stage/stageDone/completed та поля trainingId/trainingName.
 export const MOCK_GAP_CLOSURES: GapClosureRow[] = [
-  { clientId1c: 'C101', clientName: 'Астровська Катерина Юріївна', category: 'Сплячий', potentialAmount: 378, action: 'зідвон, продаж акції', deadline: '2026-04-07', factAmount: 0, lastPurchaseDate: '2025-11-10', lastPurchaseAmount: 378 },
-  { clientId1c: 'C102', clientName: 'Булдакова Регіна', category: 'Сплячий', potentialAmount: 252, action: 'зідвон, нагадування', deadline: '2026-04-07', factAmount: 0, lastPurchaseDate: '2025-10-05', lastPurchaseAmount: 252 },
-  { clientId1c: 'C103', clientName: 'Вакуленко Катерина Олексіївна', category: 'Втрачений', potentialAmount: 378, action: 'зідвон, продаж акції', deadline: '2026-04-08', factAmount: 378, lastPurchaseDate: '2025-06-15', lastPurchaseAmount: 378 },
-  { clientId1c: 'C104', clientName: 'Дячок Олена Олексіївна', category: 'БЗ', potentialAmount: 378, action: 'презентація', deadline: '2026-04-08', factAmount: 0, lastPurchaseDate: '2025-08-20', lastPurchaseAmount: 252 },
-  { clientId1c: 'C105', clientName: 'Калина Ольга Сергіївна', category: 'Сплячий', potentialAmount: 252, action: 'зідвон, продаж акції', deadline: '2026-04-09', factAmount: 0, lastPurchaseDate: '2025-09-12', lastPurchaseAmount: 252 },
+  { clientId1c: 'C101', clientName: 'Астровська Катерина Юріївна', category: 'Сплячий', potentialAmount: 378, stage: 'Дзвінок', stageComment: 'продаж акції', stageDone: false, completed: false, factAmount: 0, lastPurchaseDate: '2025-11-10', lastPurchaseAmount: 378, deadline: '2026-04-07' },
+  { clientId1c: 'C102', clientName: 'Булдакова Регіна', category: 'Сплячий', potentialAmount: 252, stage: 'Дзвінок', stageComment: 'нагадування', stageDone: false, completed: false, factAmount: 0, lastPurchaseDate: '2025-10-05', lastPurchaseAmount: 252, deadline: '2026-04-07' },
+  { clientId1c: 'C103', clientName: 'Вакуленко Катерина Олексіївна', category: 'Втрачений', potentialAmount: 378, stage: 'Зустріч', stageComment: 'презентація', stageDone: true, completed: true, factAmount: 378, lastPurchaseDate: '2026-04-02', lastPurchaseAmount: 378, deadline: '2026-04-08' },
+  { clientId1c: 'C104', clientName: 'Дячок Олена Олексіївна', category: 'БЗ', potentialAmount: 378, stage: 'Навчання', stageComment: '', stageDone: false, completed: false, factAmount: 0, lastPurchaseDate: '2025-08-20', lastPurchaseAmount: 252, deadline: '2026-05-15', trainingId: '4471', trainingName: 'ELLANSE Step 2 "Правильна колагеностимуляція"', trainingDate: '2026-05-15' },
+  { clientId1c: 'C105', clientName: 'Калина Ольга Сергіївна', category: 'Сплячий', potentialAmount: 252, stage: 'Дзвінок', stageComment: 'продаж акції', stageDone: false, completed: false, factAmount: 0, lastPurchaseDate: '2025-09-12', lastPurchaseAmount: 252, deadline: '2026-04-09' },
+];
+
+// === Обучення з 1С (mock — буде з Action 6 getTrainings) ===
+export const MOCK_TRAININGS: Training[] = [
+  { trainingId: '4471', trainingName: 'ELLANSE Step 2 "Правильна колагеностимуляція та волюметрія"', trainingType: 'Семінар', date: '2026-05-15', regionCode: 'DNP', regionName: 'Дніпро', city: '01.Дніпро' },
+  { trainingId: '4472', trainingName: 'Petaran. Базовий курс ін\'єкційних технік', trainingType: 'Майстер-клас', date: '2026-05-22', regionCode: 'DNP', regionName: 'Дніпро', city: '01.Дніпро' },
+  { trainingId: '4473', trainingName: 'Neuramis. Робота з мімічними зморшками', trainingType: 'Семінар', date: '2026-06-05', regionCode: 'DNP', regionName: 'Дніпро', city: '01.Дніпро' },
+  { trainingId: '4474', trainingName: 'EXOXE. Контурна пластика', trainingType: 'Майстер-клас', date: '2026-06-12', regionCode: 'DNP', regionName: 'Дніпро', city: '01.Дніпро' },
+  { trainingId: '4475', trainingName: 'Vitaran. Інноваційні протоколи', trainingType: 'Семінар', date: '2026-06-19', regionCode: 'DNP', regionName: 'Дніпро', city: '01.Дніпро' },
 ];
 
 // === Зведені картки для дашборду менеджера ===
+// v2.1: рахуємо три % через working-days (calc / forecast / expected).
 export function getMockTMSummaries(): TMSummaryCard[] {
   const now = new Date();
-  const daysInMonth = 31;
-  const dayOfMonth = now.getDate();
-  const expectedPct = (dayOfMonth / daysInMonth) * 100;
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const totalWD = getWorkingDaysInMonth(year, month);
+  const passedWD = getPassedWorkingDays(year, month, now);
+  const calcPct = getMonthProgressPct(year, month, now);
+
+  // Сума прогнозу і закриття розриву по сегменту PETARAN (для прикладу)
+  // У боєвому коді — буде агрегувати всі прогнози по сегменту.
+  const forecastSumByCode: Record<string, number> = {
+    PETARAN: MOCK_FORECASTS_PETARAN.filter(f => !f.completed).reduce((s, f) => s + f.forecastAmount, 0),
+  };
+  const gapSumByCode: Record<string, number> = {
+    PETARAN: MOCK_GAP_CLOSURES.filter(g => !g.completed).reduce((s, g) => s + g.potentialAmount, 0),
+  };
 
   return MOCK_SALES_PLAN.plans.map(plan => {
     const fact = MOCK_SALES_FACT.facts.find(f => f.segmentCode === plan.segmentCode);
     const factAmount = fact?.totalAmount ?? 0;
     const factPct = plan.planAmount > 0 ? (factAmount / plan.planAmount) * 100 : 0;
+
+    const forecastSum = forecastSumByCode[plan.segmentCode] ?? 0;
+    const gapSum = gapSumByCode[plan.segmentCode] ?? 0;
+    const hasManagerPlan = forecastSum > 0 || gapSum > 0;
+
+    const forecastPct = calcForecastPercent(factAmount, plan.planAmount, passedWD, totalWD);
+    const expectedPct = hasManagerPlan
+      ? calcExpectedPercent(factAmount, forecastSum, gapSum, plan.planAmount)
+      : factPct;
 
     return {
       segmentCode: plan.segmentCode,
@@ -148,9 +183,11 @@ export function getMockTMSummaries(): TMSummaryCard[] {
       planAmount: plan.planAmount,
       factAmount,
       factPercent: Math.round(factPct * 100) / 100,
+      calcPercent: Math.round(calcPct * 100) / 100,
+      forecastPercent: Math.round(forecastPct * 100) / 100,
       expectedPercent: Math.round(expectedPct * 100) / 100,
-      deviationPercent: Math.round((factPct - expectedPct) * 100) / 100,
-      forecastPercent: 100,
+      hasManagerPlan,
+      deviationPercent: Math.round((forecastPct - calcPct) * 100) / 100,
       weightedPipeline: factAmount * 1.5,
       clientCount: fact?.clients.length ?? 0,
       status: plan.segmentCode === 'ESSE' ? 'submitted' : 'draft',
@@ -159,47 +196,79 @@ export function getMockTMSummaries(): TMSummaryCard[] {
 }
 
 // === Дані регіону для РМ ===
+// v2.1: додано prevMonth* поля (порівняння з минулим місяцем на той же N-й робочий день)
+function withPrevMonth(plan: number, fact: number, prevPlan: number, prevFact: number) {
+  return {
+    planAmount: plan,
+    factAmount: fact,
+    factPercent: plan > 0 ? Math.round((fact / plan) * 1000) / 10 : 0,
+    prevMonthFactAmount: prevFact,
+    prevMonthPlanAmount: prevPlan,
+    prevMonthFactPercent: prevPlan > 0 ? Math.round((prevFact / prevPlan) * 1000) / 10 : 0,
+  };
+}
+
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+
 export const MOCK_REGION_DATA: RegionDataResponse = {
   regionName: 'Дніпро',
   regionCode: 'DNP',
+  asOfDate: TODAY_ISO,
+  prevMonthAsOfDate: '2026-03-17',
   managers: [
     {
       login: 'feshchenko@emet.com',
       name: 'Фещенко Олена',
+      totalPrevMonthFact: 9100,
       segments: [
-        { segmentCode: 'PETARAN', segmentName: 'Petaran', planAmount: 3745, factAmount: 189, factPercent: 5.05 },
-        { segmentCode: 'ELLANSE', segmentName: 'Ellanse', planAmount: 4982, factAmount: 1830, factPercent: 36.72 },
-        { segmentCode: 'EXOXE', segmentName: 'EXOXE', planAmount: 1521, factAmount: 85, factPercent: 5.59 },
-        { segmentCode: 'ESSE', segmentName: 'ESSE', planAmount: 2480, factAmount: 1369, factPercent: 55.2 },
-        { segmentCode: 'NEURAMIS', segmentName: 'Neuramis', planAmount: 2627, factAmount: 369, factPercent: 14.05 },
-        { segmentCode: 'NEURONOX', segmentName: 'Neuronox', planAmount: 7226, factAmount: 968, factPercent: 13.39 },
-        { segmentCode: 'VITARAN', segmentName: 'Vitaran', planAmount: 14391, factAmount: 2606, factPercent: 18.11 },
-        { segmentCode: 'OTHER', segmentName: 'Інші ТМ', planAmount: 6153, factAmount: 1430, factPercent: 23.23 },
+        { segmentCode: 'PETARAN', segmentName: 'Petaran', ...withPrevMonth(3745, 189, 3500, 320) },
+        { segmentCode: 'ELLANSE', segmentName: 'Ellanse', ...withPrevMonth(4982, 1830, 4700, 1500) },
+        { segmentCode: 'EXOXE', segmentName: 'EXOXE', ...withPrevMonth(1521, 85, 1450, 70) },
+        { segmentCode: 'ESSE', segmentName: 'ESSE', ...withPrevMonth(2480, 1369, 2350, 1100) },
+        { segmentCode: 'NEURAMIS', segmentName: 'Neuramis', ...withPrevMonth(2627, 369, 2500, 420) },
+        { segmentCode: 'NEURONOX', segmentName: 'Neuronox', ...withPrevMonth(7226, 968, 6900, 1100) },
+        { segmentCode: 'VITARAN', segmentName: 'Vitaran', ...withPrevMonth(14391, 2606, 13800, 2900) },
+        { segmentCode: 'OTHER', segmentName: 'Інші ТМ', ...withPrevMonth(6153, 1430, 5900, 1690) },
       ],
     },
     {
       login: 'sirik@emet.com',
       name: 'Сірик Наталія',
+      totalPrevMonthFact: 8200,
       segments: [
-        { segmentCode: 'PETARAN', segmentName: 'Petaran', planAmount: 3745, factAmount: 189, factPercent: 5.05 },
-        { segmentCode: 'ELLANSE', segmentName: 'Ellanse', planAmount: 4981, factAmount: 1828, factPercent: 36.70 },
-        { segmentCode: 'EXOXE', segmentName: 'EXOXE', planAmount: 1521, factAmount: 85, factPercent: 5.59 },
-        { segmentCode: 'ESSE', segmentName: 'ESSE', planAmount: 2480, factAmount: 1369, factPercent: 55.2 },
-        { segmentCode: 'NEURAMIS', segmentName: 'Neuramis', planAmount: 2627, factAmount: 369, factPercent: 14.05 },
-        { segmentCode: 'NEURONOX', segmentName: 'Neuronox', planAmount: 7226, factAmount: 967, factPercent: 13.38 },
-        { segmentCode: 'VITARAN', segmentName: 'Vitaran', planAmount: 14391, factAmount: 2606, factPercent: 18.11 },
-        { segmentCode: 'OTHER', segmentName: 'Інші ТМ', planAmount: 6153, factAmount: 1430, factPercent: 23.23 },
+        { segmentCode: 'PETARAN', segmentName: 'Petaran', ...withPrevMonth(3745, 189, 3600, 250) },
+        { segmentCode: 'ELLANSE', segmentName: 'Ellanse', ...withPrevMonth(4981, 1828, 4750, 1380) },
+        { segmentCode: 'EXOXE', segmentName: 'EXOXE', ...withPrevMonth(1521, 85, 1500, 95) },
+        { segmentCode: 'ESSE', segmentName: 'ESSE', ...withPrevMonth(2480, 1369, 2400, 1250) },
+        { segmentCode: 'NEURAMIS', segmentName: 'Neuramis', ...withPrevMonth(2627, 369, 2550, 290) },
+        { segmentCode: 'NEURONOX', segmentName: 'Neuronox', ...withPrevMonth(7226, 967, 7100, 980) },
+        { segmentCode: 'VITARAN', segmentName: 'Vitaran', ...withPrevMonth(14391, 2606, 14200, 2400) },
+        { segmentCode: 'OTHER', segmentName: 'Інші ТМ', ...withPrevMonth(6153, 1430, 6050, 1555) },
       ],
     },
   ],
 };
 
 // === Фіксовані дані регіонів для директора (без Math.random) ===
-function makeSegments(base: number[]): { segmentCode: string; segmentName: string; planAmount: number; factAmount: number; factPercent: number }[] {
+// Старі виклики передають по 2 числа на сегмент (plan, fact). Якщо prev-month відсутній —
+// генеруємо приблизний минулий місяць з коефіцієнтами (для демо).
+function makeSegments(base: number[]) {
   return SEGMENTS.map((s, i) => {
     const plan = base[i * 2] ?? 5000;
     const fact = base[i * 2 + 1] ?? 1000;
-    return { segmentCode: s.code, segmentName: s.name, planAmount: plan, factAmount: fact, factPercent: plan > 0 ? Math.round((fact / plan) * 1000) / 10 : 0 };
+    // Демо: минулий місяць ≈ 95% поточного плану, факт ≈ 90% поточного факту
+    const prevPlan = Math.round(plan * 0.95);
+    const prevFact = Math.round(fact * 0.9);
+    return {
+      segmentCode: s.code,
+      segmentName: s.name,
+      planAmount: plan,
+      factAmount: fact,
+      factPercent: plan > 0 ? Math.round((fact / plan) * 1000) / 10 : 0,
+      prevMonthFactAmount: prevFact,
+      prevMonthPlanAmount: prevPlan,
+      prevMonthFactPercent: prevPlan > 0 ? Math.round((prevFact / prevPlan) * 1000) / 10 : 0,
+    };
   });
 }
 

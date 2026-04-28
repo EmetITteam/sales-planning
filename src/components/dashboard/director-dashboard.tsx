@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { formatUSD, getTrafficLight } from '@/lib/format';
 import { MOCK_ALL_REGIONS, SEGMENTS } from '@/lib/mock-data';
 import { RMDashboard } from './rm-dashboard';
-import { Target, DollarSign, TrendingUp, MapPin, Users, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, Users, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 type DirView = 'dashboard' | 'region';
 
@@ -14,20 +14,28 @@ export function DirectorDashboard() {
   const regions = MOCK_ALL_REGIONS;
 
   const regionSummaries = regions.map(region => {
-    let totalPlan = 0, totalFact = 0;
+    let totalPlan = 0, totalFact = 0, totalPrevFact = 0, totalPrevPlan = 0;
     const segTotals: Record<string, { plan: number; fact: number }> = {};
     SEGMENTS.forEach(seg => { segTotals[seg.code] = { plan: 0, fact: 0 }; });
     region.managers.forEach(m => {
       m.segments.forEach(s => {
         totalPlan += s.planAmount;
         totalFact += s.factAmount;
+        totalPrevFact += s.prevMonthFactAmount ?? 0;
+        totalPrevPlan += s.prevMonthPlanAmount ?? 0;
         if (segTotals[s.segmentCode]) {
           segTotals[s.segmentCode].plan += s.planAmount;
           segTotals[s.segmentCode].fact += s.factAmount;
         }
       });
     });
-    return { ...region, totalPlan, totalFact, pct: totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0, segTotals };
+    return {
+      ...region, totalPlan, totalFact,
+      totalPrevFact, totalPrevPlan,
+      pct: totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0,
+      prevPct: totalPrevPlan > 0 ? (totalPrevFact / totalPrevPlan) * 100 : 0,
+      segTotals,
+    };
   });
 
   const grandPlan = regionSummaries.reduce((s, r) => s + r.totalPlan, 0);
@@ -77,7 +85,7 @@ export function DirectorDashboard() {
               )}
             </div>
             <p className="text-[12px] text-muted-foreground font-medium mt-3">{m.label}</p>
-            <p className="text-2xl font-extrabold tracking-tight">{m.value}</p>
+            <p className={`text-2xl font-extrabold tracking-tight ${m.label === 'Загальний план' || m.label === 'Факт' ? 'amount' : ''}`}>{m.value}</p>
             <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br ${m.grad} opacity-[0.06] blur-2xl`} />
           </div>
         ))}
@@ -112,8 +120,25 @@ export function DirectorDashboard() {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт / План</p>
-                      <p className="text-[14px] font-bold font-mono">{formatUSD(region.totalFact)} <span className="text-muted-foreground/50 font-normal">/ {formatUSD(region.totalPlan)}</span></p>
+                      <p className="text-[14px] font-bold font-mono"><span className="amount">{formatUSD(region.totalFact)}</span> <span className="text-muted-foreground/50 font-normal amount">/ {formatUSD(region.totalPlan)}</span></p>
                     </div>
+                    {region.totalPrevFact > 0 && (() => {
+                      const dynAmount = region.totalFact - region.totalPrevFact;
+                      const dynPct = region.pct - region.prevPct;
+                      const dynBetter = dynAmount >= 0;
+                      return (
+                        <div className="text-right">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">vs мин. міс.</p>
+                          <p className={`text-[12px] font-bold flex items-center justify-end gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                            <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+                          </p>
+                          <p className={`text-[10px] font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {dynBetter ? '+' : ''}{dynPct.toFixed(1)}%
+                          </p>
+                        </div>
+                      );
+                    })()}
                     <div className="flex flex-col items-center gap-0.5">
                       <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
                         <div className={`h-full rounded-full ${region.pct >= 20 ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
@@ -135,7 +160,7 @@ export function DirectorDashboard() {
                           <div className={`w-2 h-2 rounded-full ${segTl.dot}`} />
                           <div>
                             <p className="text-[11px] font-semibold text-foreground/80">{seg.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono">{formatUSD(seg.fact)}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono amount">{formatUSD(seg.fact)}</p>
                           </div>
                           <span className={`text-[10px] font-bold ml-auto ${segTl.color}`}>{segPct.toFixed(0)}%</span>
                         </div>
@@ -168,8 +193,8 @@ export function DirectorDashboard() {
                     style={{ width: `${Math.min(seg.pct * 2, 100)}%` }} />
                 </div>
                 <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>{formatUSD(seg.fact)}</span>
-                  <span>{formatUSD(seg.plan)}</span>
+                  <span className="amount">{formatUSD(seg.fact)}</span>
+                  <span className="amount">{formatUSD(seg.plan)}</span>
                 </div>
               </div>
             );

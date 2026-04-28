@@ -11,6 +11,52 @@ interface SavePlanningParams {
   gapActions: GapActions;
 }
 
+// Пакуємо нові поля gap-closure (v2.1) в JSON у legacy колонці `action` Supabase —
+// уникаємо міграції БД. На бекенді — той самий рядок, на фронті — структуровані поля.
+export function packGapAction(g: GapClosureRow): string {
+  return JSON.stringify({
+    v: 2,
+    stage: g.stage,
+    stageComment: g.stageComment,
+    stageDone: g.stageDone,
+    completed: g.completed,
+    trainingId: g.trainingId,
+    trainingName: g.trainingName,
+    trainingDate: g.trainingDate,
+  });
+}
+
+export interface UnpackedGapAction {
+  stage: GapClosureRow['stage'];
+  stageComment: string;
+  stageDone: boolean;
+  completed: boolean;
+  trainingId?: string;
+  trainingName?: string;
+  trainingDate?: string;
+}
+
+export function unpackGapAction(actionStr: string | null): UnpackedGapAction {
+  if (!actionStr) return { stage: '', stageComment: '', stageDone: false, completed: false };
+  try {
+    const parsed = JSON.parse(actionStr);
+    if (parsed && typeof parsed === 'object' && parsed.v === 2) {
+      return {
+        stage: parsed.stage ?? '',
+        stageComment: parsed.stageComment ?? '',
+        stageDone: !!parsed.stageDone,
+        completed: !!parsed.completed,
+        trainingId: parsed.trainingId,
+        trainingName: parsed.trainingName,
+        trainingDate: parsed.trainingDate,
+      };
+    }
+  } catch {
+    // Legacy: action — звичайний текст. Кладемо в коментар.
+  }
+  return { stage: 'Дзвінок', stageComment: actionStr, stageDone: false, completed: false };
+}
+
 export async function savePlanning(params: SavePlanningParams): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch('/api/planning', {
@@ -34,7 +80,7 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
           clientName: g.clientName,
           category: g.category,
           potentialAmount: g.potentialAmount,
-          action: g.action,
+          action: packGapAction(g),
           deadline: g.deadline,
           manuallyAdded: g.manuallyAdded || false,
         })),
@@ -51,7 +97,7 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
     return { success: true };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Помилка мережі' };
   }
 }

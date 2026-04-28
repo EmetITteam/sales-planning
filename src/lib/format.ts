@@ -5,6 +5,35 @@ export function formatUSD(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Run-rate прогноз: екстраполяція факту по поточному темпу на повний місяць у %.
+ * Якщо немає робочих днів пройдено або плану — повертає 0.
+ */
+export function calcForecastPercent(
+  factAmount: number,
+  planAmount: number,
+  passedWorkingDays: number,
+  totalWorkingDays: number,
+): number {
+  if (passedWorkingDays === 0 || planAmount === 0) return 0;
+  const projectedFact = (factAmount / passedWorkingDays) * totalWorkingDays;
+  return (projectedFact / planAmount) * 100;
+}
+
+/**
+ * "Очікуваний" — % виконання якщо менеджер виконає всі обіцянки (прогноз + закриття розриву).
+ * Якщо менеджер не заповнив прогноз/розриви — повертає звичайний factPercent.
+ */
+export function calcExpectedPercent(
+  factAmount: number,
+  forecastSum: number,
+  gapClosureSum: number,
+  planAmount: number,
+): number {
+  if (planAmount === 0) return 0;
+  return ((factAmount + forecastSum + gapClosureSum) / planAmount) * 100;
+}
+
 /** Відсоток зі знаком: "+5.2%" або "-3.1%" */
 export function formatSignedPct(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
@@ -45,6 +74,13 @@ export function getProbColor(prob: number) {
   return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' };
 }
 
+/**
+ * Світлофор по темпу: порівнюємо forecast (run-rate) vs calc (норма по робочих днях).
+ * Стійкий індикатор — не залежить від того чи заповнив менеджер прогноз.
+ *   diff >= -5%  → На плані
+ *   diff >= -15% → Ризик
+ *   інше         → Відставання
+ */
 export function getTrafficLight(pct: number, expected: number) {
   const diff = pct - expected;
   if (diff >= -5) return { color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500', label: 'На плані' };

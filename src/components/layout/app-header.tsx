@@ -1,7 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { formatPeriod } from '@/lib/format';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -12,7 +12,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PeriodFilter } from './period-filter';
-import { BarChart3, LogOut, ChevronDown } from 'lucide-react';
+import { BarChart3, LogOut, ChevronDown, Eye, EyeOff } from 'lucide-react';
+
+const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
 const ROLE_LABELS: Record<string, string> = {
   manager: 'Менеджер',
@@ -27,7 +29,29 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function AppHeader() {
-  const { user, currentPeriod, setUser } = useAppStore();
+  const { user, setUser } = useAppStore();
+  const [hideAmounts, setHideAmounts] = useState(false);
+
+  // Init з localStorage + синхронізація з <body data-hide-amounts>
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' && localStorage.getItem(HIDE_AMOUNTS_KEY) === '1';
+    setHideAmounts(saved);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.body.dataset.hideAmounts = hideAmounts ? 'true' : 'false';
+    }
+  }, [hideAmounts]);
+
+  const toggleHideAmounts = () => {
+    const next = !hideAmounts;
+    setHideAmounts(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(HIDE_AMOUNTS_KEY, next ? '1' : '0');
+    }
+  };
+
   if (!user) return null;
 
   const initials = user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
@@ -68,12 +92,26 @@ export function AppHeader() {
             </div>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden md:block" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-56">
             <div className="px-3 py-2">
               <p className="text-sm font-medium">{user.fullName}</p>
               <p className="text-xs text-muted-foreground">{user.login}</p>
               <Badge variant="secondary" className="mt-1.5 text-[10px]">{ROLE_LABELS[user.role]}</Badge>
             </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={toggleHideAmounts} className="cursor-pointer">
+              {hideAmounts ? (
+                <>
+                  <Eye className="mr-2 h-3.5 w-3.5" />
+                  Показати суми
+                </>
+              ) : (
+                <>
+                  <EyeOff className="mr-2 h-3.5 w-3.5" />
+                  Сховати суми (для оперативки)
+                </>
+              )}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setUser(null)} className="text-rose-600 cursor-pointer">
               <LogOut className="mr-2 h-3.5 w-3.5" />

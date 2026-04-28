@@ -6,15 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
 import { formatUSD, formatDate } from '@/lib/format';
-import { savePlanning, loadPlanning } from '@/lib/api';
+import { savePlanning, loadPlanning, unpackGapAction } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { getDaysInPeriod, getMonthName } from '@/lib/periods';
-import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, SEGMENTS } from '@/lib/mock-data';
+import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
   ArrowUpRight, ArrowDownRight, Trash2, Plus, Check, Phone, Calendar,
-  AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw, Eye,
+  AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw, Eye, GraduationCap,
 } from 'lucide-react';
 
 interface PlanningFormProps {
@@ -26,6 +26,13 @@ interface PlanningFormProps {
 const STAGE_OPTIONS = [
   { value: 'Дзвінок', icon: Phone },
   { value: 'Зустріч', icon: Calendar },
+];
+
+// Етапи для блоку "Закриття розриву" — додано "Навчання" (з 1С).
+const GAP_STAGE_OPTIONS = [
+  { value: 'Дзвінок', icon: Phone },
+  { value: 'Зустріч', icon: Calendar },
+  { value: 'Навчання', icon: GraduationCap },
 ];
 
 export function PlanningForm({ segmentCode, onBack, readOnly = false }: PlanningFormProps) {
@@ -69,18 +76,27 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
         })));
       }
       if (data.gapClosures.length > 0) {
-        setGapClosures(data.gapClosures.map(g => ({
-          clientId1c: g.client_id_1c,
-          clientName: g.client_name,
-          category: g.category || '',
-          potentialAmount: g.potential_amount,
-          action: g.action || '',
-          deadline: g.deadline || '',
-          factAmount: 0,
-          lastPurchaseDate: null,
-          lastPurchaseAmount: 0,
-          manuallyAdded: g.manually_added,
-        })));
+        setGapClosures(data.gapClosures.map(g => {
+          const unpacked = unpackGapAction(g.action);
+          return {
+            clientId1c: g.client_id_1c,
+            clientName: g.client_name,
+            category: g.category || '',
+            potentialAmount: g.potential_amount,
+            stage: unpacked.stage,
+            stageComment: unpacked.stageComment,
+            stageDone: unpacked.stageDone,
+            completed: unpacked.completed,
+            trainingId: unpacked.trainingId,
+            trainingName: unpacked.trainingName,
+            trainingDate: unpacked.trainingDate,
+            deadline: g.deadline || '',
+            factAmount: 0,
+            lastPurchaseDate: null,
+            lastPurchaseAmount: 0,
+            manuallyAdded: g.manually_added,
+          };
+        }));
       }
       if (data.summary) {
         if (data.summary.month_forecast_pct !== null) setMonthForecastPct(String(data.summary.month_forecast_pct));
@@ -180,7 +196,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
     }));
   };
 
-  const updateGap = (i: number, field: keyof GapClosureRow, value: string | number) => {
+  const updateGap = (i: number, field: keyof GapClosureRow, value: string | number | boolean | null | undefined) => {
     setGapClosures(prev => { const n = [...prev]; n[i] = { ...n[i], [field]: value }; return n; });
   };
 
@@ -425,7 +441,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
             </p>
           </div>
           {!readOnly && (
-            <Button onClick={() => setGapClosures(prev => [...prev, { clientId1c: '', clientName: '', category: '', potentialAmount: 0, action: '', deadline: '', factAmount: 0, lastPurchaseDate: null, lastPurchaseAmount: 0, manuallyAdded: true }])}
+            <Button onClick={() => setGapClosures(prev => [...prev, { clientId1c: '', clientName: '', category: '', potentialAmount: 0, stage: '', stageComment: '', stageDone: false, completed: false, deadline: '', factAmount: 0, lastPurchaseDate: null, lastPurchaseAmount: 0, manuallyAdded: true }])}
               variant="outline" className="gap-1.5 text-[12px] h-8 rounded-xl border-[#c5e3f6] text-[#066aab] hover:bg-[#e8f4fc]">
               <Plus className="h-3.5 w-3.5" /> Додати
             </Button>
@@ -434,13 +450,14 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
         {gapClosures.length > 0 && (
           <div>
-            {/* Заголовки колонок */}
-            <div className="grid grid-cols-[36px_1fr_80px_1fr_130px_65px_32px] gap-2 px-5 mb-1">
+            {/* Заголовки колонок — уніфіковано з блоком "Прогноз по активних" */}
+            <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 px-5 mb-1">
               <div />
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Потенціал</p>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Дія</p>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Термін</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Етап</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Статус</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Дія / Навчання</p>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Факт</p>
               <div />
             </div>
@@ -448,12 +465,13 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
             <div className="space-y-2">
             {gapClosures.map((row, i) => {
               const hasFact = row.factAmount > 0;
+              const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
               return (
-                <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
-                  <div className="grid grid-cols-[36px_1fr_80px_1fr_130px_65px_32px] gap-2 items-center px-5 py-3">
+                <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
+                  <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 items-center px-5 py-3">
                     {/* Іконка */}
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
-                      {hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
+                      {row.completed || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
                     </div>
 
                     {/* Клієнт */}
@@ -474,19 +492,76 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
                     </div>
 
                     {/* Потенціал */}
-                    <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
-                      disabled={readOnly}
-                      className="h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
+                    {row.completed ? (
+                      <div className="flex items-center justify-end gap-1">
+                        <Lock className="h-3 w-3 text-muted-foreground/40" />
+                        <span className="text-[14px] font-bold text-muted-foreground">{formatUSD(row.potentialAmount)}</span>
+                      </div>
+                    ) : (
+                      <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
+                        disabled={readOnly}
+                        className="h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
+                    )}
 
-                    {/* Дія */}
-                    <Input value={row.action} onChange={(e) => updateGap(i, 'action', e.target.value)}
-                      disabled={readOnly}
-                      className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Що зробити..." />
+                    {/* Етап */}
+                    <Select value={row.stage || undefined} onValueChange={(v) => { if (v) updateGap(i, 'stage', v); }} disabled={readOnly}>
+                      <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                        <SelectValue placeholder="Оберіть..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GAP_STAGE_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                    {/* Термін */}
-                    <Input type="date" value={row.deadline} onChange={(e) => updateGap(i, 'deadline', e.target.value)}
-                      disabled={readOnly}
-                      className="h-8 w-full text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
+                    {/* Статус */}
+                    {row.stage ? (
+                      <div className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold ${
+                        row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        <StageIcon className="h-3 w-3" />
+                        {row.stageDone ? 'Виконано' : 'Очікується'}
+                      </div>
+                    ) : (
+                      <div className="h-8 flex items-center justify-center text-[11px] text-muted-foreground/40">—</div>
+                    )}
+
+                    {/* Дія / Навчання — умовно */}
+                    {row.stage === 'Навчання' ? (
+                      <Select
+                        value={row.trainingId || undefined}
+                        onValueChange={(trainingId) => {
+                          const t = MOCK_TRAININGS.find(x => x.trainingId === trainingId);
+                          updateGap(i, 'trainingId', trainingId);
+                          if (t) {
+                            updateGap(i, 'trainingName', t.trainingName);
+                            updateGap(i, 'trainingDate', t.date);
+                            updateGap(i, 'deadline', t.date);
+                          }
+                        }}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                          <SelectValue placeholder="Обрати навчання з 1С..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MOCK_TRAININGS.map(t => (
+                            <SelectItem key={t.trainingId} value={t.trainingId}>
+                              <span className="text-[12px]">
+                                {formatDate(t.date)} — {t.trainingName.length > 50 ? t.trainingName.slice(0, 50) + '…' : t.trainingName}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
+                        disabled={readOnly}
+                        className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
+                    )}
 
                     {/* Факт */}
                     <p className={`text-[14px] font-bold text-right ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
@@ -507,9 +582,9 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
             </div>
 
             <div className="mt-3 bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
-              <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold">{formatUSD(gapTotal)}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold amount">{formatUSD(gapTotal)}</p></div>
               <div className="w-px h-8 bg-amber-200/40" />
-              <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600">{formatUSD(gapFactTotal)}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600 amount">{formatUSD(gapFactTotal)}</p></div>
               <div className="w-px h-8 bg-amber-200/40" />
               <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{gapClosures.length}</p></div>
             </div>

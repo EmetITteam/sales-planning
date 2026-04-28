@@ -5,7 +5,7 @@ import { formatUSD, getTrafficLight } from '@/lib/format';
 import { MOCK_REGION_DATA, SEGMENTS } from '@/lib/mock-data';
 import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
-import { Target, DollarSign, TrendingUp, Users, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
+import { Target, DollarSign, TrendingUp, TrendingDown, Users, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
 
 interface RMDashboardProps {
   regionCode?: string;
@@ -81,7 +81,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           <div key={m.label} className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
             <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${m.grad} text-white shadow-lg mb-3`}>{m.icon}</div>
             <p className="text-[12px] text-muted-foreground font-medium">{m.label}</p>
-            <p className="text-2xl font-extrabold tracking-tight">{m.value}</p>
+            <p className={`text-2xl font-extrabold tracking-tight ${m.label === 'План регіону' || m.label === 'Факт' ? 'amount' : ''}`}>{m.value}</p>
             <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br ${m.grad} opacity-[0.06] blur-2xl`} />
           </div>
         ))}
@@ -112,6 +112,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             const mPct = mPlan > 0 ? (mTotal / mPlan) * 100 : 0;
             const mTl = getTrafficLight(mPct, 22.73);
 
+            // v2.1: динаміка vs минулий місяць на той же N-й робочий день
+            const prevTotal = manager.totalPrevMonthFact ?? manager.segments.reduce((s, seg) => s + (seg.prevMonthFactAmount ?? 0), 0);
+            const prevPlan = manager.segments.reduce((s, seg) => s + (seg.prevMonthPlanAmount ?? 0), 0);
+            const prevPct = prevPlan > 0 ? (prevTotal / prevPlan) * 100 : 0;
+            const dynAmount = mTotal - prevTotal;
+            const dynPct = mPct - prevPct;
+            const dynBetter = dynAmount >= 0;
+
             return (
               <div key={manager.login}
                 onClick={() => { setSelectedManager(manager.login); setView('viewManager'); }}
@@ -131,13 +139,28 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   <div className="flex items-center gap-5">
                     <div className="text-right">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">План</p>
-                      <p className="text-[15px] font-bold font-mono">{formatUSD(mPlan)}</p>
+                      <p className="text-[15px] font-bold font-mono amount">{formatUSD(mPlan)}</p>
                     </div>
                     <div className="w-px h-8 bg-[#e2e7ef]" />
                     <div className="text-right">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт</p>
-                      <p className="text-[15px] font-extrabold font-mono">{formatUSD(mTotal)}</p>
+                      <p className="text-[15px] font-extrabold font-mono amount">{formatUSD(mTotal)}</p>
                     </div>
+                    {prevTotal > 0 && (
+                      <>
+                        <div className="w-px h-8 bg-[#e2e7ef]" />
+                        <div className="text-right">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">vs мин. міс.</p>
+                          <p className={`text-[12px] font-bold flex items-center justify-end gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                            <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+                          </p>
+                          <p className={`text-[10px] font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {dynBetter ? '+' : ''}{dynPct.toFixed(1)}%
+                          </p>
+                        </div>
+                      </>
+                    )}
                     <div className="w-16">
                       <div className="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
                         <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
@@ -163,7 +186,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                           <div>
                             <p className="text-[11px] font-semibold text-foreground/80">{seg.segmentName}</p>
                             <p className="text-[10px] text-muted-foreground font-mono">
-                              {formatUSD(seg.factAmount)} <span className="text-muted-foreground/50">/ {formatUSD(seg.planAmount)}</span>
+                              <span className="amount">{formatUSD(seg.factAmount)}</span> <span className="text-muted-foreground/50 amount">/ {formatUSD(seg.planAmount)}</span>
                             </p>
                           </div>
                           <span className={`text-[10px] font-bold ml-auto ${tl.color}`}>{seg.factPercent.toFixed(0)}%</span>
@@ -197,8 +220,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                     style={{ width: `${Math.min(rt.pct * 2, 100)}%` }} />
                 </div>
                 <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>{formatUSD(rt.totalFact)}</span>
-                  <span>{formatUSD(rt.totalPlan)}</span>
+                  <span className="amount">{formatUSD(rt.totalFact)}</span>
+                  <span className="amount">{formatUSD(rt.totalPlan)}</span>
                 </div>
               </div>
             );
