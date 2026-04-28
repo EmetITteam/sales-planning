@@ -27,9 +27,10 @@ export function DirectorDashboard() {
     let totalPlan = 0, totalFact = 0, totalPrevFact = 0, totalPrevPlan = 0;
     const segTotals: Record<string, { plan: number; fact: number; prevFact: number; prevPlan: number }> = {};
     SEGMENTS.forEach(seg => { segTotals[seg.code] = { plan: 0, fact: 0, prevFact: 0, prevPlan: 0 }; });
-    region.managers.forEach(m => {
+    // Короткий зріз по кожному менеджеру — для відображення у згорнутому регіоні
+    const managersBrief = region.managers.map(m => {
+      let mPlan = 0, mFact = 0;
       m.segments.forEach(s => {
-        // Масштабуємо факт пропорційно даті зрізу — імітація getSalesFact(asOfDate)
         const factAmount = Math.round(s.factAmount * factScale);
         const prevMonthFactAmount = Math.round((s.prevMonthFactAmount ?? 0) * factScale);
         totalPlan += s.planAmount;
@@ -42,7 +43,12 @@ export function DirectorDashboard() {
           segTotals[s.segmentCode].prevFact += prevMonthFactAmount;
           segTotals[s.segmentCode].prevPlan += s.prevMonthPlanAmount ?? 0;
         }
+        mPlan += s.planAmount;
+        mFact += factAmount;
       });
+      const mPct = mPlan > 0 ? (mFact / mPlan) * 100 : 0;
+      const mDev = mPct - calcPct;
+      return { name: m.name, login: m.login, pct: mPct, dev: mDev, onPlan: mPct >= calcPct };
     });
     return {
       ...region, totalPlan, totalFact,
@@ -50,6 +56,7 @@ export function DirectorDashboard() {
       pct: totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0,
       prevPct: totalPrevPlan > 0 ? (totalPrevFact / totalPrevPlan) * 100 : 0,
       segTotals,
+      managersBrief,
     };
   });
 
@@ -294,6 +301,7 @@ interface RegionAccordionProps {
     totalPrevPlan: number;
     pct: number;
     prevPct: number;
+    managersBrief: Array<{ name: string; login: string; pct: number; dev: number; onPlan: boolean }>;
   };
   allSegs: Array<{
     code: string;
@@ -306,6 +314,13 @@ interface RegionAccordionProps {
   calcPct: number;
   asOfDate: Date;
   onDrillDown: () => void;
+}
+
+/** Прізвище І. — наприклад "Сірик Наталія" → "Сірик Н." */
+function shortName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length < 2) return fullName;
+  return `${parts[0]} ${parts[1].charAt(0)}.`;
 }
 
 function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: RegionAccordionProps) {
@@ -321,9 +336,9 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
       {/* === DESKTOP (md+): один рядок === */}
       <div
         onClick={() => setExpanded(!expanded)}
-        className="hidden md:flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        className="hidden md:flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
             <MapPin className="h-5 w-5 text-[#066aab]" />
           </div>
@@ -332,7 +347,28 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
             <p className="text-[11px] text-muted-foreground">{region.managers.length} менеджерів</p>
           </div>
         </div>
-        <div className="flex items-center gap-4 justify-end">
+
+        {/* Мини-список менеджерів — займає вільне місце ліворуч від чисел */}
+        <div className="flex-1 min-w-0 flex flex-wrap gap-x-3 gap-y-1 px-2">
+          {region.managersBrief.map(m => (
+            <span
+              key={m.login}
+              className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap"
+              title={`${m.name}: ${m.pct.toFixed(1)}% (${m.dev >= 0 ? '+' : ''}${m.dev.toFixed(1)}% vs норма)`}
+            >
+              <span className={`w-2 h-2 rounded-full ${m.onPlan ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              <span className="font-semibold text-foreground/80">{shortName(m.name)}</span>
+              <span className={`font-bold ${m.onPlan ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {m.pct.toFixed(0)}%
+              </span>
+              <span className={`text-[10px] ${m.dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                ({m.dev >= 0 ? '+' : ''}{m.dev.toFixed(1)}%)
+              </span>
+            </span>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-4 justify-end shrink-0">
           <div className="text-right">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт / План</p>
             <p className="text-[14px] font-bold font-mono">
