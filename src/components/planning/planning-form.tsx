@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
-import { formatUSD, formatDate } from '@/lib/format';
+import { formatUSD, formatDate, formatDateShort } from '@/lib/format';
 import { savePlanning, loadPlanning, unpackGapAction } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-import { getDaysInPeriod, getMonthName } from '@/lib/periods';
+import { getMonthName } from '@/lib/periods';
+import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
@@ -126,13 +127,15 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
   const planAmount = plan?.planAmount ?? 0;
   const factAmount = fact?.totalAmount ?? 0;
 
-  // Розрахунок очікуваного по наростаючому періоду
-  const daysInPeriod = getDaysInPeriod(currentPeriod.weekEnd);
+  // Розрахунок очікуваного по наростаючому періоду — РОБОЧІ ДНІ (не календарні),
+  // як на дашборді. Свята України 2026 враховані у working-days.ts.
   const periodMonth = new Date(currentPeriod.month);
-  const daysInMonth = new Date(periodMonth.getFullYear(), periodMonth.getMonth() + 1, 0).getDate();
+  const periodEndDate = new Date(currentPeriod.weekEnd);
+  const totalWorkingDays = getWorkingDaysInMonth(periodMonth.getFullYear(), periodMonth.getMonth());
+  const passedWorkingDays = getPassedWorkingDays(periodMonth.getFullYear(), periodMonth.getMonth(), periodEndDate);
   const periodLabel = getMonthName(periodMonth.getFullYear(), periodMonth.getMonth());
-  const expectedAmount = (planAmount / daysInMonth) * daysInPeriod;
-  const expectedPct = (expectedAmount / planAmount) * 100;
+  const expectedAmount = totalWorkingDays > 0 ? (planAmount / totalWorkingDays) * passedWorkingDays : 0;
+  const expectedPct = planAmount > 0 ? (expectedAmount / planAmount) * 100 : 0;
   const factPct = planAmount > 0 ? (factAmount / planAmount) * 100 : 0;
   const deviation = factPct - expectedPct;
 
@@ -230,7 +233,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
-          { label: `Очікуване (${daysInPeriod}д)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+          { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
           { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true },
           { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
         ].map(m => (
