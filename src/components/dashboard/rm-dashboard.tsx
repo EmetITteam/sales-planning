@@ -295,7 +295,6 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                       asOfDate={asOfDate}
                       prevMonthFactAmount={seg.prevMonthFactAmount}
                       prevMonthFactPercent={seg.prevMonthFactPercent}
-                      hasManagerPlan={false}
                     />
                   ))}
                 </div>
@@ -319,7 +318,6 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               asOfDate={asOfDate}
               prevMonthFactAmount={rt.prevFact}
               prevMonthFactPercent={rt.prevPct}
-              hasManagerPlan={false}
             />
           ))}
         </div>

@@ -251,7 +251,6 @@ function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick }: BrandRegi
         asOfDate={asOfDate}
         prevMonthFactAmount={brand.totalPrevFact}
         prevMonthFactPercent={totalPrevPct}
-        hasManagerPlan={false}
         onClick={() => setExpanded(!expanded)}
         expandable
         expanded={expanded}
@@ -274,7 +273,6 @@ function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick }: BrandRegi
                 asOfDate={asOfDate}
                 prevMonthFactAmount={r.prevFact}
                 prevMonthFactPercent={rPrevPct}
-                hasManagerPlan={false}
                 onClick={() => onRegionClick(r.regionCode)}
               />
             );
@@ -445,7 +443,6 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
               asOfDate={asOfDate}
               prevMonthFactAmount={seg.prevFact}
               prevMonthFactPercent={seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0}
-              hasManagerPlan={false}
             />
           ))}
         </div>
