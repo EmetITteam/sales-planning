@@ -19,17 +19,23 @@ interface MetricCardProps {
   caption?: ReactNode;
   /** Чи позначати value класом .amount (для маски сум) */
   isAmount?: boolean;
+  /**
+   * Розмір watermark-іконки. За замовчуванням 'lg' (112px) — для 4-колонкових layout-ів.
+   * Використовуй 'md' (96px) для 5-колонкових (РМ/Директор), щоб іконка не давила.
+   */
+  iconSize?: 'md' | 'lg';
 }
 
 /**
  * Карта метрики у стилі watermark — велика приглушена іконка в куті як декор,
  * текст ліворуч компактно. Один шаблон для топ-блоку всіх дашбордів.
  */
-export function MetricCard({ icon, iconColor, label, value, caption, isAmount }: MetricCardProps) {
+export function MetricCard({ icon, iconColor, label, value, caption, isAmount, iconSize = 'lg' }: MetricCardProps) {
+  const sizeClass = iconSize === 'md' ? '[&>svg]:h-24 [&>svg]:w-24' : '[&>svg]:h-28 [&>svg]:w-28';
   return (
     <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden min-h-[110px] flex flex-col">
-      {/* Watermark-іконка: справа, по центру вертикально, приглушена. Розмір 28*4=112px */}
-      <div className={`absolute right-3 top-1/2 -translate-y-1/2 ${iconColor} opacity-10 pointer-events-none [&>svg]:h-28 [&>svg]:w-28`}>
+      {/* Watermark-іконка: справа, по центру вертикально, приглушена */}
+      <div className={`absolute right-3 top-1/2 -translate-y-1/2 ${iconColor} opacity-10 pointer-events-none ${sizeClass}`}>
         {icon}
       </div>
 

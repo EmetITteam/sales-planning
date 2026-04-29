@@ -133,6 +133,7 @@ export function DirectorDashboard() {
       {/* Metrics — компактний watermark layout: 5 карток в ряд */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MetricCard
+          iconSize="md"
           icon={<Target />}
           iconColor="text-[#066aab]"
           label="Загальний план"
@@ -141,6 +142,7 @@ export function DirectorDashboard() {
           caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {totalWD} робочих дні</span>}
         />
         <MetricCard
+          iconSize="md"
           icon={<DollarSign />}
           iconColor="text-emerald-500"
           label="Факт"
@@ -161,6 +163,7 @@ export function DirectorDashboard() {
           })()}
         />
         <MetricCard
+          iconSize="md"
           icon={grandPct >= calcPct ? <TrendingUp /> : <TrendingDown />}
           iconColor={grandPct >= calcPct ? 'text-emerald-500' : 'text-rose-500'}
           label="Виконання"
@@ -180,6 +183,7 @@ export function DirectorDashboard() {
           )}
         />
         <MetricCard
+          iconSize="md"
           icon={<MapPin />}
           iconColor="text-amber-500"
           label="Структура"
@@ -372,20 +376,20 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
           </div>
         </div>
 
-        {/* Мини-список менеджерів — займає вільне місце ліворуч від чисел */}
-        <div className="flex-1 min-w-0 flex flex-wrap gap-x-3 gap-y-1 px-2">
+        {/* Мини-список менеджерів — 2 колонки (для регіонів з 5-6 менеджерами) */}
+        <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
           {region.managersBrief.map(m => (
             <span
               key={m.login}
               className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap"
               title={`${m.name}: ${m.pct.toFixed(1)}% (${m.dev >= 0 ? '+' : ''}${m.dev.toFixed(1)}% vs норма)`}
             >
-              <span className={`w-2 h-2 rounded-full ${m.onPlan ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-              <span className="font-semibold text-foreground/80">{shortName(m.name)}</span>
-              <span className={`font-bold ${m.onPlan ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${m.onPlan ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              <span className="font-semibold text-foreground/80 truncate">{shortName(m.name)}</span>
+              <span className={`font-bold ml-auto ${m.onPlan ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {m.pct.toFixed(0)}%
               </span>
-              <span className={`text-[10px] ${m.dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <span className={`text-[10px] shrink-0 ${m.dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 ({m.dev >= 0 ? '+' : ''}{m.dev.toFixed(1)}%)
               </span>
             </span>

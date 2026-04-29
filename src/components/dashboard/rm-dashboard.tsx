@@ -122,6 +122,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
       {/* Metrics — компактний watermark layout, 5 карток */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MetricCard
+          iconSize="md"
           icon={<Target />}
           iconColor="text-[#066aab]"
           label="План регіону"
@@ -130,6 +131,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {totalWD} робочих дні</span>}
         />
         <MetricCard
+          iconSize="md"
           icon={<DollarSign />}
           iconColor="text-emerald-500"
           label="Факт"
@@ -150,6 +152,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           })()}
         />
         <MetricCard
+          iconSize="md"
           icon={grandPct >= calcPct ? <TrendingUp /> : <TrendingDown />}
           iconColor={grandPct >= calcPct ? 'text-emerald-500' : 'text-rose-500'}
           label="Виконання"
@@ -169,6 +172,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           )}
         />
         <MetricCard
+          iconSize="md"
           icon={<MapPin />}
           iconColor="text-amber-500"
           label="Менеджерів"
