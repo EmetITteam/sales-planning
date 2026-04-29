@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { getMockTMSummaries, getMockClientStatsManager } from '@/lib/mock-data';
-import { formatUSD, formatPct, formatDateShort, pctOf } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, pctOf, workingDaysLabel } from '@/lib/format';
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth } from '@/lib/working-days';
@@ -59,7 +59,7 @@ export function ManagerDashboard() {
           label="План місяця"
           value={formatUSD(totalPlan)}
           isAmount
-          caption={<span className="text-muted-foreground">{periodMonthLabel} · {totalWorkingDaysInMonth} робочих дні</span>}
+          caption={<span className="text-muted-foreground">{periodMonthLabel} · {workingDaysLabel(totalWorkingDaysInMonth)}</span>}
         />
         <MetricCard
           icon={<DollarSign />}

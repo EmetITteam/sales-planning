@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
-import { getWeeksForMonth, getMonthOptions, formatWeekShort } from '@/lib/periods';
+import { getWeeksForMonth, getMonthOptions, formatWeekShort, weekEndToId } from '@/lib/periods';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
 
 export function PeriodFilter() {
@@ -104,10 +104,11 @@ export function PeriodFilter() {
             <div className="px-3 py-2.5 border-t border-[#e2e7ef]">
               <button
                 onClick={() => {
+                  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
                   setCurrentPeriod({
-                    id: 0,
+                    id: weekEndToId(monthEnd),
                     weekStart: `${selectedMonth}-01`,
-                    weekEnd: new Date(year, month, 0).toISOString().split('T')[0],
+                    weekEnd: monthEnd,
                     month: `${selectedMonth}-01`,
                     isActive: false,
                   });

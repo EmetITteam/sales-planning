@@ -49,6 +49,29 @@ export function pctOf(value: number, total: number): number {
   return total > 0 ? (value / total) * 100 : 0;
 }
 
+/**
+ * Українська плюралізація: 1 → one, 2-4 → few, 0/5+/11-14 → many.
+ * Приклади: pluralUkr(1, 'день','дні','днів') = 'день';
+ *           pluralUkr(22, 'день','дні','днів') = 'дні';
+ *           pluralUkr(25, 'день','дні','днів') = 'днів';
+ *           pluralUkr(11, 'день','дні','днів') = 'днів' (виняток).
+ */
+export function pluralUkr(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
+/** «22 робочих дні» / «25 робочих днів» / «1 робочий день» */
+export function workingDaysLabel(n: number): string {
+  const adj = pluralUkr(n, 'робочий', 'робочих', 'робочих');
+  const noun = pluralUkr(n, 'день', 'дні', 'днів');
+  return `${n} ${adj} ${noun}`;
+}
+
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });

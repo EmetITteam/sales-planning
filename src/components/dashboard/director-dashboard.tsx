@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { getMonthName } from '@/lib/periods';
 import { MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio, getMockClientStatsCompany } from '@/lib/mock-data';
@@ -139,7 +139,7 @@ export function DirectorDashboard() {
           label="Загальний план"
           value={formatUSD(grandPlan)}
           isAmount
-          caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {totalWD} робочих дні</span>}
+          caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {workingDaysLabel(totalWD)}</span>}
         />
         <MetricCard
           iconSize="md"

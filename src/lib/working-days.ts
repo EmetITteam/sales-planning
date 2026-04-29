@@ -3,15 +3,22 @@
  * Робочий день = понеділок-пʼятниця, мінус святкові дні.
  */
 
-// Святкові дні України 2026 (підтверджені, формат YYYY-MM-DD)
-// 31 травня — Трійця, вихідний переноситься на 1 червня (понеділок)
-// 24 серпня — День Незалежності
-// 25 грудня — Різдво Христове
-const HOLIDAYS_2026: Set<string> = new Set([
-  '2026-06-01',
-  '2026-08-24',
-  '2026-12-25',
-]);
+// Святкові дні України по роках (формат YYYY-MM-DD).
+// 2026 (підтверджено користувачем — тільки ті, що офіційно заявлені):
+//   31 травня — Трійця, вихідний переноситься на 1 червня (понеділок)
+//   24 серпня — День Незалежності
+//   25 грудня — Різдво Христове
+//
+// ⚠️ TODO: підтвердити свята 2027+ з користувачем перед 31.12.2026.
+// Поки на 2027+ повертається порожня множина — будуть лише weekend, без свят.
+// Це безпечніше за «всі дні робочі».
+const HOLIDAYS_BY_YEAR: Record<number, Set<string>> = {
+  2026: new Set([
+    '2026-06-01',
+    '2026-08-24',
+    '2026-12-25',
+  ]),
+};
 
 function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -26,7 +33,8 @@ function isWeekend(d: Date): boolean {
 }
 
 function isHoliday(d: Date): boolean {
-  return HOLIDAYS_2026.has(dateKey(d));
+  const holidays = HOLIDAYS_BY_YEAR[d.getFullYear()];
+  return holidays ? holidays.has(dateKey(d)) : false;
 }
 
 export function isWorkingDay(d: Date): boolean {

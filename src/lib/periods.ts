@@ -7,6 +7,18 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Стабільний числовий id періоду з рядка weekEnd (YYYY-MM-DD).
+ * Використовується як `period_id` у Supabase — однозначно ідентифікує
+ * період незалежно від користувача чи місяця. Раніше використовувалось
+ * id=0 для «весь місяць», що змішувало записи між періодами.
+ *
+ * Приклад: '2026-04-26' → 20260426
+ */
+export function weekEndToId(weekEnd: string): number {
+  return parseInt(weekEnd.replace(/-/g, ''), 10);
+}
+
 // Генерація наростаючих періодів строго в рамках місяця
 // Кожен період: з 1-го числа до кінця тижня
 export function getWeeksForMonth(year: number, month: number): PeriodInfo[] {
@@ -16,19 +28,19 @@ export function getWeeksForMonth(year: number, month: number): PeriodInfo[] {
 
   // Знаходимо кінці тижнів (неділі) в межах місяця
   let current = new Date(year, month, 1);
-  let id = 1;
 
   while (current.getTime() <= monthLast.getTime()) {
     const dow = current.getDay(); // 0=нд, 1=пн...
     const daysToSunday = dow === 0 ? 0 : 7 - dow;
     const weekEnd = new Date(year, month, current.getDate() + daysToSunday);
     const clampedEnd = weekEnd.getTime() > monthLast.getTime() ? new Date(monthLast) : weekEnd;
+    const weekEndStr = toDateStr(clampedEnd);
 
-    // Наростаючий: завжди з 1-го числа
+    // Наростаючий: завжди з 1-го числа. ID = стабільний YYYYMMDD з weekEnd.
     weeks.push({
-      id: id++,
-      weekStart: toDateStr(monthFirst), // завжди 1-е число
-      weekEnd: toDateStr(clampedEnd),
+      id: weekEndToId(weekEndStr),
+      weekStart: toDateStr(monthFirst),
+      weekEnd: weekEndStr,
       month: `${year}-${String(month + 1).padStart(2, '0')}-01`,
       isActive: false,
     });

@@ -22,6 +22,21 @@ interface PlanningFormProps {
   segmentCode: string;
   onBack: () => void;
   readOnly?: boolean;
+  /**
+   * Логін цільового користувача (наприклад коли РМ переглядає чужий план).
+   * Якщо не передано — береться поточний логін зі store.
+   */
+  targetUserLogin?: string;
+}
+
+/** Стабільний числовий ID з рядкового логіну — для Supabase user_id (number). */
+function loginToUserId(login: string): number {
+  let hash = 0;
+  for (let i = 0; i < login.length; i++) {
+    hash = ((hash << 5) - hash) + login.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
 }
 
 // Етапи доступні і в "Прогноз по активних", і в "Закриття розриву".
@@ -32,11 +47,15 @@ const STAGE_OPTIONS = [
   { value: 'Навчання', icon: GraduationCap },
 ];
 
-export function PlanningForm({ segmentCode, onBack, readOnly = false }: PlanningFormProps) {
+export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUserLogin }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
   const plan = MOCK_SALES_PLAN.plans.find(p => p.segmentCode === segmentCode);
   const fact = MOCK_SALES_FACT.facts.find(f => f.segmentCode === segmentCode);
-  const { currentPeriod } = useAppStore();
+  const { currentPeriod, user } = useAppStore();
+  // Дані вантажимо/зберігаємо для targetUserLogin (якщо переданий — РМ дивиться чужий план)
+  // або для поточного увійшовшого user.login.
+  const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
+  const userId = loginToUserId(effectiveLogin);
 
   const [forecasts, setForecasts] = useState<ForecastRow[]>(
     segmentCode === 'PETARAN' ? MOCK_FORECASTS_PETARAN : []
@@ -51,8 +70,6 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
 
   // FEATURE: завантаження збережених даних з Supabase
   useEffect(() => {
-    // TODO: отримати реальний userId з useAppStore(s => s.user) замість hardcoded 1
-    const userId = 1;
     loadPlanning(userId, segmentCode, currentPeriod.id).then(data => {
       if (!data) return; // fallback на mock дані
       if (data.forecasts.length > 0) {
@@ -107,13 +124,13 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
         });
       }
     });
-  }, [segmentCode, currentPeriod.id]);
+  }, [segmentCode, currentPeriod.id, userId]);
 
   const handleSave = async () => {
     setSaving(true);
     setSaveResult(null);
     const result = await savePlanning({
-      userId: 1, // TODO: реальний userId з авторизації
+      userId,
       segmentCode,
       periodId: currentPeriod.id,
       forecasts,

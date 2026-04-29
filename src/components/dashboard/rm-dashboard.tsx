@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { getMonthName } from '@/lib/periods';
-import { MOCK_REGION_DATA, SEGMENTS, getFactScaleRatio, getMockClientStatsRegion } from '@/lib/mock-data';
+import { MOCK_REGION_DATA, MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio, getMockClientStatsRegion } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
@@ -28,7 +28,11 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
   const factScale = getFactScaleRatio(asOfDate);
 
-  const region = MOCK_REGION_DATA;
+  // Якщо передано regionCode (drill-down з директорського дашборду) — обираємо той регіон.
+  // Інакше — дефолт MOCK_REGION_DATA (Дніпро) для звичайного входу під РМ.
+  const region = regionCode
+    ? (MOCK_ALL_REGIONS.find(r => r.regionCode === regionCode) ?? MOCK_REGION_DATA)
+    : MOCK_REGION_DATA;
 
   // Норма календаря — % робочих днів пройдено на дату зрізу
   const calcPct = getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
@@ -93,7 +97,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     );
   }
 
-  // Перегляд менеджера — read-only
+  // Перегляд менеджера — read-only, дані вантажаться під логін цільового менеджера
   if (view === 'viewManager') {
     const manager = region.managers.find(m => m.login === selectedManager);
     const firstSegment = manager?.segments[0]?.segmentCode ?? 'PETARAN';
@@ -102,6 +106,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         segmentCode={firstSegment}
         onBack={() => setView('dashboard')}
         readOnly
+        targetUserLogin={selectedManager}
       />
     );
   }
@@ -128,7 +133,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           label="План регіону"
           value={formatUSD(grandPlan)}
           isAmount
-          caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {totalWD} робочих дні</span>}
+          caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {workingDaysLabel(totalWD)}</span>}
         />
         <MetricCard
           iconSize="md"

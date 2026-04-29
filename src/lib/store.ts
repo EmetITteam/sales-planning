@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { UserSession, PeriodInfo } from './types';
+import { weekEndToId } from './periods';
 
 /**
  * Дефолт фільтру: останній завершений тиждень (по неділю включно), накопичено з 1-го числа.
@@ -27,19 +28,21 @@ function getDefaultPeriod(): PeriodInfo {
     // У поточному місяці ще немає завершеного тижня — беремо весь попередній місяць
     const prevMonthLast = new Date(now.getFullYear(), now.getMonth(), 0);
     const prevFirst = new Date(prevMonthLast.getFullYear(), prevMonthLast.getMonth(), 1);
+    const weekEndStr = toDateStr(prevMonthLast);
     return {
-      id: 0,
+      id: weekEndToId(weekEndStr),
       weekStart: toDateStr(prevFirst),
-      weekEnd: toDateStr(prevMonthLast),
+      weekEnd: weekEndStr,
       month: toDateStr(prevFirst),
       isActive: false,
     };
   }
 
+  const weekEndStr = toDateStr(lastSunday);
   return {
-    id: 1,
+    id: weekEndToId(weekEndStr),
     weekStart: toDateStr(firstOfMonth),
-    weekEnd: toDateStr(lastSunday),
+    weekEnd: weekEndStr,
     month: toDateStr(firstOfMonth),
     isActive: false,
   };
