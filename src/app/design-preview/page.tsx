@@ -71,6 +71,30 @@ export default function DesignPreviewPage() {
         >
           <V6 />
         </Variant>
+
+        <Variant
+          n={7}
+          title="Гібрид 4+5: контент-caption + watermark"
+          desc="Велика приглушена іконка-декор у куті + повний caption на кожній картці. Найгустіший варіант — нічого не пусто, плюс декор."
+        >
+          <V7 />
+        </Variant>
+
+        <Variant
+          n={8}
+          title="Color-band: верхня кольорова смужка замість іконки"
+          desc="Тонка горизонтальна смужка градієнтом зверху картки. Іконка маленька біля заголовка. Чистіше, менше «мультику»."
+        >
+          <V8 />
+        </Variant>
+
+        <Variant
+          n={9}
+          title="Big-number: гігантська цифра + caption знизу"
+          desc="Layout як у фінансових дашбордах (Mercury/Linear): label дрібно, цифра 32px, caption знизу з border-top. Іконка крихітна біля заголовка."
+        >
+          <V9 />
+        </Variant>
       </div>
     </div>
   );
@@ -203,6 +227,187 @@ function V5() {
       <div className="bg-white rounded-2xl p-5 shadow-sm relative overflow-hidden min-h-[110px]">
         <Users className="absolute right-3 -bottom-2 h-24 w-24 text-amber-500/10" />
         <div className="relative"><p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Менеджерів</p><p className="text-[26px] font-extrabold mt-2">{MANAGERS}</p></div>
+      </div>
+    </div>
+  );
+}
+
+// === Варіант 7: Гібрид 4+5 (caption + watermark) ===
+function V7() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="bg-white rounded-2xl p-5 shadow-sm relative overflow-hidden min-h-[110px]">
+        <Target className="absolute right-3 -bottom-2 h-24 w-24 text-[#066aab]/10" />
+        <div className="relative">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">План місяця</p>
+          <p className="text-[24px] font-extrabold mt-2 amount tabular-nums">{formatUSD(PLAN)}</p>
+          <p className="text-[11px] mt-1.5 text-muted-foreground">Квітень 2026 · 22 робочих дні</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl p-5 shadow-sm relative overflow-hidden min-h-[110px]">
+        <DollarSign className="absolute right-3 -bottom-2 h-24 w-24 text-emerald-500/10" />
+        <div className="relative">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Факт</p>
+          <p className="text-[24px] font-extrabold mt-2 amount tabular-nums">{formatUSD(FACT)}</p>
+          <p className="text-[11px] mt-1.5 text-emerald-600 font-semibold">
+            <TrendingUp className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+            vs мин. міс.: <span className="amount whitespace-nowrap">+${PREV_DELTA}</span>
+            <span className="whitespace-nowrap"> ({PREV_DELTA_PCT.toFixed(1)}%)</span>
+          </p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl p-5 shadow-sm relative overflow-hidden min-h-[110px]">
+        <TrendingDown className="absolute right-3 -bottom-2 h-24 w-24 text-rose-500/10" />
+        <div className="relative">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Виконання</p>
+          <p className="text-[24px] font-extrabold mt-2 leading-none">
+            <span className="text-rose-600">{formatPct(PCT)}</span>
+            <span className="text-[14px] text-rose-600 ml-1.5">-{(NORM-PCT).toFixed(1)}%</span>
+          </p>
+          <p className="text-[11px] mt-1 text-muted-foreground">Норма: <span className="font-semibold text-foreground">{formatPct(NORM)}</span></p>
+          <p className="text-[11px] text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(FORECAST)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(EXPECTED)}</span></p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl p-5 shadow-sm relative overflow-hidden min-h-[110px]">
+        <MapPin className="absolute right-3 -bottom-2 h-24 w-24 text-amber-500/10" />
+        <div className="relative">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Структура</p>
+          <p className="text-[24px] font-extrabold mt-2 leading-none">
+            <span className="tabular-nums">{REGIONS}</span>
+            <span className="text-[11px] text-muted-foreground font-medium ml-1">регіонів</span>
+            <span className="text-muted-foreground/30 mx-1.5">·</span>
+            <span className="tabular-nums">{MANAGERS}</span>
+            <span className="text-[11px] text-muted-foreground font-medium ml-1">менеджерів</span>
+          </p>
+          <p className="text-[11px] mt-1.5 text-muted-foreground">Активні: 10 · вакансій: 0</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === Варіант 8: Color-band (верхня смужка) ===
+function V8() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden min-h-[110px]">
+        <div className="h-1 bg-gradient-to-r from-[#066aab] to-[#0880cc]" />
+        <div className="p-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Target className="h-3.5 w-3.5 text-[#066aab]" />
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">План місяця</p>
+          </div>
+          <p className="text-[24px] font-extrabold tabular-nums leading-none">{formatUSD(PLAN)}</p>
+          <p className="text-[11px] mt-2 text-muted-foreground">Квітень 2026 · 22 робочих дні</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden min-h-[110px]">
+        <div className="h-1 bg-gradient-to-r from-emerald-500 to-teal-600" />
+        <div className="p-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Факт</p>
+          </div>
+          <p className="text-[24px] font-extrabold tabular-nums leading-none amount">{formatUSD(FACT)}</p>
+          <p className="text-[11px] mt-2 text-emerald-600 font-semibold">
+            <TrendingUp className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+            vs мин. міс.: <span className="amount whitespace-nowrap">+${PREV_DELTA}</span>
+            <span className="whitespace-nowrap"> ({PREV_DELTA_PCT.toFixed(1)}%)</span>
+          </p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden min-h-[110px]">
+        <div className="h-1 bg-gradient-to-r from-rose-500 to-red-600" />
+        <div className="p-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Виконання</p>
+          </div>
+          <p className="text-[24px] font-extrabold leading-none">
+            <span className="text-rose-600">{formatPct(PCT)}</span>
+            <span className="text-[14px] text-rose-600 ml-1.5">-{(NORM-PCT).toFixed(1)}%</span>
+          </p>
+          <p className="text-[11px] mt-1 text-muted-foreground">Норма: <span className="font-semibold text-foreground">{formatPct(NORM)}</span></p>
+          <p className="text-[11px] text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(FORECAST)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(EXPECTED)}</span></p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden min-h-[110px]">
+        <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-600" />
+        <div className="p-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <MapPin className="h-3.5 w-3.5 text-amber-600" />
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Структура</p>
+          </div>
+          <p className="text-[24px] font-extrabold leading-none">
+            <span className="tabular-nums">{REGIONS}</span>
+            <span className="text-[11px] text-muted-foreground font-medium ml-1">регіонів</span>
+            <span className="text-muted-foreground/30 mx-1.5">·</span>
+            <span className="tabular-nums">{MANAGERS}</span>
+            <span className="text-[11px] text-muted-foreground font-medium ml-1">менеджерів</span>
+          </p>
+          <p className="text-[11px] mt-2 text-muted-foreground">Активні: 10 · вакансій: 0</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === Варіант 9: Big-number з border-top для caption ===
+function V9() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-col min-h-[120px]">
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="w-5 h-5 rounded-md bg-[#066aab]/10 flex items-center justify-center"><Target className="h-3 w-3 text-[#066aab]" /></div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">План місяця</p>
+        </div>
+        <p className="text-[28px] font-extrabold tracking-tight tabular-nums leading-none">{formatUSD(PLAN)}</p>
+        <div className="mt-auto pt-2 border-t border-[#f0f2f8]">
+          <p className="text-[11px] text-muted-foreground">Квітень 2026 · 22 робочих дні</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-col min-h-[120px]">
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="w-5 h-5 rounded-md bg-emerald-500/10 flex items-center justify-center"><DollarSign className="h-3 w-3 text-emerald-600" /></div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Факт</p>
+        </div>
+        <p className="text-[28px] font-extrabold tracking-tight tabular-nums leading-none amount">{formatUSD(FACT)}</p>
+        <div className="mt-auto pt-2 border-t border-[#f0f2f8]">
+          <p className="text-[11px] text-emerald-600 font-semibold">
+            <TrendingUp className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+            vs мин. міс.: <span className="amount whitespace-nowrap">+${PREV_DELTA}</span>
+            <span className="whitespace-nowrap"> ({PREV_DELTA_PCT.toFixed(1)}%)</span>
+          </p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-col min-h-[120px]">
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="w-5 h-5 rounded-md bg-rose-500/10 flex items-center justify-center"><TrendingDown className="h-3 w-3 text-rose-600" /></div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Виконання</p>
+        </div>
+        <p className="text-[28px] font-extrabold tracking-tight leading-none">
+          <span className="text-rose-600">{formatPct(PCT)}</span>
+          <span className="text-[14px] text-rose-600 ml-1.5">-{(NORM-PCT).toFixed(1)}%</span>
+        </p>
+        <div className="mt-auto pt-2 border-t border-[#f0f2f8]">
+          <p className="text-[11px] text-muted-foreground">Норма: <span className="font-semibold text-foreground">{formatPct(NORM)}</span> · Прогноз: <span className="font-semibold text-amber-600">{formatPct(FORECAST)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(EXPECTED)}</span></p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-col min-h-[120px]">
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="w-5 h-5 rounded-md bg-amber-500/10 flex items-center justify-center"><MapPin className="h-3 w-3 text-amber-600" /></div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Структура</p>
+        </div>
+        <p className="text-[28px] font-extrabold tracking-tight leading-none">
+          <span className="tabular-nums">{REGIONS}</span>
+          <span className="text-[11px] text-muted-foreground font-medium ml-1">рег.</span>
+          <span className="text-muted-foreground/30 mx-1.5">·</span>
+          <span className="tabular-nums">{MANAGERS}</span>
+          <span className="text-[11px] text-muted-foreground font-medium ml-1">мен.</span>
+        </p>
+        <div className="mt-auto pt-2 border-t border-[#f0f2f8]">
+          <p className="text-[11px] text-muted-foreground">Активні: 10 · вакансій: 0</p>
+        </div>
       </div>
     </div>
   );
