@@ -382,4 +382,16 @@ export const MOCK_ALL_REGIONS: RegionSummary[] = [
       { login: 'm8@emet.com', name: 'Кравченко Юлія', segments: makeSegments([5800, 1250, 8800, 2800, 3000, 620, 4200, 1900, 5400, 1200, 11200, 2900, 14200, 3800, 6800, 1950]) },
     ],
   },
+  {
+    regionName: 'Запоріжжя', regionCode: 'ZPR',
+    managers: [
+      { login: 'm9@emet.com', name: 'Кулик Ольга', segments: makeSegments([4200, 950, 6800, 2200, 2400, 510, 3500, 1700, 4100, 920, 8500, 2400, 10500, 2900, 5100, 1450]) },
+    ],
+  },
+  {
+    regionName: 'Вінниця', regionCode: 'VNN',
+    managers: [
+      { login: 'm10@emet.com', name: 'Петренко Сергій', segments: makeSegments([3800, 850, 5800, 1900, 2100, 440, 3100, 1450, 3700, 820, 7500, 2100, 9200, 2500, 4500, 1280]) },
+    ],
+  },
 ];
