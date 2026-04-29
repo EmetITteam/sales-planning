@@ -376,7 +376,7 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
           </div>
         </div>
 
-        {/* Мини-список менеджерів — 2 колонки (для регіонів з 5-6 менеджерами) */}
+        {/* Мини-список менеджерів — 2 колонки. % одразу біля прізвища (без ml-auto). */}
         <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
           {region.managersBrief.map(m => (
             <span
@@ -386,7 +386,7 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
             >
               <span className={`w-2 h-2 rounded-full shrink-0 ${m.onPlan ? 'bg-emerald-500' : 'bg-rose-500'}`} />
               <span className="font-semibold text-foreground/80 truncate">{shortName(m.name)}</span>
-              <span className={`font-bold ml-auto ${m.onPlan ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <span className={`font-bold shrink-0 ${m.onPlan ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {m.pct.toFixed(0)}%
               </span>
               <span className={`text-[10px] shrink-0 ${m.dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
