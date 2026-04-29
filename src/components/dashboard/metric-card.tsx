@@ -35,7 +35,7 @@ export function MetricCard({ icon, iconColor, label, value, caption, isAmount, i
   // (-right-4) так щоб частина іконки виходила за край картки — overflow-hidden зріже,
   // а текст ліворуч матиме більше повітря.
   const sizeClass = iconSize === 'md' ? '[&>svg]:h-20 [&>svg]:w-20' : '[&>svg]:h-28 [&>svg]:w-28';
-  const positionClass = iconSize === 'md' ? '-right-4' : 'right-3';
+  const positionClass = iconSize === 'md' ? '-right-2' : 'right-3';
   return (
     <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden min-h-[110px] flex flex-col">
       {/* Watermark-іконка: справа, по центру вертикально, приглушена */}
