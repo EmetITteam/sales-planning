@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent } from '@/lib/format';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { getMonthName } from '@/lib/periods';
 import { MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio, getMockClientStatsCompany } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { RMDashboard } from './rm-dashboard';
@@ -129,18 +130,19 @@ export function DirectorDashboard() {
     <div className="space-y-8">
       <h2 className="text-lg font-bold">Зведена по компанії</h2>
 
-      {/* Metrics — компактний layout: 5 карток в ряд (Регіони+Менеджери в один, останній — клієнти) */}
+      {/* Metrics — компактний watermark layout: 5 карток в ряд */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MetricCard
-          icon={<Target className="h-5 w-5" />}
-          iconGradient="from-[#066aab] to-[#0880cc]"
+          icon={<Target />}
+          iconColor="text-[#066aab]"
           label="Загальний план"
           value={formatUSD(grandPlan)}
           isAmount
+          caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {totalWD} робочих дні</span>}
         />
         <MetricCard
-          icon={<DollarSign className="h-5 w-5" />}
-          iconGradient="from-emerald-500 to-teal-600"
+          icon={<DollarSign />}
+          iconColor="text-emerald-500"
           label="Факт"
           value={formatUSD(grandFact)}
           isAmount
@@ -159,8 +161,8 @@ export function DirectorDashboard() {
           })()}
         />
         <MetricCard
-          icon={grandPct >= calcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-          iconGradient={grandPct >= calcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'}
+          icon={grandPct >= calcPct ? <TrendingUp /> : <TrendingDown />}
+          iconColor={grandPct >= calcPct ? 'text-emerald-500' : 'text-rose-500'}
           label="Виконання"
           value={(
             <span className="flex items-baseline gap-2">
@@ -178,21 +180,17 @@ export function DirectorDashboard() {
           )}
         />
         <MetricCard
-          icon={<MapPin className="h-5 w-5" />}
-          iconGradient="from-amber-500 to-orange-600"
+          icon={<MapPin />}
+          iconColor="text-amber-500"
           label="Структура"
           value={(
-            <div className="flex items-center gap-3 text-[14px]">
-              <span className="inline-flex items-baseline gap-1">
-                <span className="font-extrabold tabular-nums">{regions.length}</span>
-                <span className="text-muted-foreground text-[11px] font-medium">регіонів</span>
-              </span>
-              <span className="text-muted-foreground/30">·</span>
-              <span className="inline-flex items-baseline gap-1">
-                <span className="font-extrabold tabular-nums">{totalManagers}</span>
-                <span className="text-muted-foreground text-[11px] font-medium">менеджерів</span>
-              </span>
-            </div>
+            <span>
+              <span className="tabular-nums">{regions.length}</span>
+              <span className="text-[11px] text-muted-foreground font-medium ml-1">регіонів</span>
+              <span className="text-muted-foreground/30 mx-1.5">·</span>
+              <span className="tabular-nums">{totalManagers}</span>
+              <span className="text-[11px] text-muted-foreground font-medium ml-1">менеджерів</span>
+            </span>
           )}
         />
         <ClientStatsCard stats={getMockClientStatsCompany()} />

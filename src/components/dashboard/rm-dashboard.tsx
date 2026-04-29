@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent } from '@/lib/format';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { getMonthName } from '@/lib/periods';
 import { MOCK_REGION_DATA, SEGMENTS, getFactScaleRatio, getMockClientStatsRegion } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
@@ -118,18 +119,19 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         </div>
       </div>
 
-      {/* Metrics — компактний layout, 5 карток (склеєно регіон-інфо) */}
+      {/* Metrics — компактний watermark layout, 5 карток */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MetricCard
-          icon={<Target className="h-5 w-5" />}
-          iconGradient="from-[#066aab] to-[#0880cc]"
+          icon={<Target />}
+          iconColor="text-[#066aab]"
           label="План регіону"
           value={formatUSD(grandPlan)}
           isAmount
+          caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {totalWD} робочих дні</span>}
         />
         <MetricCard
-          icon={<DollarSign className="h-5 w-5" />}
-          iconGradient="from-emerald-500 to-teal-600"
+          icon={<DollarSign />}
+          iconColor="text-emerald-500"
           label="Факт"
           value={formatUSD(grandFact)}
           isAmount
@@ -148,8 +150,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           })()}
         />
         <MetricCard
-          icon={grandPct >= calcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-          iconGradient={grandPct >= calcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'}
+          icon={grandPct >= calcPct ? <TrendingUp /> : <TrendingDown />}
+          iconColor={grandPct >= calcPct ? 'text-emerald-500' : 'text-rose-500'}
           label="Виконання"
           value={(
             <span className="flex items-baseline gap-2">
@@ -167,10 +169,11 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           )}
         />
         <MetricCard
-          icon={<MapPin className="h-5 w-5" />}
-          iconGradient="from-amber-500 to-orange-600"
+          icon={<MapPin />}
+          iconColor="text-amber-500"
           label="Менеджерів"
           value={String(region.managers.length)}
+          caption={<span className="text-muted-foreground">регіон {region.regionName}</span>}
         />
         <ClientStatsCard stats={getMockClientStatsRegion()} />
       </div>

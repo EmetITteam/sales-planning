@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { getMockTMSummaries, getMockClientStatsManager } from '@/lib/mock-data';
 import { formatUSD, formatPct, formatDateShort, pctOf } from '@/lib/format';
 import { useAppStore } from '@/lib/store';
+import { getMonthName } from '@/lib/periods';
+import { getWorkingDaysInMonth } from '@/lib/working-days';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import { BrandRow } from './brand-row';
@@ -22,6 +24,8 @@ export function ManagerDashboard() {
   // Зріз даних: live → сьогодні, інакше → кінець обраного фільтру
   const asOfDate = liveMode ? new Date() : new Date(currentPeriod.weekEnd);
   const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
+  const periodMonthLabel = getMonthName(asOfDate.getFullYear(), asOfDate.getMonth());
+  const totalWorkingDaysInMonth = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
 
   const summaries = getMockTMSummaries(asOfDate);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
@@ -47,18 +51,19 @@ export function ManagerDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Hero metrics — компактні картки */}
+      {/* Hero metrics — компактні картки у стилі watermark */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
-          icon={<Target className="h-5 w-5" />}
-          iconGradient="from-[#066aab] to-[#0880cc]"
+          icon={<Target />}
+          iconColor="text-[#066aab]"
           label="План місяця"
           value={formatUSD(totalPlan)}
           isAmount
+          caption={<span className="text-muted-foreground">{periodMonthLabel} · {totalWorkingDaysInMonth} робочих дні</span>}
         />
         <MetricCard
-          icon={<DollarSign className="h-5 w-5" />}
-          iconGradient="from-emerald-500 to-teal-600"
+          icon={<DollarSign />}
+          iconColor="text-emerald-500"
           label="Факт"
           value={formatUSD(totalFact)}
           isAmount
@@ -77,8 +82,8 @@ export function ManagerDashboard() {
           })()}
         />
         <MetricCard
-          icon={totalPct >= totalCalcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-          iconGradient={totalPct >= totalCalcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'}
+          icon={totalPct >= totalCalcPct ? <TrendingUp /> : <TrendingDown />}
+          iconColor={totalPct >= totalCalcPct ? 'text-emerald-500' : 'text-rose-500'}
           label="Виконання"
           value={(
             <span className="flex items-baseline gap-2">
