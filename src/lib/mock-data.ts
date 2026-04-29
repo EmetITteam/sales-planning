@@ -11,7 +11,7 @@ import type {
   Training,
 } from './types';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from './working-days';
-import { calcForecastPercent, calcExpectedPercent } from './format';
+import { calcForecastPercent, calcExpectedPercent, pctOf } from './format';
 
 // === Тестові користувачі ===
 export const MOCK_USERS: Record<string, UserSession> = {
@@ -188,7 +188,7 @@ export function getMockTMSummaries(asOfDate: Date = new Date()): TMSummaryCard[]
     const fullMonthFact = fact?.totalAmount ?? 0;
     // Масштабуємо повномісячний факт на pasedWD/totalWD — це імітація getSalesFact(asOfDate)
     const factAmount = Math.round(fullMonthFact * factScaleRatio);
-    const factPct = plan.planAmount > 0 ? (factAmount / plan.planAmount) * 100 : 0;
+    const factPct = pctOf(factAmount, plan.planAmount);
 
     const forecastSum = forecastSumByCode[plan.segmentCode] ?? 0;
     const gapSum = gapSumByCode[plan.segmentCode] ?? 0;
@@ -225,6 +225,52 @@ export function getMockTMSummaries(asOfDate: Date = new Date()): TMSummaryCard[]
       status: plan.segmentCode === 'ESSE' ? 'submitted' : 'draft',
     };
   });
+}
+
+// === Mock агрегат клієнтів по категоріях (для шапки RM/Director) ===
+// У проді буде агрегатом з 1С по getClientsForPlanning. Тут — стабільні mock-числа.
+export interface ClientCategoryStats {
+  active: { total: number; bought: number };
+  sleeping: { total: number; bought: number };
+  newClients: { total: number; bought: number };
+  totalBought: number;
+  totalClients: number;
+}
+
+/** Менеджер: приблизно 184 клієнтів */
+export function getMockClientStatsManager(): ClientCategoryStats {
+  const active = { total: 131, bought: 28 };
+  const sleeping = { total: 45, bought: 5 };
+  const newClients = { total: 8, bought: 2 };
+  return {
+    active, sleeping, newClients,
+    totalBought: active.bought + sleeping.bought + newClients.bought,
+    totalClients: active.total + sleeping.total + newClients.total,
+  };
+}
+
+/** Регіон РМ: 2 менеджери Дніпро ≈ 368 клієнтів */
+export function getMockClientStatsRegion(): ClientCategoryStats {
+  const active = { total: 262, bought: 51 };
+  const sleeping = { total: 90, bought: 9 };
+  const newClients = { total: 16, bought: 4 };
+  return {
+    active, sleeping, newClients,
+    totalBought: active.bought + sleeping.bought + newClients.bought,
+    totalClients: active.total + sleeping.total + newClients.total,
+  };
+}
+
+/** Уся компанія (директор): 10 менеджерів × ~184 ≈ 1840 клієнтів */
+export function getMockClientStatsCompany(): ClientCategoryStats {
+  const active = { total: 1310, bought: 245 };
+  const sleeping = { total: 450, bought: 38 };
+  const newClients = { total: 80, bought: 17 };
+  return {
+    active, sleeping, newClients,
+    totalBought: active.bought + sleeping.bought + newClients.bought,
+    totalClients: active.total + sleeping.total + newClients.total,
+  };
 }
 
 // === Дані регіону для РМ ===

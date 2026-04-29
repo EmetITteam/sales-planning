@@ -1,15 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { getMockTMSummaries } from '@/lib/mock-data';
-import { formatUSD, formatPct, formatDateShort } from '@/lib/format';
+import { getMockTMSummaries, getMockClientStatsManager } from '@/lib/mock-data';
+import { formatUSD, formatPct, formatDateShort, pctOf } from '@/lib/format';
 import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import { BrandRow } from './brand-row';
+import { MetricCard } from './metric-card';
+import { ClientStatsCard } from './client-stats-card';
 import {
   DollarSign, Target, TrendingUp, TrendingDown, ChevronRight,
-  ClipboardCheck, Users, UserPlus, RefreshCw,
+  ClipboardCheck,
 } from 'lucide-react';
 
 export function ManagerDashboard() {
@@ -24,10 +26,10 @@ export function ManagerDashboard() {
   const summaries = getMockTMSummaries(asOfDate);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
-  const totalPct = totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0;
+  const totalPct = pctOf(totalFact, totalPlan);
   const totalPrevFact = summaries.reduce((s, t) => s + (t.prevMonthFactAmount ?? 0), 0);
   const totalPrevPlan = summaries.reduce((s, t) => s + (t.prevMonthPlanAmount ?? 0), 0);
-  const totalPrevPct = totalPrevPlan > 0 ? (totalPrevFact / totalPrevPlan) * 100 : 0;
+  const totalPrevPct = pctOf(totalPrevFact, totalPrevPlan);
 
   // Зважена сума по всіх сегментах для трьох процентів "Виконання"
   const totalCalcPct = summaries.length > 0
@@ -43,113 +45,56 @@ export function ManagerDashboard() {
   if (view === 'plan' && selectedSegment) return <PlanningForm segmentCode={selectedSegment} onBack={() => setView('dashboard')} readOnly={liveMode} />;
   if (view === 'control') return <ClientControlView onBack={() => setView('dashboard')} />;
 
-  // Мок: факт по категоріях клієнтів (буде з 1С)
-  const clientStats = {
-    active: { total: 131, bought: 28, amount: 12450 },
-    sleeping: { total: 45, bought: 5, amount: 1890 },
-    newClients: { total: 8, bought: 2, amount: 680 },
-  };
-
   return (
     <div className="space-y-8">
-      {/* Hero metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* План місяця */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg"><Target className="h-5 w-5" /></div>
-          <div className="mt-4">
-            <p className="text-[13px] font-medium text-muted-foreground">План місяця</p>
-            <p className="text-2xl font-extrabold tracking-tight mt-0.5 amount">{formatUSD(totalPlan)}</p>
-          </div>
-          <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br from-[#066aab] to-[#0880cc] opacity-[0.06] blur-2xl" />
-        </div>
-
-        {/* Факт + vs минулий місяць */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg"><DollarSign className="h-5 w-5" /></div>
-          <div className="mt-4">
-            <p className="text-[13px] font-medium text-muted-foreground">Факт</p>
-            <p className="text-2xl font-extrabold tracking-tight mt-0.5 amount">{formatUSD(totalFact)}</p>
-            {totalPrevFact > 0 && (() => {
-              const dyn = totalFact - totalPrevFact;
-              const dynPct = totalPct - totalPrevPct;
-              const better = dyn >= 0;
-              const Arrow = better ? TrendingUp : TrendingDown;
-              return (
-                <p className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                  <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-                </p>
-              );
-            })()}
-          </div>
-          <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 opacity-[0.06] blur-2xl" />
-        </div>
-
-        {/* Виконання — поточний факт + норма календаря + прогноз run-rate + очікуваний (план менеджера) */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
-          <div className="flex items-start justify-between mb-3">
-            <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${totalPct >= totalCalcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'} text-white shadow-lg`}>
-              <TrendingUp className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="text-[13px] font-medium text-muted-foreground">Виконання</p>
-          <div className="flex items-baseline gap-2 mt-0.5">
-            <p className="text-2xl font-extrabold tracking-tight">{formatPct(totalPct)}</p>
-            <span className={`text-[12px] font-bold ${totalPct >= totalCalcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {totalPct - totalCalcPct >= 0 ? '+' : ''}{(totalPct - totalCalcPct).toFixed(1)}%
+      {/* Hero metrics — компактні картки */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricCard
+          icon={<Target className="h-5 w-5" />}
+          iconGradient="from-[#066aab] to-[#0880cc]"
+          label="План місяця"
+          value={formatUSD(totalPlan)}
+          isAmount
+        />
+        <MetricCard
+          icon={<DollarSign className="h-5 w-5" />}
+          iconGradient="from-emerald-500 to-teal-600"
+          label="Факт"
+          value={formatUSD(totalFact)}
+          isAmount
+          caption={totalPrevFact > 0 && (() => {
+            const dyn = totalFact - totalPrevFact;
+            const dynPct = totalPct - totalPrevPct;
+            const better = dyn >= 0;
+            const Arrow = better ? TrendingUp : TrendingDown;
+            return (
+              <span className={`font-semibold flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+              </span>
+            );
+          })()}
+        />
+        <MetricCard
+          icon={totalPct >= totalCalcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+          iconGradient={totalPct >= totalCalcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'}
+          label="Виконання"
+          value={(
+            <span className="flex items-baseline gap-2">
+              <span>{formatPct(totalPct)}</span>
+              <span className={`text-[12px] font-bold ${totalPct >= totalCalcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {totalPct - totalCalcPct >= 0 ? '+' : ''}{(totalPct - totalCalcPct).toFixed(1)}%
+              </span>
             </span>
-          </div>
-          <div className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
-            <p>Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
-            <p>Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Очік. (план): <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
-          </div>
-        </div>
-
-        {/* Клієнти по категоріях — факт купівель */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)]">
-          <p className="text-[13px] font-medium text-muted-foreground mb-3">Клієнти — факт купівель</p>
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-[#066aab]" />
-                <span className="text-[12px] font-medium">Активні</span>
-              </div>
-              <span className="text-[13px] font-bold">
-                <span className="text-emerald-600">{clientStats.active.bought}</span>
-                <span className="text-muted-foreground font-normal"> / {clientStats.active.total}</span>
-              </span>
+          )}
+          caption={(
+            <div className="space-y-0.5">
+              <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
+              <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 text-amber-500" />
-                <span className="text-[12px] font-medium">Сплячі</span>
-              </div>
-              <span className="text-[13px] font-bold">
-                <span className="text-emerald-600">{clientStats.sleeping.bought}</span>
-                <span className="text-muted-foreground font-normal"> / {clientStats.sleeping.total}</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4 text-emerald-500" />
-                <span className="text-[12px] font-medium">Нові</span>
-              </div>
-              <span className="text-[13px] font-bold">
-                <span className="text-emerald-600">{clientStats.newClients.bought}</span>
-                <span className="text-muted-foreground font-normal"> / {clientStats.newClients.total}</span>
-              </span>
-            </div>
-          </div>
-          <div className="mt-2.5 pt-2.5 border-t border-[#f0f2f8]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">Всього купили</span>
-              <span className="text-[14px] font-extrabold text-emerald-600">
-                {clientStats.active.bought + clientStats.sleeping.bought + clientStats.newClients.bought}
-              </span>
-            </div>
-          </div>
-        </div>
+          )}
+        />
+        <ClientStatsCard stats={getMockClientStatsManager()} />
       </div>
 
       {/* Control banner */}

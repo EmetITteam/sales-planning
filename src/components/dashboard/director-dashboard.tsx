@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, formatDateShort, getTrafficLight } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf } from '@/lib/format';
 import { getMonthProgressPct } from '@/lib/working-days';
-import { MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio } from '@/lib/mock-data';
+import { MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio, getMockClientStatsCompany } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { RMDashboard } from './rm-dashboard';
 import { BrandRow } from './brand-row';
-import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, Users, ChevronRight, ChevronDown } from 'lucide-react';
+import { MetricCard } from './metric-card';
+import { ClientStatsCard } from './client-stats-card';
+import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, ChevronRight, ChevronDown } from 'lucide-react';
 
 type DirView = 'dashboard' | 'region';
 
@@ -46,15 +48,15 @@ export function DirectorDashboard() {
         mPlan += s.planAmount;
         mFact += factAmount;
       });
-      const mPct = mPlan > 0 ? (mFact / mPlan) * 100 : 0;
+      const mPct = pctOf(mFact, mPlan);
       const mDev = mPct - calcPct;
       return { name: m.name, login: m.login, pct: mPct, dev: mDev, onPlan: mPct >= calcPct };
     });
     return {
       ...region, totalPlan, totalFact,
       totalPrevFact, totalPrevPlan,
-      pct: totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0,
-      prevPct: totalPrevPlan > 0 ? (totalPrevFact / totalPrevPlan) * 100 : 0,
+      pct: pctOf(totalFact, totalPlan),
+      prevPct: pctOf(totalPrevFact, totalPrevPlan),
       segTotals,
       managersBrief,
     };
@@ -62,10 +64,10 @@ export function DirectorDashboard() {
 
   const grandPlan = regionSummaries.reduce((s, r) => s + r.totalPlan, 0);
   const grandFact = regionSummaries.reduce((s, r) => s + r.totalFact, 0);
-  const grandPct = grandPlan > 0 ? (grandFact / grandPlan) * 100 : 0;
+  const grandPct = pctOf(grandFact, grandPlan);
   const grandPrevFact = regionSummaries.reduce((s, r) => s + r.totalPrevFact, 0);
   const grandPrevPlan = regionSummaries.reduce((s, r) => s + r.totalPrevPlan, 0);
-  const grandPrevPct = grandPrevPlan > 0 ? (grandPrevFact / grandPrevPlan) * 100 : 0;
+  const grandPrevPct = pctOf(grandPrevFact, grandPrevPlan);
   const totalManagers = regions.reduce((s, r) => s + r.managers.length, 0);
 
   // Drill-down в регіон — показуємо дашборд РМ
@@ -109,7 +111,7 @@ export function DirectorDashboard() {
       prevFact += r.segTotals[seg.code]?.prevFact ?? 0;
       prevPlan += r.segTotals[seg.code]?.prevPlan ?? 0;
     });
-    const pct = plan > 0 ? (fact / plan) * 100 : 0;
+    const pct = pctOf(fact, plan);
     return {
       code: seg.code, name: seg.name,
       plan, fact, pct,
@@ -122,57 +124,61 @@ export function DirectorDashboard() {
     <div className="space-y-8">
       <h2 className="text-lg font-bold">Зведена по компанії</h2>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-5">
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg"><Target className="h-5 w-5" /></div>
-          <p className="text-[12px] text-muted-foreground font-medium mt-3">Загальний план</p>
-          <p className="text-2xl font-extrabold tracking-tight amount">{formatUSD(grandPlan)}</p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg"><DollarSign className="h-5 w-5" /></div>
-          <p className="text-[12px] text-muted-foreground font-medium mt-3">Факт</p>
-          <p className="text-2xl font-extrabold tracking-tight amount">{formatUSD(grandFact)}</p>
-          {grandPrevFact > 0 && (() => {
+      {/* Metrics — компактний layout: 5 карток в ряд (Регіони+Менеджери в один, останній — клієнти) */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <MetricCard
+          icon={<Target className="h-5 w-5" />}
+          iconGradient="from-[#066aab] to-[#0880cc]"
+          label="Загальний план"
+          value={formatUSD(grandPlan)}
+          isAmount
+        />
+        <MetricCard
+          icon={<DollarSign className="h-5 w-5" />}
+          iconGradient="from-emerald-500 to-teal-600"
+          label="Факт"
+          value={formatUSD(grandFact)}
+          isAmount
+          caption={grandPrevFact > 0 && (() => {
             const dyn = grandFact - grandPrevFact;
             const dynPct = grandPct - grandPrevPct;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
-              <p className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <span className={`font-semibold flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
                 <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
                 <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-              </p>
+              </span>
             );
           })()}
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${grandPct >= calcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'} text-white shadow-lg`}>
-            {grandPct >= calcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-          </div>
-          <p className="text-[12px] text-muted-foreground font-medium mt-3">Виконання</p>
-          <div className="flex items-baseline gap-2">
-            <p className="text-2xl font-extrabold tracking-tight">{grandPct.toFixed(1)}%</p>
-            <span className={`text-[12px] font-bold ${grandPct >= calcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {grandPct - calcPct >= 0 ? '+' : ''}{(grandPct - calcPct).toFixed(1)}%
+        />
+        <MetricCard
+          icon={grandPct >= calcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+          iconGradient={grandPct >= calcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'}
+          label="Виконання"
+          value={(
+            <span className="flex items-baseline gap-2">
+              <span>{grandPct.toFixed(1)}%</span>
+              <span className={`text-[12px] font-bold ${grandPct >= calcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {grandPct - calcPct >= 0 ? '+' : ''}{(grandPct - calcPct).toFixed(1)}%
+              </span>
             </span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg"><MapPin className="h-5 w-5" /></div>
-          <p className="text-[12px] text-muted-foreground font-medium mt-3">Регіонів</p>
-          <p className="text-2xl font-extrabold tracking-tight">{regions.length}</p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-lg"><Users className="h-5 w-5" /></div>
-          <p className="text-[12px] text-muted-foreground font-medium mt-3">Менеджерів</p>
-          <p className="text-2xl font-extrabold tracking-tight">{totalManagers}</p>
-        </div>
+          )}
+          caption={<span className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></span>}
+        />
+        <MetricCard
+          icon={<MapPin className="h-5 w-5" />}
+          iconGradient="from-amber-500 to-orange-600"
+          label="Регіони / Менеджери"
+          value={(
+            <span className="flex items-baseline gap-1">
+              <span>{regions.length}</span>
+              <span className="text-muted-foreground/50 text-[16px] font-medium">/</span>
+              <span>{totalManagers}</span>
+            </span>
+          )}
+        />
+        <ClientStatsCard stats={getMockClientStatsCompany()} />
       </div>
 
       {/* Region cards — accordion (тап = розгорнути), drill-down через окрему іконку */}
@@ -245,7 +251,7 @@ interface BrandRegionGroupProps {
 
 function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick }: BrandRegionGroupProps) {
   const [expanded, setExpanded] = useState(false);
-  const totalPrevPct = brand.totalPrevPlan > 0 ? (brand.totalPrevFact / brand.totalPrevPlan) * 100 : 0;
+  const totalPrevPct = pctOf(brand.totalPrevFact, brand.totalPrevPlan);
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -269,7 +275,7 @@ function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick }: BrandRegi
             <ChevronDown className="inline h-3 w-3 mr-1" />Регіони
           </p>
           {brand.regions.map(r => {
-            const rPrevPct = r.prevPlan > 0 ? (r.prevFact / r.prevPlan) * 100 : 0;
+            const rPrevPct = pctOf(r.prevFact, r.prevPlan);
             return (
               <BrandRow
                 key={r.regionCode}
@@ -478,7 +484,7 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
               calcPct={calcPct}
               asOfDate={asOfDate}
               prevMonthFactAmount={seg.prevFact}
-              prevMonthFactPercent={seg.prevPlan > 0 ? (seg.prevFact / seg.prevPlan) * 100 : 0}
+              prevMonthFactPercent={pctOf(seg.prevFact, seg.prevPlan)}
             />
           ))}
         </div>

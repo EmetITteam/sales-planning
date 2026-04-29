@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
-import { formatUSD, formatDate, formatDateShort } from '@/lib/format';
-import { savePlanning, loadPlanning, unpackGapAction } from '@/lib/api';
+import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
+import { savePlanning, loadPlanning, unpackGapAction, unpackForecastStageComment } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
@@ -56,19 +56,25 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
     loadPlanning(userId, segmentCode, currentPeriod.id).then(data => {
       if (!data) return; // fallback на mock дані
       if (data.forecasts.length > 0) {
-        setForecasts(data.forecasts.map(f => ({
-          clientId1c: f.client_id_1c,
-          clientName: f.client_name,
-          forecastAmount: f.forecast_amount,
-          stage: (f.stage || '') as ForecastRow['stage'],
-          stageComment: f.stage_comment || '',
-          stageDone: false,
-          factAmount: 0,
-          lastPurchaseDate: null,
-          lastPurchaseAmount: 0,
-          completed: f.completed,
-          manuallyAdded: f.manually_added,
-        })));
+        setForecasts(data.forecasts.map(f => {
+          const unpacked = unpackForecastStageComment(f.stage_comment);
+          return {
+            clientId1c: f.client_id_1c,
+            clientName: f.client_name,
+            forecastAmount: f.forecast_amount,
+            stage: (f.stage || '') as ForecastRow['stage'],
+            stageComment: unpacked.comment,
+            trainingId: unpacked.trainingId,
+            trainingName: unpacked.trainingName,
+            trainingDate: unpacked.trainingDate,
+            stageDone: false,
+            factAmount: 0,
+            lastPurchaseDate: null,
+            lastPurchaseAmount: 0,
+            completed: f.completed,
+            manuallyAdded: f.manually_added,
+          };
+        }));
       }
       if (data.gapClosures.length > 0) {
         setGapClosures(data.gapClosures.map(g => {
@@ -112,8 +118,6 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
       periodId: currentPeriod.id,
       forecasts,
       gapClosures,
-      monthForecastPct: '',
-      monthForecastUsd: '',
       gapActions,
     });
     setSaving(false);
@@ -135,8 +139,8 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
   const passedWorkingDays = getPassedWorkingDays(periodMonth.getFullYear(), periodMonth.getMonth(), periodEndDate);
   const periodLabel = getMonthName(periodMonth.getFullYear(), periodMonth.getMonth());
   const expectedAmount = totalWorkingDays > 0 ? (planAmount / totalWorkingDays) * passedWorkingDays : 0;
-  const expectedPct = planAmount > 0 ? (expectedAmount / planAmount) * 100 : 0;
-  const factPct = planAmount > 0 ? (factAmount / planAmount) * 100 : 0;
+  const expectedPct = pctOf(expectedAmount, planAmount);
+  const factPct = pctOf(factAmount, planAmount);
   const deviation = factPct - expectedPct;
 
   // Сортовані прогнози: невиконані зверху, виконані знизу
@@ -165,13 +169,13 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false }: Planning
   const activeSum = activeClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
   const sleepingSum = sleepingClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
   const categories: ClientCategorySummary[] = [
-    { category: 'active', label: 'Активні клієнти', clientCount: activeClients.length, expectedAmount: activeSum, planCoveragePercent: planAmount > 0 ? (activeSum / planAmount) * 100 : 0 },
+    { category: 'active', label: 'Активні клієнти', clientCount: activeClients.length, expectedAmount: activeSum, planCoveragePercent: pctOf(activeSum, planAmount) },
     { category: 'new', label: 'Нові клієнти по ТМ', clientCount: 0, expectedAmount: 0, planCoveragePercent: 0 },
-    { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingClients.length, expectedAmount: sleepingSum, planCoveragePercent: planAmount > 0 ? (sleepingSum / planAmount) * 100 : 0 },
+    { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingClients.length, expectedAmount: sleepingSum, planCoveragePercent: pctOf(sleepingSum, planAmount) },
   ];
   const totalCatClients = categories.reduce((s, c) => s + c.clientCount, 0);
   const totalCatAmount = categories.reduce((s, c) => s + c.expectedAmount, 0);
-  const totalCatPct = planAmount > 0 ? (totalCatAmount / planAmount) * 100 : 0;
+  const totalCatPct = pctOf(totalCatAmount, planAmount);
 
   const CAT_ICONS: Record<string, React.ReactNode> = {
     active: <Users className="h-4 w-4 text-[#066aab]" />,

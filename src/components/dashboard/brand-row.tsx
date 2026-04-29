@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronRight, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
-import { formatUSD, formatPct, getTrafficLight, calcForecastPercent } from '@/lib/format';
+import { formatUSD, formatPct, getTrafficLight, calcForecastPercent, pctOf } from '@/lib/format';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 
 export interface BrandRowProps {
@@ -53,7 +53,7 @@ export function BrandRow({
   expandable,
   expanded,
 }: BrandRowProps) {
-  const factPercent = planAmount > 0 ? (factAmount / planAmount) * 100 : 0;
+  const factPercent = pctOf(factAmount, planAmount);
   const tl = getTrafficLight(factPercent, calcPct);
   const dev = factPercent - calcPct;
   const factBarWidth = Math.min(factPercent, 100);

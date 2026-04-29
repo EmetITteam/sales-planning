@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD } from '@/lib/format';
+import { formatUSD, pctOf } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { ArrowLeft, Check, X, Phone, Calendar, Target, DollarSign, TrendingUp, Users } from 'lucide-react';
 
@@ -118,7 +118,7 @@ export function ClientControlView({ onBack }: ClientControlViewProps) {
       <div className="space-y-4">
         {filtered.map(client => {
           const done = client.monthFact >= client.monthPlan;
-          const pct = client.monthPlan > 0 ? (client.monthFact / client.monthPlan) * 100 : 0;
+          const pct = pctOf(client.monthFact, client.monthPlan);
           return (
             <div key={client.clientId} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
               {/* Header */}

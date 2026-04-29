@@ -1,14 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, formatDateShort, getTrafficLight } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf } from '@/lib/format';
 import { getMonthProgressPct } from '@/lib/working-days';
-import { MOCK_REGION_DATA, SEGMENTS, getFactScaleRatio } from '@/lib/mock-data';
+import { MOCK_REGION_DATA, SEGMENTS, getFactScaleRatio, getMockClientStatsRegion } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
 import { BrandRow } from './brand-row';
-import { Target, DollarSign, TrendingUp, TrendingDown, Users, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
+import { MetricCard } from './metric-card';
+import { ClientStatsCard } from './client-stats-card';
+import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
 
 interface RMDashboardProps {
   regionCode?: string;
@@ -56,8 +58,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         prevPlan += s.prevMonthPlanAmount ?? 0;
       }
     });
-    const pct = totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0;
-    const prevPct = prevPlan > 0 ? (prevFact / prevPlan) * 100 : 0;
+    const pct = pctOf(totalFact, totalPlan);
+    const prevPct = pctOf(prevFact, prevPlan);
     return {
       code: seg.code, name: seg.name,
       totalPlan, totalFact, pct,
@@ -68,10 +70,10 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
   const grandPlan = regionTotals.reduce((s, r) => s + r.totalPlan, 0);
   const grandFact = regionTotals.reduce((s, r) => s + r.totalFact, 0);
-  const grandPct = grandPlan > 0 ? (grandFact / grandPlan) * 100 : 0;
+  const grandPct = pctOf(grandFact, grandPlan);
   const grandPrevFact = regionTotals.reduce((s, r) => s + r.prevFact, 0);
   const grandPrevPlan = regionTotals.reduce((s, r) => s + r.prevPlan, 0);
-  const grandPrevPct = grandPrevPlan > 0 ? (grandPrevFact / grandPrevPlan) * 100 : 0;
+  const grandPrevPct = pctOf(grandPrevFact, grandPrevPlan);
 
   // Моє планування — показує дашборд менеджера
   if (view === 'myPlanning') {
@@ -111,55 +113,55 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* План регіону */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg mb-3"><Target className="h-5 w-5" /></div>
-          <p className="text-[12px] text-muted-foreground font-medium">План регіону</p>
-          <p className="text-2xl font-extrabold tracking-tight amount">{formatUSD(grandPlan)}</p>
-        </div>
-
-        {/* Факт + vs мин.міс. */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg mb-3"><DollarSign className="h-5 w-5" /></div>
-          <p className="text-[12px] text-muted-foreground font-medium">Факт</p>
-          <p className="text-2xl font-extrabold tracking-tight amount">{formatUSD(grandFact)}</p>
-          {grandPrevFact > 0 && (() => {
+      {/* Metrics — компактний layout, 5 карток (склеєно регіон-інфо) */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <MetricCard
+          icon={<Target className="h-5 w-5" />}
+          iconGradient="from-[#066aab] to-[#0880cc]"
+          label="План регіону"
+          value={formatUSD(grandPlan)}
+          isAmount
+        />
+        <MetricCard
+          icon={<DollarSign className="h-5 w-5" />}
+          iconGradient="from-emerald-500 to-teal-600"
+          label="Факт"
+          value={formatUSD(grandFact)}
+          isAmount
+          caption={grandPrevFact > 0 && (() => {
             const dyn = grandFact - grandPrevFact;
             const dynPct = grandPct - grandPrevPct;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
-              <p className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <span className={`font-semibold flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
                 <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
                 <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-              </p>
+              </span>
             );
           })()}
-        </div>
-
-        {/* Виконання + відхилення від норми */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className={`flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br ${grandPct >= calcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'} text-white shadow-lg mb-3`}>
-            {grandPct >= calcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-          </div>
-          <p className="text-[12px] text-muted-foreground font-medium">Виконання</p>
-          <div className="flex items-baseline gap-2">
-            <p className="text-2xl font-extrabold tracking-tight">{grandPct.toFixed(1)}%</p>
-            <span className={`text-[12px] font-bold ${grandPct >= calcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {grandPct - calcPct >= 0 ? '+' : ''}{(grandPct - calcPct).toFixed(1)}%
+        />
+        <MetricCard
+          icon={grandPct >= calcPct ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+          iconGradient={grandPct >= calcPct ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'}
+          label="Виконання"
+          value={(
+            <span className="flex items-baseline gap-2">
+              <span>{grandPct.toFixed(1)}%</span>
+              <span className={`text-[12px] font-bold ${grandPct >= calcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {grandPct - calcPct >= 0 ? '+' : ''}{(grandPct - calcPct).toFixed(1)}%
+              </span>
             </span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
-        </div>
-
-        {/* Менеджерів */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg mb-3"><Users className="h-5 w-5" /></div>
-          <p className="text-[12px] text-muted-foreground font-medium">Менеджерів</p>
-          <p className="text-2xl font-extrabold tracking-tight">{region.managers.length}</p>
-        </div>
+          )}
+          caption={<span className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></span>}
+        />
+        <MetricCard
+          icon={<MapPin className="h-5 w-5" />}
+          iconGradient="from-amber-500 to-orange-600"
+          label="Менеджерів"
+          value={String(region.managers.length)}
+        />
+        <ClientStatsCard stats={getMockClientStatsRegion()} />
       </div>
 
       {/* Моє планування */}
@@ -184,13 +186,13 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           {scaledManagers.map(manager => {
             const mTotal = manager.segments.reduce((s, seg) => s + seg.factAmount, 0);
             const mPlan = manager.segments.reduce((s, seg) => s + seg.planAmount, 0);
-            const mPct = mPlan > 0 ? (mTotal / mPlan) * 100 : 0;
+            const mPct = pctOf(mTotal, mPlan);
             const mTl = getTrafficLight(mPct, calcPct);
 
             // v2.1: динаміка vs минулий місяць на той же N-й робочий день
             const prevTotal = manager.totalPrevMonthFact ?? manager.segments.reduce((s, seg) => s + (seg.prevMonthFactAmount ?? 0), 0);
             const prevPlan = manager.segments.reduce((s, seg) => s + (seg.prevMonthPlanAmount ?? 0), 0);
-            const prevPct = prevPlan > 0 ? (prevTotal / prevPlan) * 100 : 0;
+            const prevPct = pctOf(prevTotal, prevPlan);
             const dynAmount = mTotal - prevTotal;
             const dynPct = mPct - prevPct;
             const dynBetter = dynAmount >= 0;

@@ -6,9 +6,48 @@ interface SavePlanningParams {
   periodId: number;
   forecasts: ForecastRow[];
   gapClosures: GapClosureRow[];
-  monthForecastPct: string;
-  monthForecastUsd: string;
   gapActions: GapActions;
+}
+
+// === Forecast: пакуємо trainingId/Name/Date у JSON у legacy `stage_comment` ===
+// Та сама логіка як для gap-closure (`action`) — обхід міграції БД.
+export function packForecastStageComment(f: ForecastRow): string {
+  if (!f.trainingId && !f.trainingName && !f.trainingDate) {
+    // Якщо обучення не задано — пишемо звичайний коментар (чисто текст, без JSON)
+    return f.stageComment || '';
+  }
+  return JSON.stringify({
+    v: 2,
+    comment: f.stageComment,
+    trainingId: f.trainingId,
+    trainingName: f.trainingName,
+    trainingDate: f.trainingDate,
+  });
+}
+
+export interface UnpackedForecastStageComment {
+  comment: string;
+  trainingId?: string;
+  trainingName?: string;
+  trainingDate?: string;
+}
+
+export function unpackForecastStageComment(raw: string | null): UnpackedForecastStageComment {
+  if (!raw) return { comment: '' };
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && parsed.v === 2) {
+      return {
+        comment: parsed.comment ?? '',
+        trainingId: parsed.trainingId,
+        trainingName: parsed.trainingName,
+        trainingDate: parsed.trainingDate,
+      };
+    }
+  } catch {
+    // Legacy: звичайний текст коментаря
+  }
+  return { comment: raw };
 }
 
 // Пакуємо нові поля gap-closure (v2.1) в JSON у legacy колонці `action` Supabase —
@@ -71,7 +110,7 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
           clientName: f.clientName,
           forecastAmount: f.forecastAmount,
           stage: f.stage,
-          stageComment: f.stageComment,
+          stageComment: packForecastStageComment(f),
           completed: f.completed,
           manuallyAdded: f.manuallyAdded || false,
         })),
@@ -85,8 +124,6 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
           manuallyAdded: g.manuallyAdded || false,
         })),
         summary: {
-          monthForecastPct: parseFloat(params.monthForecastPct) || null,
-          monthForecastUsd: parseFloat(params.monthForecastUsd) || null,
           gapAction1: params.gapActions.action1 || null,
           gapAction2: params.gapActions.action2 || null,
           gapAction3: params.gapActions.action3 || null,
@@ -124,8 +161,6 @@ interface LoadPlanningResult {
     manually_added: boolean;
   }>;
   summary: {
-    month_forecast_pct: number | null;
-    month_forecast_usd: number | null;
     gap_action_1: string | null;
     gap_action_2: string | null;
     gap_action_3: string | null;

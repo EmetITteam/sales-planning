@@ -44,8 +44,10 @@ export function formatPct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
-/** @deprecated — використовуйте formatSignedPct */
-export const formatPercent = formatSignedPct;
+/** % виконання: value / total × 100. Безпечне ділення (0 при total<=0). */
+export function pctOf(value: number, total: number): number {
+  return total > 0 ? (value / total) * 100 : 0;
+}
 
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -61,13 +63,6 @@ export function formatPeriod(weekStart: string, weekEnd: string): string {
   return `${formatDateShort(weekStart)} — ${formatDateShort(weekEnd)}`;
 }
 
-export function getStatusColor(factPct: number, expectedPct: number): 'green' | 'yellow' | 'red' {
-  const diff = factPct - expectedPct;
-  if (diff >= -5) return 'green';
-  if (diff >= -15) return 'yellow';
-  return 'red';
-}
-
 export function getProbColor(prob: number) {
   if (prob === 100) return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' };
   if (prob === 70) return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' };
@@ -75,11 +70,14 @@ export function getProbColor(prob: number) {
 }
 
 /**
- * Світлофор по темпу: порівнюємо forecast (run-rate) vs calc (норма по робочих днях).
- * Стійкий індикатор — не залежить від того чи заповнив менеджер прогноз.
- *   diff >= -5%  → На плані
- *   diff >= -15% → Ризик
- *   інше         → Відставання
+ * Світлофор: порівнюємо поточний % виконання (factPct) з нормою на дату (calcPct).
+ * Використовується скрізь у дашбордах для кольору точки/бейджу/тексту.
+ *   diff >= -5%  → На плані (зелений)
+ *   diff >= -15% → Ризик (бурштиновий)
+ *   інше         → Відставання (червоний)
+ *
+ * @param pct — поточний % (factPercent у більшості випадків)
+ * @param expected — норма для порівняння (calcPct: % робочих днів пройдено)
  */
 export function getTrafficLight(pct: number, expected: number) {
   const diff = pct - expected;

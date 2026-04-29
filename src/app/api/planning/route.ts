@@ -112,12 +112,10 @@ export async function POST(request: NextRequest) {
     if (error) errors.push(`Insert gap_closures: ${error.message}`);
   }
 
-  // 5. Upsert підсумки
+  // 5. Upsert підсумки (тільки текстові дії; ручні monthForecastPct/Usd прибрані)
   if (!errors.length && summary) {
     const { error } = await supabase.from('period_summaries').upsert({
       period_id: pid, user_id: uid, segment_code: segmentCode,
-      month_forecast_pct: summary.monthForecastPct || null,
-      month_forecast_usd: summary.monthForecastUsd || null,
       gap_action_1: summary.gapAction1 || null,
       gap_action_2: summary.gapAction2 || null,
       gap_action_3: summary.gapAction3 || null,
