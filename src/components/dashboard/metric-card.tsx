@@ -34,8 +34,10 @@ export function MetricCard({ icon, iconColor, label, value, caption, isAmount, i
   // Розмір SVG + позиція справа. Для md (вузькі чіпи РМ/Директор) зміщуємо правіше
   // (-right-4) так щоб частина іконки виходила за край картки — overflow-hidden зріже,
   // а текст ліворуч матиме більше повітря.
-  const sizeClass = iconSize === 'md' ? '[&>svg]:h-20 [&>svg]:w-20' : '[&>svg]:h-28 [&>svg]:w-28';
-  const positionClass = iconSize === 'md' ? '-right-2' : 'right-3';
+  // md (вузькі чіпи 5-кол): 64px впритул до правого краю, не виходить за межі
+  // lg (широкі чіпи 4-кол): 112px з невеликим відступом
+  const sizeClass = iconSize === 'md' ? '[&>svg]:h-16 [&>svg]:w-16' : '[&>svg]:h-28 [&>svg]:w-28';
+  const positionClass = iconSize === 'md' ? 'right-2' : 'right-3';
   return (
     <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden min-h-[110px] flex flex-col">
       {/* Watermark-іконка: справа, по центру вертикально, приглушена */}
