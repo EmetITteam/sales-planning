@@ -184,13 +184,16 @@ export function DirectorDashboard() {
           iconColor="text-amber-500"
           label="Структура"
           value={(
-            <span>
-              <span className="tabular-nums">{regions.length}</span>
-              <span className="text-[11px] text-muted-foreground font-medium ml-1">регіонів</span>
-              <span className="text-muted-foreground/30 mx-1.5">·</span>
-              <span className="tabular-nums">{totalManagers}</span>
-              <span className="text-[11px] text-muted-foreground font-medium ml-1">менеджерів</span>
-            </span>
+            <div className="space-y-1">
+              <p className="leading-none">
+                <span className="tabular-nums">{regions.length}</span>
+                <span className="text-[12px] text-muted-foreground font-medium ml-1.5">регіонів</span>
+              </p>
+              <p className="leading-none">
+                <span className="tabular-nums">{totalManagers}</span>
+                <span className="text-[12px] text-muted-foreground font-medium ml-1.5">менеджерів</span>
+              </p>
+            </div>
           )}
         />
         <ClientStatsCard stats={getMockClientStatsCompany()} />
@@ -389,29 +392,31 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
           ))}
         </div>
 
-        {/* Всі блоки одної висоти 56px, контент по центру → стабільний baseline */}
-        <div className="flex items-stretch gap-4 justify-end shrink-0">
-          <div className="text-right min-h-[56px] flex flex-col justify-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">Факт / План</p>
-            <p className="text-[14px] font-bold font-mono mt-1.5 leading-none">
+        {/* Всі блоки align-top: label завжди на 1-му рядку, value на 2-му, sub на 3-му.
+            Висота 56px фіксована, items-start. 1-рядкові елементи (бейдж/chevron/drill)
+            вирівняні до value-рядка через pt-[18px] (label-висота + gap). */}
+        <div className="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
+          <div className="text-right">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Факт / План</p>
+            <p className="text-[14px] font-bold font-mono leading-none mt-1.5">
               <span className="amount">{formatUSD(region.totalFact)}</span>
               <span className="text-muted-foreground/50 font-normal"> / </span>
               <span className="amount text-muted-foreground/70">{formatUSD(region.totalPlan)}</span>
             </p>
           </div>
           {region.totalPrevFact > 0 && (
-            <div className="text-right min-h-[56px] flex flex-col justify-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">vs мин. міс.</p>
-              <p className={`text-[12px] font-bold mt-1 leading-none ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+            <div className="text-right">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">vs мин. міс.</p>
+              <p className={`text-[12px] font-bold leading-none mt-1.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {dynBetter ? <TrendingUp className="inline h-3 w-3 -mt-0.5 mr-0.5" /> : <TrendingDown className="inline h-3 w-3 -mt-0.5 mr-0.5" />}
                 <span className="amount whitespace-nowrap">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
               </p>
-              <p className={`text-[10px] font-semibold mt-0.5 leading-none ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <p className={`text-[10px] font-semibold leading-none mt-1 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {dynBetter ? '+' : ''}{dynPct.toFixed(1)}%
               </p>
             </div>
           )}
-          <div className="min-h-[56px] flex flex-col items-center justify-center gap-0.5">
+          <div className="flex flex-col items-center gap-1">
             <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
               <div className={`h-full rounded-full ${region.pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
                 style={{ width: `${Math.min(region.pct, 100)}%` }} />
@@ -421,16 +426,19 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
               {regionDeviation >= 0 ? '+' : ''}{regionDeviation.toFixed(1)}%
             </span>
           </div>
-          <div className="min-h-[56px] flex items-center">
+          {/* 1-рядкові елементи з порожнім label-placeholder вгорі для вирівнювання */}
+          <div>
+            <div className="h-[12px] leading-none mb-1.5" aria-hidden />
             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
           </div>
-          <div className="min-h-[56px] flex items-center">
+          <div>
+            <div className="h-[12px] leading-none mb-1.5" aria-hidden />
             <ChevronDown className={`h-4 w-4 text-muted-foreground/40 transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
             title="Перейти у дашборд регіону (планування менеджерів)"
-            className="self-center p-1.5 rounded-lg hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
+            className="mt-[16px] p-1.5 rounded-lg hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
