@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf } from '@/lib/format';
-import { getMonthProgressPct } from '@/lib/working-days';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent } from '@/lib/format';
+import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio, getMockClientStatsCompany } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { RMDashboard } from './rm-dashboard';
@@ -68,6 +68,11 @@ export function DirectorDashboard() {
   const grandPrevFact = regionSummaries.reduce((s, r) => s + r.totalPrevFact, 0);
   const grandPrevPlan = regionSummaries.reduce((s, r) => s + r.totalPrevPlan, 0);
   const grandPrevPct = pctOf(grandPrevFact, grandPrevPlan);
+  // Прогноз (run-rate) і Очікуваний (mock = факт + 60% розриву)
+  const totalWD = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
+  const passedWD = getPassedWorkingDays(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
+  const grandForecastPct = calcForecastPercent(grandFact, grandPlan, passedWD, totalWD);
+  const grandExpectedPct = pctOf(grandFact + 0.6 * Math.max(0, grandPlan - grandFact), grandPlan);
   const totalManagers = regions.reduce((s, r) => s + r.managers.length, 0);
 
   // Drill-down в регіон — показуємо дашборд РМ
@@ -145,9 +150,10 @@ export function DirectorDashboard() {
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
-              <span className={`font-semibold flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
-                <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+              <span className={`font-semibold ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+                vs мин. міс.: <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                <span className="whitespace-nowrap"> ({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
               </span>
             );
           })()}
@@ -164,18 +170,29 @@ export function DirectorDashboard() {
               </span>
             </span>
           )}
-          caption={<span className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></span>}
+          caption={(
+            <div className="space-y-0.5 leading-snug">
+              <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
+              <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(grandForecastPct)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(grandExpectedPct)}</span></p>
+            </div>
+          )}
         />
         <MetricCard
           icon={<MapPin className="h-5 w-5" />}
           iconGradient="from-amber-500 to-orange-600"
-          label="Регіони / Менеджери"
+          label="Структура"
           value={(
-            <span className="flex items-baseline gap-1">
-              <span>{regions.length}</span>
-              <span className="text-muted-foreground/50 text-[16px] font-medium">/</span>
-              <span>{totalManagers}</span>
-            </span>
+            <div className="flex items-center gap-3 text-[14px]">
+              <span className="inline-flex items-baseline gap-1">
+                <span className="font-extrabold tabular-nums">{regions.length}</span>
+                <span className="text-muted-foreground text-[11px] font-medium">регіонів</span>
+              </span>
+              <span className="text-muted-foreground/30">·</span>
+              <span className="inline-flex items-baseline gap-1">
+                <span className="font-extrabold tabular-nums">{totalManagers}</span>
+                <span className="text-muted-foreground text-[11px] font-medium">менеджерів</span>
+              </span>
+            </div>
           )}
         />
         <ClientStatsCard stats={getMockClientStatsCompany()} />
@@ -374,43 +391,48 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
           ))}
         </div>
 
-        <div className="flex items-center gap-4 justify-end shrink-0">
-          <div className="text-right">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт / План</p>
-            <p className="text-[14px] font-bold font-mono">
+        {/* Всі блоки одної висоти 56px, контент по центру → стабільний baseline */}
+        <div className="flex items-stretch gap-4 justify-end shrink-0">
+          <div className="text-right min-h-[56px] flex flex-col justify-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">Факт / План</p>
+            <p className="text-[14px] font-bold font-mono mt-1.5 leading-none">
               <span className="amount">{formatUSD(region.totalFact)}</span>
               <span className="text-muted-foreground/50 font-normal"> / </span>
               <span className="amount text-muted-foreground/70">{formatUSD(region.totalPlan)}</span>
             </p>
           </div>
           {region.totalPrevFact > 0 && (
-            <div className="text-right">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">vs мин. міс.</p>
-              <p className={`text-[12px] font-bold flex items-center justify-end gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+            <div className="text-right min-h-[56px] flex flex-col justify-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">vs мин. міс.</p>
+              <p className={`text-[12px] font-bold mt-1 leading-none ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {dynBetter ? <TrendingUp className="inline h-3 w-3 -mt-0.5 mr-0.5" /> : <TrendingDown className="inline h-3 w-3 -mt-0.5 mr-0.5" />}
+                <span className="amount whitespace-nowrap">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
               </p>
-              <p className={`text-[10px] font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <p className={`text-[10px] font-semibold mt-0.5 leading-none ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {dynBetter ? '+' : ''}{dynPct.toFixed(1)}%
               </p>
             </div>
           )}
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="min-h-[56px] flex flex-col items-center justify-center gap-0.5">
             <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
               <div className={`h-full rounded-full ${region.pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
                 style={{ width: `${Math.min(region.pct, 100)}%` }} />
             </div>
-            <span className={`text-[11px] font-bold ${tl.color}`}>{region.pct.toFixed(1)}%</span>
-            <span className={`text-[10px] font-bold ${regionDeviation >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            <span className={`text-[11px] font-bold leading-none ${tl.color}`}>{region.pct.toFixed(1)}%</span>
+            <span className={`text-[10px] font-bold leading-none ${regionDeviation >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {regionDeviation >= 0 ? '+' : ''}{regionDeviation.toFixed(1)}%
             </span>
           </div>
-          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
-          <ChevronDown className={`h-4 w-4 text-muted-foreground/40 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          <div className="min-h-[56px] flex items-center">
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
+          </div>
+          <div className="min-h-[56px] flex items-center">
+            <ChevronDown className={`h-4 w-4 text-muted-foreground/40 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
             title="Перейти у дашборд регіону (планування менеджерів)"
-            className="p-1.5 rounded-lg hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
+            className="self-center p-1.5 rounded-lg hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
           >
             <ChevronRight className="h-5 w-5" />
           </button>

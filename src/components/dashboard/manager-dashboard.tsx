@@ -68,9 +68,10 @@ export function ManagerDashboard() {
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
-              <span className={`font-semibold flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
-                <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+              <span className={`font-semibold ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+                vs мин. міс.: <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                <span className="whitespace-nowrap"> ({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
               </span>
             );
           })()}

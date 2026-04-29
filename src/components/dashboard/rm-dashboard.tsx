@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf } from '@/lib/format';
-import { getMonthProgressPct } from '@/lib/working-days';
+import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent } from '@/lib/format';
+import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { MOCK_REGION_DATA, SEGMENTS, getFactScaleRatio, getMockClientStatsRegion } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { PlanningForm } from '../planning/planning-form';
@@ -74,6 +74,11 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const grandPrevFact = regionTotals.reduce((s, r) => s + r.prevFact, 0);
   const grandPrevPlan = regionTotals.reduce((s, r) => s + r.prevPlan, 0);
   const grandPrevPct = pctOf(grandPrevFact, grandPrevPlan);
+  // Прогноз (run-rate) і Очікуваний (mock = факт + 60% розриву) — узгоджено з BrandRow
+  const totalWD = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
+  const passedWD = getPassedWorkingDays(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
+  const grandForecastPct = calcForecastPercent(grandFact, grandPlan, passedWD, totalWD);
+  const grandExpectedPct = pctOf(grandFact + 0.6 * Math.max(0, grandPlan - grandFact), grandPlan);
 
   // Моє планування — показує дашборд менеджера
   if (view === 'myPlanning') {
@@ -134,9 +139,10 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
-              <span className={`font-semibold flex items-center gap-1 ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
-                <Arrow className="h-3 w-3" /> vs мин. міс.: <span className="amount">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                <span>({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+              <span className={`font-semibold ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+                vs мин. міс.: <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                <span className="whitespace-nowrap"> ({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
               </span>
             );
           })()}
@@ -153,7 +159,12 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               </span>
             </span>
           )}
-          caption={<span className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></span>}
+          caption={(
+            <div className="space-y-0.5 leading-snug">
+              <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
+              <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(grandForecastPct)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(grandExpectedPct)}</span></p>
+            </div>
+          )}
         />
         <MetricCard
           icon={<MapPin className="h-5 w-5" />}
