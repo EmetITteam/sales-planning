@@ -10,7 +10,7 @@ import { savePlanning, loadPlanning, unpackGapAction, unpackForecastStageComment
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
-import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
+import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_FORECASTS_OTHER, MOCK_GAP_OTHER, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
@@ -57,12 +57,14 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
   const userId = loginToUserId(effectiveLogin);
 
-  const [forecasts, setForecasts] = useState<ForecastRow[]>(
-    segmentCode === 'PETARAN' ? MOCK_FORECASTS_PETARAN : []
-  );
-  const [gapClosures, setGapClosures] = useState<GapClosureRow[]>(
-    segmentCode === 'PETARAN' ? MOCK_GAP_CLOSURES : []
-  );
+  const [forecasts, setForecasts] = useState<ForecastRow[]>(() => {
+    if (segmentCode === 'PETARAN') return MOCK_FORECASTS_PETARAN;
+    return MOCK_FORECASTS_OTHER[segmentCode] ?? [];
+  });
+  const [gapClosures, setGapClosures] = useState<GapClosureRow[]>(() => {
+    if (segmentCode === 'PETARAN') return MOCK_GAP_CLOSURES;
+    return MOCK_GAP_OTHER[segmentCode] ?? [];
+  });
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -313,8 +315,12 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
           )}
         </div>
 
+        {/* Mobile: підказка про скрол + горизонтальний скрол wrapper */}
+        <p className="md:hidden text-[10px] text-muted-foreground mb-2 text-center">↔ потягни таблицю вбік щоб побачити всі поля</p>
+        <div className="overflow-x-auto -mx-3 md:mx-0 px-3 md:px-0">
+
         {/* Заголовок колонок */}
-        <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 px-5 mb-1">
+        <div className="grid grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1 min-w-[800px] md:min-w-0">
           <div />
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Прогноз</p>
@@ -325,12 +331,12 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
           <div />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-[800px] md:min-w-0">
           {sortedForecasts.map((row) => {
             const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
             return (
               <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
-                <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 items-center px-5 py-3">
+                <div className="grid grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                   {/* Іконка статусу */}
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
                     {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
@@ -354,7 +360,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
                     <Input type="number" value={row.forecastAmount}
                       onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
                       disabled={readOnly}
-                      className="h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
+                      className="amount h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
                   )}
 
                   {/* Етап */}
@@ -438,6 +444,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
             );
           })}
         </div>
+        </div>{/* end overflow-x-auto */}
 
         {/* Підсумок прогнозу */}
         {forecasts.length > 0 && (
@@ -481,8 +488,11 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
 
         {gapClosures.length > 0 && (
           <div>
+            {/* Mobile: підказка про скрол */}
+            <p className="md:hidden text-[10px] text-muted-foreground mb-2 text-center">↔ потягни таблицю вбік щоб побачити всі поля</p>
+            <div className="overflow-x-auto -mx-3 md:mx-0 px-3 md:px-0">
             {/* Заголовки колонок — уніфіковано з блоком "Прогноз по активних" */}
-            <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 px-5 mb-1">
+            <div className="grid grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1 min-w-[800px] md:min-w-0">
               <div />
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Потенціал</p>
@@ -493,13 +503,13 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
               <div />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-[800px] md:min-w-0">
             {gapClosures.map((row, i) => {
               const hasFact = row.factAmount > 0;
               const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
               return (
                 <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
-                  <div className="grid grid-cols-[36px_1fr_80px_120px_90px_1fr_70px_32px] gap-2 items-center px-5 py-3">
+                  <div className="grid grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                     {/* Іконка */}
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
                       {row.completed || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
@@ -531,7 +541,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
                     ) : (
                       <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
                         disabled={readOnly}
-                        className="h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
+                        className="amount h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
                     )}
 
                     {/* Етап */}
@@ -616,6 +626,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
               );
             })}
             </div>
+            </div>{/* end overflow-x-auto */}
 
             <div className="mt-3 bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
               <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold amount">{formatUSD(gapTotal)}</p></div>

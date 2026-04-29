@@ -127,6 +127,35 @@ export const MOCK_FORECASTS_PETARAN: ForecastRow[] = [
   { clientId1c: 'C100', clientName: 'Карапиш Лариса Володимирівна', forecastAmount: 378, stage: 'Зустріч', stageComment: 'зустріч + продаж', stageDone: true, factAmount: 378, lastPurchaseDate: '2026-04-04', lastPurchaseAmount: 378, completed: true },
 ];
 
+// === Прогнози для інших брендів — щоб у демо клік на Ellanse/Vitaran/Neuronox ===
+//     не показував порожній блок прогнозу.
+export const MOCK_FORECASTS_OTHER: Record<string, ForecastRow[]> = {
+  ELLANSE: [
+    { clientId1c: 'C010', clientName: 'Єфіменко Наталія', forecastAmount: 3000, stage: 'Зустріч', stageComment: 'презентація нової лінії', stageDone: true, factAmount: 3000, lastPurchaseDate: '2026-04-04', lastPurchaseAmount: 3000, completed: true },
+    { clientId1c: 'C011', clientName: 'Мачтакова Марина', forecastAmount: 658, stage: 'Дзвінок', stageComment: 'нагадування', stageDone: true, factAmount: 658, lastPurchaseDate: '2026-04-06', lastPurchaseAmount: 658, completed: true },
+    { clientId1c: 'C012', clientName: 'Сидоренко Алла', forecastAmount: 850, stage: 'Дзвінок', stageComment: 'продаж акції', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-02-20', lastPurchaseAmount: 850, completed: false },
+  ],
+  VITARAN: [
+    { clientId1c: 'C060', clientName: 'Клініка Естетика+', forecastAmount: 2500, stage: 'Зустріч', stageComment: 'презентація для лікарів', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-02-15', lastPurchaseAmount: 1800, completed: false },
+    { clientId1c: 'C061', clientName: 'Косметологія Світ', forecastAmount: 1700, stage: 'Дзвінок', stageComment: 'продовження співпраці', stageDone: true, factAmount: 1700, lastPurchaseDate: '2026-04-02', lastPurchaseAmount: 1700, completed: true },
+  ],
+  NEURONOX: [
+    { clientId1c: 'C050', clientName: 'Клініка Гіппократ', forecastAmount: 540, stage: 'Дзвінок', stageComment: 'замовлення квартальне', stageDone: true, factAmount: 540, lastPurchaseDate: '2026-04-06', lastPurchaseAmount: 540, completed: true },
+    { clientId1c: 'C054', clientName: 'Одінцова Інна', forecastAmount: 445, stage: 'Зустріч', stageComment: 'нова закупка', stageDone: true, factAmount: 445, lastPurchaseDate: '2026-04-07', lastPurchaseAmount: 445, completed: true },
+    { clientId1c: 'C055', clientName: 'Іванова Олена', forecastAmount: 380, stage: 'Навчання', stageComment: 'після майстер-класу', stageDone: false, factAmount: 0, lastPurchaseDate: '2026-01-15', lastPurchaseAmount: 380, completed: false, trainingId: '4471', trainingName: 'ELLANSE Step 2 "Правильна колагеностимуляція"', trainingDate: '2026-05-15' },
+  ],
+};
+
+// === Розриви для інших брендів ===
+export const MOCK_GAP_OTHER: Record<string, GapClosureRow[]> = {
+  ELLANSE: [
+    { clientId1c: 'C015', clientName: 'Дрозд Надія', category: 'Сплячий', potentialAmount: 1200, stage: 'Дзвінок', stageComment: 'повернути після паузи', stageDone: false, completed: false, factAmount: 0, lastPurchaseDate: '2025-09-10', lastPurchaseAmount: 1100, deadline: '2026-04-25' },
+  ],
+  VITARAN: [
+    { clientId1c: 'C065', clientName: 'Естетична клініка Z', category: 'Втрачений', potentialAmount: 1500, stage: 'Зустріч', stageComment: 'нова пропозиція', stageDone: false, completed: false, factAmount: 0, lastPurchaseDate: '2025-06-20', lastPurchaseAmount: 1500, deadline: '2026-04-28' },
+  ],
+};
+
 // === Закриття розриву (неактивні — сплячі, втрачені, БЗ) ===
 // v2.1: уніфіковано з ForecastRow — додано stage/stageDone/completed та поля trainingId/trainingName.
 export const MOCK_GAP_CLOSURES: GapClosureRow[] = [

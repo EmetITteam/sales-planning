@@ -16,9 +16,17 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 
-export function ManagerDashboard() {
+interface ManagerDashboardProps {
+  /** Якщо передано — режим «перегляд менеджера X» (для РМ або Директора).
+   *  Заголовок показує ПІБ цільового менеджера, drill-down у форму = read-only. */
+  targetUserLogin?: string;
+  targetUserName?: string;
+}
+
+export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDashboardProps = {}) {
   const [view, setView] = useState<'dashboard' | 'plan' | 'control'>('dashboard');
   const [selectedSegment, setSelectedSegment] = useState('');
+  const isViewing = !!targetUserLogin;
 
   const { currentPeriod, liveMode } = useAppStore();
   // Зріз даних: live → сьогодні, інакше → кінець обраного фільтру
@@ -46,11 +54,26 @@ export function ManagerDashboard() {
     ? summaries.reduce((s, t) => s + t.expectedPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
     : 0;
 
-  if (view === 'plan' && selectedSegment) return <PlanningForm segmentCode={selectedSegment} onBack={() => setView('dashboard')} readOnly={liveMode} />;
+  if (view === 'plan' && selectedSegment) return (
+    <PlanningForm
+      segmentCode={selectedSegment}
+      onBack={() => setView('dashboard')}
+      readOnly={liveMode || isViewing}
+      targetUserLogin={targetUserLogin}
+    />
+  );
   if (view === 'control') return <ClientControlView onBack={() => setView('dashboard')} />;
 
   return (
     <div className="space-y-8">
+      {isViewing && (
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
+          <span className="font-semibold">👁 Перегляд менеджера:</span>
+          <span className="font-bold">{targetUserName || targetUserLogin}</span>
+          <span className="ml-auto text-[11px] text-amber-700">режим тільки для читання</span>
+        </div>
+      )}
+
       {/* Hero metrics — компактні картки у стилі watermark */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard

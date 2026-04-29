@@ -8,7 +8,9 @@ import { Calendar, ChevronDown, Check } from 'lucide-react';
 export function PeriodFilter() {
   const { currentPeriod, setCurrentPeriod } = useAppStore();
   const [open, setOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('2026-04');
+  // Синхронізовано з currentPeriod.month — інакше при smart-default у попередньому
+  // місяці dropdown відкриється на хардкодному квітні.
+  const [selectedMonth, setSelectedMonth] = useState(() => currentPeriod.month.slice(0, 7));
 
   const months = getMonthOptions();
   const [year, month] = selectedMonth.split('-').map(Number);

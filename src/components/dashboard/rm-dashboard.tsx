@@ -6,7 +6,6 @@ import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from
 import { getMonthName } from '@/lib/periods';
 import { MOCK_REGION_DATA, MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio, getMockClientStatsRegion } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
-import { PlanningForm } from '../planning/planning-form';
 import { ManagerDashboard } from './manager-dashboard';
 import { BrandRow } from './brand-row';
 import { MetricCard } from './metric-card';
@@ -97,17 +96,17 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     );
   }
 
-  // Перегляд менеджера — read-only, дані вантажаться під логін цільового менеджера
+  // Перегляд менеджера — повний дашборд менеджера (всі 9 брендів) у read-only.
+  // Кліки на бренди відкриють форму планування з targetUserLogin = той менеджер.
   if (view === 'viewManager') {
     const manager = region.managers.find(m => m.login === selectedManager);
-    const firstSegment = manager?.segments[0]?.segmentCode ?? 'PETARAN';
     return (
-      <PlanningForm
-        segmentCode={firstSegment}
-        onBack={() => setView('dashboard')}
-        readOnly
-        targetUserLogin={selectedManager}
-      />
+      <div className="space-y-4">
+        <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+          <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до регіону
+        </button>
+        <ManagerDashboard targetUserLogin={selectedManager} targetUserName={manager?.name} />
+      </div>
     );
   }
 
