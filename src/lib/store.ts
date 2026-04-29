@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { UserSession, PeriodInfo } from './types';
 import { weekEndToId } from './periods';
 
@@ -64,13 +65,27 @@ interface AppState {
   setLiveMode: (live: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  user: null,
-  currentPeriod: getDefaultPeriod(),
-  designVariant: 'cards',
-  liveMode: false,
-  setUser: (user) => set({ user }),
-  setCurrentPeriod: (period) => set({ currentPeriod: period }),
-  setDesignVariant: (variant) => set({ designVariant: variant }),
-  setLiveMode: (live) => set({ liveMode: live }),
-}));
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      user: null,
+      currentPeriod: getDefaultPeriod(),
+      designVariant: 'cards',
+      liveMode: false,
+      setUser: (user) => set({ user }),
+      setCurrentPeriod: (period) => set({ currentPeriod: period }),
+      setDesignVariant: (variant) => set({ designVariant: variant }),
+      setLiveMode: (live) => set({ liveMode: live }),
+    }),
+    {
+      name: 'emet-sales-planning',
+      storage: createJSONStorage(() => sessionStorage),
+      // Persistимо лише session (user) і вибраний період. liveMode — НЕ persistимо
+      // (за вимогою користувача: live це тимчасовий перегляд).
+      partialize: (state) => ({
+        user: state.user,
+        currentPeriod: state.currentPeriod,
+      }),
+    },
+  ),
+);
