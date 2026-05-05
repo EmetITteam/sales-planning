@@ -68,10 +68,9 @@ export function BrandRow({
     planAmount > 0 ? Math.min(factPercent + 0.6 * Math.max(0, 100 - factPercent), 100) : 0
   );
 
-  // Динаміка vs минулий місяць
+  // Динаміка vs минулий місяць (повний факт)
   const prev = prevMonthFactAmount ?? 0;
   const dynAmount = factAmount - prev;
-  const dynPct = factPercent - (prevMonthFactPercent ?? 0);
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
 
@@ -164,15 +163,20 @@ export function BrandRow({
           <div />
         )}
 
-        {/* 8. vs мин. міс. */}
+        {/* 8. Минулий місяць: повний факт + % виконання + дельта */}
         <div className="text-right">
-          <p className="text-[9px] text-muted-foreground uppercase tracking-wider">vs мин. міс.</p>
+          <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Мин. міс.</p>
           {prev > 0 ? (
-            <p className={`text-[11px] font-semibold flex items-center justify-end gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-              <DynArrow className="h-3 w-3" />
-              <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-              <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-            </p>
+            <>
+              <p className="text-[11px] font-semibold leading-tight">
+                <span className="amount">{formatUSD(prev)}</span>
+                <span className="text-muted-foreground"> / {(prevMonthFactPercent ?? 0).toFixed(1)}%</span>
+              </p>
+              <p className={`text-[10px] font-bold flex items-center justify-end gap-0.5 leading-tight ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <DynArrow className="h-3 w-3" />
+                <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+              </p>
+            </>
           ) : (
             <p className="text-[11px] text-muted-foreground/40">—</p>
           )}
@@ -235,11 +239,13 @@ export function BrandRow({
           <span>Факт <span className="font-bold amount">{formatUSD(factAmount)}</span></span>
           {clientCount !== undefined && <span>Клієнти <span className="font-bold">{clientCount}</span></span>}
           {prev > 0 && (
-            <span className={`flex items-center gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'} font-semibold`}>
-              <DynArrow className="h-3 w-3" />
-              <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-              <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-            </span>
+            <>
+              <span className="text-muted-foreground">Мин. міс. <span className="font-bold amount">{formatUSD(prev)}</span> / {(prevMonthFactPercent ?? 0).toFixed(1)}%</span>
+              <span className={`flex items-center gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'} font-semibold`}>
+                <DynArrow className="h-3 w-3" />
+                <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+              </span>
+            </>
           )}
         </div>
       </div>

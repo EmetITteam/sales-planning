@@ -143,14 +143,18 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           isAmount
           caption={grandPrevFact > 0 && (() => {
             const dyn = grandFact - grandPrevFact;
-            const dynPct = grandPct - grandPrevPct;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
-              <span className={`font-semibold ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
-                <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
-                vs мин. міс.: <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                <span className="whitespace-nowrap"> ({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+              <span className="space-y-0.5 block">
+                <span className="text-muted-foreground block">
+                  Мин. міс.: <span className="amount font-semibold text-foreground whitespace-nowrap">{formatUSD(grandPrevFact)}</span>
+                  <span className="whitespace-nowrap"> / <span className="font-semibold text-foreground">{grandPrevPct.toFixed(1)}%</span></span>
+                </span>
+                <span className={`font-semibold block ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+                  <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                </span>
               </span>
             );
           })()}
@@ -216,7 +220,6 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             const prevPlan = manager.segments.reduce((s, seg) => s + (seg.prevMonthPlanAmount ?? 0), 0);
             const prevPct = pctOf(prevTotal, prevPlan);
             const dynAmount = mTotal - prevTotal;
-            const dynPct = mPct - prevPct;
             const dynBetter = dynAmount >= 0;
 
             return (
@@ -249,13 +252,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                       <>
                         <div className="w-px h-8 bg-[#e2e7ef]" />
                         <div className="text-right">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">vs мин. міс.</p>
-                          <p className={`text-[12px] font-bold flex items-center justify-end gap-0.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Мин. міс.</p>
+                          <p className="text-[12px] font-bold leading-tight">
+                            <span className="amount">{formatUSD(prevTotal)}</span>
+                            <span className="text-muted-foreground"> / {prevPct.toFixed(1)}%</span>
+                          </p>
+                          <p className={`text-[11px] font-bold flex items-center justify-end gap-0.5 leading-tight ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                             {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                             <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-                          </p>
-                          <p className={`text-[10px] font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {dynBetter ? '+' : ''}{dynPct.toFixed(1)}%
                           </p>
                         </div>
                       </>
@@ -297,11 +301,15 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                       </span>
                       <span className="font-bold">{mPct.toFixed(1)}%</span>
                       {prevTotal > 0 && (
-                        <span className={`flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                          <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-                          <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
-                        </span>
+                        <>
+                          <span className="text-muted-foreground">
+                            Мин. міс. <span className="font-bold text-foreground amount">{formatUSD(prevTotal)}</span> / {prevPct.toFixed(1)}%
+                          </span>
+                          <span className={`flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                            <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+                          </span>
+                        </>
                       )}
                     </div>
                   </div>

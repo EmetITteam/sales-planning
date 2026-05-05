@@ -150,14 +150,18 @@ export function DirectorDashboard() {
           isAmount
           caption={grandPrevFact > 0 && (() => {
             const dyn = grandFact - grandPrevFact;
-            const dynPct = grandPct - grandPrevPct;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
-              <span className={`font-semibold ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
-                <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
-                vs мин. міс.: <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                <span className="whitespace-nowrap"> ({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+              <span className="space-y-0.5 block">
+                <span className="text-muted-foreground block">
+                  Мин. міс.: <span className="amount font-semibold text-foreground whitespace-nowrap">{formatUSD(grandPrevFact)}</span>
+                  <span className="whitespace-nowrap"> / <span className="font-semibold text-foreground">{grandPrevPct.toFixed(1)}%</span></span>
+                </span>
+                <span className={`font-semibold block ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+                  <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                </span>
               </span>
             );
           })()}
@@ -356,7 +360,6 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
   const tl = getTrafficLight(region.pct, calcPct);
   const regionDeviation = region.pct - calcPct;
   const dynAmount = region.totalFact - region.totalPrevFact;
-  const dynPct = region.pct - region.prevPct;
   const dynBetter = dynAmount >= 0;
 
   return (
@@ -410,13 +413,14 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
           </div>
           {region.totalPrevFact > 0 && (
             <div className="text-right">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">vs мин. міс.</p>
-              <p className={`text-[12px] font-bold leading-none mt-1.5 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Мин. міс.</p>
+              <p className="text-[12px] font-bold leading-none mt-1.5">
+                <span className="amount">{formatUSD(region.totalPrevFact)}</span>
+                <span className="text-muted-foreground"> / {region.prevPct.toFixed(1)}%</span>
+              </p>
+              <p className={`text-[11px] font-bold leading-none mt-1 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {dynBetter ? <TrendingUp className="inline h-3 w-3 -mt-0.5 mr-0.5" /> : <TrendingDown className="inline h-3 w-3 -mt-0.5 mr-0.5" />}
                 <span className="amount whitespace-nowrap">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-              </p>
-              <p className={`text-[10px] font-semibold leading-none mt-1 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {dynBetter ? '+' : ''}{dynPct.toFixed(1)}%
               </p>
             </div>
           )}
@@ -494,10 +498,14 @@ function RegionAccordion({ region, allSegs, calcPct, asOfDate, onDrillDown }: Re
                 <span className="amount text-muted-foreground/70">{formatUSD(region.totalPlan)}</span>
               </span>
               {region.totalPrevFact > 0 && (
-                <span className={`flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-                  <span>({dynBetter ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-muted-foreground">
+                    Мин. <span className="font-bold text-foreground amount">{formatUSD(region.totalPrevFact)}</span> / {region.prevPct.toFixed(1)}%
+                  </span>
+                  <span className={`flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+                  </span>
                 </span>
               )}
             </div>

@@ -92,14 +92,18 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
           isAmount
           caption={totalPrevFact > 0 && (() => {
             const dyn = totalFact - totalPrevFact;
-            const dynPct = totalPct - totalPrevPct;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
-              <span className={`font-semibold ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
-                <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
-                vs мин. міс.: <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                <span className="whitespace-nowrap"> ({better ? '+' : ''}{dynPct.toFixed(1)}%)</span>
+              <span className="space-y-0.5 block">
+                <span className="text-muted-foreground block">
+                  Мин. міс.: <span className="amount font-semibold text-foreground whitespace-nowrap">{formatUSD(totalPrevFact)}</span>
+                  <span className="whitespace-nowrap"> / <span className="font-semibold text-foreground">{totalPrevPct.toFixed(1)}%</span></span>
+                </span>
+                <span className={`font-semibold block ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
+                  <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                </span>
               </span>
             );
           })()}
