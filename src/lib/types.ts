@@ -37,6 +37,8 @@ export interface ClientSale {
 export interface SegmentFact {
   segmentCode: string;
   totalAmount: number;
+  /** Загальна кількість унікальних клієнтів менеджера які купували цей сегмент у місяці. */
+  totalClientCount: number;
   clients: ClientSale[];
 }
 

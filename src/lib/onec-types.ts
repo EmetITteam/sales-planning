@@ -83,7 +83,7 @@ export interface GetSalesFactRequest {
   period: string;
   /** Масив кодів контрагентів (до 400 шт) — деталізація clients[] фільтрується по них */
   clientIds: string[];
-  /** v2.1: опц. дата зрізу (YYYY-MM-DD). Якщо не передано — поточна дата. */
+  /** v2.1: опц. дата зрізу (YYYY-MM-DD). Якщо не передано — останній день місяця `period`. */
   asOfDate?: string;
 }
 
@@ -99,6 +99,11 @@ export interface OneCFactSegment {
   segmentName: string;
   /** Загальний факт сегменту по ВСІХ клієнтах менеджера (не тільки в clientIds) */
   totalFactUSD: number;
+  /**
+   * v2.2: Загальна кількість унікальних клієнтів які купували цей сегмент.
+   * Frontend обчислює «Незаплановані» = totalClientCount − clients.length.
+   */
+  totalClientCount: number;
   /** Деталізація по клієнтах з clientIds. Якщо клієнт не купував — не входить */
   clients: OneCFactClient[];
 }

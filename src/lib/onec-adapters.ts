@@ -146,6 +146,7 @@ export function adaptSalesFact(r: GetSalesFactResponse): SalesFactResponse {
     facts: r.segments.map(s => ({
       segmentCode: s.segmentCode,
       totalAmount: s.totalFactUSD,
+      totalClientCount: s.totalClientCount,
       clients: s.clients.map(c => ({
         clientId: c.clientId,
         clientName: c.clientName,
