@@ -2,19 +2,19 @@
  * Серверний прокі до HTTP-сервісу 1С.
  *
  * Browser → POST /api/onec { action, payload }
- *        → ця route додає Authorization: Basic + base URL з env
+ *        → ця route форвардить запит на ONEC_BASE_URL
  *        → 1С повертає { status: 'success' | 'error', data | message }
  *        → передаємо як є назад у браузер
  *
  * Чому прокі (а не fetch напряму з браузера):
  *  1) CORS — 1С зазвичай не дозволяє cross-origin
- *  2) Безпека — пароль з env не світиться у клієнтському JS
- *  3) Логування і retry зручно робити на сервері
+ *  2) Логування і retry зручно робити на сервері
  *
- * ENV (треба в .env.local на Vercel):
- *  - ONEC_BASE_URL — наприклад https://1c.emet.com.ua/api/handler
- *  - ONEC_LOGIN — сервісний логін у 1С
- *  - ONEC_PASSWORD — пароль
+ * ENV:
+ *  - ONEC_BASE_URL (обов'язковий) — наприклад https://1c.emet.com.ua/api/handler
+ *  - ONEC_LOGIN / ONEC_PASSWORD (опційні) — Basic Auth якщо HTTP-сервіс
+ *    вимагає авторизацію. Якщо 1С налаштований на анонімний доступ —
+ *    лишити порожніми, заголовок Authorization не додається.
  */
 
 import { NextRequest } from 'next/server';
@@ -24,12 +24,9 @@ export async function POST(request: NextRequest) {
   const login = process.env.ONEC_LOGIN;
   const password = process.env.ONEC_PASSWORD;
 
-  if (!baseUrl || !login || !password) {
+  if (!baseUrl) {
     return Response.json(
-      {
-        status: 'error',
-        message: 'Не налаштовано env: потрібно ONEC_BASE_URL, ONEC_LOGIN, ONEC_PASSWORD',
-      },
+      { status: 'error', message: 'Не налаштовано env: потрібно ONEC_BASE_URL' },
       { status: 500 },
     );
   }
@@ -50,16 +47,18 @@ export async function POST(request: NextRequest) {
   // (а не сервісний). Передаємо як є.
   const requestBody = JSON.stringify({ action, payload: payload ?? {} });
 
-  // Basic auth з env
-  const authHeader = 'Basic ' + Buffer.from(`${login}:${password}`).toString('base64');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  // Basic Auth додаємо тільки якщо обидва env задані
+  if (login && password) {
+    headers['Authorization'] = 'Basic ' + Buffer.from(`${login}:${password}`).toString('base64');
+  }
 
   try {
     const upstream = await fetch(baseUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader,
-      },
+      headers,
       body: requestBody,
       // Серверний fetch у Next.js Edge не кешуємо — дані динамічні
       cache: 'no-store',
