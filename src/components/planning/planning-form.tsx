@@ -67,6 +67,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
   });
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [gapSearchOpen, setGapSearchOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -233,7 +234,26 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
     }]);
   };
 
+  const addGapClient = (client: Client1C) => {
+    const categoryLabel: Record<string, string> = {
+      active: 'Активний', sleeping: 'Сплячий', lost: 'Втрачений',
+      new: 'Новий', none: '',
+    };
+    setGapClosures(prev => [...prev, {
+      clientId1c: client.clientId,
+      clientName: client.clientName,
+      category: categoryLabel[client.category] ?? '',
+      potentialAmount: client.lastPurchaseAmount || 0,
+      stage: '', stageComment: '', stageDone: false,
+      completed: false, deadline: '', factAmount: 0,
+      lastPurchaseDate: client.lastPurchaseDate,
+      lastPurchaseAmount: client.lastPurchaseAmount,
+      manuallyAdded: false,
+    }]);
+  };
+
   const existingIds = forecasts.map(f => f.clientId1c);
+  const gapExistingIds = gapClosures.map(g => g.clientId1c).filter(Boolean);
 
   return (
     <div className="space-y-6">
@@ -479,9 +499,9 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
             </p>
           </div>
           {!readOnly && (
-            <Button onClick={() => setGapClosures(prev => [...prev, { clientId1c: '', clientName: '', category: '', potentialAmount: 0, stage: '', stageComment: '', stageDone: false, completed: false, deadline: '', factAmount: 0, lastPurchaseDate: null, lastPurchaseAmount: 0, manuallyAdded: true }])}
-              variant="outline" className="gap-1.5 text-[12px] h-8 rounded-xl border-[#c5e3f6] text-[#066aab] hover:bg-[#e8f4fc]">
-              <Plus className="h-3.5 w-3.5" /> Додати
+            <Button onClick={() => setGapSearchOpen(true)}
+              className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
+              <Search className="h-3.5 w-3.5" /> Додати клієнта
             </Button>
           )}
         </div>
@@ -682,6 +702,7 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
       </div>
 
       <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} segmentCode={segmentCode} />
+      <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[...gapExistingIds, ...existingIds]} segmentCode={segmentCode} />
     </div>
   );
 }
