@@ -57,8 +57,8 @@ export interface OneCClientPurchase {
   segmentName: string;
   /** Дата у форматі YYYY-MM-DD */
   lastPurchaseDate: string;
-  /** USD */
-  lastPurchaseAmount: number;
+  /** USD. 1С реально віддає рядок ("360.00") — адаптер приводить до number. */
+  lastPurchaseAmount: number | string;
 }
 
 export interface OneCPlanningClient {

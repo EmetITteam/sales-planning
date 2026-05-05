@@ -24,17 +24,34 @@ import type {
   Training,
 } from './types';
 
-// === Категорії клієнтів: 1С (UA) → UI (en code) ===
+// === Категорії клієнтів: 1С → UI (en code) ===
+// 1С реально віддає російською; залишаємо й українські варіанти на випадок
+// якщо колись перейдуть на UA. Регістр не критичний — нормалізуємо.
 const CATEGORY_MAP: Record<string, Client1C['category']> = {
-  'Активний': 'active',
-  'Сплячий': 'sleeping',
-  'Втрачений': 'lost',
-  'Новий': 'new',
-  'БезЗакупок': 'none',
+  // RU (як приходить зараз)
+  'активный': 'active',
+  'спящий': 'sleeping',
+  'потерянный': 'lost',
+  'новый': 'new',
+  'без закупок': 'none',
+  // UA (на майбутнє)
+  'активний': 'active',
+  'сплячий': 'sleeping',
+  'втрачений': 'lost',
+  'новий': 'new',
+  'беззакупок': 'none',
 };
 
-export function mapClientCategory(categoryUA: string): Client1C['category'] {
-  return CATEGORY_MAP[categoryUA] ?? 'none';
+export function mapClientCategory(category: string): Client1C['category'] {
+  return CATEGORY_MAP[category.trim().toLowerCase()] ?? 'none';
+}
+
+/** 1С повертає суми як рядок ("360.00") — приводимо до number. */
+function toNumber(v: number | string | null | undefined): number {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === 'number') return v;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 // === login ===
@@ -78,7 +95,7 @@ function adaptPlanningClient(c: OneCPlanningClient): Client1C {
   for (const p of c.purchases) {
     if (!latestDate || p.lastPurchaseDate > latestDate) {
       latestDate = p.lastPurchaseDate;
-      latestAmount = p.lastPurchaseAmount;
+      latestAmount = toNumber(p.lastPurchaseAmount);
     }
   }
 
@@ -88,7 +105,7 @@ function adaptPlanningClient(c: OneCPlanningClient): Client1C {
     category: mapClientCategory(c.category),
     lastPurchaseDate: latestDate,
     lastPurchaseAmount: latestAmount,
-    totalYTD: c.purchases.reduce((s, p) => s + p.lastPurchaseAmount, 0),
+    totalYTD: c.purchases.reduce((s, p) => s + toNumber(p.lastPurchaseAmount), 0),
     meetingsThisMonth: 0,
     callsThisMonth: 0,
     phone: c.phone,
@@ -107,13 +124,14 @@ export function adaptClientsForSegment(
 ): Client1C[] {
   return r.clients.map((c): Client1C => {
     const purchase = c.purchases.find(p => p.segmentCode === segmentCode);
+    const amount = toNumber(purchase?.lastPurchaseAmount);
     return {
       clientId: c.clientId,
       clientName: c.clientName,
       category: mapClientCategory(c.category),
       lastPurchaseDate: purchase?.lastPurchaseDate ?? null,
-      lastPurchaseAmount: purchase?.lastPurchaseAmount ?? 0,
-      totalYTD: purchase?.lastPurchaseAmount ?? 0,
+      lastPurchaseAmount: amount,
+      totalYTD: amount,
       meetingsThisMonth: 0,
       callsThisMonth: 0,
       phone: c.phone,
