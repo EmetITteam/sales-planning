@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { getMockTMSummaries, getMockClientStatsManager } from '@/lib/mock-data';
 import { formatUSD, formatPct, formatDateShort, pctOf, workingDaysLabel } from '@/lib/format';
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth } from '@/lib/working-days';
+import { useOneCData } from '@/lib/use-onec-data';
+import { adaptSalesFact } from '@/lib/onec-adapters';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import { BrandRow } from './brand-row';
@@ -28,14 +30,44 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   const [selectedSegment, setSelectedSegment] = useState('');
   const isViewing = !!targetUserLogin;
 
-  const { currentPeriod, liveMode } = useAppStore();
+  const { currentPeriod, liveMode, user } = useAppStore();
+  const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
   // Зріз даних: live → сьогодні, інакше → кінець обраного фільтру
   const asOfDate = liveMode ? new Date() : new Date(currentPeriod.weekEnd);
   const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
   const periodMonthLabel = getMonthName(asOfDate.getFullYear(), asOfDate.getMonth());
   const totalWorkingDaysInMonth = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
 
-  const summaries = getMockTMSummaries(asOfDate);
+  // Реальний факт продажів з 1С — без clientIds (загальна картина по сегментах).
+  // Period — YYYY-MM, asOfDate тільки в liveMode (інакше — повний місяць за дефолтом).
+  const periodKey = currentPeriod.month.slice(0, 7); // "2026-05"
+  const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : undefined;
+  const { data: factResponse, loading: factLoading, error: factError } = useOneCData(
+    'getSalesFact',
+    effectiveLogin !== 'anonymous'
+      ? { login: effectiveLogin, period: periodKey, clientIds: [], asOfDate: asOfIso }
+      : null,
+  );
+
+  // Беремо mock-сводки як основу (план + prevMonth + інше — поки моки),
+  // а fact заміняємо реальним з 1С коли є відповідь.
+  const summaries = useMemo(() => {
+    const base = getMockTMSummaries(asOfDate);
+    if (!factResponse) return base;
+    const realFacts = adaptSalesFact(factResponse).facts;
+    return base.map(b => {
+      const real = realFacts.find(f => f.segmentCode === b.segmentCode);
+      if (!real) return { ...b, factAmount: 0, factPercent: 0 };
+      const factAmount = real.totalAmount;
+      const factPercent = pctOf(factAmount, b.planAmount);
+      return {
+        ...b,
+        factAmount,
+        factPercent: Math.round(factPercent * 100) / 100,
+        clientCount: real.totalClientCount,
+      };
+    });
+  }, [asOfDate, factResponse]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = pctOf(totalFact, totalPlan);
@@ -71,6 +103,14 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
           <span className="font-semibold">👁 Перегляд менеджера:</span>
           <span className="font-bold">{targetUserName || targetUserLogin}</span>
           <span className="ml-auto text-[11px] text-amber-700">режим тільки для читання</span>
+        </div>
+      )}
+      {factLoading && (
+        <div className="text-[11px] text-muted-foreground animate-pulse">Завантаження факту з 1С...</div>
+      )}
+      {factError && (
+        <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700">
+          Не вдалось отримати факт з 1С: {factError}. Показано mock-дані.
         </div>
       )}
 
