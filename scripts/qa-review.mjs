@@ -293,7 +293,17 @@ async function main() {
             } else {
               log.note(`Повторне відкриття ELLANSE за ${reopenMs}мс — повільнувато для кешу`);
             }
-            await page.waitForTimeout(500);
+            // Чекаємо поки Supabase loadPlanning завершиться і input-и зрендеряться
+            // з реальними значеннями (а не від auto-populate з 0).
+            try {
+              await page.waitForFunction(
+                () => Array.from(document.querySelectorAll('input[type="number"]'))
+                  .some(el => el.value && el.value !== '0'),
+                { timeout: 5000 },
+              );
+            } catch {
+              // якщо за 5с жоден input не отримав значення — продовжуємо щоб діагностувати
+            }
 
             // Шукаємо унікальне значення в input-ах
             const inputs = page.locator('input[type="number"]');
