@@ -81,7 +81,9 @@ export const useAppStore = create<AppState>()(
       designVariant: 'cards',
       liveMode: false,
       clientsByLogin: {},
-      setUser: (user) => set({ user }),
+      setUser: (user) => set(user === null
+        ? { user: null, clientsByLogin: {}, liveMode: false }
+        : { user }),
       setCurrentPeriod: (period) => set({ currentPeriod: period }),
       setDesignVariant: (variant) => set({ designVariant: variant }),
       setLiveMode: (live) => set({ liveMode: live }),

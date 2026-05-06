@@ -203,26 +203,36 @@ export function adaptRegistryPlans(r: GetRegistryPlansResponse): RegistryPlan[] 
 
 // === getRegionData ===
 export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
+  // 1С майже точно віддасть числа рядками (як в Action 2/3/4) — обгортаємо.
+  // regionCode виводимо з REGIONS по назві (у спеці немає поля).
+  const region = REGIONS.find(reg => reg.name === r.region);
   return {
     regionName: r.region,
-    regionCode: '', // у спеці немає — frontend має знати з контексту (login)
+    regionCode: region?.code ?? '',
     asOfDate: r.asOfDate,
     prevMonthAsOfDate: r.prevMonthAsOfDate,
-    managers: r.managers.map(m => ({
-      login: m.managerLogin,
-      name: m.managerName,
-      totalPrevMonthFact: m.totalPrevMonthFact,
-      segments: m.segments.map(s => ({
-        segmentCode: s.segmentCode,
-        segmentName: s.segmentName,
-        planAmount: s.planAmountUSD,
-        factAmount: s.factAmountUSD,
-        factPercent: s.planAmountUSD > 0 ? (s.factAmountUSD / s.planAmountUSD) * 100 : 0,
-        prevMonthFactAmount: s.prevMonthFactUSD,
-        prevMonthPlanAmount: s.prevMonthPlanUSD,
-        prevMonthFactPercent: s.prevMonthFactPercent ?? 0,
-      })),
-    })),
+    managers: r.managers.map(m => {
+      const totalPrevMonthFact = toNumber(m.totalPrevMonthFact as number | string);
+      return {
+        login: m.managerLogin,
+        name: m.managerName,
+        totalPrevMonthFact,
+        segments: m.segments.map(s => {
+          const planAmount = toNumber(s.planAmountUSD as number | string);
+          const factAmount = toNumber(s.factAmountUSD as number | string);
+          return {
+            segmentCode: mapSegmentCode(s.segmentCode),
+            segmentName: s.segmentName,
+            planAmount,
+            factAmount,
+            factPercent: planAmount > 0 ? (factAmount / planAmount) * 100 : 0,
+            prevMonthFactAmount: toNumber(s.prevMonthFactUSD as number | string),
+            prevMonthPlanAmount: toNumber(s.prevMonthPlanUSD as number | string),
+            prevMonthFactPercent: toNumber(s.prevMonthFactPercent as number | string),
+          };
+        }),
+      };
+    }),
   };
 }
 

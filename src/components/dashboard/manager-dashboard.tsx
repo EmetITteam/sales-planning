@@ -1,14 +1,20 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { getMockTMSummaries, getMockClientStatsManager } from '@/lib/mock-data';
-import { formatUSD, formatPct, formatDateShort, pctOf, workingDaysLabel } from '@/lib/format';
+import { SEGMENTS, type ClientCategoryStats } from '@/lib/mock-data';
+import {
+  formatUSD, formatPct, formatDateShort, pctOf, workingDaysLabel,
+  calcForecastPercent,
+} from '@/lib/format';
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
-import { getWorkingDaysInMonth } from '@/lib/working-days';
+import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
 import { useOneCData } from '@/lib/use-onec-data';
 import { useClientsForPlanning } from '@/lib/use-clients-for-planning';
-import { adaptSalesFact, adaptRegistryPlans } from '@/lib/onec-adapters';
+import {
+  adaptSalesFact, adaptRegistryPlans, adaptClientsForPlanning,
+} from '@/lib/onec-adapters';
+import type { TMSummaryCard } from '@/lib/types';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import { BrandRow } from './brand-row';
@@ -53,10 +59,12 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   // План з 1С (Action 4). Один виклик повертає плани по ВСІХ менеджерах за місяць —
   // фільтруємо у adapter по 8 активних регіонах, далі тут — по поточному логіну.
   // dateFrom/dateTo — перше і останнє число місяця period.
-  const periodMonthDate = new Date(currentPeriod.month);
-  const dateFrom = currentPeriod.month.slice(0, 10); // "2026-05-01"
-  const lastDay = new Date(periodMonthDate.getFullYear(), periodMonthDate.getMonth() + 1, 0);
-  const dateTo = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+  // ⚠️ Парсимо вручну (НЕ через `new Date(string)`) — на серверах поза UTC
+  // `new Date("2026-05-01")` може дати квітень при .getMonth() в локальному часі.
+  const [py, pm] = currentPeriod.month.split('-').map(Number);
+  const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
+  const lastDayNum = new Date(py, pm, 0).getDate(); // День 0 наступного місяця = останній цього
+  const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
   const { data: plansResponse, loading: plansLoading, error: plansError } = useOneCData(
     'getRegistryPlans',
     effectiveLogin !== 'anonymous' ? { dateFrom, dateTo } : null,
@@ -83,33 +91,62 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
     refetch: refetchClients,
   } = useClientsForPlanning(effectiveLogin !== 'anonymous' ? effectiveLogin : null);
 
-  // Беремо mock-сводки як основу (prevMonth — поки моки, бо чекаємо Action 5),
-  // план заміняємо реальним з Action 4, fact — з Action 3.
-  const summaries = useMemo(() => {
-    const base = getMockTMSummaries(asOfDate);
+  // Агрегати по категоріях клієнтів (для ClientStatsCard) — з реальних даних 1С.
+  // Раніше getMockClientStatsManager() видавав статичні 131/45/8.
+  const clientStats: ClientCategoryStats | null = useMemo(() => {
+    if (!clientsResponse) return null;
+    const all = adaptClientsForPlanning(clientsResponse);
+    const active = all.filter(c => c.category === 'active').length;
+    const sleeping = all.filter(c => c.category === 'sleeping' || c.category === 'lost').length;
+    const newClients = all.filter(c => c.category === 'new').length;
+    // `bought` поки не маємо джерела — потрібен крос-метод Action 2 + Action 3
+    // (для кожної категорії порахувати скільки купило цього місяця). Зробимо коли
+    // буде відповідний метод/агрегація. Поки 0 щоб не вводити в оману.
+    return {
+      active: { total: active, bought: 0 },
+      sleeping: { total: sleeping, bought: 0 },
+      newClients: { total: newClients, bought: 0 },
+      totalBought: 0,
+      totalClients: all.length,
+    };
+  }, [clientsResponse]);
+
+  // Будуємо summaries з реальних даних 1С — без mock fallback.
+  // Action 4 → план, Action 3 → факт + кількість покупців.
+  // PrevMonth поля = 0 поки не готовий Action 5 (UI це коректно обробляє).
+  const summaries: TMSummaryCard[] = useMemo(() => {
     const realFacts = factResponse ? adaptSalesFact(factResponse).facts : null;
-    return base.map(b => {
-      // План: реальний з 1С якщо є запис для цього сегменту, інакше mock
-      const realPlan = myPlansBySegment?.get(b.segmentCode);
-      const planAmount = realPlan ?? b.planAmount;
+    const totalWD = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
+    const passedWD = getPassedWorkingDays(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
+    const calcPctValue = getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
 
-      // Факт: реальний з 1С, інакше 0 (1С відповіла але цього сегменту нема в продажах)
-      let factAmount = b.factAmount;
-      let clientCount = b.clientCount;
-      if (realFacts) {
-        const real = realFacts.find(f => f.segmentCode === b.segmentCode);
-        factAmount = real?.totalAmount ?? 0;
-        clientCount = real?.totalClientCount ?? 0;
-      }
+    return SEGMENTS.map(seg => {
+      const planAmount = myPlansBySegment?.get(seg.code) ?? 0;
+      const fact = realFacts?.find(f => f.segmentCode === seg.code);
+      const factAmount = fact?.totalAmount ?? 0;
+      const clientCount = fact?.totalClientCount ?? 0;
 
-      const factPercent = pctOf(factAmount, planAmount);
+      const factPct = pctOf(factAmount, planAmount);
+      const forecastPct = calcForecastPercent(factAmount, planAmount, passedWD, totalWD);
+
       return {
-        ...b,
+        segmentCode: seg.code,
+        segmentName: seg.name,
         planAmount,
         factAmount,
-        factPercent: Math.round(factPercent * 100) / 100,
+        factPercent: Math.round(factPct * 100) / 100,
+        calcPercent: Math.round(calcPctValue * 100) / 100,
+        forecastPercent: Math.round(forecastPct * 100) / 100,
+        expectedPercent: Math.round(factPct * 100) / 100, // = factPct поки нема managerPlan
+        hasManagerPlan: false, // буде true коли підключимо саб-агрегацію Supabase forecasts
+        deviationPercent: Math.round((forecastPct - calcPctValue) * 100) / 100,
+        prevMonthFactAmount: 0, // Action 5 — то todo
+        prevMonthPlanAmount: 0,
+        prevMonthFactPercent: 0,
+        weightedPipeline: factAmount * 1.5,
         clientCount,
-      };
+        status: 'draft',
+      } satisfies TMSummaryCard;
     });
   }, [asOfDate, factResponse, myPlansBySegment]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
@@ -130,17 +167,22 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
     ? summaries.reduce((s, t) => s + t.expectedPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
     : 0;
 
-  if (view === 'plan' && selectedSegment) return (
-    <PlanningForm
-      segmentCode={selectedSegment}
-      onBack={() => setView('dashboard')}
-      readOnly={liveMode || isViewing}
-      targetUserLogin={targetUserLogin}
-      clientsResponse={clientsResponse ?? null}
-      clientsLoading={clientsLoading}
-      clientsError={clientsError}
-    />
-  );
+  if (view === 'plan' && selectedSegment) {
+    const seg = summaries.find(s => s.segmentCode === selectedSegment);
+    return (
+      <PlanningForm
+        segmentCode={selectedSegment}
+        onBack={() => setView('dashboard')}
+        readOnly={liveMode || isViewing}
+        targetUserLogin={targetUserLogin}
+        clientsResponse={clientsResponse ?? null}
+        clientsLoading={clientsLoading}
+        clientsError={clientsError}
+        planAmount={seg?.planAmount ?? 0}
+        factAmount={seg?.factAmount ?? 0}
+      />
+    );
+  }
   if (view === 'control') return <ClientControlView onBack={() => setView('dashboard')} />;
 
   return (
@@ -230,7 +272,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
             </div>
           )}
         />
-        <ClientStatsCard stats={getMockClientStatsManager()} />
+        <ClientStatsCard stats={clientStats ?? { active: { total: 0, bought: 0 }, sleeping: { total: 0, bought: 0 }, newClients: { total: 0, bought: 0 }, totalBought: 0, totalClients: 0 }} />
       </div>
 
       {/* Control banner */}

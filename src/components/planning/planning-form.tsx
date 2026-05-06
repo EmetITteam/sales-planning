@@ -10,8 +10,9 @@ import { savePlanning, loadPlanning, unpackGapAction, unpackForecastStageComment
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
-import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
-import { adaptClientsForSegment, adaptClientsForPlanning } from '@/lib/onec-adapters';
+import { SEGMENTS } from '@/lib/mock-data';
+import { useOneCData } from '@/lib/use-onec-data';
+import { adaptClientsForSegment, adaptClientsForPlanning, adaptTrainings } from '@/lib/onec-adapters';
 import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
@@ -32,11 +33,17 @@ interface PlanningFormProps {
   /**
    * Клієнти з 1С — приходять з ManagerDashboard через кеш (Zustand).
    * Дозволяє формі відкриватись миттєво (без власного fetch'у). Якщо null —
-   * fallback на mock-PETARAN для демо/dev.
+   * клієнти ще завантажуються (показуємо placeholder).
    */
   clientsResponse?: GetClientsForPlanningResponse | null;
   clientsLoading?: boolean;
   clientsError?: string | null;
+  /**
+   * План і факт по цьому сегменту (з Action 4 + Action 3, обчислюється на дашборді).
+   * Передаємо через prop щоб форма не дублювала fetch.
+   */
+  planAmount?: number;
+  factAmount?: number;
 }
 
 /** Стабільний числовий ID з рядкового логіну — для Supabase user_id (number). */
@@ -60,29 +67,19 @@ const STAGE_OPTIONS = [
 export function PlanningForm({
   segmentCode, onBack, readOnly = false, targetUserLogin,
   clientsResponse = null, clientsLoading = false, clientsError = null,
+  planAmount: propPlanAmount = 0, factAmount: propFactAmount = 0,
 }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
-  const plan = MOCK_SALES_PLAN.plans.find(p => p.segmentCode === segmentCode);
-  const fact = MOCK_SALES_FACT.facts.find(f => f.segmentCode === segmentCode);
   const { currentPeriod, user } = useAppStore();
   // Дані вантажимо/зберігаємо для targetUserLogin (якщо переданий — РМ дивиться чужий план)
   // або для поточного увійшовшого user.login.
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
   const userId = loginToUserId(effectiveLogin);
 
-  // Початковий стан: для PETARAN — повний mock showcase; для інших сегментів —
-  // порожньо (Supabase підтягне реальні збережені прогнози у useEffect нижче).
-  // MOCK_FORECASTS_OTHER / MOCK_GAP_OTHER більше не показуємо — вони виглядали
-  // як «вже спланований» прогноз з невідомими клієнтами (Сидоренко/Єфіменко тощо),
-  // що збивало менеджерів.
-  const [forecasts, setForecasts] = useState<ForecastRow[]>(() => {
-    if (segmentCode === 'PETARAN') return MOCK_FORECASTS_PETARAN;
-    return [];
-  });
-  const [gapClosures, setGapClosures] = useState<GapClosureRow[]>(() => {
-    if (segmentCode === 'PETARAN') return MOCK_GAP_CLOSURES;
-    return [];
-  });
+  // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
+  // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
+  const [forecasts, setForecasts] = useState<ForecastRow[]>([]);
+  const [gapClosures, setGapClosures] = useState<GapClosureRow[]>([]);
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
   const [gapSearchOpen, setGapSearchOpen] = useState(false);
@@ -182,8 +179,8 @@ export function PlanningForm({
     setTimeout(() => setSaveResult(null), 3000);
   };
 
-  const planAmount = plan?.planAmount ?? 0;
-  const factAmount = fact?.totalAmount ?? 0;
+  const planAmount = propPlanAmount;
+  const factAmount = propFactAmount;
 
   // Розрахунок очікуваного по наростаючому періоду — РОБОЧІ ДНІ (не календарні),
   // як на дашборді. Свята України 2026 враховані у working-days.ts.
@@ -220,25 +217,30 @@ export function PlanningForm({
   // Клієнти приходять з ManagerDashboard через prop (кеш у Zustand store).
   // Власного fetch'у тут немає — це робить дашборд один раз при заході менеджера.
   const segmentClients: Client1C[] = useMemo(() => {
-    if (clientsResponse) {
-      // adaptClientsForSegment повертає ВСІХ клієнтів менеджера, з нулями для тих
-      // хто не купував цей бренд. Фільтруємо — нам тут потрібні тільки реальні
-      // клієнти цього сегменту (з ненульовою датою останньої покупки).
-      return adaptClientsForSegment(clientsResponse, segmentCode)
-        .filter(c => c.lastPurchaseDate !== null);
-    }
-    // Fallback: для PETARAN є mock; для інших сегментів — пусто (поки 1С не відповів)
-    if (segmentCode === 'PETARAN') return MOCK_CLIENTS_PETARAN;
-    return [];
+    if (!clientsResponse) return [];
+    // adaptClientsForSegment повертає ВСІХ клієнтів менеджера, з нулями для тих
+    // хто не купував цей бренд. Фільтруємо — тут потрібні тільки реальні клієнти
+    // цього сегменту (з ненульовою датою останньої покупки).
+    return adaptClientsForSegment(clientsResponse, segmentCode)
+      .filter(c => c.lastPurchaseDate !== null);
   }, [clientsResponse, segmentCode]);
 
   // Усі клієнти менеджера — для пошукового модала «Закриття розриву»,
   // де можна додати будь-якого клієнта незалежно від того чи купував він цей бренд.
   const allManagerClients: Client1C[] = useMemo(() => {
-    if (clientsResponse) return adaptClientsForPlanning(clientsResponse);
-    if (segmentCode === 'PETARAN') return MOCK_CLIENTS_PETARAN;
-    return [];
-  }, [clientsResponse, segmentCode]);
+    return clientsResponse ? adaptClientsForPlanning(clientsResponse) : [];
+  }, [clientsResponse]);
+
+  // Тренінги для блоку «Закриття розриву» — Action 6 з 1С.
+  // regionCode беремо з user.regionCode; для невідомих/демо — порожній список.
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const { data: trainingsResponse } = useOneCData(
+    'getTrainings',
+    user?.regionCode ? { regionCode: user.regionCode, dateFrom: todayIso } : null,
+  );
+  const trainings = useMemo(() => {
+    return trainingsResponse ? adaptTrainings(trainingsResponse) : [];
+  }, [trainingsResponse]);
 
   // Категорії клієнтів (з 1С) — для верхньої таблиці «Дані по клієнтах по ТМ»
   const activeClients = segmentClients.filter(c => c.category === 'active');
@@ -498,7 +500,7 @@ export function PlanningForm({
                       <Select
                         value={row.trainingId || undefined}
                         onValueChange={(trainingId) => {
-                          const t = MOCK_TRAININGS.find(x => x.trainingId === trainingId);
+                          const t = trainings.find(x => x.trainingId === trainingId);
                           updateForecast(row.clientId1c, 'trainingId', trainingId);
                           if (t) {
                             updateForecast(row.clientId1c, 'trainingName', t.trainingName);
@@ -511,7 +513,7 @@ export function PlanningForm({
                           <SelectValue placeholder="Обрати навчання з 1С..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {MOCK_TRAININGS.map(t => (
+                          {trainings.map(t => (
                             <SelectItem key={t.trainingId} value={t.trainingId}>
                               <span className="text-[12px]">
                                 {formatDate(t.date)} — {t.trainingName.length > 50 ? t.trainingName.slice(0, 50) + '…' : t.trainingName}
@@ -679,7 +681,7 @@ export function PlanningForm({
                         <Select
                           value={row.trainingId || undefined}
                           onValueChange={(trainingId) => {
-                            const t = MOCK_TRAININGS.find(x => x.trainingId === trainingId);
+                            const t = trainings.find(x => x.trainingId === trainingId);
                             updateGap(i, 'trainingId', trainingId);
                             if (t) {
                               updateGap(i, 'trainingName', t.trainingName);
@@ -693,7 +695,7 @@ export function PlanningForm({
                             <SelectValue placeholder="Обрати навчання з 1С..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {MOCK_TRAININGS.map(t => (
+                            {trainings.map(t => (
                               <SelectItem key={t.trainingId} value={t.trainingId}>
                                 <span className="text-[12px]">
                                   {formatDate(t.date)} — {t.trainingName.length > 50 ? t.trainingName.slice(0, 50) + '…' : t.trainingName}
