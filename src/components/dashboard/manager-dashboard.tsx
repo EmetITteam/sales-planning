@@ -8,7 +8,7 @@ import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth } from '@/lib/working-days';
 import { useOneCData } from '@/lib/use-onec-data';
 import { useClientsForPlanning } from '@/lib/use-clients-for-planning';
-import { adaptSalesFact } from '@/lib/onec-adapters';
+import { adaptSalesFact, adaptRegistryPlans } from '@/lib/onec-adapters';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import { BrandRow } from './brand-row';
@@ -50,6 +50,30 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
       : null,
   );
 
+  // План з 1С (Action 4). Один виклик повертає плани по ВСІХ менеджерах за місяць —
+  // фільтруємо у adapter по 8 активних регіонах, далі тут — по поточному логіну.
+  // dateFrom/dateTo — перше і останнє число місяця period.
+  const periodMonthDate = new Date(currentPeriod.month);
+  const dateFrom = currentPeriod.month.slice(0, 10); // "2026-05-01"
+  const lastDay = new Date(periodMonthDate.getFullYear(), periodMonthDate.getMonth() + 1, 0);
+  const dateTo = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+  const { data: plansResponse, loading: plansLoading, error: plansError } = useOneCData(
+    'getRegistryPlans',
+    effectiveLogin !== 'anonymous' ? { dateFrom, dateTo } : null,
+  );
+
+  // Map { segmentCode → planAmount } для поточного користувача.
+  const myPlansBySegment = useMemo(() => {
+    if (!plansResponse) return null;
+    const map = new Map<string, number>();
+    for (const p of adaptRegistryPlans(plansResponse)) {
+      if (p.managerLogin === effectiveLogin) {
+        map.set(p.segmentCode, (map.get(p.segmentCode) ?? 0) + p.planAmount);
+      }
+    }
+    return map;
+  }, [plansResponse, effectiveLogin]);
+
   // Клієнти з 1С — кешовано в Zustand. Один виклик при заході менеджера, передаємо
   // у PlanningForm через prop (форма миттєво відкривається без власного fetch'у).
   const {
@@ -59,25 +83,35 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
     refetch: refetchClients,
   } = useClientsForPlanning(effectiveLogin !== 'anonymous' ? effectiveLogin : null);
 
-  // Беремо mock-сводки як основу (план + prevMonth + інше — поки моки),
-  // а fact заміняємо реальним з 1С коли є відповідь.
+  // Беремо mock-сводки як основу (prevMonth — поки моки, бо чекаємо Action 5),
+  // план заміняємо реальним з Action 4, fact — з Action 3.
   const summaries = useMemo(() => {
     const base = getMockTMSummaries(asOfDate);
-    if (!factResponse) return base;
-    const realFacts = adaptSalesFact(factResponse).facts;
+    const realFacts = factResponse ? adaptSalesFact(factResponse).facts : null;
     return base.map(b => {
-      const real = realFacts.find(f => f.segmentCode === b.segmentCode);
-      if (!real) return { ...b, factAmount: 0, factPercent: 0 };
-      const factAmount = real.totalAmount;
-      const factPercent = pctOf(factAmount, b.planAmount);
+      // План: реальний з 1С якщо є запис для цього сегменту, інакше mock
+      const realPlan = myPlansBySegment?.get(b.segmentCode);
+      const planAmount = realPlan ?? b.planAmount;
+
+      // Факт: реальний з 1С, інакше 0 (1С відповіла але цього сегменту нема в продажах)
+      let factAmount = b.factAmount;
+      let clientCount = b.clientCount;
+      if (realFacts) {
+        const real = realFacts.find(f => f.segmentCode === b.segmentCode);
+        factAmount = real?.totalAmount ?? 0;
+        clientCount = real?.totalClientCount ?? 0;
+      }
+
+      const factPercent = pctOf(factAmount, planAmount);
       return {
         ...b,
+        planAmount,
         factAmount,
         factPercent: Math.round(factPercent * 100) / 100,
-        clientCount: real.totalClientCount,
+        clientCount,
       };
     });
-  }, [asOfDate, factResponse]);
+  }, [asOfDate, factResponse, myPlansBySegment]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = pctOf(totalFact, totalPlan);
@@ -118,17 +152,20 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
           <span className="ml-auto text-[11px] text-amber-700">режим тільки для читання</span>
         </div>
       )}
-      {(factLoading || clientsLoading) && (
+      {(factLoading || clientsLoading || plansLoading) && (
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground animate-pulse">
           <RefreshCw className="h-3 w-3 animate-spin" />
-          {factLoading && clientsLoading ? 'Завантаження факту і клієнтів з 1С...'
-            : factLoading ? 'Завантаження факту з 1С...'
-            : 'Завантаження клієнтів з 1С...'}
+          Завантаження даних з 1С...
         </div>
       )}
       {factError && (
         <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700">
           Не вдалось отримати факт з 1С: {factError}. Показано mock-дані.
+        </div>
+      )}
+      {plansError && (
+        <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700">
+          Не вдалось отримати плани з 1С: {plansError}. Показано mock-плани.
         </div>
       )}
       {clientsError && (
