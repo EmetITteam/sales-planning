@@ -11,6 +11,8 @@ import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_FORECASTS_OTHER, MOCK_GAP_OTHER, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
+import { useOneCData } from '@/lib/use-onec-data';
+import { adaptClientsForSegment, adaptClientsForPlanning } from '@/lib/onec-adapters';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
@@ -183,9 +185,29 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
   // Розрив після прогнозу = розрив − прогноз незавершених − факт закриття розриву
   const gapAfterForecast = Math.max(0, gapFromExpected - pendingForecastTotal - gapFactTotal);
 
-  // Категорії клієнтів (з 1С)
-  const activeClients = MOCK_CLIENTS_PETARAN.filter(c => c.category === 'active');
-  const sleepingClients = MOCK_CLIENTS_PETARAN.filter(c => c.category === 'sleeping' || c.category === 'lost');
+  // Клієнти з 1С — фільтруємо по поточному сегменту, fallback на mock для PETARAN.
+  const { data: clientsResponse, loading: clientsLoading, error: clientsError } = useOneCData(
+    'getClientsForPlanning',
+    effectiveLogin !== 'anonymous' ? { login: effectiveLogin } : null,
+  );
+  const segmentClients: Client1C[] = useMemo(() => {
+    if (clientsResponse) return adaptClientsForSegment(clientsResponse, segmentCode);
+    // Fallback: для PETARAN є mock; для інших сегментів — пусто (поки 1С не відповів)
+    if (segmentCode === 'PETARAN') return MOCK_CLIENTS_PETARAN;
+    return [];
+  }, [clientsResponse, segmentCode]);
+
+  // Усі клієнти менеджера — для пошукового модала «Закриття розриву»,
+  // де можна додати будь-якого клієнта незалежно від того чи купував він цей бренд.
+  const allManagerClients: Client1C[] = useMemo(() => {
+    if (clientsResponse) return adaptClientsForPlanning(clientsResponse);
+    if (segmentCode === 'PETARAN') return MOCK_CLIENTS_PETARAN;
+    return [];
+  }, [clientsResponse, segmentCode]);
+
+  // Категорії клієнтів (з 1С) — для верхньої таблиці «Дані по клієнтах по ТМ»
+  const activeClients = segmentClients.filter(c => c.category === 'active');
+  const sleepingClients = segmentClients.filter(c => c.category === 'sleeping' || c.category === 'lost');
   const activeSum = activeClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
   const sleepingSum = sleepingClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
   const categories: ClientCategorySummary[] = [
@@ -297,8 +319,10 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
 
       {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === */}
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
-        <div className="px-5 py-3 border-b border-[#e2e7ef]">
+        <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
           <h3 className="text-[14px] font-bold">Дані по клієнтах по ТМ</h3>
+          {clientsLoading && <span className="text-[11px] text-muted-foreground animate-pulse">завантажуємо клієнтів з 1С...</span>}
+          {clientsError && <span className="text-[11px] text-rose-600" title={clientsError}>1С недоступний — показуємо порожньо</span>}
         </div>
         <div className="divide-y divide-[#f0f2f8]">
           {categories.map(cat => (
@@ -701,8 +725,8 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
         </Button>
       </div>
 
-      <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} segmentCode={segmentCode} />
-      <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[...gapExistingIds, ...existingIds]} segmentCode={segmentCode} />
+      <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} clients={segmentClients} loading={clientsLoading} />
+      <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[...gapExistingIds, ...existingIds]} clients={allManagerClients} loading={clientsLoading} />
     </div>
   );
 }

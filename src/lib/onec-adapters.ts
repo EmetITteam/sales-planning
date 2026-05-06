@@ -54,6 +54,17 @@ function toNumber(v: number | string | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// === Мапа кодів сегментів: 1С → UI ===
+// 1С повертає `ДРУГИЕТМ` для категорії «Інші ТМ», у нас в UI/моках цей сегмент
+// називається `OTHER`. Решта 8 брендів збігаються (PETARAN/NEURAMIS/ESSE/...).
+const SEGMENT_CODE_MAP: Record<string, string> = {
+  'ДРУГИЕТМ': 'OTHER',
+};
+
+function mapSegmentCode(code: string): string {
+  return SEGMENT_CODE_MAP[code] ?? code;
+}
+
 // === login ===
 export function adaptLogin(r: LoginResponse): UserSession {
   return {
@@ -123,7 +134,7 @@ export function adaptClientsForSegment(
   segmentCode: string,
 ): Client1C[] {
   return r.clients.map((c): Client1C => {
-    const purchase = c.purchases.find(p => p.segmentCode === segmentCode);
+    const purchase = c.purchases.find(p => mapSegmentCode(p.segmentCode) === segmentCode);
     const amount = toNumber(purchase?.lastPurchaseAmount);
     return {
       clientId: c.clientId,
@@ -144,7 +155,7 @@ export function adaptClientsForSegment(
 export function adaptSalesFact(r: GetSalesFactResponse): SalesFactResponse {
   return {
     facts: r.segments.map(s => ({
-      segmentCode: s.segmentCode,
+      segmentCode: mapSegmentCode(s.segmentCode),
       totalAmount: s.totalFactUSD,
       totalClientCount: s.totalClientCount,
       clients: s.clients.map(c => ({

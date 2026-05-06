@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MOCK_CLIENTS_PETARAN } from '@/lib/mock-data';
 import type { Client1C } from '@/lib/types';
 import { Search, Phone, MapPin, Calendar } from 'lucide-react';
 
@@ -13,7 +12,10 @@ interface ClientSearchModalProps {
   onClose: () => void;
   onSelect: (client: Client1C) => void;
   excludeIds: string[];
-  segmentCode?: string; // для майбутньої інтеграції з 1С
+  /** Список клієнтів для пошуку. Передається з planning-form (вже відфільтрований по сегменту з 1С). */
+  clients: Client1C[];
+  /** true якщо клієнти ще завантажуються з 1С (показуємо плейсхолдер замість «не знайдено»). */
+  loading?: boolean;
 }
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
@@ -24,15 +26,13 @@ const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
   none: { label: 'Без категорії', color: 'bg-gray-50 text-gray-600' },
 };
 
-export function ClientSearchModal({ open, onClose, onSelect, excludeIds, segmentCode }: ClientSearchModalProps) {
+export function ClientSearchModal({ open, onClose, onSelect, excludeIds, clients, loading }: ClientSearchModalProps) {
   const [query, setQuery] = useState('');
 
-  // В реальности — вызов 1С action findClient з фільтром по segmentCode
-  // TODO: використовувати segmentCode для запиту до 1С замість MOCK_CLIENTS_PETARAN
-  const allClients = MOCK_CLIENTS_PETARAN.filter(c => !excludeIds.includes(c.clientId));
+  const available = clients.filter(c => !excludeIds.includes(c.clientId));
   const filtered = query.length >= 2
-    ? allClients.filter(c => c.clientName.toLowerCase().includes(query.toLowerCase()))
-    : allClients;
+    ? available.filter(c => c.clientName.toLowerCase().includes(query.toLowerCase()))
+    : available;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -52,7 +52,11 @@ export function ClientSearchModal({ open, onClose, onSelect, excludeIds, segment
 
         {/* Results */}
         <div className="max-h-[400px] overflow-y-auto">
-          {filtered.length === 0 ? (
+          {loading && available.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground animate-pulse">
+              Завантажуємо клієнтів з 1С...
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
               {query.length < 2 ? 'Введіть мінімум 2 символи' : 'Клієнтів не знайдено'}
             </div>
