@@ -12,6 +12,7 @@ import type {
   GetClientsForPlanningResponse,
   OneCPlanningClient,
   GetSalesFactResponse,
+  GetRegistryPlansResponse,
   GetRegionDataResponse,
   GetTrainingsResponse,
   OneCTraining,
@@ -20,9 +21,11 @@ import type {
   UserSession,
   Client1C,
   SalesFactResponse,
+  RegistryPlan,
   RegionDataResponse,
   Training,
 } from './types';
+import { isActiveDivision, REGIONS } from './regions';
 
 // === Категорії клієнтів: 1С → UI (en code) ===
 // 1С реально віддає російською; залишаємо й українські варіанти на випадок
@@ -167,6 +170,35 @@ export function adaptSalesFact(r: GetSalesFactResponse): SalesFactResponse {
       })),
     })),
   };
+}
+
+// === getRegistryPlans ===
+/**
+ * Адаптер для Action 4. Реальна 1С повертає плани по ВСІХ підрозділах
+ * (включно з архівними/неактивними типу `Лазерхауз*`, `Адасса`, `Коллцентр`).
+ * Тут залишаємо тільки 8 активних регіонів (REGIONS — див. regions.ts),
+ * приводимо planAmountUSD до number, мапаємо segmentCode (ДРУГИЕТМ → OTHER).
+ *
+ * Записи з порожнім managerLogin (1С не має email для деяких користувачів)
+ * залишаємо — UI вирішить що з ними робити (можливо показувати як «без менеджера»
+ * або агрегувати у «нерозподілений план регіону»).
+ */
+export function adaptRegistryPlans(r: GetRegistryPlansResponse): RegistryPlan[] {
+  return r.plans
+    .filter(p => isActiveDivision(p.divisionName))
+    .map(p => {
+      const region = REGIONS.find(reg => reg.name === p.divisionName);
+      return {
+        period: p.period,
+        managerLogin: p.managerLogin || '',
+        managerName: p.managerName,
+        regionName: p.divisionName,
+        regionCode: region?.code ?? '',
+        segmentCode: mapSegmentCode(p.segmentCode),
+        segmentName: p.segmentName,
+        planAmount: toNumber(p.planAmountUSD),
+      };
+    });
 }
 
 // === getRegionData ===

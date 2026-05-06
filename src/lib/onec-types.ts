@@ -124,11 +124,13 @@ export interface OneCRegistryPlan {
   period: string;
   divisionCode: string;
   divisionName: string;
-  managerCode: string;
+  /** v2.3: логін менеджера в ІБ 1С (раніше було managerCode). Може бути порожнім. */
+  managerLogin: string;
   managerName: string;
   segmentCode: string;
   segmentName: string;
-  planAmountUSD: number;
+  /** 1С реально віддає рядком ("26634.00") — адаптер приводить до number. */
+  planAmountUSD: number | string;
 }
 
 export interface GetRegistryPlansResponse {

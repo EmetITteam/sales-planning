@@ -19,10 +19,11 @@ export const REGIONS: Region[] = [
   { code: 'DNP', name: 'Дніпро' },
   { code: 'KYV', name: 'Київ' },
   { code: 'ODS', name: 'Одеса' },
-  { code: 'LVV', name: 'Львів' },
   { code: 'KHK', name: 'Харків' },
   { code: 'ZPR', name: 'Запоріжжя' },
   { code: 'VNN', name: 'Вінниця' },
+  { code: 'MIK', name: 'Миколаєв' },
+  { code: 'ZHT', name: 'Житомир' },
 ];
 
 /** Знайти регіон за кодом. Повертає undefined якщо не знайдений. */
@@ -34,4 +35,16 @@ export function regionByCode(code: string | undefined | null): Region | undefine
 /** Назва регіону за кодом. Якщо не знайдений — повертає сам код як fallback. */
 export function regionName(code: string | undefined | null): string {
   return regionByCode(code)?.name ?? code ?? '—';
+}
+
+/**
+ * Підрозділи з 1С які ми ВВАЖАЄМО «активними планувальними».
+ * Решта (Адасса, Лазерхауз*, Полтава*, Чернівці*, Коллцентр) — ігноруємо.
+ * Використовується для фільтрації відповіді `getRegistryPlans`.
+ */
+export const ACTIVE_DIVISION_NAMES = new Set(REGIONS.map(r => r.name));
+
+/** Чи входить підрозділ з 1С у наш список «активних» (для планувальних регіонів). */
+export function isActiveDivision(divisionName: string | undefined | null): boolean {
+  return !!divisionName && ACTIVE_DIVISION_NAMES.has(divisionName);
 }

@@ -401,12 +401,6 @@ export const MOCK_ALL_REGIONS: RegionSummary[] = [
     ],
   },
   {
-    regionName: 'Львів', regionCode: 'LVV',
-    managers: [
-      { login: 'm6@emet.com', name: 'Гончарук Олена', segments: makeSegments([4500, 1250, 7200, 2900, 2200, 650, 3600, 1800, 4200, 980, 8900, 2800, 11200, 3600, 5200, 1650]) },
-    ],
-  },
-  {
     regionName: 'Харків', regionCode: 'KHK',
     managers: [
       { login: 'm7@emet.com', name: 'Лисенко Андрій', segments: makeSegments([6200, 1400, 9200, 3100, 3200, 710, 4600, 2200, 5800, 1350, 11800, 3200, 14800, 4100, 7100, 2100]) },
@@ -423,6 +417,18 @@ export const MOCK_ALL_REGIONS: RegionSummary[] = [
     regionName: 'Вінниця', regionCode: 'VNN',
     managers: [
       { login: 'm10@emet.com', name: 'Петренко Сергій', segments: makeSegments([3800, 850, 5800, 1900, 2100, 440, 3100, 1450, 3700, 820, 7500, 2100, 9200, 2500, 4500, 1280]) },
+    ],
+  },
+  {
+    regionName: 'Миколаєв', regionCode: 'MIK',
+    managers: [
+      { login: 'm11@emet.com', name: 'Левченко Наталя', segments: makeSegments([3500, 800, 5400, 1750, 1900, 420, 2900, 1300, 3500, 780, 7000, 1950, 8800, 2400, 4200, 1200]) },
+    ],
+  },
+  {
+    regionName: 'Житомир', regionCode: 'ZHT',
+    managers: [
+      { login: 'm12@emet.com', name: 'Романюк Олег', segments: makeSegments([3200, 720, 5000, 1620, 1750, 380, 2700, 1200, 3200, 720, 6500, 1800, 8200, 2200, 3900, 1100]) },
     ],
   },
 ];

@@ -171,6 +171,23 @@ export interface GapActions {
   action3: string;
 }
 
+// === Реєстр планів продажів (з Action 4 1С) ===
+export interface RegistryPlan {
+  /** Початок місяця плану (YYYY-MM-DD) */
+  period: string;
+  /** Логін менеджера (для join з фактом). Може бути порожнім для деяких 1С-записів. */
+  managerLogin: string;
+  managerName: string;
+  /** Назва регіону як її бачить UI (з нашого ACTIVE_DIVISION_NAMES) */
+  regionName: string;
+  /** Код регіону у нашому форматі (REGIONS) */
+  regionCode: string;
+  /** Код бренду після SEGMENT_CODE_MAP (PETARAN/NEURAMIS/.../OTHER) */
+  segmentCode: string;
+  segmentName: string;
+  planAmount: number;
+}
+
 // === Зведена картка ТМ на дашборді ===
 // v2.1: переосмислено три % — calc / forecast / expected + порівняння з минулим місяцем.
 export interface TMSummaryCard {
