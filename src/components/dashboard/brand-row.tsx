@@ -93,10 +93,16 @@ export function BrandRow({
           <span className="text-[14px] font-bold truncate">{segmentName}</span>
         </div>
 
-        {/* 2. Бейдж */}
-        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center ${tl.bg} ${tl.color}`}>
-          {tl.label}
-        </span>
+        {/* 2. Бейдж — або стандартний світлофор, або «План не виставлено» */}
+        {planAmount === 0 ? (
+          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center bg-slate-100 text-slate-500" title="План на цей сегмент ще не заведено в 1С">
+            Без плану
+          </span>
+        ) : (
+          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center ${tl.bg} ${tl.color}`}>
+            {tl.label}
+          </span>
+        )}
 
         {/* 3. Факт % + відхилення */}
         <div className="flex items-baseline gap-1.5">

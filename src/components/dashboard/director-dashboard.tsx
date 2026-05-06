@@ -55,7 +55,7 @@ export function DirectorDashboard() {
         </div>
         <div>
           <h2 className="text-lg font-bold">Огляд по компанії</h2>
-          <p className="text-[12px] text-muted-foreground">{rms.length} {rms.length === 1 ? 'РМ' : 'РМ'} · {user?.fullName}</p>
+          <p className="text-[12px] text-muted-foreground">{rms.length} {rms.length === 1 ? 'регіональний менеджер' : 'регіональних менеджерів'} · {user?.fullName}</p>
         </div>
       </div>
 

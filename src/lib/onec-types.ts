@@ -156,7 +156,7 @@ export interface OneCRegionSegment {
   segmentName: string;
   planAmountUSD: number;
   factAmountUSD: number;
-  /** v2.1: факт минулого місяця на той самий N-й робочий день */
+  /** v2.3: ПОВНИЙ факт минулого місяця (від 1-го по останній день). Адаптер toNumber. */
   prevMonthFactUSD: number;
   prevMonthPlanUSD: number;
   /** Якщо в минулому місяці плану не було — може бути null */
@@ -177,7 +177,7 @@ export interface GetRegionDataResponse {
   region: string;
   /** v2.1: дата зрізу поточного місяця */
   asOfDate: string;
-  /** v2.1: відповідна дата минулого місяця (N-й робочий день) */
+  /** v2.3: останній день минулого місяця (повний минулий місяць) */
   prevMonthAsOfDate: string;
   managers: OneCRegionManager[];
 }

@@ -16,10 +16,13 @@ interface SkeletonProps {
 
 export function DashboardSkeleton({ role }: SkeletonProps) {
   const topcardCount = role === 'manager' ? 4 : 5;
+  // ❗ Tailwind не виводить динамічні класи з template literals
+  // (`grid-cols-${topcardCount}` не існував би в bundle). Static map.
+  const colsClass = topcardCount === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-5';
   return (
     <div className="space-y-8 animate-pulse">
       {/* Топ-картки */}
-      <div className={`grid grid-cols-2 lg:grid-cols-${topcardCount} gap-3`}>
+      <div className={`grid grid-cols-2 ${colsClass} gap-3`}>
         {Array.from({ length: topcardCount }).map((_, i) => (
           <SkeletonCard key={i} />
         ))}

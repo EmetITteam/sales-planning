@@ -15,6 +15,7 @@ import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from
 import { useOneCData } from '@/lib/use-onec-data';
 import { useClientsForPlanning } from '@/lib/use-clients-for-planning';
 import { useRegistryPlans } from '@/lib/use-registry-plans';
+import { DashboardSkeleton } from './dashboard-skeleton';
 import {
   adaptSalesFact, adaptRegistryPlans, adaptClientsForPlanning,
 } from '@/lib/onec-adapters';
@@ -203,6 +204,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   }
   if (view === 'control') return <ClientControlView onBack={() => setView('dashboard')} />;
 
+  // Skeleton при першому завантаженні — поки нема ні плану ні факту з 1С,
+  // а у демо-режиму данні мокові (миттєво) і ми сюди не потрапляємо.
+  // Альтернатива (mock-based scrum): показувати zero-value cards з спіннером —
+  // виглядає зламано. Skeleton чесніший.
+  const showSkeleton = !isDemo && (factLoading || plansLoading) && totalPlan === 0 && totalFact === 0;
+  if (showSkeleton) return <DashboardSkeleton role="manager" />;
+
   return (
     <div className="space-y-8">
       {isViewing && (
@@ -214,30 +222,31 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
       )}
       {(factLoading || clientsLoading || plansLoading) && (
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground animate-pulse">
-          <RefreshCw className="h-3 w-3 animate-spin" />
+          <RefreshCw className="h-3 w-3 animate-spin" aria-label="Завантаження" />
           Завантаження даних з 1С...
         </div>
       )}
-      {factError && (
-        <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
-          <span>Не вдалось отримати факт з 1С: {factError}.</span>
-          <button onClick={refetchFact} className="ml-auto font-semibold underline hover:no-underline">Спробувати ще</button>
-        </div>
-      )}
-      {plansError && (
-        <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
-          <span>Не вдалось отримати плани з 1С: {plansError}.</span>
-          <button onClick={refetchPlans} className="ml-auto font-semibold underline hover:no-underline">Спробувати ще</button>
-        </div>
-      )}
-      {clientsError && (
-        <div className="px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[12px] text-amber-800 flex items-center gap-2">
-          <span>Клієнти з 1С недоступні: {clientsError}.</span>
-          <button onClick={refetchClients} className="ml-auto text-[11px] font-semibold underline hover:no-underline">
-            Спробувати ще раз
-          </button>
-        </div>
-      )}
+      {(factError || plansError || clientsError) && (() => {
+        // Об'єднуємо всі помилки 1С в один баннер з одним Retry — не псуємо
+        // ще більше і так стресовий момент сепаратними червоними блоками.
+        const sources: string[] = [];
+        if (factError) sources.push(`факт (${factError})`);
+        if (plansError) sources.push(`план (${plansError})`);
+        if (clientsError) sources.push(`клієнти (${clientsError})`);
+        const retryAll = () => {
+          if (factError) refetchFact();
+          if (plansError) refetchPlans();
+          if (clientsError) refetchClients();
+        };
+        return (
+          <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
+            <span>Помилка 1С: {sources.join('; ')}</span>
+            <button onClick={retryAll} className="ml-auto font-semibold underline hover:no-underline">
+              Спробувати ще
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Hero metrics — компактні картки у стилі watermark */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -295,20 +304,23 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
         <ClientStatsCard stats={clientStats ?? { active: { total: 0, bought: 0 }, sleeping: { total: 0, bought: 0 }, newClients: { total: 0, bought: 0 }, totalBought: 0, totalClients: 0 }} />
       </div>
 
-      {/* Control banner */}
-      <button
-        onClick={() => setView('control')}
-        className="w-full flex items-center gap-4 bg-gradient-to-r from-[#066aab]/5 via-[#0880cc]/5 to-[#066aab]/5 hover:from-[#066aab]/10 hover:to-[#0880cc]/10 rounded-2xl border border-[#066aab]/15 p-5 transition-all duration-300 cursor-pointer group"
-      >
-        <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
-          <ClipboardCheck className="h-5 w-5" />
-        </div>
-        <div className="text-left flex-1">
-          <p className="text-[15px] font-bold text-foreground">Контроль виконання</p>
-          <p className="text-[13px] text-muted-foreground mt-0.5">Понедільний план → факт по клієнтах за місяць</p>
-        </div>
-        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[#066aab] group-hover:translate-x-1 transition-all" />
-      </button>
+      {/* Control banner — приховано до часу коли реально буде що показати.
+          ClientControlView зараз стаб «у розробці», вести користувача туди = розчарування. */}
+      {false && (
+        <button
+          onClick={() => setView('control')}
+          className="w-full flex items-center gap-4 bg-gradient-to-r from-[#066aab]/5 via-[#0880cc]/5 to-[#066aab]/5 hover:from-[#066aab]/10 hover:to-[#0880cc]/10 rounded-2xl border border-[#066aab]/15 p-5 transition-all duration-300 cursor-pointer group"
+        >
+          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
+            <ClipboardCheck className="h-5 w-5" />
+          </div>
+          <div className="text-left flex-1">
+            <p className="text-[15px] font-bold text-foreground">Контроль виконання</p>
+            <p className="text-[13px] text-muted-foreground mt-0.5">Понедільний план → факт по клієнтах за місяць</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[#066aab] group-hover:translate-x-1 transition-all" />
+        </button>
+      )}
 
       {/* Бренди — горизонтальні строки через переиспользуемый BrandRow */}
       <div>

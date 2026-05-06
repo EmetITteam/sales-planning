@@ -489,11 +489,16 @@ export function PlanningForm({
                   )}
 
                   {/* Етап */}
-                  <Select value={row.stage || undefined} onValueChange={(v) => { if (v) updateForecast(row.clientId1c, 'stage', v); }} disabled={readOnly}>
+                  <Select
+                    value={row.stage || '__none__'}
+                    onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v === '__none__' ? '' : v)}
+                    disabled={readOnly}
+                  >
                     <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
                       <SelectValue placeholder="Оберіть..." />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__"><span className="text-muted-foreground">— Без етапу —</span></SelectItem>
                       {STAGE_OPTIONS.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.value}
@@ -670,11 +675,16 @@ export function PlanningForm({
                     )}
 
                     {/* Етап */}
-                    <Select value={row.stage || undefined} onValueChange={(v) => { if (v) updateGap(i, 'stage', v); }} disabled={readOnly}>
+                    <Select
+                      value={row.stage || '__none__'}
+                      onValueChange={(v) => updateGap(i, 'stage', v === '__none__' ? '' : v)}
+                      disabled={readOnly}
+                    >
                       <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
                         <SelectValue placeholder="Оберіть..." />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__none__"><span className="text-muted-foreground">— Без етапу —</span></SelectItem>
                         {STAGE_OPTIONS.map(opt => (
                           <SelectItem key={opt.value} value={opt.value}>
                             {opt.value}
@@ -781,30 +791,33 @@ export function PlanningForm({
         </div>
       </div>
 
-      {/* Зберегти */}
-      <div className="flex items-center justify-end gap-3 pb-8">
-        {saveResult && (
-          <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${
-            saveResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-          }`}>
-            {saveResult.msg}
-          </span>
-        )}
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
-        >
-          {saving ? (
-            <>
-              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              Зберігаю...
-            </>
-          ) : (
-            <><Save className="h-4 w-4" /> Зберегти</>
+      {/* Sticky save bar — внизу екрана. Менеджер у довгій формі (25+ рядків)
+          бачить «Зберегти» весь час, не треба скролити. */}
+      {!readOnly && (
+        <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex items-center justify-end gap-3 z-10">
+          {saveResult && (
+            <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${
+              saveResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+            }`} role="status">
+              {saveResult.msg}
+            </span>
           )}
-        </Button>
-      </div>
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+          >
+            {saving ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-label="Збереження..."><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                Зберігаю...
+              </>
+            ) : (
+              <><Save className="h-4 w-4" /> Зберегти</>
+            )}
+          </Button>
+        </div>
+      )}
 
       <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} clients={segmentClients} loading={clientsLoading} />
       <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[...gapExistingIds, ...existingIds]} clients={allManagerClients} loading={clientsLoading} />
