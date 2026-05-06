@@ -79,13 +79,16 @@ export async function POST(request: NextRequest) {
     errors.push('Missing period metadata (weekStart/weekEnd/month) — потрібно для foreign key');
   }
 
-  // 0b. Upsert user — задовольняємо forecasts.user_id → users.id.
-  // Реальна схема users (з помилок Postgres): id, login, full_name (NOT NULL).
+  // 0b. Upsert user — задовольняємо forecasts.user_id + gap_closures.user_id → users.id.
+  // Схема users перевірена: id, login, full_name (NOT NULL), role, region, region_code.
   if (!errors.length && userMeta?.login) {
     const { error: upsertUser } = await supabase.from('users').upsert({
       id: uid,
       login: userMeta.login,
-      full_name: userMeta.name || userMeta.login,
+      full_name: userMeta.fullName || userMeta.login,
+      role: userMeta.role || null,
+      region: userMeta.region || null,
+      region_code: userMeta.regionCode || null,
     }, { onConflict: 'id' });
     if (upsertUser) errors.push(`Upsert user: ${upsertUser.message}`);
   }

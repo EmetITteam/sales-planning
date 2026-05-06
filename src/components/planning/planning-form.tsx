@@ -165,7 +165,10 @@ export function PlanningForm({
       },
       userMeta: {
         login: effectiveLogin,
-        name: targetUserLogin ? '' : (user?.fullName || effectiveLogin),
+        fullName: targetUserLogin ? effectiveLogin : (user?.fullName || effectiveLogin),
+        role: targetUserLogin ? undefined : user?.role,
+        region: targetUserLogin ? undefined : user?.region,
+        regionCode: targetUserLogin ? undefined : user?.regionCode,
       },
       forecasts,
       gapClosures,

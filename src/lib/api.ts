@@ -11,9 +11,16 @@ interface SavePlanningParams {
   period: Pick<PeriodInfo, 'weekStart' | 'weekEnd' | 'month'>;
   /**
    * Метадані користувача — потрібно щоб upsert-ити рядок у `users`
-   * (теж FK з forecasts.user_id). Логін і ПІБ беремо з store.user.
+   * (FK з forecasts.user_id + gap_closures.user_id).
+   * Реальна схема users: id, login, full_name (NOT NULL), role, region, region_code.
    */
-  userMeta: { login: string; name: string };
+  userMeta: {
+    login: string;
+    fullName: string;
+    role?: string;
+    region?: string;
+    regionCode?: string;
+  };
   forecasts: ForecastRow[];
   gapClosures: GapClosureRow[];
   gapActions: GapActions;
