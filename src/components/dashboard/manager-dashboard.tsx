@@ -7,6 +7,7 @@ import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth } from '@/lib/working-days';
 import { useOneCData } from '@/lib/use-onec-data';
+import { useClientsForPlanning } from '@/lib/use-clients-for-planning';
 import { adaptSalesFact } from '@/lib/onec-adapters';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
@@ -15,7 +16,7 @@ import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
 import {
   DollarSign, Target, TrendingUp, TrendingDown, ChevronRight,
-  ClipboardCheck,
+  ClipboardCheck, RefreshCw,
 } from 'lucide-react';
 
 interface ManagerDashboardProps {
@@ -48,6 +49,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
       ? { login: effectiveLogin, period: periodKey, clientIds: [], asOfDate: asOfIso }
       : null,
   );
+
+  // Клієнти з 1С — кешовано в Zustand. Один виклик при заході менеджера, передаємо
+  // у PlanningForm через prop (форма миттєво відкривається без власного fetch'у).
+  const {
+    data: clientsResponse,
+    loading: clientsLoading,
+    error: clientsError,
+    refetch: refetchClients,
+  } = useClientsForPlanning(effectiveLogin !== 'anonymous' ? effectiveLogin : null);
 
   // Беремо mock-сводки як основу (план + prevMonth + інше — поки моки),
   // а fact заміняємо реальним з 1С коли є відповідь.
@@ -92,6 +102,9 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
       onBack={() => setView('dashboard')}
       readOnly={liveMode || isViewing}
       targetUserLogin={targetUserLogin}
+      clientsResponse={clientsResponse ?? null}
+      clientsLoading={clientsLoading}
+      clientsError={clientsError}
     />
   );
   if (view === 'control') return <ClientControlView onBack={() => setView('dashboard')} />;
@@ -105,12 +118,25 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
           <span className="ml-auto text-[11px] text-amber-700">режим тільки для читання</span>
         </div>
       )}
-      {factLoading && (
-        <div className="text-[11px] text-muted-foreground animate-pulse">Завантаження факту з 1С...</div>
+      {(factLoading || clientsLoading) && (
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground animate-pulse">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          {factLoading && clientsLoading ? 'Завантаження факту і клієнтів з 1С...'
+            : factLoading ? 'Завантаження факту з 1С...'
+            : 'Завантаження клієнтів з 1С...'}
+        </div>
       )}
       {factError && (
         <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700">
           Не вдалось отримати факт з 1С: {factError}. Показано mock-дані.
+        </div>
+      )}
+      {clientsError && (
+        <div className="px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[12px] text-amber-800 flex items-center gap-2">
+          <span>Клієнти з 1С недоступні: {clientsError}.</span>
+          <button onClick={refetchClients} className="ml-auto text-[11px] font-semibold underline hover:no-underline">
+            Спробувати ще раз
+          </button>
         </div>
       )}
 
@@ -187,7 +213,18 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
 
       {/* Бренди — горизонтальні строки через переиспользуемый BrandRow */}
       <div>
-        <h3 className="text-[15px] font-bold mb-4">Торгові марки</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-[15px] font-bold">Торгові марки</h3>
+          {!clientsLoading && clientsResponse && (
+            <button
+              onClick={refetchClients}
+              title="Перезавантажити клієнтів з 1С (якщо щойно додав/змінив у 1С)"
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors"
+            >
+              <RefreshCw className="h-3 w-3" /> Оновити з 1С
+            </button>
+          )}
+        </div>
         <div className="space-y-2">
           {summaries.map((tm) => (
             <BrandRow

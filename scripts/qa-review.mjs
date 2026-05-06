@@ -78,6 +78,22 @@ async function main() {
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
   page.on('pageerror', err => consoleErrors.push(`pageerror: ${err.message}`));
 
+  // Логуємо всі неуспішні fetch запити (особливо до /api/onec) — для діагностики 401
+  const failedRequests = [];
+  page.on('response', async (resp) => {
+    if (!resp.ok() && resp.url().includes('/api/onec')) {
+      const req = resp.request();
+      let bodyPreview = '';
+      try { bodyPreview = (req.postData() || '').slice(0, 200); } catch {}
+      failedRequests.push({
+        url: resp.url(),
+        status: resp.status(),
+        method: req.method(),
+        body: bodyPreview,
+      });
+    }
+  });
+
   try {
     // === 1. Відкриваємо сайт ===
     log.step('1. Відкриваємо сайт + логін');
@@ -258,6 +274,12 @@ async function main() {
     const realErrors = consoleErrors.filter(e => !is401(e));
     if (real401s.length > 0) {
       log.note(`${real401s.length} 401-х від 1С (app не падає, але варто розібратись чому 1С відмовив)`);
+    }
+    if (failedRequests.length > 0) {
+      log.note(`Неуспішні запити до /api/onec (для діагностики 401):`);
+      failedRequests.forEach(r => {
+        console.log(`     ${r.method} ${r.status} | body: ${r.body}`);
+      });
     }
     if (realErrors.length === 0) {
       log.ok(`Інших помилок в консолі немає`);

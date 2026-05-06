@@ -11,8 +11,8 @@ import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
-import { useOneCData } from '@/lib/use-onec-data';
 import { adaptClientsForSegment, adaptClientsForPlanning } from '@/lib/onec-adapters';
+import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
@@ -29,6 +29,14 @@ interface PlanningFormProps {
    * Якщо не передано — береться поточний логін зі store.
    */
   targetUserLogin?: string;
+  /**
+   * Клієнти з 1С — приходять з ManagerDashboard через кеш (Zustand).
+   * Дозволяє формі відкриватись миттєво (без власного fetch'у). Якщо null —
+   * fallback на mock-PETARAN для демо/dev.
+   */
+  clientsResponse?: GetClientsForPlanningResponse | null;
+  clientsLoading?: boolean;
+  clientsError?: string | null;
 }
 
 /** Стабільний числовий ID з рядкового логіну — для Supabase user_id (number). */
@@ -49,7 +57,10 @@ const STAGE_OPTIONS = [
   { value: 'Навчання', icon: GraduationCap },
 ];
 
-export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUserLogin }: PlanningFormProps) {
+export function PlanningForm({
+  segmentCode, onBack, readOnly = false, targetUserLogin,
+  clientsResponse = null, clientsLoading = false, clientsError = null,
+}: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
   const plan = MOCK_SALES_PLAN.plans.find(p => p.segmentCode === segmentCode);
   const fact = MOCK_SALES_FACT.facts.find(f => f.segmentCode === segmentCode);
@@ -194,11 +205,8 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
   // Розрив після прогнозу = розрив − прогноз незавершених − факт закриття розриву
   const gapAfterForecast = Math.max(0, gapFromExpected - pendingForecastTotal - gapFactTotal);
 
-  // Клієнти з 1С — фільтруємо по поточному сегменту, fallback на mock для PETARAN.
-  const { data: clientsResponse, loading: clientsLoading, error: clientsError } = useOneCData(
-    'getClientsForPlanning',
-    effectiveLogin !== 'anonymous' ? { login: effectiveLogin } : null,
-  );
+  // Клієнти приходять з ManagerDashboard через prop (кеш у Zustand store).
+  // Власного fetch'у тут немає — це робить дашборд один раз при заході менеджера.
   const segmentClients: Client1C[] = useMemo(() => {
     if (clientsResponse) {
       // adaptClientsForSegment повертає ВСІХ клієнтів менеджера, з нулями для тих

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { UserSession, PeriodInfo } from './types';
+import type { GetClientsForPlanningResponse } from './onec-types';
 import { weekEndToId } from './periods';
 
 /**
@@ -59,10 +60,17 @@ interface AppState {
    * У live-режимі drill-down у форму планування — read-only.
    */
   liveMode: boolean;
+  /**
+   * Кеш `getClientsForPlanning` per login. Не persistимо — живе у пам'яті
+   * до закриття вкладки. Перший виклик 1-3с, всі наступні переходи
+   * між брендами / повернення на дашборд — миттєво.
+   */
+  clientsByLogin: Record<string, GetClientsForPlanningResponse | undefined>;
   setUser: (user: UserSession | null) => void;
   setCurrentPeriod: (period: PeriodInfo) => void;
   setDesignVariant: (variant: 'cards' | 'table') => void;
   setLiveMode: (live: boolean) => void;
+  setClientsForLogin: (login: string, data: GetClientsForPlanningResponse | undefined) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -72,16 +80,22 @@ export const useAppStore = create<AppState>()(
       currentPeriod: getDefaultPeriod(),
       designVariant: 'cards',
       liveMode: false,
+      clientsByLogin: {},
       setUser: (user) => set({ user }),
       setCurrentPeriod: (period) => set({ currentPeriod: period }),
       setDesignVariant: (variant) => set({ designVariant: variant }),
       setLiveMode: (live) => set({ liveMode: live }),
+      setClientsForLogin: (login, data) => set(state => ({
+        clientsByLogin: { ...state.clientsByLogin, [login]: data },
+      })),
     }),
     {
       name: 'emet-sales-planning',
       storage: createJSONStorage(() => sessionStorage),
       // Persistимо лише session (user) і вибраний період. liveMode — НЕ persistимо
       // (за вимогою користувача: live це тимчасовий перегляд).
+      // clientsByLogin — теж НЕ persistимо: 564+ клієнтів у sessionStorage —
+      // зайве, кеш має жити рівно до закриття tab.
       partialize: (state) => ({
         user: state.user,
         currentPeriod: state.currentPeriod,
