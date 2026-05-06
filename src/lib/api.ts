@@ -186,9 +186,10 @@ interface LoadPlanningResult {
   } | null;
 }
 
-export async function loadPlanning(userId: number, segmentCode: string, periodId: number): Promise<LoadPlanningResult | null> {
+export async function loadPlanning(login: string, segmentCode: string, periodId: number): Promise<LoadPlanningResult | null> {
   try {
-    const res = await fetch(`/api/planning?userId=${userId}&segmentCode=${segmentCode}&periodId=${periodId}`);
+    const params = new URLSearchParams({ login, segmentCode, periodId: String(periodId) });
+    const res = await fetch(`/api/planning?${params.toString()}`);
     if (!res.ok) return null;
     return await res.json();
   } catch {

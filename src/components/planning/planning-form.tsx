@@ -15,6 +15,7 @@ import {
 } from '@/lib/mock-data';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptClientsForSegment, adaptClientsForPlanning, adaptTrainings } from '@/lib/onec-adapters';
+import { loginToUserId } from '@/lib/login-to-user-id';
 import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
 import {
@@ -48,15 +49,7 @@ interface PlanningFormProps {
   factAmount?: number;
 }
 
-/** Стабільний числовий ID з рядкового логіну — для Supabase user_id (number). */
-function loginToUserId(login: string): number {
-  let hash = 0;
-  for (let i = 0; i < login.length; i++) {
-    hash = ((hash << 5) - hash) + login.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
+// loginToUserId переїхав у спільний @/lib/login-to-user-id (потрібен і серверу).
 
 // Етапи доступні і в "Прогноз по активних", і в "Закриття розриву".
 // Опція "Навчання" розкриває селектор обучень з 1С (плюс поле коментаря).
@@ -99,7 +92,7 @@ export function PlanningForm({
 
   // FEATURE: завантаження збережених даних з Supabase
   useEffect(() => {
-    loadPlanning(userId, segmentCode, currentPeriod.id).then(data => {
+    loadPlanning(effectiveLogin, segmentCode, currentPeriod.id).then(data => {
       setSupabaseLoaded(true);
       if (!data) return; // fallback на mock дані
       if (data.forecasts.length > 0) {

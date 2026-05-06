@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { validateApiRequest, validateRequiredParams } from '@/lib/api-auth';
+import { loginToUserId } from '@/lib/login-to-user-id';
 import { NextRequest } from 'next/server';
 
 // GET — завантажити дані планування
@@ -8,15 +9,19 @@ export async function GET(request: NextRequest) {
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
 
   const { searchParams } = request.nextUrl;
-  const validation = validateRequiredParams(
-    { userId: searchParams.get('userId'), segmentCode: searchParams.get('segmentCode'), periodId: searchParams.get('periodId') },
-    ['userId', 'periodId']
-  );
-  if (!validation.valid) return Response.json({ error: validation.error }, { status: 400 });
+  const login = searchParams.get('login');
+  const segmentCode = searchParams.get('segmentCode');
+  const periodIdStr = searchParams.get('periodId');
 
-  const pid = validation.parsed.periodId;
-  const uid = validation.parsed.userId;
-  const segmentCode = searchParams.get('segmentCode')!;
+  if (!login || !segmentCode || !periodIdStr) {
+    return Response.json({ error: 'Missing: login, segmentCode, periodId' }, { status: 400 });
+  }
+  const pid = parseInt(periodIdStr, 10);
+  if (isNaN(pid)) {
+    return Response.json({ error: 'periodId must be a number' }, { status: 400 });
+  }
+  // SECURITY: userId обчислюємо з login на сервері — клієнт не може запросити чужі дані.
+  const uid = loginToUserId(login);
 
   const [forecasts, gapClosures, summary] = await Promise.all([
     supabase.from('forecasts').select('*')
@@ -58,16 +63,25 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { userId, segmentCode, periodId, period, userMeta, forecasts, gapClosures, summary } = body;
+  const { userId: bodyUserId, segmentCode, periodId, period, userMeta, forecasts, gapClosures, summary } = body;
 
-  if (!userId || !segmentCode || !periodId) {
-    return Response.json({ error: 'Missing: userId, segmentCode, periodId' }, { status: 400 });
+  if (!segmentCode || !periodId || !userMeta?.login) {
+    return Response.json({ error: 'Missing: segmentCode, periodId, userMeta.login' }, { status: 400 });
   }
 
   const pid = parseInt(String(periodId), 10);
-  const uid = parseInt(String(userId), 10);
-  if (isNaN(pid) || isNaN(uid)) {
-    return Response.json({ error: 'userId and periodId must be numbers' }, { status: 400 });
+  if (isNaN(pid)) {
+    return Response.json({ error: 'periodId must be a number' }, { status: 400 });
+  }
+
+  // SECURITY: userId завжди обчислюємо з userMeta.login на сервері.
+  // Якщо клієнт прислав свій (з "user_id":42) — ігноруємо. Це гарантує що
+  // зловмисник не може записати дані під чужим userId підмінивши body.
+  const uid = loginToUserId(String(userMeta.login));
+  if (bodyUserId !== undefined && parseInt(String(bodyUserId), 10) !== uid) {
+    console.warn('[planning.POST] userId mismatch — using server-computed:', {
+      bodyUserId, login: userMeta.login, computedUid: uid,
+    });
   }
 
   const errors: string[] = [];
