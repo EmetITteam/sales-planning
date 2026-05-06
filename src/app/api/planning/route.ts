@@ -81,13 +81,20 @@ export async function POST(request: NextRequest) {
 
   // 0b. Upsert user — задовольняємо forecasts.user_id → users.id.
   // userId — хеш від login (loginToUserId), у БД такого рядка може не бути.
+  // Структура users-таблиці варіативна, тому пробуємо мінімум (id + login),
+  // потім fallback тільки id, і навіть тільки id з порожнім login.
   if (!errors.length && userMeta?.login) {
-    const { error: upsertUser } = await supabase.from('users').upsert({
-      id: uid,
-      login: userMeta.login,
-      name: userMeta.name || userMeta.login,
-    }, { onConflict: 'id' });
-    if (upsertUser) errors.push(`Upsert user: ${upsertUser.message}`);
+    let upsertErr: string | undefined;
+    const tryUpsert = async (payload: Record<string, unknown>) => {
+      const { error } = await supabase.from('users').upsert(payload, { onConflict: 'id' });
+      return error?.message;
+    };
+    upsertErr = await tryUpsert({ id: uid, login: userMeta.login });
+    if (upsertErr && /column.*login/i.test(upsertErr)) {
+      // Нема колонки login — пробуємо тільки id
+      upsertErr = await tryUpsert({ id: uid });
+    }
+    if (upsertErr) errors.push(`Upsert user: ${upsertErr}`);
   }
 
   // 1. Видалити старі прогнози
