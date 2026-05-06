@@ -47,3 +47,6 @@ supabase/.temp/
 
 # QA artifacts (screenshots, videos)
 scripts/qa-output/
+
+# Claude Code local task state
+.claude/

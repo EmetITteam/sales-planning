@@ -8,6 +8,14 @@ import { NextRequest } from 'next/server';
 //     `x-api-key` що дорівнює env API_SECRET_KEY.
 //   - dev режим (NODE_ENV !== production) → дозволено все без ключа.
 
+// У production обовʼязково мати реальний ключ — інакше fallback `dev-secret-key-change-me`
+// дозволив би будь-кому посилати X-API-KEY: dev-secret-key-change-me і обходити auth.
+if (process.env.NODE_ENV === 'production' && !process.env.API_SECRET_KEY) {
+  throw new Error(
+    'API_SECRET_KEY env variable is required in production. ' +
+    'Set it in Vercel → Settings → Environment Variables.'
+  );
+}
 const API_SECRET = process.env.API_SECRET_KEY || 'dev-secret-key-change-me';
 const ALLOWED_ORIGINS = [
   'https://sales-planning-lyart.vercel.app',

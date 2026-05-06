@@ -49,7 +49,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   // Period — YYYY-MM, asOfDate тільки в liveMode (інакше — повний місяць за дефолтом).
   const periodKey = currentPeriod.month.slice(0, 7); // "2026-05"
   const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : undefined;
-  const { data: factResponse, loading: factLoading, error: factError } = useOneCData(
+  const { data: factResponse, loading: factLoading, error: factError, refetch: refetchFact } = useOneCData(
     'getSalesFact',
     effectiveLogin !== 'anonymous'
       ? { login: effectiveLogin, period: periodKey, clientIds: [], asOfDate: asOfIso }
@@ -65,7 +65,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
   const lastDayNum = new Date(py, pm, 0).getDate(); // День 0 наступного місяця = останній цього
   const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
-  const { data: plansResponse, loading: plansLoading, error: plansError } = useOneCData(
+  const { data: plansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useOneCData(
     'getRegistryPlans',
     effectiveLogin !== 'anonymous' ? { dateFrom, dateTo } : null,
   );
@@ -201,13 +201,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
         </div>
       )}
       {factError && (
-        <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700">
-          Не вдалось отримати факт з 1С: {factError}. Показано mock-дані.
+        <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
+          <span>Не вдалось отримати факт з 1С: {factError}.</span>
+          <button onClick={refetchFact} className="ml-auto font-semibold underline hover:no-underline">Спробувати ще</button>
         </div>
       )}
       {plansError && (
-        <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700">
-          Не вдалось отримати плани з 1С: {plansError}. Показано mock-плани.
+        <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
+          <span>Не вдалось отримати плани з 1С: {plansError}.</span>
+          <button onClick={refetchPlans} className="ml-auto font-semibold underline hover:no-underline">Спробувати ще</button>
         </div>
       )}
       {clientsError && (

@@ -1,90 +1,36 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUSD, formatPct, formatDateShort, getTrafficLight, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
-import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
-import { getMonthName } from '@/lib/periods';
-import { MOCK_REGION_DATA, MOCK_ALL_REGIONS, SEGMENTS, getFactScaleRatio, getMockClientStatsRegion } from '@/lib/mock-data';
 import { useAppStore } from '@/lib/store';
 import { ManagerDashboard } from './manager-dashboard';
-import { BrandRow } from './brand-row';
-import { MetricCard } from './metric-card';
-import { ClientStatsCard } from './client-stats-card';
-import { Target, DollarSign, TrendingUp, TrendingDown, MapPin, ChevronRight, ClipboardList, Eye } from 'lucide-react';
+import { ChevronRight, MapPin, ClipboardList, AlertTriangle, Eye } from 'lucide-react';
 
 interface RMDashboardProps {
-  regionCode?: string;
+  regionCode?: string; // приходить при drill-down з директорського дашборду
 }
 
 type RMView = 'dashboard' | 'myPlanning' | 'viewManager';
 
-export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
+/**
+ * Тимчасовий вигляд РМ-дашборду — поки 1С не здав Action 5 (getRegionData).
+ * Показуємо:
+ *  - назву регіону + кількість менеджерів зі store.user (Action 1)
+ *  - кнопку «Моє планування» (відкриває менеджерський дашборд для самого РМ)
+ *  - список підлеглих менеджерів (зі store.user.managedUsers) — клік відкриває
+ *    повний menager-дашборд цього менеджера у режимі перегляду
+ *  - банер пояснення чому нема агрегованих план/факт цифр регіону
+ *
+ * Коли Action 5 буде готовий — переписуємо на реальні агрегати з getRegionData
+ * + adaptRegionData (адаптер уже готовий).
+ */
+export function RMDashboard({ regionCode: _regionCode }: RMDashboardProps = {}) {
   const [view, setView] = useState<RMView>('dashboard');
   const [selectedManager, setSelectedManager] = useState<string>('');
 
-  const { currentPeriod, liveMode } = useAppStore();
-  const asOfDate = liveMode ? new Date() : new Date(currentPeriod.weekEnd);
-  const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
-  const factScale = getFactScaleRatio(asOfDate);
+  const { user } = useAppStore();
+  const regionName = user?.region || '—';
+  const managers = user?.managedUsers ?? [];
 
-  // Якщо передано regionCode (drill-down з директорського дашборду) — обираємо той регіон.
-  // Інакше — дефолт MOCK_REGION_DATA (Дніпро) для звичайного входу під РМ.
-  const region = regionCode
-    ? (MOCK_ALL_REGIONS.find(r => r.regionCode === regionCode) ?? MOCK_REGION_DATA)
-    : MOCK_REGION_DATA;
-
-  // Норма календаря — % робочих днів пройдено на дату зрізу
-  const calcPct = getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
-
-  // Масштабуємо mock-факт пропорційно дати зрізу (імітуємо getSalesFact(asOfDate))
-  const scaledManagers = region.managers.map(m => ({
-    ...m,
-    segments: m.segments.map(s => ({
-      ...s,
-      factAmount: Math.round(s.factAmount * factScale),
-      prevMonthFactAmount: s.prevMonthFactAmount !== undefined
-        ? Math.round(s.prevMonthFactAmount * factScale)
-        : undefined,
-    })),
-    totalPrevMonthFact: m.totalPrevMonthFact !== undefined
-      ? Math.round(m.totalPrevMonthFact * factScale)
-      : undefined,
-  }));
-
-  const regionTotals = SEGMENTS.map(seg => {
-    let totalPlan = 0, totalFact = 0, prevFact = 0, prevPlan = 0;
-    scaledManagers.forEach(m => {
-      const s = m.segments.find(ms => ms.segmentCode === seg.code);
-      if (s) {
-        totalPlan += s.planAmount;
-        totalFact += s.factAmount;
-        prevFact += s.prevMonthFactAmount ?? 0;
-        prevPlan += s.prevMonthPlanAmount ?? 0;
-      }
-    });
-    const pct = pctOf(totalFact, totalPlan);
-    const prevPct = pctOf(prevFact, prevPlan);
-    return {
-      code: seg.code, name: seg.name,
-      totalPlan, totalFact, pct,
-      prevFact, prevPlan, prevPct,
-      deviation: pct - calcPct,
-    };
-  });
-
-  const grandPlan = regionTotals.reduce((s, r) => s + r.totalPlan, 0);
-  const grandFact = regionTotals.reduce((s, r) => s + r.totalFact, 0);
-  const grandPct = pctOf(grandFact, grandPlan);
-  const grandPrevFact = regionTotals.reduce((s, r) => s + r.prevFact, 0);
-  const grandPrevPlan = regionTotals.reduce((s, r) => s + r.prevPlan, 0);
-  const grandPrevPct = pctOf(grandPrevFact, grandPrevPlan);
-  // Прогноз (run-rate) і Очікуваний (mock = факт + 60% розриву) — узгоджено з BrandRow
-  const totalWD = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
-  const passedWD = getPassedWorkingDays(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
-  const grandForecastPct = calcForecastPercent(grandFact, grandPlan, passedWD, totalWD);
-  const grandExpectedPct = pctOf(grandFact + 0.6 * Math.max(0, grandPlan - grandFact), grandPlan);
-
-  // Моє планування — показує дашборд менеджера
   if (view === 'myPlanning') {
     return (
       <div className="space-y-4">
@@ -96,98 +42,42 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     );
   }
 
-  // Перегляд менеджера — повний дашборд менеджера (всі 9 брендів) у read-only.
-  // Кліки на бренди відкриють форму планування з targetUserLogin = той менеджер.
   if (view === 'viewManager') {
-    const manager = region.managers.find(m => m.login === selectedManager);
     return (
       <div className="space-y-4">
         <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до регіону
         </button>
-        <ManagerDashboard targetUserLogin={selectedManager} targetUserName={manager?.name} />
+        <ManagerDashboard targetUserLogin={selectedManager} targetUserName={selectedManager} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2.5">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
           <MapPin className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-lg font-bold">Регіон: {region.regionName}</h2>
-          <p className="text-[12px] text-muted-foreground">{region.managers.length} менеджерів</p>
+          <h2 className="text-lg font-bold">Регіон: {regionName}</h2>
+          <p className="text-[12px] text-muted-foreground">{managers.length} {managers.length === 1 ? 'менеджер' : 'менеджерів'}</p>
         </div>
       </div>
 
-      {/* Metrics — компактний watermark layout, 5 карток */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <MetricCard
-          iconSize="md"
-          icon={<Target />}
-          iconColor="text-[#066aab]"
-          label="План регіону"
-          value={formatUSD(grandPlan)}
-          isAmount
-          caption={<span className="text-muted-foreground">{getMonthName(asOfDate.getFullYear(), asOfDate.getMonth())} · {workingDaysLabel(totalWD)}</span>}
-        />
-        <MetricCard
-          iconSize="md"
-          icon={<DollarSign />}
-          iconColor="text-emerald-500"
-          label="Факт"
-          value={formatUSD(grandFact)}
-          isAmount
-          caption={grandPrevFact > 0 && (() => {
-            const dyn = grandFact - grandPrevFact;
-            const better = dyn >= 0;
-            const Arrow = better ? TrendingUp : TrendingDown;
-            return (
-              <span className="space-y-0.5 block">
-                <span className="text-muted-foreground block">
-                  Мин. міс.: <span className="amount font-semibold text-foreground whitespace-nowrap">{formatUSD(grandPrevFact)}</span>
-                  <span className="whitespace-nowrap"> / <span className="font-semibold text-foreground">{grandPrevPct.toFixed(1)}%</span></span>
-                </span>
-                <span className={`font-semibold block ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
-                  <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                </span>
-              </span>
-            );
-          })()}
-        />
-        <MetricCard
-          iconSize="md"
-          icon={grandPct >= calcPct ? <TrendingUp /> : <TrendingDown />}
-          iconColor={grandPct >= calcPct ? 'text-emerald-500' : 'text-rose-500'}
-          label="Виконання"
-          value={(
-            <span className="flex items-baseline gap-2">
-              <span>{grandPct.toFixed(1)}%</span>
-              <span className={`text-[12px] font-bold ${grandPct >= calcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {grandPct - calcPct >= 0 ? '+' : ''}{(grandPct - calcPct).toFixed(1)}%
-              </span>
-            </span>
-          )}
-          caption={(
-            <div className="space-y-0.5 leading-snug">
-              <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(calcPct)}</span></p>
-              <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(grandForecastPct)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(grandExpectedPct)}</span></p>
-            </div>
-          )}
-        />
-        <MetricCard
-          iconSize="md"
-          icon={<MapPin />}
-          iconColor="text-amber-500"
-          label="Менеджерів"
-          value={String(region.managers.length)}
-          caption={<span className="text-muted-foreground">регіон {region.regionName}</span>}
-        />
-        <ClientStatsCard stats={getMockClientStatsRegion()} />
+      {/* Banner: Action 5 not ready */}
+      <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
+        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+        <div className="space-y-1">
+          <p className="font-semibold">Регіональні агрегати ще не підключені</p>
+          <p className="text-amber-700">
+            Метод 1С <code className="px-1 rounded bg-amber-100">getRegionData</code> (Action 5)
+            ще у розробці. Поки тут видно тільки список менеджерів, кнопку «Моє планування»
+            та можливість провалитись у дашборд кожного менеджера — там вже реальні дані з 1С.
+            Сума план/факт по регіону з'явиться коли програміст здасть Action 5.
+          </p>
+        </div>
       </div>
 
       {/* Моє планування */}
@@ -205,154 +95,31 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[#066aab] group-hover:translate-x-1 transition-all" />
       </button>
 
-      {/* Manager cards */}
+      {/* Manager list */}
       <div>
-        <h3 className="text-[15px] font-bold mb-4">Менеджери</h3>
-        <div className="space-y-4">
-          {scaledManagers.map(manager => {
-            const mTotal = manager.segments.reduce((s, seg) => s + seg.factAmount, 0);
-            const mPlan = manager.segments.reduce((s, seg) => s + seg.planAmount, 0);
-            const mPct = pctOf(mTotal, mPlan);
-            const mTl = getTrafficLight(mPct, calcPct);
-
-            // v2.1: динаміка vs минулий місяць на той же N-й робочий день
-            const prevTotal = manager.totalPrevMonthFact ?? manager.segments.reduce((s, seg) => s + (seg.prevMonthFactAmount ?? 0), 0);
-            const prevPlan = manager.segments.reduce((s, seg) => s + (seg.prevMonthPlanAmount ?? 0), 0);
-            const prevPct = pctOf(prevTotal, prevPlan);
-            const dynAmount = mTotal - prevTotal;
-            const dynBetter = dynAmount >= 0;
-
-            return (
-              <div key={manager.login}
-                onClick={() => { setSelectedManager(manager.login); setView('viewManager'); }}
-                className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_36px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer group"
+        <h3 className="text-[15px] font-bold mb-4">Менеджери регіону</h3>
+        {managers.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground py-4 text-center">
+            У 1С не вказані підлеглі менеджери для цього РМ.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {managers.map(login => (
+              <button
+                key={login}
+                onClick={() => { setSelectedManager(login); setView('viewManager'); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all duration-200 cursor-pointer group"
               >
-                {/* === DESKTOP (md+): один рядок === */}
-                <div className="hidden md:flex items-center justify-between px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[14px] font-bold text-[#066aab]">
-                      {manager.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-[14px] font-bold">{manager.name}</p>
-                      <span className={`text-[11px] font-semibold ${mTl.color}`}>{mTl.label}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-5">
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">План</p>
-                      <p className="text-[15px] font-bold font-mono amount">{formatUSD(mPlan)}</p>
-                    </div>
-                    <div className="w-px h-8 bg-[#e2e7ef]" />
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт</p>
-                      <p className="text-[15px] font-extrabold font-mono amount">{formatUSD(mTotal)}</p>
-                    </div>
-                    {prevTotal > 0 && (
-                      <>
-                        <div className="w-px h-8 bg-[#e2e7ef]" />
-                        <div className="text-right">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Мин. міс.</p>
-                          <p className="text-[12px] font-bold leading-tight">
-                            <span className="amount">{formatUSD(prevTotal)}</span>
-                            <span className="text-muted-foreground"> / {prevPct.toFixed(1)}%</span>
-                          </p>
-                          <p className={`text-[11px] font-bold flex items-center justify-end gap-0.5 leading-tight ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                            <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-                          </p>
-                        </div>
-                      </>
-                    )}
-                    <div className="w-16">
-                      <div className="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
-                          style={{ width: `${Math.min(mPct, 100)}%` }} />
-                      </div>
-                      <p className="text-[10px] text-center text-muted-foreground mt-0.5 font-semibold">{mPct.toFixed(1)}%</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-muted-foreground/40 group-hover:text-[#066aab] transition-colors">
-                      <Eye className="h-4 w-4" />
-                      <ChevronRight className="h-4 w-4" />
-                    </div>
-                  </div>
+                <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[12px] font-bold text-[#066aab] shrink-0">
+                  {login.charAt(0).toUpperCase()}
                 </div>
-
-                {/* === MOBILE (<md): stacked === */}
-                <div className="md:hidden flex items-start gap-2.5 px-3 py-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[13px] font-bold text-[#066aab] shrink-0 mt-0.5">
-                    {manager.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-[14px] font-bold truncate flex-1">{manager.name}</p>
-                      <span className={`text-[10px] font-bold ${mTl.color}`}>{mTl.label}</span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mb-1.5">
-                      <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
-                        style={{ width: `${Math.min(mPct, 100)}%` }} />
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] flex-wrap gap-1.5">
-                      <span className="text-muted-foreground">
-                        Факт <span className="font-bold text-foreground amount">{formatUSD(mTotal)}</span>
-                        <span className="text-muted-foreground/50"> / </span>
-                        <span className="amount text-muted-foreground/70">{formatUSD(mPlan)}</span>
-                      </span>
-                      <span className="font-bold">{mPct.toFixed(1)}%</span>
-                      {prevTotal > 0 && (
-                        <>
-                          <span className="text-muted-foreground">
-                            Мин. міс. <span className="font-bold text-foreground amount">{formatUSD(prevTotal)}</span> / {prevPct.toFixed(1)}%
-                          </span>
-                          <span className={`flex items-center gap-0.5 font-semibold ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {dynBetter ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                            <span className="amount">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Бренди менеджера — список BrandRow */}
-                <div className="px-3 md:px-6 pb-4 space-y-1.5 bg-[#fafbfe]">
-                  {manager.segments.map(seg => (
-                    <BrandRow
-                      key={seg.segmentCode}
-                      segmentName={seg.segmentName}
-                      planAmount={seg.planAmount}
-                      factAmount={seg.factAmount}
-                      calcPct={calcPct}
-                      asOfDate={asOfDate}
-                      prevMonthFactAmount={seg.prevMonthFactAmount}
-                      prevMonthFactPercent={seg.prevMonthFactPercent}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Зведена по ТМ — рядки бренд за регіоном */}
-      <div>
-        <h3 className="text-[15px] font-bold mb-4">Зведена по ТМ — регіон {region.regionName}</h3>
-        <div className="space-y-2">
-          {regionTotals.map(rt => (
-            <BrandRow
-              key={rt.code}
-              segmentName={rt.name}
-              planAmount={rt.totalPlan}
-              factAmount={rt.totalFact}
-              calcPct={calcPct}
-              asOfDate={asOfDate}
-              prevMonthFactAmount={rt.prevFact}
-              prevMonthFactPercent={rt.prevPct}
-            />
-          ))}
-        </div>
+                <span className="flex-1 text-left text-[13px] font-medium truncate">{login}</span>
+                <Eye className="h-4 w-4 text-muted-foreground/40 group-hover:text-[#066aab] transition-colors" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] group-hover:translate-x-0.5 transition-all" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

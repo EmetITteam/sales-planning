@@ -78,20 +78,24 @@ async function main() {
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
   page.on('pageerror', err => consoleErrors.push(`pageerror: ${err.message}`));
 
-  // Логуємо всі неуспішні fetch запити (особливо до /api/onec) — для діагностики 401
+  // Логуємо всі неуспішні fetch запити до наших API — для діагностики 401/500
   const failedRequests = [];
   page.on('response', async (resp) => {
-    if (!resp.ok() && resp.url().includes('/api/onec')) {
-      const req = resp.request();
-      let bodyPreview = '';
-      try { bodyPreview = (req.postData() || '').slice(0, 200); } catch {}
-      failedRequests.push({
-        url: resp.url(),
-        status: resp.status(),
-        method: req.method(),
-        body: bodyPreview,
-      });
-    }
+    if (resp.ok()) return;
+    const url = resp.url();
+    if (!url.includes('/api/')) return;
+    const req = resp.request();
+    let reqBody = '';
+    let respBody = '';
+    try { reqBody = (req.postData() || '').slice(0, 500); } catch {}
+    try { respBody = (await resp.text()).slice(0, 400); } catch {}
+    failedRequests.push({
+      url: url.replace(/^https?:\/\/[^/]+/, ''),
+      status: resp.status(),
+      method: req.method(),
+      reqBody,
+      respBody,
+    });
   });
 
   try {
@@ -345,9 +349,11 @@ async function main() {
       log.note(`${real401s.length} 401-х від 1С (app не падає, але варто розібратись чому 1С відмовив)`);
     }
     if (failedRequests.length > 0) {
-      log.note(`Неуспішні запити до /api/onec (для діагностики 401):`);
+      log.note(`Неуспішні API-запити (для діагностики):`);
       failedRequests.forEach(r => {
-        console.log(`     ${r.method} ${r.status} | body: ${r.body}`);
+        console.log(`     ${r.method} ${r.status} ${r.url}`);
+        if (r.reqBody) console.log(`       req:  ${r.reqBody}`);
+        if (r.respBody) console.log(`       resp: ${r.respBody}`);
       });
     }
     if (realErrors.length === 0) {
