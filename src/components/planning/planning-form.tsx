@@ -10,7 +10,7 @@ import { savePlanning, loadPlanning, unpackGapAction, unpackForecastStageComment
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
-import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_FORECASTS_OTHER, MOCK_GAP_OTHER, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
+import { MOCK_SALES_PLAN, MOCK_SALES_FACT, MOCK_CLIENTS_PETARAN, MOCK_FORECASTS_PETARAN, MOCK_GAP_CLOSURES, MOCK_TRAININGS, SEGMENTS } from '@/lib/mock-data';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptClientsForSegment, adaptClientsForPlanning } from '@/lib/onec-adapters';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
@@ -59,13 +59,18 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
   const userId = loginToUserId(effectiveLogin);
 
+  // Початковий стан: для PETARAN — повний mock showcase; для інших сегментів —
+  // порожньо (Supabase підтягне реальні збережені прогнози у useEffect нижче).
+  // MOCK_FORECASTS_OTHER / MOCK_GAP_OTHER більше не показуємо — вони виглядали
+  // як «вже спланований» прогноз з невідомими клієнтами (Сидоренко/Єфіменко тощо),
+  // що збивало менеджерів.
   const [forecasts, setForecasts] = useState<ForecastRow[]>(() => {
     if (segmentCode === 'PETARAN') return MOCK_FORECASTS_PETARAN;
-    return MOCK_FORECASTS_OTHER[segmentCode] ?? [];
+    return [];
   });
   const [gapClosures, setGapClosures] = useState<GapClosureRow[]>(() => {
     if (segmentCode === 'PETARAN') return MOCK_GAP_CLOSURES;
-    return MOCK_GAP_OTHER[segmentCode] ?? [];
+    return [];
   });
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
@@ -191,7 +196,13 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
     effectiveLogin !== 'anonymous' ? { login: effectiveLogin } : null,
   );
   const segmentClients: Client1C[] = useMemo(() => {
-    if (clientsResponse) return adaptClientsForSegment(clientsResponse, segmentCode);
+    if (clientsResponse) {
+      // adaptClientsForSegment повертає ВСІХ клієнтів менеджера, з нулями для тих
+      // хто не купував цей бренд. Фільтруємо — нам тут потрібні тільки реальні
+      // клієнти цього сегменту (з ненульовою датою останньої покупки).
+      return adaptClientsForSegment(clientsResponse, segmentCode)
+        .filter(c => c.lastPurchaseDate !== null);
+    }
     // Fallback: для PETARAN є mock; для інших сегментів — пусто (поки 1С не відповів)
     if (segmentCode === 'PETARAN') return MOCK_CLIENTS_PETARAN;
     return [];
