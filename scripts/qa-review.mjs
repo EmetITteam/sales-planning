@@ -12,8 +12,24 @@
  */
 
 import { chromium } from '@playwright/test';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+
+// Підтягуємо .env (без dotenv-dep — простий парсер).
+// Не перевизначаємо те що вже задано через `$env:VAR=...`.
+const envPath = join(process.cwd(), '.env');
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/i);
+    if (!m) continue;
+    const key = m[1];
+    let val = m[2];
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = val;
+  }
+}
 
 const BASE_URL = process.env.QA_URL ?? 'https://sales-planning-lyart.vercel.app';
 const LOGIN = process.env.QA_LOGIN ?? '';
@@ -40,9 +56,11 @@ async function shot(page, name) {
 }
 
 async function main() {
-  if (!LOGIN || !PASSWORD) {
-    console.log('⚠️  QA_LOGIN/QA_PASSWORD не задані. Тест буде використовувати DEMO кнопку якщо вона є.');
-    console.log('    Для повного тесту запусти: QA_LOGIN=email QA_PASSWORD=пароль npm run qa\n');
+  const isPlaceholder = LOGIN === 'manager@emet.com' || PASSWORD === 'твій_пароль_тут';
+  if (!LOGIN || !PASSWORD || isPlaceholder) {
+    console.log('⚠️  QA_LOGIN/QA_PASSWORD не заповнені (або стоять плейсхолдери з .env).');
+    console.log('    Тест буде використовувати DEMO кнопку — реальні 1С-фікси не перевіряться.');
+    console.log('    Заповни QA_LOGIN/QA_PASSWORD у .env реальними кредами менеджера і запусти `npm run qa` знов.\n');
   }
 
   const browser = await chromium.launch({
@@ -66,7 +84,7 @@ async function main() {
     await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 30000 });
     await shot(page, '01-login-page');
 
-    if (LOGIN && PASSWORD) {
+    if (LOGIN && PASSWORD && !isPlaceholder) {
       // Реальний логін
       const emailInput = page.locator('input[type="email"], input[placeholder*="mail" i]').first();
       const passInput = page.locator('input[type="password"]').first();
@@ -192,7 +210,7 @@ async function main() {
     // === 6. Помилки в консолі ===
     log.step('6. Помилки в браузерній консолі');
     // 401 від /api/onec при демо-логіні — очікувано (1С не знає демо-юзера)
-    const isUsingDemo = !LOGIN || !PASSWORD;
+    const isUsingDemo = !LOGIN || !PASSWORD || isPlaceholder;
     const expected401 = (e) => isUsingDemo && /401|Unauthorized/i.test(e);
     const realErrors = consoleErrors.filter(e => !expected401(e));
     if (realErrors.length === 0) {
