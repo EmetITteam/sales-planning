@@ -117,38 +117,44 @@ export async function POST(request: NextRequest) {
     if (e) { errors.push(`Upsert user: ${e.message}`); console.error('[planning.POST] user error:', { ...ctx, error: e.message }); }
   }
 
-  // ---- 3. INSERT-FIRST стратегія: спочатку записуємо НОВІ рядки ----
-  // Якщо INSERT падає — нічого не видаляємо, старі дані лишаються неушкодженими.
-  // (До моменту наступного успішного save можуть співіснувати старі+нові.
-  //  GET-handler вирішує це обираючи останній рядок per (segment, client).)
-  // Запам'ятовуємо межу часу через client-side now() — потім видаляємо
-  // тільки рядки старіші за цю межу.
-  const cutoffMs = Date.now() - 1000; // -1с буфер на clock skew
-  const cutoffIso = new Date(cutoffMs).toISOString();
-
-  if (!errors.length && forecastRows.length > 0) {
-    const { error: e } = await supabase.from('forecasts').insert(forecastRows);
-    if (e) { errors.push(`Insert forecasts: ${e.message}`); console.error('[planning.POST] insert forecasts error:', { ...ctx, count: forecastRows.length, error: e.message }); }
-  }
-  if (!errors.length && gapRows.length > 0) {
-    const { error: e } = await supabase.from('gap_closures').insert(gapRows);
-    if (e) { errors.push(`Insert gap_closures: ${e.message}`); console.error('[planning.POST] insert gap_closures error:', { ...ctx, count: gapRows.length, error: e.message }); }
-  }
-
-  // ---- 4. DELETE старі тільки після успішного INSERT ----
-  // Якщо INSERT впав вище — errors уже непорожній і ми сюди не потрапимо,
-  // старі дані лишаються (краще «дубль» чи «застаріле» ніж «втрачено»).
+  // ---- 3. UPSERT нових рядків ----
+  // У forecasts/gap_closures є unique constraint
+  // (period_id, user_id, segment_code, client_id_1c) — використовуємо як onConflict.
+  // Це: якщо запис є — оновлюємо, якщо нема — вставляємо. Атомарно в межах батчу.
+  // Наш кастомний supabase.upsert приймає 1 рядок за раз — циклимо.
+  // (PostgREST взагалі-то підтримує батч upsert у POST; майбутньо можна
+  // розширити src/lib/supabase.ts).
+  const upsertConflict = { onConflict: 'period_id,user_id,segment_code,client_id_1c' };
   if (!errors.length) {
+    for (let i = 0; i < forecastRows.length; i++) {
+      const { error: ei } = await supabase.from('forecasts').upsert(forecastRows[i], upsertConflict);
+      if (ei) { errors.push(`Upsert forecast row ${i}: ${ei.message}`); console.error('[planning.POST] upsert forecast row error:', { ...ctx, i, error: ei.message }); break; }
+    }
+  }
+  if (!errors.length) {
+    for (let i = 0; i < gapRows.length; i++) {
+      const { error: ei } = await supabase.from('gap_closures').upsert(gapRows[i], upsertConflict);
+      if (ei) { errors.push(`Upsert gap row ${i}: ${ei.message}`); console.error('[planning.POST] upsert gap error:', { ...ctx, i, error: ei.message }); break; }
+    }
+  }
+
+  // ---- 4. DELETE рядків яких більше нема в новому списку ----
+  // Тільки після успішного UPSERT (errors порожні) — інакше пропускаємо.
+  // notIn з пустим списком = no filter → DELETE усіх (саме те потрібно
+  // коли користувач очистив весь розділ).
+  if (!errors.length) {
+    const keepClientIds = forecastRows.map(r => r.client_id_1c);
     const { error: e } = await supabase.from('forecasts').delete()
       .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
-      .lt('created_at', cutoffIso);
-    if (e) { errors.push(`Delete old forecasts: ${e.message}`); console.error('[planning.POST] delete forecasts error:', { ...ctx, error: e.message }); }
+      .notIn('client_id_1c', keepClientIds);
+    if (e) { errors.push(`Delete stale forecasts: ${e.message}`); console.error('[planning.POST] delete forecasts error:', { ...ctx, error: e.message }); }
   }
   if (!errors.length) {
+    const keepClientIds = gapRows.map(r => r.client_id_1c);
     const { error: e } = await supabase.from('gap_closures').delete()
       .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
-      .lt('created_at', cutoffIso);
-    if (e) { errors.push(`Delete old gap_closures: ${e.message}`); console.error('[planning.POST] delete gap_closures error:', { ...ctx, error: e.message }); }
+      .notIn('client_id_1c', keepClientIds);
+    if (e) { errors.push(`Delete stale gap_closures: ${e.message}`); console.error('[planning.POST] delete gaps error:', { ...ctx, error: e.message }); }
   }
 
   // ---- 5. Upsert підсумки ----

@@ -35,6 +35,14 @@ class SupabaseTable {
   eq(column: string, value: string | number | boolean): this { this.queryParts.push(`${column}=eq.${value}`); return this; }
   lt(column: string, value: string): this { this.queryParts.push(`${column}=lt.${value}`); return this; }
   in(column: string, values: unknown[]): this { this.queryParts.push(`${column}=in.(${values.join(',')})`); return this; }
+  notIn(column: string, values: unknown[]): this {
+    if (values.length === 0) {
+      // Пустий not.in = всі рядки → еквівалент відсутності фільтра.
+      // Для DELETE це означає видалити всі (що ми і хочемо коли список новий пустий).
+      return this;
+    }
+    this.queryParts.push(`${column}=not.in.(${values.join(',')})`); return this;
+  }
 
   order(column: string, opts?: { ascending?: boolean }): this {
     this.orderClauses.push(`${column}.${opts?.ascending === false ? 'desc' : 'asc'}`);
