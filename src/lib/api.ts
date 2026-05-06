@@ -9,6 +9,11 @@ interface SavePlanningParams {
    * перед вставкою forecasts (foreign key constraint).
    */
   period: Pick<PeriodInfo, 'weekStart' | 'weekEnd' | 'month'>;
+  /**
+   * Метадані користувача — потрібно щоб upsert-ити рядок у `users`
+   * (теж FK з forecasts.user_id). Логін і ПІБ беремо з store.user.
+   */
+  userMeta: { login: string; name: string };
   forecasts: ForecastRow[];
   gapClosures: GapClosureRow[];
   gapActions: GapActions;
@@ -111,6 +116,7 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
         segmentCode: params.segmentCode,
         periodId: params.periodId,
         period: params.period,
+        userMeta: params.userMeta,
         forecasts: params.forecasts.map(f => ({
           clientId1c: f.clientId1c,
           clientName: f.clientName,

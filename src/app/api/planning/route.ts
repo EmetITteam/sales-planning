@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { userId, segmentCode, periodId, period, forecasts, gapClosures, summary } = body;
+  const { userId, segmentCode, periodId, period, userMeta, forecasts, gapClosures, summary } = body;
 
   if (!userId || !segmentCode || !periodId) {
     return Response.json({ error: 'Missing: userId, segmentCode, periodId' }, { status: 400 });
@@ -66,8 +66,7 @@ export async function POST(request: NextRequest) {
 
   const errors: string[] = [];
 
-  // 0. Upsert period — щоб задовольнити foreign key forecasts.period_id → periods.id.
-  // Frontend генерує id з weekEnd (yyyymmdd), а в periods такого рядка ще може не бути.
+  // 0a. Upsert period — задовольняємо forecasts.period_id → periods.id.
   if (period?.weekStart && period?.weekEnd && period?.month) {
     const { error: upsertPeriod } = await supabase.from('periods').upsert({
       id: pid,
@@ -78,6 +77,17 @@ export async function POST(request: NextRequest) {
     if (upsertPeriod) errors.push(`Upsert period: ${upsertPeriod.message}`);
   } else {
     errors.push('Missing period metadata (weekStart/weekEnd/month) — потрібно для foreign key');
+  }
+
+  // 0b. Upsert user — задовольняємо forecasts.user_id → users.id.
+  // userId — хеш від login (loginToUserId), у БД такого рядка може не бути.
+  if (!errors.length && userMeta?.login) {
+    const { error: upsertUser } = await supabase.from('users').upsert({
+      id: uid,
+      login: userMeta.login,
+      name: userMeta.name || userMeta.login,
+    }, { onConflict: 'id' });
+    if (upsertUser) errors.push(`Upsert user: ${upsertUser.message}`);
   }
 
   // 1. Видалити старі прогнози

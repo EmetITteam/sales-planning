@@ -163,6 +163,10 @@ export function PlanningForm({
         weekEnd: currentPeriod.weekEnd,
         month: currentPeriod.month,
       },
+      userMeta: {
+        login: effectiveLogin,
+        name: targetUserLogin ? '' : (user?.fullName || effectiveLogin),
+      },
       forecasts,
       gapClosures,
       gapActions,
