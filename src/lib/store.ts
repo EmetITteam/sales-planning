@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { UserSession, PeriodInfo } from './types';
-import type { GetClientsForPlanningResponse } from './onec-types';
+import type {
+  GetClientsForPlanningResponse, GetRegistryPlansResponse,
+} from './onec-types';
 import { weekEndToId } from './periods';
 
 /**
@@ -66,11 +68,18 @@ interface AppState {
    * між брендами / повернення на дашборд — миттєво.
    */
   clientsByLogin: Record<string, GetClientsForPlanningResponse | undefined>;
+  /**
+   * Кеш `getRegistryPlans` per period (`dateFrom-dateTo` ключ). Метод
+   * повертає плани по ВСІХ менеджерах за період (~200 рядків) — спільний
+   * для всіх ролей у тому самому місяці. Не persistимо.
+   */
+  plansByPeriod: Record<string, GetRegistryPlansResponse | undefined>;
   setUser: (user: UserSession | null) => void;
   setCurrentPeriod: (period: PeriodInfo) => void;
   setDesignVariant: (variant: 'cards' | 'table') => void;
   setLiveMode: (live: boolean) => void;
   setClientsForLogin: (login: string, data: GetClientsForPlanningResponse | undefined) => void;
+  setPlansForPeriod: (key: string, data: GetRegistryPlansResponse | undefined) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -81,14 +90,18 @@ export const useAppStore = create<AppState>()(
       designVariant: 'cards',
       liveMode: false,
       clientsByLogin: {},
+      plansByPeriod: {},
       setUser: (user) => set(user === null
-        ? { user: null, clientsByLogin: {}, liveMode: false }
+        ? { user: null, clientsByLogin: {}, plansByPeriod: {}, liveMode: false }
         : { user }),
       setCurrentPeriod: (period) => set({ currentPeriod: period }),
       setDesignVariant: (variant) => set({ designVariant: variant }),
       setLiveMode: (live) => set({ liveMode: live }),
       setClientsForLogin: (login, data) => set(state => ({
         clientsByLogin: { ...state.clientsByLogin, [login]: data },
+      })),
+      setPlansForPeriod: (key, data) => set(state => ({
+        plansByPeriod: { ...state.plansByPeriod, [key]: data },
       })),
     }),
     {

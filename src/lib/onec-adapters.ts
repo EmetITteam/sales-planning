@@ -190,7 +190,10 @@ export function adaptRegistryPlans(r: GetRegistryPlansResponse): RegistryPlan[] 
       const region = REGIONS.find(reg => reg.name === p.divisionName);
       return {
         period: p.period,
-        managerLogin: p.managerLogin || '',
+        // Нормалізуємо case — 1С може віддати "Ivanov@emet" і "ivanov@emet"
+        // у різних місцях (різні джерела). Frontend джойнить по login, тому
+        // приводимо до lower-case на адаптері (на login-сторінці теж лoadLoginimitable).
+        managerLogin: (p.managerLogin || '').toLowerCase().trim(),
         managerName: p.managerName,
         regionName: p.divisionName,
         regionCode: region?.code ?? '',

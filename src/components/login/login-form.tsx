@@ -42,8 +42,10 @@ export function LoginForm() {
     }
   };
 
-  // Demo mode: швидкий вхід через MOCK_USERS, для розробки. У проді сховати.
-  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_LOGIN !== 'false';
+  // Демо-кнопки за замовчуванням ВИМКНЕНІ — opt-in через NEXT_PUBLIC_DEMO_LOGIN=true.
+  // Раніше було навпаки (треба було явно ставити =false щоб приховати) — небезпечно
+  // якщо хтось забуде встановити змінну на production deploy.
+  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_LOGIN === 'true';
   const quickLogin = (loginKey: string) => {
     const user = MOCK_USERS[loginKey];
     if (user) setUser(user);

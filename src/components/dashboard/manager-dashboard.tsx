@@ -14,6 +14,7 @@ import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
 import { useOneCData } from '@/lib/use-onec-data';
 import { useClientsForPlanning } from '@/lib/use-clients-for-planning';
+import { useRegistryPlans } from '@/lib/use-registry-plans';
 import {
   adaptSalesFact, adaptRegistryPlans, adaptClientsForPlanning,
 } from '@/lib/onec-adapters';
@@ -73,22 +74,26 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
   const lastDayNum = new Date(py, pm, 0).getDate(); // День 0 наступного місяця = останній цього
   const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
-  const { data: plansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useOneCData(
-    'getRegistryPlans',
-    !isDemo && effectiveLogin !== 'anonymous' ? { dateFrom, dateTo } : null,
+  const { data: plansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useRegistryPlans(
+    !isDemo && effectiveLogin !== 'anonymous' ? dateFrom : null,
+    !isDemo && effectiveLogin !== 'anonymous' ? dateTo : null,
   );
 
   // Map { segmentCode → planAmount } для поточного користувача.
+  // Нормалізуємо логіни до lower-case з обох сторін щоб уникнути проблем
+  // з різним casing'ом emails (Ivanov@... vs ivanov@...) у 1С.
+  const effectiveLoginLower = effectiveLogin.toLowerCase().trim();
   const myPlansBySegment = useMemo(() => {
     if (!plansResponse) return null;
     const map = new Map<string, number>();
     for (const p of adaptRegistryPlans(plansResponse)) {
-      if (p.managerLogin === effectiveLogin) {
+      // adaptRegistryPlans вже lowercase'ить managerLogin
+      if (p.managerLogin === effectiveLoginLower) {
         map.set(p.segmentCode, (map.get(p.segmentCode) ?? 0) + p.planAmount);
       }
     }
     return map;
-  }, [plansResponse, effectiveLogin]);
+  }, [plansResponse, effectiveLoginLower]);
 
   // Клієнти з 1С — кешовано в Zustand. Один виклик при заході менеджера, передаємо
   // у PlanningForm через prop (форма миттєво відкривається без власного fetch'у).

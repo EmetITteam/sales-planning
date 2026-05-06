@@ -56,12 +56,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Server-side timeout — інакше Vercel function висить до killу платформи (~10-60с).
+    // Клієнт окремо має свій 15с timeout у onec-client.ts; цей — підстраховка.
     const upstream = await fetch(baseUrl, {
       method: 'POST',
       headers,
       body: requestBody,
-      // Серверний fetch у Next.js Edge не кешуємо — дані динамічні
       cache: 'no-store',
+      signal: AbortSignal.timeout(20_000),
     });
 
     const text = await upstream.text();
