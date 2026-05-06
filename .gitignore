@@ -44,3 +44,6 @@ next-env.d.ts
 
 # supabase cli local cache
 supabase/.temp/
+
+# QA artifacts (screenshots, videos)
+scripts/qa-output/
