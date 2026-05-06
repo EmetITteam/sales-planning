@@ -311,7 +311,19 @@ export function PlanningForm({
   };
 
   const removeForecast = (clientId: string) => {
-    setForecasts(prev => prev.filter(f => f.clientId1c !== clientId));
+    const target = forecasts.find(f => f.clientId1c === clientId);
+    const name = target?.clientName || 'цього клієнта';
+    if (confirm(`Видалити «${name}» з прогнозу?\n\nДія застосується після збереження.`)) {
+      setForecasts(prev => prev.filter(f => f.clientId1c !== clientId));
+    }
+  };
+
+  const removeGapClosure = (i: number) => {
+    const target = gapClosures[i];
+    const name = target?.clientName || 'цього клієнта';
+    if (confirm(`Видалити «${name}» зі списку Закриття розриву?\n\nДія застосується після збереження.`)) {
+      setGapClosures(prev => prev.filter((_, j) => j !== i));
+    }
   };
 
   const addClient = (client: Client1C) => {
@@ -729,7 +741,7 @@ export function PlanningForm({
 
                     {/* Видалити */}
                     {!readOnly ? (
-                      <button onClick={() => setGapClosures(prev => prev.filter((_, j) => j !== i))} aria-label="Видалити клієнта"
+                      <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
                         className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
