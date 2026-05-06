@@ -103,8 +103,18 @@ class SupabaseTable {
       if (this.headOnly) return { data: null, error: null, count };
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
-        return { data: null, error: { message: err.message || res.statusText } };
+        const text = await res.text().catch(() => '');
+        let err: { message?: string; details?: string; hint?: string; code?: string } = {};
+        try { err = JSON.parse(text); } catch { /* not JSON */ }
+        const parts = [
+          `HTTP ${res.status}`,
+          err.message,
+          err.code && `[${err.code}]`,
+          err.details,
+          err.hint,
+          !err.message && text && text.slice(0, 200),
+        ].filter(Boolean);
+        return { data: null, error: { message: parts.join(' | ') || `HTTP ${res.status} ${res.statusText || '(no body)'}` } };
       }
 
       const text = await res.text();
