@@ -1,9 +1,14 @@
-import type { ForecastRow, GapClosureRow, GapActions } from './types';
+import type { ForecastRow, GapClosureRow, GapActions, PeriodInfo } from './types';
 
 interface SavePlanningParams {
   userId: number;
   segmentCode: string;
   periodId: number;
+  /**
+   * Метадані періоду — потрібно щоб сервер міг upsert-ити рядок у `periods`
+   * перед вставкою forecasts (foreign key constraint).
+   */
+  period: Pick<PeriodInfo, 'weekStart' | 'weekEnd' | 'month'>;
   forecasts: ForecastRow[];
   gapClosures: GapClosureRow[];
   gapActions: GapActions;
@@ -105,6 +110,7 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
         userId: params.userId,
         segmentCode: params.segmentCode,
         periodId: params.periodId,
+        period: params.period,
         forecasts: params.forecasts.map(f => ({
           clientId1c: f.clientId1c,
           clientName: f.clientName,

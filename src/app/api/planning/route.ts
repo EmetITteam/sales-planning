@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { userId, segmentCode, periodId, forecasts, gapClosures, summary } = body;
+  const { userId, segmentCode, periodId, period, forecasts, gapClosures, summary } = body;
 
   if (!userId || !segmentCode || !periodId) {
     return Response.json({ error: 'Missing: userId, segmentCode, periodId' }, { status: 400 });
@@ -66,11 +66,27 @@ export async function POST(request: NextRequest) {
 
   const errors: string[] = [];
 
+  // 0. Upsert period — щоб задовольнити foreign key forecasts.period_id → periods.id.
+  // Frontend генерує id з weekEnd (yyyymmdd), а в periods такого рядка ще може не бути.
+  if (period?.weekStart && period?.weekEnd && period?.month) {
+    const { error: upsertPeriod } = await supabase.from('periods').upsert({
+      id: pid,
+      week_start: period.weekStart,
+      week_end: period.weekEnd,
+      month: period.month,
+    }, { onConflict: 'id' });
+    if (upsertPeriod) errors.push(`Upsert period: ${upsertPeriod.message}`);
+  } else {
+    errors.push('Missing period metadata (weekStart/weekEnd/month) — потрібно для foreign key');
+  }
+
   // 1. Видалити старі прогнози
-  const { error: delForecasts } = await supabase
-    .from('forecasts').delete()
-    .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode);
-  if (delForecasts) errors.push(`Delete forecasts: ${delForecasts.message}`);
+  if (!errors.length) {
+    const { error: delForecasts } = await supabase
+      .from('forecasts').delete()
+      .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode);
+    if (delForecasts) errors.push(`Delete forecasts: ${delForecasts.message}`);
+  }
 
   // 2. Вставити нові прогнози
   if (!errors.length && forecasts?.length > 0) {

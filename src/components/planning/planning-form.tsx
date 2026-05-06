@@ -158,6 +158,11 @@ export function PlanningForm({
       userId,
       segmentCode,
       periodId: currentPeriod.id,
+      period: {
+        weekStart: currentPeriod.weekStart,
+        weekEnd: currentPeriod.weekEnd,
+        month: currentPeriod.month,
+      },
       forecasts,
       gapClosures,
       gapActions,
