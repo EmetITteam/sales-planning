@@ -433,12 +433,8 @@ export function PlanningForm({
           )}
         </div>
 
-        {/* Mobile: підказка про скрол + горизонтальний скрол wrapper */}
-        <p className="md:hidden text-[10px] text-muted-foreground mb-2 text-center">↔ потягни таблицю вбік щоб побачити всі поля</p>
-        <div className="overflow-x-auto -mx-3 md:mx-0 px-3 md:px-0">
-
-        {/* Заголовок колонок */}
-        <div className="grid grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1 min-w-[800px] md:min-w-0">
+        {/* Заголовок колонок (тільки на md+) */}
+        <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
           <div />
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Прогноз</p>
@@ -449,12 +445,13 @@ export function PlanningForm({
           <div />
         </div>
 
-        <div className="space-y-2 min-w-[800px] md:min-w-0">
+        <div className="space-y-2">
           {sortedForecasts.map((row) => {
             const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
             return (
               <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
-                <div className="grid grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
+                {/* === DESKTOP (md+) === */}
+                <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                   {/* Іконка статусу */}
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
                     {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
@@ -563,11 +560,117 @@ export function PlanningForm({
                     </button>
                   ) : <div />}
                 </div>
+
+                {/* === MOBILE (<md): vertical-stack картка === */}
+                <div className="md:hidden p-4 space-y-3">
+                  {/* Шапка: іконка + ім'я + delete */}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
+                      {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold leading-tight">{row.clientName}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span>
+                      </p>
+                    </div>
+                    {!readOnly && !row.completed && (
+                      <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
+                        className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Прогноз + Факт у двох колонках */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Прогноз</label>
+                      {row.completed ? (
+                        <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.forecastAmount)}</p>
+                      ) : (
+                        <Input type="number" value={row.forecastAmount}
+                          onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
+                          disabled={readOnly}
+                          className="amount h-9 w-full text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1" />
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Факт</label>
+                      <p className={`text-[14px] font-bold mt-1.5 ${row.factAmount > 0 ? 'text-emerald-600' : 'text-muted-foreground/40'}`}>
+                        {row.factAmount > 0 ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Етап + статус */}
+                  <div>
+                    <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Етап</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Select
+                        value={row.stage || '__none__'}
+                        onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v === '__none__' ? '' : v)}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                          <SelectValue placeholder="Оберіть..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__"><span className="text-muted-foreground">— Без етапу —</span></SelectItem>
+                          {STAGE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {row.stage && (
+                        <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${
+                          row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                        }`}>
+                          <StageIcon className="h-3 w-3" />
+                          {row.stageDone ? 'Викон.' : 'Очік.'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Коментар (+ Навчання якщо stage='Навчання') */}
+                  <div>
+                    <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Коментар</label>
+                    {row.stage === 'Навчання' && (
+                      <Select
+                        value={row.trainingId || undefined}
+                        onValueChange={(trainingId) => {
+                          const t = trainings.find(x => x.trainingId === trainingId);
+                          updateForecast(row.clientId1c, 'trainingId', trainingId);
+                          if (t) {
+                            updateForecast(row.clientId1c, 'trainingName', t.trainingName);
+                            updateForecast(row.clientId1c, 'trainingDate', t.date);
+                          }
+                        }}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={readOnly}>
+                          <SelectValue placeholder="Обрати навчання..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {trainings.map(t => (
+                            <SelectItem key={t.trainingId} value={t.trainingId}>
+                              <span className="text-[12px]">{formatDate(t.date)} — {t.trainingName.length > 40 ? t.trainingName.slice(0, 40) + '…' : t.trainingName}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
+                      disabled={readOnly}
+                      className="h-9 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1"
+                      placeholder={row.stage === 'Навчання' ? 'Коментар (необов\'язково)...' : 'Ціль...'} />
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
-        </div>{/* end overflow-x-auto */}
 
         {/* Підсумок прогнозу */}
         {forecasts.length > 0 && (
@@ -611,11 +714,8 @@ export function PlanningForm({
 
         {gapClosures.length > 0 && (
           <div>
-            {/* Mobile: підказка про скрол */}
-            <p className="md:hidden text-[10px] text-muted-foreground mb-2 text-center">↔ потягни таблицю вбік щоб побачити всі поля</p>
-            <div className="overflow-x-auto -mx-3 md:mx-0 px-3 md:px-0">
-            {/* Заголовки колонок — уніфіковано з блоком "Прогноз по активних" */}
-            <div className="grid grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1 min-w-[800px] md:min-w-0">
+            {/* Заголовки колонок (тільки md+) */}
+            <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
               <div />
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Потенціал</p>
@@ -626,13 +726,14 @@ export function PlanningForm({
               <div />
             </div>
 
-            <div className="space-y-2 min-w-[800px] md:min-w-0">
+            <div className="space-y-2">
             {gapClosures.map((row, i) => {
               const hasFact = row.factAmount > 0;
               const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
               return (
                 <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
-                  <div className="grid grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
+                  {/* === DESKTOP (md+) === */}
+                  <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                     {/* Іконка */}
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
                       {row.completed || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
@@ -750,11 +851,111 @@ export function PlanningForm({
                       </button>
                     ) : <div />}
                   </div>
+
+                  {/* === MOBILE (<md): vertical-stack картка === */}
+                  <div className="md:hidden p-4 space-y-3">
+                    {/* Шапка */}
+                    <div className="flex items-start gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${row.completed || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
+                        {row.completed || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {row.manuallyAdded ? (
+                          <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)} disabled={readOnly}
+                            className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
+                        ) : (
+                          <p className="text-[13px] font-semibold leading-tight">{row.clientName}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}
+                          {row.lastPurchaseDate && (
+                            <span className="text-[10px] text-muted-foreground">{formatDate(row.lastPurchaseDate)} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span></span>
+                          )}
+                        </div>
+                      </div>
+                      {!readOnly && !row.completed && (
+                        <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
+                          className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Потенціал + Факт */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Потенціал</label>
+                        {row.completed ? (
+                          <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.potentialAmount)}</p>
+                        ) : (
+                          <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)} disabled={readOnly}
+                            className="amount h-9 w-full text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1" />
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Факт</label>
+                        <p className={`text-[14px] font-bold mt-1.5 ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/40'}`}>
+                          {hasFact ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Етап + статус */}
+                    <div>
+                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Етап</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Select value={row.stage || '__none__'}
+                          onValueChange={(v) => updateGap(i, 'stage', v === '__none__' ? '' : v)}
+                          disabled={readOnly}>
+                          <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                            <SelectValue placeholder="Оберіть..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__"><span className="text-muted-foreground">— Без етапу —</span></SelectItem>
+                            {STAGE_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                        {row.stage && (
+                          <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                            <StageIcon className="h-3 w-3" />
+                            {row.stageDone ? 'Викон.' : 'Очік.'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Дія / Навчання + коментар */}
+                    <div>
+                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Дія</label>
+                      {row.stage === 'Навчання' && (
+                        <Select value={row.trainingId || undefined}
+                          onValueChange={(trainingId) => {
+                            const t = trainings.find(x => x.trainingId === trainingId);
+                            updateGap(i, 'trainingId', trainingId);
+                            if (t) { updateGap(i, 'trainingName', t.trainingName); updateGap(i, 'trainingDate', t.date); }
+                          }}
+                          disabled={readOnly}>
+                          <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={readOnly}>
+                            <SelectValue placeholder="Обрати навчання..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {trainings.map(t => (
+                              <SelectItem key={t.trainingId} value={t.trainingId}>
+                                <span className="text-[12px]">{formatDate(t.date)} — {t.trainingName.length > 40 ? t.trainingName.slice(0, 40) + '…' : t.trainingName}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)} disabled={readOnly}
+                        className="h-9 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1"
+                        placeholder={row.stage === 'Навчання' ? 'Коментар (необов\'язково)...' : 'Дія...'} />
+                    </div>
+                  </div>
                 </div>
               );
             })}
             </div>
-            </div>{/* end overflow-x-auto */}
 
             <div className="mt-3 bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
               <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold amount">{formatUSD(gapTotal)}</p></div>
