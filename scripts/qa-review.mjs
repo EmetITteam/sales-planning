@@ -156,7 +156,8 @@ async function main() {
     // === Якщо РМ — відкриваємо "Моє планування" щоб перейти у Manager-форму ===
     if (isRM) {
       log.step('РМ-режим: відкриваємо "Моє планування" щоб перевірити Manager-форму');
-      const mineBtn = page.getByText(/Моє планування/i).first();
+      // Шукаємо саме <button> з текстом — інакше тригериться текст у банері/підказках
+      const mineBtn = page.locator('button:has-text("Моє планування")').first();
       if (await mineBtn.count() > 0) {
         await mineBtn.click();
         await page.waitForSelector('text=/Торгові марки|Petaran|Ellanse/i', { timeout: 15000 });
