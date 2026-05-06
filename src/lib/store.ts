@@ -1,9 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { UserSession, PeriodInfo } from './types';
-import type {
-  GetClientsForPlanningResponse, GetRegistryPlansResponse,
-} from './onec-types';
 import { weekEndToId } from './periods';
 
 /**
@@ -20,8 +17,6 @@ function toDateStr(d: Date): string {
 function getDefaultPeriod(): PeriodInfo {
   const now = new Date();
   const dow = now.getDay(); // 0=нд, 1=пн ... 6=сб
-  // Кількість днів назад до останньої завершеної неділі.
-  // Якщо сьогодні неділя — остання завершена була тиждень тому.
   const daysBackToLastSunday = dow === 0 ? 7 : dow;
   const lastSunday = new Date(now);
   lastSunday.setDate(now.getDate() - daysBackToLastSunday);
@@ -29,7 +24,6 @@ function getDefaultPeriod(): PeriodInfo {
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   if (lastSunday < firstOfMonth) {
-    // У поточному місяці ще немає завершеного тижня — беремо весь попередній місяць
     const prevMonthLast = new Date(now.getFullYear(), now.getMonth(), 0);
     const prevFirst = new Date(prevMonthLast.getFullYear(), prevMonthLast.getMonth(), 1);
     const weekEndStr = toDateStr(prevMonthLast);
@@ -62,24 +56,10 @@ interface AppState {
    * У live-режимі drill-down у форму планування — read-only.
    */
   liveMode: boolean;
-  /**
-   * Кеш `getClientsForPlanning` per login. Не persistимо — живе у пам'яті
-   * до закриття вкладки. Перший виклик 1-3с, всі наступні переходи
-   * між брендами / повернення на дашборд — миттєво.
-   */
-  clientsByLogin: Record<string, GetClientsForPlanningResponse | undefined>;
-  /**
-   * Кеш `getRegistryPlans` per period (`dateFrom-dateTo` ключ). Метод
-   * повертає плани по ВСІХ менеджерах за період (~200 рядків) — спільний
-   * для всіх ролей у тому самому місяці. Не persistимо.
-   */
-  plansByPeriod: Record<string, GetRegistryPlansResponse | undefined>;
   setUser: (user: UserSession | null) => void;
   setCurrentPeriod: (period: PeriodInfo) => void;
   setDesignVariant: (variant: 'cards' | 'table') => void;
   setLiveMode: (live: boolean) => void;
-  setClientsForLogin: (login: string, data: GetClientsForPlanningResponse | undefined) => void;
-  setPlansForPeriod: (key: string, data: GetRegistryPlansResponse | undefined) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -89,28 +69,19 @@ export const useAppStore = create<AppState>()(
       currentPeriod: getDefaultPeriod(),
       designVariant: 'cards',
       liveMode: false,
-      clientsByLogin: {},
-      plansByPeriod: {},
+      // Скидаємо liveMode при logout. SWR cache очиститься окремо у app-header.tsx
+      // через mutate(() => true, undefined, { revalidate: false }).
       setUser: (user) => set(user === null
-        ? { user: null, clientsByLogin: {}, plansByPeriod: {}, liveMode: false }
+        ? { user: null, liveMode: false }
         : { user }),
       setCurrentPeriod: (period) => set({ currentPeriod: period }),
       setDesignVariant: (variant) => set({ designVariant: variant }),
       setLiveMode: (live) => set({ liveMode: live }),
-      setClientsForLogin: (login, data) => set(state => ({
-        clientsByLogin: { ...state.clientsByLogin, [login]: data },
-      })),
-      setPlansForPeriod: (key, data) => set(state => ({
-        plansByPeriod: { ...state.plansByPeriod, [key]: data },
-      })),
     }),
     {
       name: 'emet-sales-planning',
       storage: createJSONStorage(() => sessionStorage),
-      // Persistимо лише session (user) і вибраний період. liveMode — НЕ persistимо
-      // (за вимогою користувача: live це тимчасовий перегляд).
-      // clientsByLogin — теж НЕ persistимо: 564+ клієнтів у sessionStorage —
-      // зайве, кеш має жити рівно до закриття tab.
+      // Persistимо лише session (user) і вибраний період. liveMode — НЕ persistимо.
       partialize: (state) => ({
         user: state.user,
         currentPeriod: state.currentPeriod,

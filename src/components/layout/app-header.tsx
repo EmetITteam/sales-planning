@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { useAppStore } from '@/lib/store';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,13 @@ const ROLE_COLORS: Record<string, string> = {
 
 export function AppHeader() {
   const { user, setUser, liveMode, setLiveMode } = useAppStore();
+  const { mutate } = useSWRConfig();
+  const handleLogout = () => {
+    // Очистити SWR-кеш — інакше наступний логін бачить дані попереднього
+    // користувача (per-login key переключиться, але старий ключ лишився).
+    mutate(() => true, undefined, { revalidate: false });
+    setUser(null);
+  };
   const [hideAmounts, setHideAmounts] = useState(false);
 
   // Init з localStorage + синхронізація з <body data-hide-amounts>
@@ -135,7 +143,7 @@ export function AppHeader() {
               )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setUser(null)} className="text-rose-600 cursor-pointer">
+            <DropdownMenuItem onClick={handleLogout} className="text-rose-600 cursor-pointer">
               <LogOut className="mr-2 h-3.5 w-3.5" />
               Вийти
             </DropdownMenuItem>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import useSWR from 'swr';
 import { callOneC, OneCError, OneCNetworkError } from './onec-client';
 import type { OneCAction, OneCActionMap } from './onec-types';
 
@@ -12,79 +12,52 @@ interface UseOneCDataResult<T> {
 }
 
 /**
- * Хук для виклику 1С action з автоматичним loading/error/refetch.
+ * Хук для виклику 1С action — обгортка над SWR.
  *
- * Виклик буде зроблений на mount + при зміні payload (через JSON.stringify deep-compare).
+ * Виграш від SWR:
+ *  - Dedup: один paralelle виклик навіть якщо хук монтується у 5 місцях.
+ *  - Cache: повторний mount з тим самим key = миттєва віддача з кешу.
+ *  - Revalidate-on-focus: повертаючись на вкладку, дані оновлюються.
+ *  - Revalidate-on-reconnect: після втрати мережі — оновлення.
+ *  - Власне race-handling (попередні запити автоматично abort'яться).
  *
- * Приклад:
- *   const { data, loading, error, refetch } = useOneCData(
- *     'getRegionData',
- *     { login: user.login, period: '2026-04', asOfDate: '2026-04-26' },
- *   );
- *   if (loading) return <DashboardSkeleton role="rm" />;
- *   if (error) return <DashboardError message={error} onRetry={refetch} />;
- *   if (!data) return null;
- *   const ui = adaptRegionData(data);
- *   ...
+ * Якщо payload === null → fetch не робиться (для умовних викликів).
  *
- * Якщо payload null → fetch не робиться (можна gate-нути доти поки нема user.login).
+ * Cache key — JSON.stringify payload, тож зміна payload (наприклад іншій
+ * період) тригерить новий запит автоматично.
  */
 export function useOneCData<A extends OneCAction>(
   action: A,
   payload: OneCActionMap[A]['request'] | null,
 ): UseOneCDataResult<OneCActionMap[A]['response']> {
-  const [data, setData] = useState<OneCActionMap[A]['response'] | null>(null);
-  const [loading, setLoading] = useState<boolean>(payload !== null);
-  const [error, setError] = useState<string | null>(null);
+  const key = payload ? `onec|${action}|${JSON.stringify(payload)}` : null;
 
-  // Зберігаємо payload як stringified key для useEffect dep
-  const payloadKey = payload ? JSON.stringify(payload) : null;
+  const { data, error, isLoading, mutate } = useSWR(
+    key,
+    async () => {
+      // payload не null коли key не null — це гарантує SWR (не викликає fetcher якщо key null)
+      return callOneC(action, payload!);
+    },
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      // 5 хвилин dedup — дані 1С міняються рідше ніж раз на хвилину,
+      // тому небезпечно agresivно revalidate коли користувач навігує.
+      dedupingInterval: 300_000,
+    },
+  );
 
-  // Counter для refetch (інкрементуємо щоб тригернути useEffect)
-  const refetchTriggerRef = useRef(0);
-  const [, setRefetchTick] = useState(0);
+  return {
+    data: data ?? null,
+    loading: isLoading,
+    error: error ? formatError(error) : null,
+    refetch: () => { mutate(); },
+  };
+}
 
-  const refetch = useCallback(() => {
-    refetchTriggerRef.current += 1;
-    setRefetchTick(refetchTriggerRef.current);
-  }, []);
-
-  useEffect(() => {
-    if (!payload) {
-      setData(null);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-
-    callOneC(action, payload)
-      .then(result => {
-        if (!cancelled) {
-          setData(result);
-          setLoading(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        if (err instanceof OneCError) {
-          setError(`1С: ${err.message}`);
-        } else if (err instanceof OneCNetworkError) {
-          setError(err.message);
-        } else {
-          setError('Невідома помилка');
-        }
-        setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action, payloadKey, refetchTriggerRef.current]);
-
-  return { data, loading, error, refetch };
+function formatError(err: unknown): string {
+  if (err instanceof OneCError) return `1С: ${err.message}`;
+  if (err instanceof OneCNetworkError) return err.message;
+  if (err instanceof Error) return err.message;
+  return 'Невідома помилка';
 }
