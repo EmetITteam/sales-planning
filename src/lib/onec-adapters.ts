@@ -153,15 +153,16 @@ export function adaptClientsForSegment(
 
 // === getSalesFact ===
 export function adaptSalesFact(r: GetSalesFactResponse): SalesFactResponse {
+  // 1С віддає числові поля рядками ("521.00") — приводимо через toNumber.
   return {
     facts: r.segments.map(s => ({
       segmentCode: mapSegmentCode(s.segmentCode),
-      totalAmount: s.totalFactUSD,
-      totalClientCount: s.totalClientCount,
+      totalAmount: toNumber(s.totalFactUSD as number | string),
+      totalClientCount: toNumber(s.totalClientCount as number | string),
       clients: s.clients.map(c => ({
         clientId: c.clientId,
         clientName: c.clientName,
-        amount: c.factAmountUSD,
+        amount: toNumber(c.factAmountUSD as number | string),
         lastSaleDate: '', // спека не повертає дату на рівні клієнта
       })),
     })),

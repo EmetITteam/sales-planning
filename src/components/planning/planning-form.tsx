@@ -77,10 +77,14 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
   const [gapSearchOpen, setGapSearchOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Прапорець: чи закінчилась спроба завантаження з Supabase. Якщо так і даних
+  // нема — auto-populate Прогноз з реальних активних клієнтів 1С.
+  const [supabaseLoaded, setSupabaseLoaded] = useState(false);
 
   // FEATURE: завантаження збережених даних з Supabase
   useEffect(() => {
     loadPlanning(userId, segmentCode, currentPeriod.id).then(data => {
+      setSupabaseLoaded(true);
       if (!data) return; // fallback на mock дані
       if (data.forecasts.length > 0) {
         setForecasts(data.forecasts.map(f => {
@@ -219,6 +223,30 @@ export function PlanningForm({ segmentCode, onBack, readOnly = false, targetUser
   // Категорії клієнтів (з 1С) — для верхньої таблиці «Дані по клієнтах по ТМ»
   const activeClients = segmentClients.filter(c => c.category === 'active');
   const sleepingClients = segmentClients.filter(c => c.category === 'sleeping' || c.category === 'lost');
+
+  // Auto-populate Прогноз з реальних активних клієнтів 1С — якщо
+  // Supabase нічого не повернув і клієнти прийшли. Менеджер тоді бачить
+  // одразу всіх своїх активних клієнтів цього бренду і заповнює прогнози.
+  // Не чіпаємо forecasts якщо вже щось є (з Supabase або mock-PETARAN).
+  useEffect(() => {
+    if (!supabaseLoaded) return;
+    if (forecasts.length > 0) return;
+    if (activeClients.length === 0) return;
+    setForecasts(activeClients.map(c => ({
+      clientId1c: c.clientId,
+      clientName: c.clientName,
+      forecastAmount: 0,
+      stage: '',
+      stageComment: '',
+      stageDone: false,
+      factAmount: 0,
+      lastPurchaseDate: c.lastPurchaseDate,
+      lastPurchaseAmount: c.lastPurchaseAmount,
+      completed: false,
+      manuallyAdded: false,
+    })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabaseLoaded, activeClients.length]);
   const activeSum = activeClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
   const sleepingSum = sleepingClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
   const categories: ClientCategorySummary[] = [
