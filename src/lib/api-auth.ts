@@ -1,20 +1,34 @@
 import { NextRequest } from 'next/server';
 
-// Тимчасова авторизація API через секретний ключ
-// В продакшені замінити на JWT з 1С
+// Авторизація API:
+//   - same-origin запити (наш фронт → наш /api) → дозволено без ключа.
+//     Origin/Referer перевіряється на збіг з нашим деплоєм. Браузер ставить
+//     Origin автоматично і JS-код сторінки не може його підмінити.
+//   - external запити (curl, postman, сторонні інтеграції) → потрібен
+//     `x-api-key` що дорівнює env API_SECRET_KEY.
+//   - dev режим (NODE_ENV !== production) → дозволено все без ключа.
 
 const API_SECRET = process.env.API_SECRET_KEY || 'dev-secret-key-change-me';
+const ALLOWED_ORIGINS = [
+  'https://sales-planning-lyart.vercel.app',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+];
 
 export function validateApiRequest(request: NextRequest): { valid: boolean; error?: string; userId?: number } {
-  // Перевірка API ключа в заголовку
-  const authHeader = request.headers.get('x-api-key');
-
-  // В dev/demo режимі — дозволяємо без ключа, але userId з body/params
-  if (!authHeader && process.env.NODE_ENV !== 'production') {
+  // 1) same-origin (наш фронт)
+  const origin = request.headers.get('origin') || request.headers.get('referer') || '';
+  if (origin && ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed))) {
     return { valid: true };
   }
 
-  // В production потрібен ключ
+  // 2) dev — без ключа
+  if (process.env.NODE_ENV !== 'production') {
+    return { valid: true };
+  }
+
+  // 3) Зовнішній запит → потрібен ключ
+  const authHeader = request.headers.get('x-api-key');
   if (authHeader !== API_SECRET) {
     return { valid: false, error: 'Unauthorized: invalid API key' };
   }

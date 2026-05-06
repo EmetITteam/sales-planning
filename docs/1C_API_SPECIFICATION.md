@@ -370,7 +370,7 @@ Authorization: Basic <base64(login:password)>
         "period": "2026-04-01",
         "divisionCode": "DNP",
         "divisionName": "Дніпро",
-        "managerCode": "00000000015",
+        "managerLogin": "siryk@emet.com",
         "managerName": "Сірик Людмила",
         "segmentCode": "PETARAN",
         "segmentName": "Petaran",
@@ -380,7 +380,7 @@ Authorization: Basic <base64(login:password)>
         "period": "2026-04-01",
         "divisionCode": "DNP",
         "divisionName": "Дніпро",
-        "managerCode": "00000000015",
+        "managerLogin": "siryk@emet.com",
         "managerName": "Сірик Людмила",
         "segmentCode": "NEURAMIS",
         "segmentName": "Neuramis",
@@ -390,7 +390,7 @@ Authorization: Basic <base64(login:password)>
         "period": "2026-04-01",
         "divisionCode": "KYV",
         "divisionName": "Київ",
-        "managerCode": "00000000020",
+        "managerLogin": "petrenko@emet.com",
         "managerName": "Петренко Валентина",
         "segmentCode": "PETARAN",
         "segmentName": "Petaran",
@@ -408,7 +408,7 @@ Authorization: Basic <base64(login:password)>
 | `period` | string | Дата періоду плану (YYYY-MM-DD) |
 | `divisionCode` | string | Код підрозділу |
 | `divisionName` | string | Назва підрозділу |
-| `managerCode` | string | Код менеджера (користувача) |
+| `managerLogin` | string | Логін менеджера в ІБ 1С (тo само значення що `login` в Action 1 і `managerLogin` в Action 5). Frontend по цьому полю джойнить плани з фактом. |
 | `managerName` | string | ПІБ менеджера |
 | `segmentCode` | string | Код сегменту (Сегмент номенклатури) |
 | `segmentName` | string | Назва сегменту |

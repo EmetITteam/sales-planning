@@ -239,6 +239,75 @@ async function main() {
       } else {
         log.bug('medium', 'Кнопка "Додати клієнта" не знайдена');
       }
+
+      // === 4b. Save+restore: вписуємо унікальне число → зберігаємо → закриваємо → відкриваємо знов ===
+      log.step('4b. Перевіряємо save→restore через Supabase');
+      if (activeCount !== null && activeCount > 0) {
+        const uniqueValue = Math.floor(Math.random() * 9000) + 1000;
+        const firstInput = page.locator('input[type="number"]').first();
+        await firstInput.fill(String(uniqueValue));
+        log.note(`Вписали ${uniqueValue} у перший рядок прогнозу`);
+
+        const saveBtn = page.getByRole('button', { name: /^зберегти$/i }).first();
+        if (await saveBtn.count() === 0) {
+          log.bug('high', 'Кнопка "Зберегти" не знайдена');
+        } else {
+          await saveBtn.click();
+          // Чекаємо БУДЬ-ЯКИЙ результат — успіх або помилка
+          try {
+            await page.waitForSelector('text=/Збережено|Помилка|HTTP \\d+/i', { timeout: 10000 });
+            const successText = await page.locator('text=/Збережено/i').count();
+            if (successText > 0) {
+              log.ok('Збереження пройшло (баннер "Збережено!")');
+            } else {
+              const errorBanner = page.locator('text=/Помилка|HTTP \\d+/i').first();
+              const errText = await errorBanner.textContent();
+              log.bug('high', `Save повернув помилку: "${errText?.slice(0, 200)}"`);
+            }
+          } catch {
+            log.bug('high', 'Не дочекались жодної відповіді від Save (10с)');
+          }
+
+          // Назад на дашборд (РМ → manager-view → ELLANSE-form, отже back веде у manager-view)
+          const backToDash = page.getByRole('button', { name: /дашборд/i }).first();
+          if (await backToDash.count() > 0) {
+            await backToDash.click();
+            await page.waitForSelector('text=/Торгові марки|Менеджери/i', { timeout: 15000 });
+
+            // Зміряємо час повторного відкриття ELLANSE — має бути миттєво (кеш Zustand)
+            const reopenStart = Date.now();
+            await page.locator('text=/Ellanse/i').first().click();
+            await page.waitForSelector('text=/Дані по клієнтах по ТМ/i', { timeout: 15000 });
+            // Чекаємо на можливий індикатор завантаження (якщо кеш прохолов — буде)
+            const hadLoadingIndicator = await page.locator('text=/завантажуємо клієнтів з 1С/i').count() > 0;
+            const reopenMs = Date.now() - reopenStart;
+            if (!hadLoadingIndicator && reopenMs < 1500) {
+              log.ok(`Кеш працює: повторне відкриття ELLANSE за ${reopenMs}мс без fetch'у з 1С`);
+            } else if (hadLoadingIndicator) {
+              log.bug('medium', `Кеш не спрацював: видно індикатор "завантажуємо клієнтів з 1С"`);
+            } else {
+              log.note(`Повторне відкриття ELLANSE за ${reopenMs}мс — повільнувато для кешу`);
+            }
+            await page.waitForTimeout(500);
+
+            // Шукаємо унікальне значення в input-ах
+            const inputs = page.locator('input[type="number"]');
+            const count = await inputs.count();
+            const values = [];
+            for (let i = 0; i < Math.min(count, 25); i++) {
+              values.push(await inputs.nth(i).inputValue());
+            }
+            if (values.includes(String(uniqueValue))) {
+              log.ok(`Restore з Supabase працює: знайдено ${uniqueValue} серед прогнозів`);
+            } else {
+              log.bug('high', `Restore не спрацював: ${uniqueValue} не знайдено. Перші значення: ${values.slice(0, 5).join(', ')}`);
+            }
+            await shot(page, '05-ellanse-restored');
+          }
+        }
+      } else {
+        log.note('Save/restore не тестуємо — activeCount=0');
+      }
     }
 
     // === 5. Повертаємось → відкриваємо PETARAN — має бути showcase з mock ===
