@@ -156,8 +156,18 @@ async function main() {
     } else {
       await ellanseRow.click();
       await page.waitForSelector('text=/Дані по клієнтах по ТМ|Прогноз по активних/i', { timeout: 15000 });
-      await shot(page, '03-ellanse-form');
       log.ok('Форма ELLANSE відкрилась');
+
+      // Чекаємо поки 1С відповість — індикатор «завантажуємо клієнтів з 1С...» має зникнути.
+      // Якщо індикатора не з'явилось взагалі — або кеш, або помилка; daleko не чекаємо.
+      try {
+        await page.waitForSelector('text=/завантажуємо клієнтів з 1С/i', { state: 'detached', timeout: 10000 });
+      } catch {
+        // ignore — індикатора могло не бути
+      }
+      // Маленька додаткова пауза для переконатись що setForecasts() відпрацював
+      await page.waitForTimeout(500);
+      await shot(page, '03-ellanse-form');
 
       // Перевіряємо кількість Активних клієнтів
       let activeCount = null;
