@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { SEGMENTS, type ClientCategoryStats } from '@/lib/mock-data';
+import {
+  SEGMENTS, type ClientCategoryStats,
+  isDemoLogin, getDemoTMSummaries, getDemoClientStats, getDemoClientsForPlanningResponse,
+} from '@/lib/mock-data';
 import {
   formatUSD, formatPct, formatDateShort, pctOf, workingDaysLabel,
   calcForecastPercent,
@@ -39,6 +42,11 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
 
   const { currentPeriod, liveMode, user } = useAppStore();
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
+  // DEMO режим: тестові логіни не існують у 1С → не робимо до неї запитів,
+  // а показуємо мокові цифри (для презентацій + dev). Реальні 1С-юзери
+  // отримують справжні дані. Умова не залежить від targetUserLogin (РМ переглядає
+  // менеджера) — для демо РМ це теж буде demo data.
+  const isDemo = isDemoLogin(user?.login);
   // Зріз даних: live → сьогодні, інакше → кінець обраного фільтру
   const asOfDate = liveMode ? new Date() : new Date(currentPeriod.weekEnd);
   const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
@@ -51,7 +59,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : undefined;
   const { data: factResponse, loading: factLoading, error: factError, refetch: refetchFact } = useOneCData(
     'getSalesFact',
-    effectiveLogin !== 'anonymous'
+    !isDemo && effectiveLogin !== 'anonymous'
       ? { login: effectiveLogin, period: periodKey, clientIds: [], asOfDate: asOfIso }
       : null,
   );
@@ -67,7 +75,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
   const { data: plansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useOneCData(
     'getRegistryPlans',
-    effectiveLogin !== 'anonymous' ? { dateFrom, dateTo } : null,
+    !isDemo && effectiveLogin !== 'anonymous' ? { dateFrom, dateTo } : null,
   );
 
   // Map { segmentCode → planAmount } для поточного користувача.
@@ -84,16 +92,19 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
 
   // Клієнти з 1С — кешовано в Zustand. Один виклик при заході менеджера, передаємо
   // у PlanningForm через prop (форма миттєво відкривається без власного fetch'у).
+  // У demo режимі не звертаємось до 1С — підставляємо локальні мокові дані.
   const {
-    data: clientsResponse,
+    data: realClientsResponse,
     loading: clientsLoading,
     error: clientsError,
     refetch: refetchClients,
-  } = useClientsForPlanning(effectiveLogin !== 'anonymous' ? effectiveLogin : null);
+  } = useClientsForPlanning(!isDemo && effectiveLogin !== 'anonymous' ? effectiveLogin : null);
+  const clientsResponse = isDemo ? getDemoClientsForPlanningResponse() : realClientsResponse;
 
-  // Агрегати по категоріях клієнтів (для ClientStatsCard) — з реальних даних 1С.
-  // Раніше getMockClientStatsManager() видавав статичні 131/45/8.
+  // Агрегати по категоріях клієнтів (для ClientStatsCard) — з реальних даних 1С
+  // або з демо-цифр у DEMO режимі.
   const clientStats: ClientCategoryStats | null = useMemo(() => {
+    if (isDemo) return getDemoClientStats();
     if (!clientsResponse) return null;
     const all = adaptClientsForPlanning(clientsResponse);
     const active = all.filter(c => c.category === 'active').length;
@@ -109,12 +120,14 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
       totalBought: 0,
       totalClients: all.length,
     };
-  }, [clientsResponse]);
+  }, [isDemo, clientsResponse]);
 
   // Будуємо summaries з реальних даних 1С — без mock fallback.
   // Action 4 → план, Action 3 → факт + кількість покупців.
   // PrevMonth поля = 0 поки не готовий Action 5 (UI це коректно обробляє).
+  // DEMO: повертаємо мокові summaries з фіксованими цифрами.
   const summaries: TMSummaryCard[] = useMemo(() => {
+    if (isDemo) return getDemoTMSummaries(asOfDate);
     const realFacts = factResponse ? adaptSalesFact(factResponse).facts : null;
     const totalWD = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
     const passedWD = getPassedWorkingDays(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
@@ -148,7 +161,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
         status: 'draft',
       } satisfies TMSummaryCard;
     });
-  }, [asOfDate, factResponse, myPlansBySegment]);
+  }, [isDemo, asOfDate, factResponse, myPlansBySegment]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = pctOf(totalFact, totalPlan);

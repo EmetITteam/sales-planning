@@ -10,7 +10,9 @@ import { savePlanning, loadPlanning, unpackGapAction, unpackForecastStageComment
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
-import { SEGMENTS } from '@/lib/mock-data';
+import {
+  SEGMENTS, isDemoLogin, getDemoForecastsPETARAN, getDemoGapClosuresPETARAN,
+} from '@/lib/mock-data';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptClientsForSegment, adaptClientsForPlanning, adaptTrainings } from '@/lib/onec-adapters';
 import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
@@ -78,8 +80,14 @@ export function PlanningForm({
 
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
   // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
-  const [forecasts, setForecasts] = useState<ForecastRow[]>([]);
-  const [gapClosures, setGapClosures] = useState<GapClosureRow[]>([]);
+  // У DEMO для PETARAN одразу пре-заповнюємо мок-showcase щоб бачити заповнену форму.
+  const isDemoSession = isDemoLogin(user?.login);
+  const [forecasts, setForecasts] = useState<ForecastRow[]>(() =>
+    isDemoSession && segmentCode === 'PETARAN' ? getDemoForecastsPETARAN() : []
+  );
+  const [gapClosures, setGapClosures] = useState<GapClosureRow[]>(() =>
+    isDemoSession && segmentCode === 'PETARAN' ? getDemoGapClosuresPETARAN() : []
+  );
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
   const [gapSearchOpen, setGapSearchOpen] = useState(false);
