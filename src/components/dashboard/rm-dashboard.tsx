@@ -9,11 +9,12 @@ import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, work
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
 import { ManagerDashboard } from './manager-dashboard';
-import { BrandRow } from './brand-row';
+import { ManagerAccordion } from './manager-accordion';
+import { BrandManagerGroup, pivotBrandsByManager } from './brand-manager-group';
 import { MetricCard } from './metric-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import {
-  ChevronRight, MapPin, ClipboardList, Eye, RefreshCw,
+  ChevronRight, MapPin, ClipboardList, RefreshCw,
   DollarSign, Target, TrendingUp, TrendingDown,
 } from 'lucide-react';
 
@@ -231,77 +232,35 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             />
           </div>
 
-          {/* Brand cards (агрегат по регіону) */}
+          {/* Менеджери регіону — ManagerAccordion (тап = expand → 9 BrandRow усередині) */}
           <div>
-            <h3 className="text-[15px] font-bold mb-4">Торгові марки регіону</h3>
-            <div className="space-y-2">
-              {aggregate.segments.map(seg => (
-                <BrandRow
-                  key={seg.segmentCode}
-                  segmentName={seg.segmentName}
-                  planAmount={seg.planAmount}
-                  factAmount={seg.factAmount}
+            <h3 className="text-[15px] font-bold mb-4">Менеджери регіону</h3>
+            <div className="space-y-3">
+              {region.managers.map(m => (
+                <ManagerAccordion
+                  key={m.login}
+                  manager={m}
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
-                  hasManagerPlan={false}
-                  prevMonthFactAmount={seg.prevMonthFactAmount}
-                  prevMonthFactPercent={seg.prevMonthPlanAmount > 0
-                    ? (seg.prevMonthFactAmount / seg.prevMonthPlanAmount) * 100
-                    : 0}
-                  readOnly
+                  onDrillDown={() => { setSelectedManager(m.login); setView('viewManager'); }}
                 />
               ))}
             </div>
           </div>
 
-          {/* Manager list */}
+          {/* По брендах з розбивкою по менеджерах — BrandManagerGroup */}
           <div>
-            <h3 className="text-[15px] font-bold mb-4">Менеджери регіону</h3>
-            <div className="space-y-2">
-              {managerList.map(m => {
-                const myPct = pctOf(m.totalFact, m.totalPlan);
-                const myDyn = m.totalFact - m.totalPrevMonthFact;
-                const initials = (m.name || m.login).trim().split(/\s+/).slice(0, 2)
-                  .map(p => p[0]?.toUpperCase() || '').join('') || m.login[0]?.toUpperCase() || '?';
-                return (
-                  <button
-                    key={m.login}
-                    onClick={() => { setSelectedManager(m.login); setView('viewManager'); }}
-                    className="w-full grid grid-cols-[36px_1fr_120px_120px_80px_24px] gap-3 items-center px-4 py-3 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all duration-200 cursor-pointer group"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[12px] font-bold text-[#066aab] shrink-0">
-                      {initials}
-                    </div>
-                    <div className="min-w-0 text-left">
-                      <p className="text-[13px] font-semibold truncate">{m.name || m.login}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">{m.login}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">План</p>
-                      <p className="text-[13px] font-bold amount">{formatUSD(m.totalPlan)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт</p>
-                      <p className="text-[13px] font-bold text-emerald-600 amount">{formatUSD(m.totalFact)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">%</p>
-                      <p className={`text-[13px] font-bold ${myPct >= calcPctValue ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {myPct.toFixed(1)}%
-                      </p>
-                      {m.totalPrevMonthFact > 0 && (
-                        <p className={`text-[10px] font-semibold ${myDyn >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {myDyn >= 0 ? '+' : ''}{formatUSD(myDyn)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      <Eye className="h-4 w-4 text-muted-foreground/40 group-hover:text-[#066aab] transition-colors" />
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] group-hover:translate-x-0.5 transition-all" />
-                    </div>
-                  </button>
-                );
-              })}
+            <h3 className="text-[15px] font-bold mb-4">По брендах — з розбивкою по менеджерах</h3>
+            <div className="space-y-3">
+              {pivotBrandsByManager(region.managers).map(brand => (
+                <BrandManagerGroup
+                  key={brand.segmentCode}
+                  brand={brand}
+                  calcPct={calcPctValue}
+                  asOfDate={asOfDate}
+                  onManagerClick={(login) => { setSelectedManager(login); setView('viewManager'); }}
+                />
+              ))}
             </div>
           </div>
         </>
