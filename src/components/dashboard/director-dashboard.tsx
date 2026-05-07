@@ -9,16 +9,15 @@ import { formatUSD, formatPct, pctOf, calcForecastPercent } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
 import { RMDashboard } from './rm-dashboard';
-import { ManagerDashboard } from './manager-dashboard';
 import { BrandRow } from './brand-row';
 import { MetricCard } from './metric-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import {
-  ChevronRight, MapPin, ClipboardList, RefreshCw,
+  ChevronRight, MapPin, RefreshCw,
   DollarSign, Target, TrendingUp, TrendingDown, Users, Eye,
 } from 'lucide-react';
 
-type DirView = 'dashboard' | 'myPlanning' | 'viewRegion';
+type DirView = 'dashboard' | 'viewRegion';
 
 /**
  * Дашборд Директора — зведення по всій компанії через Action 5.
@@ -27,7 +26,9 @@ type DirView = 'dashboard' | 'myPlanning' | 'viewRegion';
  *  - Hero metrics: total компанії
  *  - 9 BrandRow (агрегат по сегменту через ВСІ регіони)
  *  - Список регіонів з підсумками (клік → drill-down у RMDashboard)
- *  - «Моє планування» (директор як менеджер)
+ *
+ * Власного планування у Директора немає — у неї нема свого регіону клієнтів,
+ * вона дивиться зведення по всій компанії і drill-down у регіонах.
  */
 export function DirectorDashboard() {
   const [view, setView] = useState<DirView>('dashboard');
@@ -58,16 +59,6 @@ export function DirectorDashboard() {
   const periodLabel = getMonthName(py, pm - 1);
 
   // === Sub-views ===
-  if (view === 'myPlanning') {
-    return (
-      <div className="space-y-4">
-        <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-          <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до огляду
-        </button>
-        <ManagerDashboard />
-      </div>
-    );
-  }
   if (view === 'viewRegion') {
     return (
       <div className="space-y-4">
@@ -222,21 +213,6 @@ export function DirectorDashboard() {
               ))}
             </div>
           </div>
-
-          {/* My planning */}
-          <button
-            onClick={() => setView('myPlanning')}
-            className="w-full flex items-center gap-4 bg-gradient-to-r from-[#066aab]/5 via-[#0880cc]/5 to-[#066aab]/5 hover:from-[#066aab]/10 hover:to-[#0880cc]/10 rounded-2xl border border-[#066aab]/15 p-5 transition-all duration-300 cursor-pointer group"
-          >
-            <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
-              <ClipboardList className="h-5 w-5" />
-            </div>
-            <div className="text-left flex-1">
-              <p className="text-[15px] font-bold text-foreground">Моє планування</p>
-              <p className="text-[13px] text-muted-foreground mt-0.5">Особистий прогноз по ТМ як у менеджера</p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[#066aab] group-hover:translate-x-1 transition-all" />
-          </button>
 
           {/* Region list */}
           <div>
