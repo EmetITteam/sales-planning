@@ -197,78 +197,46 @@ export function DirectorDashboard() {
             />
           </div>
 
-          {/* Brand cards (агрегат по компанії) */}
+          {/* Регіони — RegionAccordion (тап = expand → 9 BrandRow усередині, drill-down іконка справа) */}
           <div>
-            <h3 className="text-[15px] font-bold mb-4">Торгові марки компанії</h3>
-            <div className="space-y-2">
-              {company.segments.map(seg => (
-                <BrandRow
-                  key={seg.segmentCode}
-                  segmentName={seg.segmentName}
-                  planAmount={seg.planAmount}
-                  factAmount={seg.factAmount}
-                  calcPct={calcPctValue}
-                  asOfDate={asOfDate}
-                  hasManagerPlan={false}
-                  prevMonthFactAmount={seg.prevMonthFactAmount}
-                  prevMonthFactPercent={seg.prevMonthPlanAmount > 0
-                    ? (seg.prevMonthFactAmount / seg.prevMonthPlanAmount) * 100
-                    : 0}
-                  readOnly
-                />
-              ))}
+            <h3 className="text-[15px] font-bold mb-4">Регіони</h3>
+            <div className="space-y-3">
+              {company.regionAggregates.map((r, idx) => {
+                const region = adapted!.regions[idx];
+                const managersBrief = aggregateManagers(region).map(m => ({
+                  name: m.name,
+                  login: m.login,
+                  pct: m.factPercent,
+                  dev: m.factPercent - calcPctValue,
+                  onPlan: m.factPercent >= calcPctValue,
+                }));
+                return (
+                  <RegionAccordion
+                    key={r.regionCode || r.regionName}
+                    aggregate={r}
+                    managersBrief={managersBrief}
+                    calcPct={calcPctValue}
+                    asOfDate={asOfDate}
+                    onDrillDown={() => { setSelectedRegionCode(r.regionCode); setView('viewRegion'); }}
+                  />
+                );
+              })}
             </div>
           </div>
 
-          {/* Region list */}
+          {/* По брендах з розбивкою по регіонах — BrandRegionGroup */}
           <div>
-            <h3 className="text-[15px] font-bold mb-4">Регіони</h3>
-            <div className="space-y-2">
-              {company.regionAggregates.map(r => {
-                const rPct = pctOf(r.totalFact, r.totalPlan);
-                const rDyn = r.totalFact - r.totalPrevMonthFact;
-                return (
-                  <button
-                    key={r.regionCode || r.regionName}
-                    onClick={() => { setSelectedRegionCode(r.regionCode); setView('viewRegion'); }}
-                    className="w-full grid grid-cols-[36px_1fr_120px_120px_80px_24px] gap-3 items-center px-4 py-3 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all duration-200 cursor-pointer group"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
-                      <MapPin className="h-4 w-4 text-[#066aab]" />
-                    </div>
-                    <div className="min-w-0 text-left">
-                      <p className="text-[13px] font-semibold truncate">{r.regionName}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {r.managerCount} {r.managerCount === 1 ? 'менеджер' : 'менеджерів'}
-                        {r.regionCode && ` · ${r.regionCode}`}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">План</p>
-                      <p className="text-[13px] font-bold amount">{formatUSD(r.totalPlan)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Факт</p>
-                      <p className="text-[13px] font-bold text-emerald-600 amount">{formatUSD(r.totalFact)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">%</p>
-                      <p className={`text-[13px] font-bold ${rPct >= calcPctValue ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {rPct.toFixed(1)}%
-                      </p>
-                      {r.totalPrevMonthFact > 0 && (
-                        <p className={`text-[10px] font-semibold ${rDyn >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {rDyn >= 0 ? '+' : ''}{formatUSD(rDyn)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      <Eye className="h-4 w-4 text-muted-foreground/40 group-hover:text-[#066aab] transition-colors" />
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] group-hover:translate-x-0.5 transition-all" />
-                    </div>
-                  </button>
-                );
-              })}
+            <h3 className="text-[15px] font-bold mb-4">По брендах — з розбивкою по регіонах</h3>
+            <div className="space-y-3">
+              {pivotBrandsByRegion(company.regionAggregates).map(brand => (
+                <BrandRegionGroup
+                  key={brand.segmentCode}
+                  brand={brand}
+                  calcPct={calcPctValue}
+                  asOfDate={asOfDate}
+                  onRegionClick={(code) => { setSelectedRegionCode(code); setView('viewRegion'); }}
+                />
+              ))}
             </div>
           </div>
         </>
