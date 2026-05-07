@@ -210,16 +210,25 @@ export function adaptRegistryPlans(r: GetRegistryPlansResponse): RegistryPlan[] 
 // === getRegionData (v2.4: regions[]) ===
 export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
   // 1С майже точно віддасть числа рядками (як в Action 2/3/4) — обгортаємо.
-  // v2.4: r.regions[] — масив регіонів (РМ → 1, Директор → 8). regionCode тепер
-  // приходить від 1С але якщо порожній — fallback на пошук по REGIONS (за назвою).
+  // v2.4: r.regions[] — масив регіонів (РМ → 1, Директор → 8).
+  //
+  // ⚠️ 1С-bug (підтверджено 2026-05-07 на реальній відповіді):
+  // 1С повертає `regionName` і `regionCode` ПЕРЕПЛУТАНИМИ —
+  // у regionName лежить код "DNP", у regionCode — назва "Дніпро".
+  // Свопаємо тут поки 1С-розробник не виправить. TODO: прибрати swap.
+  // Heuristic: якщо regionName виглядає як 3-буквений UPPERCASE код а
+  // regionCode містить кирилицю — точно переплутані.
   return {
     asOfDate: r.asOfDate,
     prevMonthAsOfDate: r.prevMonthAsOfDate,
     regions: r.regions.map(reg => {
-      const fallback = REGIONS.find(x => x.name === reg.regionName);
+      const isSwapped = /^[A-Z]{2,5}$/.test(reg.regionName) && /[А-Яа-яіїєґІЇЄҐ]/.test(reg.regionCode);
+      const realName = isSwapped ? reg.regionCode : reg.regionName;
+      const realCode = isSwapped ? reg.regionName : reg.regionCode;
+      const fallback = REGIONS.find(x => x.name === realName);
       return {
-        regionName: reg.regionName,
-        regionCode: reg.regionCode || fallback?.code || '',
+        regionName: realName,
+        regionCode: realCode || fallback?.code || '',
         managers: reg.managers.map(m => {
           const totalPrevMonthFact = toNumber(m.totalPrevMonthFact as number | string);
           return {
