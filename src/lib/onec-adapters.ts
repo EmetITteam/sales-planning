@@ -210,18 +210,28 @@ export function adaptRegistryPlans(r: GetRegistryPlansResponse): RegistryPlan[] 
 // === getRegionData (v2.4: regions[]) ===
 export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
   // 1С майже точно віддасть числа рядками (як в Action 2/3/4) — обгортаємо.
-  // v2.4: r.regions[] — масив регіонів (РМ → 1, Директор → 8).
+  // v2.4: r.regions[] — масив регіонів (РМ → 1, Директор → 8 активних).
   //
-  // 2026-05-07: 1С-розробник виправив порядок полів (раніше regionName/regionCode
-  // приходили переплутаними). Hueristic нижче залишаємо як defensive fallback —
-  // не спрацює коли формат правильний, але захистить якщо колись регресія.
+  // 1С повертає ВСІ підрозділи включно з архівними (Лазерхауз*, Полтава*,
+  // Чернівці*, Адасса, Коллцентр) — фільтруємо тут через isActiveDivision,
+  // щоб дашборд показував тільки 8 активних регіонів зі списку REGIONS.
+  //
+  // 2026-05-07: 1С-розробник виправив порядок полів (raніше regionName/regionCode
+  // приходили переплутаними). Hueristic нижче залишаємо як defensive fallback.
   return {
     asOfDate: r.asOfDate,
     prevMonthAsOfDate: r.prevMonthAsOfDate,
-    regions: r.regions.map(reg => {
-      const isSwapped = /^[A-Z]{2,5}$/.test(reg.regionName) && /[А-Яа-яіїєґІЇЄҐ]/.test(reg.regionCode);
-      const realName = isSwapped ? reg.regionCode : reg.regionName;
-      const realCode = isSwapped ? reg.regionName : reg.regionCode;
+    regions: r.regions
+      .map(reg => {
+        const isSwapped = /^[A-Z]{2,5}$/.test(reg.regionName) && /[А-Яа-яіїєґІЇЄҐ]/.test(reg.regionCode);
+        return {
+          raw: reg,
+          realName: isSwapped ? reg.regionCode : reg.regionName,
+          realCode: isSwapped ? reg.regionName : reg.regionCode,
+        };
+      })
+      .filter(({ realName }) => isActiveDivision(realName))
+      .map(({ raw: reg, realName, realCode }) => {
       const fallback = REGIONS.find(x => x.name === realName);
       return {
         regionName: realName,
