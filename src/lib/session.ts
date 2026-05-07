@@ -23,17 +23,17 @@ import type { UserSession, UserRole } from './types';
 const COOKIE_NAME = 'sp_session';
 const TTL_SECONDS = 60 * 60 * 24; // 24h
 
-if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
-  throw new Error(
-    'SESSION_SECRET env variable is required in production. ' +
-    'Generate one: `openssl rand -hex 32`. Set in Vercel → Environment Variables.'
-  );
-}
-
 function getSecret(): Uint8Array {
-  // Dev fallback — мусить бути ≥32 байти для HS256.
-  const raw = process.env.SESSION_SECRET || 'dev-only-secret-change-in-production-32b';
-  return new TextEncoder().encode(raw);
+  const raw = process.env.SESSION_SECRET;
+  // Перевірка на runtime (не на module-level) — інакше `next build`
+  // на CI/Vercel падає бо env збираються після phase build.
+  if (process.env.NODE_ENV === 'production' && !raw) {
+    throw new Error(
+      'SESSION_SECRET env variable is required in production. ' +
+      'Generate one: `openssl rand -hex 32`. Set in Vercel → Environment Variables.'
+    );
+  }
+  return new TextEncoder().encode(raw || 'dev-only-secret-change-in-production-32b');
 }
 
 export interface SessionPayload {
