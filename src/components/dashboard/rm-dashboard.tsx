@@ -8,10 +8,12 @@ import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
+import { useClientsAggregate } from '@/lib/use-clients-aggregate';
 import { ManagerDashboard } from './manager-dashboard';
 import { ManagerAccordion } from './manager-accordion';
 import { BrandManagerGroup, pivotBrandsByManager } from './brand-manager-group';
 import { MetricCard } from './metric-card';
+import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import {
   ChevronRight, MapPin, ClipboardList, RefreshCw,
@@ -61,6 +63,10 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
   const aggregate = useMemo(() => region ? aggregateRegion(region) : null, [region]);
   const managerList = useMemo(() => region ? aggregateManagers(region) : [], [region]);
+
+  // Агрегат клієнтів по регіону (Action 2 паралельно для всіх логінів)
+  const managerLogins = useMemo(() => region?.managers.map(m => m.login) ?? [], [region]);
+  const { data: clientStats } = useClientsAggregate(managerLogins.length > 0 ? managerLogins : null);
 
   // === Зріз дат для прогресу місяця ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).
@@ -181,9 +187,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
       {region && aggregate && (
         <>
-          {/* Hero metrics — 3 картки. 4-у позицію (ClientStatsCard) додамо
-              коли підключимо Action 2 для агрегату клієнтів по регіону. */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Hero metrics — 4 картки (4-та = ClientStatsCard через Action 2 агрегат) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
               icon={<Target />}
               iconColor="text-[#066aab]"
@@ -230,6 +235,13 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                 </div>
               )}
             />
+            <ClientStatsCard stats={clientStats ?? {
+              active: { total: 0, bought: 0 },
+              sleeping: { total: 0, bought: 0 },
+              newClients: { total: 0, bought: 0 },
+              totalBought: 0,
+              totalClients: 0,
+            }} />
           </div>
 
           {/* Менеджери регіону — ManagerAccordion (тап = expand → 9 BrandRow усередині) */}

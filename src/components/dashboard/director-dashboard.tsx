@@ -8,8 +8,10 @@ import { aggregateCompany, aggregateManagers } from '@/lib/region-aggregates';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
+import { useClientsAggregate } from '@/lib/use-clients-aggregate';
 import { RMDashboard } from './rm-dashboard';
 import { MetricCard } from './metric-card';
+import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { RegionAccordion } from './region-accordion';
 import { BrandRegionGroup, pivotBrandsByRegion } from './brand-region-group';
@@ -48,6 +50,13 @@ export function DirectorDashboard() {
   );
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const company = useMemo(() => adapted ? aggregateCompany(adapted.regions) : null, [adapted]);
+
+  // Агрегат клієнтів по компанії — Action 2 паралельно для ВСІХ менеджерів усіх регіонів
+  const allManagerLogins = useMemo(() => {
+    if (!adapted) return [];
+    return adapted.regions.flatMap(r => r.managers.map(m => m.login));
+  }, [adapted]);
+  const { data: clientStats } = useClientsAggregate(allManagerLogins.length > 0 ? allManagerLogins : null);
 
   // === Робочі дні / asOfDate для прогресу ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).
@@ -140,9 +149,8 @@ export function DirectorDashboard() {
 
       {company && company.regionAggregates.length > 0 && (
         <>
-          {/* Hero metrics — 3 картки. 4-у позицію (ClientStatsCard) додамо
-              коли підключимо Action 2 для агрегату клієнтів по компанії. */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Hero metrics — 4 картки (4-та = ClientStatsCard через Action 2 агрегат) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
               icon={<Target />}
               iconColor="text-[#066aab]"
@@ -189,6 +197,13 @@ export function DirectorDashboard() {
                 </div>
               )}
             />
+            <ClientStatsCard stats={clientStats ?? {
+              active: { total: 0, bought: 0 },
+              sleeping: { total: 0, bought: 0 },
+              newClients: { total: 0, bought: 0 },
+              totalBought: 0,
+              totalClients: 0,
+            }} />
           </div>
 
           {/* Регіони — RegionAccordion (тап = expand → 9 BrandRow усередині, drill-down іконка справа) */}
