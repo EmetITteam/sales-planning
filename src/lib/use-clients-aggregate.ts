@@ -33,6 +33,10 @@ export function useClientsAggregate(logins: string[] | null): {
       const responses = await Promise.all(
         (logins ?? []).map(login => callOneC('getClientsForPlanning', { login })),
       );
+      // Лог для діагностики: скільки логінів запитали і скільки клієнтів отримали.
+      // Безпечно для prod — у мережі видно тільки результат, не payload.
+      const totalGot = responses.reduce((a, r) => a + r.clients.length, 0);
+      console.info('[clientsAgg]', { logins: logins?.length, totalClients: totalGot });
 
       const stats: ClientCategoryStats = {
         active: { total: 0, bought: 0 },
@@ -54,7 +58,14 @@ export function useClientsAggregate(logins: string[] | null): {
       }
       return stats;
     },
-    { dedupingInterval: 300_000, revalidateOnFocus: false },
+    {
+      dedupingInterval: 300_000,
+      revalidateOnFocus: false,
+      // keepPreviousData: щоб при зміні набору логінів (live mode toggle, перехід
+      // на інший період) не блимало 0/0/0 — показуємо старі цифри поки нові
+      // не завантажились.
+      keepPreviousData: true,
+    },
   );
 
   return {
