@@ -32,11 +32,22 @@ function parseOriginHost(value: string): string | null {
 }
 
 export function validateApiRequest(request: NextRequest): { valid: boolean; error?: string; userId?: number } {
-  // 1) same-origin (наш фронт)
-  // Origin браузер ставить автоматично і JS не може підмінити. Referer не довіряємо
-  // (можна виставити з curl). Перевіряємо EXACT match origin (через URL parse) —
-  // інакше `https://sales-planning-lyart.vercel.app.evil.com` пройшов би через
-  // startsWith.
+  // 1) Sec-Fetch-Site — найнадійніший спосіб для сучасних браузерів (з 2020).
+  // Браузер ВЖЕ позначив звідки запит, JS не може підмінити цей header.
+  //   - 'same-origin' / 'same-site' — наш фронт → OK
+  //   - 'none' — користувач набрав URL у адресному рядку, відкрив закладку,
+  //     прийшов з PWA standalone — теж OK
+  //   - 'cross-site' — стороній сайт → треба ключ
+  // Чому НЕ Origin: для same-origin GET браузери часто НЕ шлють Origin header,
+  // тоді fall-through на API key → 401 на наших же сторінках.
+  const sfSite = request.headers.get('sec-fetch-site');
+  if (sfSite === 'same-origin' || sfSite === 'same-site' || sfSite === 'none') {
+    return { valid: true };
+  }
+
+  // 2) Fallback для старих браузерів — exact match Origin (через URL parse).
+  // `https://sales-planning-lyart.vercel.app.evil.com` НЕ пройде (на відміну
+  // від startsWith).
   const origin = request.headers.get('origin');
   if (origin) {
     const parsed = parseOriginHost(origin);
@@ -45,12 +56,12 @@ export function validateApiRequest(request: NextRequest): { valid: boolean; erro
     }
   }
 
-  // 2) dev — без ключа (origin може бути відсутній у тестах curl)
+  // 3) dev — без ключа (origin може бути відсутній у тестах curl)
   if (process.env.NODE_ENV !== 'production') {
     return { valid: true };
   }
 
-  // 3) Зовнішній запит → потрібен ключ
+  // 4) Зовнішній запит → потрібен ключ
   const authHeader = request.headers.get('x-api-key');
   if (authHeader !== API_SECRET) {
     return { valid: false, error: 'Unauthorized: invalid API key' };
