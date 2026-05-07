@@ -14,6 +14,11 @@ interface Props {
   asOfDate: Date;
   /** Drill-down у RMDashboard цього регіону. */
   onDrillDown: () => void;
+  /**
+   * Швидкий drill-down напряму у конкретного менеджера (з mini-list).
+   * Якщо не передано — імена в mini-list НЕ клікабельні.
+   */
+  onManagerClick?: (login: string) => void;
 }
 
 /** Прізвище І. — наприклад "Сірик Наталія" → "Сірик Н." */
@@ -30,7 +35,7 @@ function shortName(fullName: string): string {
  * Drill-down у RMDashboard — окрема <ChevronRight> кнопка справа з
  * stopPropagation. Mini-list менеджерів між назвою і Факт/План.
  */
-export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, onDrillDown }: Props) {
+export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, onDrillDown, onManagerClick }: Props) {
   const [expanded, setExpanded] = useState(false);
   const pct = pctOf(aggregate.totalFact, aggregate.totalPlan);
   const tl = getTrafficLight(pct, calcPct);
@@ -56,24 +61,41 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, o
           </div>
         </div>
 
-        {/* Mini-list менеджерів — 2 колонки. */}
+        {/* Mini-list менеджерів — 2 колонки. Клікабельні якщо onManagerClick передано
+            (drill-down напряму у конкретного менеджера, skip RMDashboard). */}
         <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
-          {managersBrief.map(m => (
-            <span
-              key={m.login}
-              className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap"
-              title={`${m.name}: ${m.pct.toFixed(1)}% (${m.dev >= 0 ? '+' : ''}${m.dev.toFixed(1)}% vs норма)`}
-            >
-              <span className={`w-2 h-2 rounded-full shrink-0 ${m.onPlan ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-              <span className="font-semibold text-foreground/80 truncate">{shortName(m.name)}</span>
-              <span className={`font-bold shrink-0 ${m.onPlan ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {m.pct.toFixed(0)}%
+          {managersBrief.map(m => {
+            const inner = (
+              <>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${m.onPlan ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                <span className="font-semibold text-foreground/80 truncate">{shortName(m.name)}</span>
+                <span className={`font-bold shrink-0 ${m.onPlan ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {m.pct.toFixed(0)}%
+                </span>
+                <span className={`text-[10px] shrink-0 ${m.dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  ({m.dev >= 0 ? '+' : ''}{m.dev.toFixed(1)}%)
+                </span>
+              </>
+            );
+            const tip = `${m.name}: ${m.pct.toFixed(1)}% (${m.dev >= 0 ? '+' : ''}${m.dev.toFixed(1)}% vs норма)${onManagerClick ? ' · клік для drill-down' : ''}`;
+            if (onManagerClick) {
+              return (
+                <button
+                  key={m.login}
+                  onClick={(e) => { e.stopPropagation(); onManagerClick(m.login); }}
+                  title={tip}
+                  className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap rounded px-1 -mx-1 hover:bg-[#e8f4fc] cursor-pointer text-left"
+                >
+                  {inner}
+                </button>
+              );
+            }
+            return (
+              <span key={m.login} className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap" title={tip}>
+                {inner}
               </span>
-              <span className={`text-[10px] shrink-0 ${m.dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                ({m.dev >= 0 ? '+' : ''}{m.dev.toFixed(1)}%)
-              </span>
-            </span>
-          ))}
+            );
+          })}
         </div>
 
         <div className="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">

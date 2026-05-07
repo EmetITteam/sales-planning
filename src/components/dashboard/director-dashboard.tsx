@@ -10,6 +10,7 @@ import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
 import { useClientsAggregate } from '@/lib/use-clients-aggregate';
 import { RMDashboard } from './rm-dashboard';
+import { ManagerDashboard } from './manager-dashboard';
 import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
@@ -20,7 +21,7 @@ import {
   DollarSign, Target, TrendingUp, TrendingDown, Users,
 } from 'lucide-react';
 
-type DirView = 'dashboard' | 'viewRegion';
+type DirView = 'dashboard' | 'viewRegion' | 'viewManager';
 
 /**
  * Дашборд Директора — зведення по всій компанії через Action 5.
@@ -36,6 +37,7 @@ type DirView = 'dashboard' | 'viewRegion';
 export function DirectorDashboard() {
   const [view, setView] = useState<DirView>('dashboard');
   const [selectedRegionCode, setSelectedRegionCode] = useState<string>('');
+  const [selectedManagerLogin, setSelectedManagerLogin] = useState<string>('');
 
   const { user, currentPeriod, liveMode } = useAppStore();
   const periodKey = currentPeriod.month.slice(0, 7);
@@ -56,7 +58,7 @@ export function DirectorDashboard() {
     if (!adapted) return [];
     return adapted.regions.flatMap(r => r.managers.map(m => m.login));
   }, [adapted]);
-  const { data: clientStats } = useClientsAggregate(allManagerLogins.length > 0 ? allManagerLogins : null);
+  const { data: clientStats, loading: clientStatsLoading } = useClientsAggregate(allManagerLogins.length > 0 ? allManagerLogins : null);
 
   // === Робочі дні / asOfDate для прогресу ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).
@@ -81,6 +83,25 @@ export function DirectorDashboard() {
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до огляду
         </button>
         <RMDashboard regionCode={selectedRegionCode} />
+      </div>
+    );
+  }
+  if (view === 'viewManager') {
+    // Швидкий drill-down напряму у менеджера (з manager-mini-list у RegionAccordion).
+    // Знаходимо ім'я для шапки.
+    let managerName = selectedManagerLogin;
+    if (adapted) {
+      for (const r of adapted.regions) {
+        const m = r.managers.find(x => x.login === selectedManagerLogin);
+        if (m) { managerName = m.name; break; }
+      }
+    }
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+          <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до огляду
+        </button>
+        <ManagerDashboard targetUserLogin={selectedManagerLogin} targetUserName={managerName} />
       </div>
     );
   }
@@ -197,13 +218,16 @@ export function DirectorDashboard() {
                 </div>
               )}
             />
-            <ClientStatsCard stats={clientStats ?? {
-              active: { total: 0, bought: 0 },
-              sleeping: { total: 0, bought: 0 },
-              newClients: { total: 0, bought: 0 },
-              totalBought: 0,
-              totalClients: 0,
-            }} />
+            <ClientStatsCard
+              stats={clientStats ?? {
+                active: { total: 0, bought: 0 },
+                sleeping: { total: 0, bought: 0 },
+                newClients: { total: 0, bought: 0 },
+                totalBought: 0,
+                totalClients: 0,
+              }}
+              loading={clientStatsLoading}
+            />
           </div>
 
           {/* Регіони — RegionAccordion (тап = expand → 9 BrandRow усередині, drill-down іконка справа) */}
@@ -227,6 +251,7 @@ export function DirectorDashboard() {
                     calcPct={calcPctValue}
                     asOfDate={asOfDate}
                     onDrillDown={() => { setSelectedRegionCode(r.regionCode); setView('viewRegion'); }}
+                    onManagerClick={(login) => { setSelectedManagerLogin(login); setView('viewManager'); }}
                   />
                 );
               })}
@@ -237,13 +262,14 @@ export function DirectorDashboard() {
           <div>
             <h3 className="text-[15px] font-bold mb-4">По брендах — з розбивкою по регіонах</h3>
             <div className="space-y-3">
-              {pivotBrandsByRegion(company.regionAggregates).map(brand => (
+              {pivotBrandsByRegion(company.regionAggregates, adapted!.regions).map(brand => (
                 <BrandRegionGroup
                   key={brand.segmentCode}
                   brand={brand}
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
                   onRegionClick={(code) => { setSelectedRegionCode(code); setView('viewRegion'); }}
+                  onManagerClick={(login) => { setSelectedManagerLogin(login); setView('viewManager'); }}
                 />
               ))}
             </div>

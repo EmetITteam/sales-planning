@@ -5,9 +5,34 @@ import type { ClientCategoryStats } from '@/lib/mock-data';
 
 interface ClientStatsCardProps {
   stats: ClientCategoryStats;
+  /** Якщо true і stats.totalClients=0 — показуємо скелет замість чисельних 0/0. */
+  loading?: boolean;
 }
 
-export function ClientStatsCard({ stats }: ClientStatsCardProps) {
+export function ClientStatsCard({ stats, loading = false }: ClientStatsCardProps) {
+  // Скелет лише коли реально ще нічого не отримали (totalClients=0). Якщо вже
+  // є попередні дані (keepPreviousData) — показуємо їх, поки не оновляться.
+  const showSkeleton = loading && stats.totalClients === 0;
+  if (showSkeleton) {
+    return (
+      <div className="bg-white rounded-2xl p-3 md:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <div className="h-3 w-32 bg-[#f0f2f8] rounded animate-pulse mb-3" />
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="h-3.5 w-20 bg-[#f0f2f8] rounded animate-pulse" />
+              <div className="h-3.5 w-12 bg-[#f0f2f8] rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 pt-2 border-t border-[#f0f2f8] flex items-center justify-between">
+          <div className="h-3 w-24 bg-[#f0f2f8] rounded animate-pulse" />
+          <div className="h-3 w-8 bg-[#f0f2f8] rounded animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl p-3 md:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
       <p className="text-[11px] md:text-[12px] text-muted-foreground font-medium mb-2 leading-tight">Клієнти — факт купівель</p>

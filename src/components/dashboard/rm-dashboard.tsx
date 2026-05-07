@@ -66,7 +66,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
   // Агрегат клієнтів по регіону (Action 2 паралельно для всіх логінів)
   const managerLogins = useMemo(() => region?.managers.map(m => m.login) ?? [], [region]);
-  const { data: clientStats } = useClientsAggregate(managerLogins.length > 0 ? managerLogins : null);
+  const { data: clientStats, loading: clientStatsLoading } = useClientsAggregate(managerLogins.length > 0 ? managerLogins : null);
 
   // === Зріз дат для прогресу місяця ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).
@@ -235,13 +235,16 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                 </div>
               )}
             />
-            <ClientStatsCard stats={clientStats ?? {
-              active: { total: 0, bought: 0 },
-              sleeping: { total: 0, bought: 0 },
-              newClients: { total: 0, bought: 0 },
-              totalBought: 0,
-              totalClients: 0,
-            }} />
+            <ClientStatsCard
+              stats={clientStats ?? {
+                active: { total: 0, bought: 0 },
+                sleeping: { total: 0, bought: 0 },
+                newClients: { total: 0, bought: 0 },
+                totalBought: 0,
+                totalClients: 0,
+              }}
+              loading={clientStatsLoading}
+            />
           </div>
 
           {/* Менеджери регіону — ManagerAccordion (тап = expand → 9 BrandRow усередині) */}
