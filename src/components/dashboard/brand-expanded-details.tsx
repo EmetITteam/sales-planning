@@ -70,7 +70,9 @@ export function BrandExpandedDetails({
   );
   const unplannedByCat = useMemo(() => groupUnplannedByCategory(unplanned), [unplanned]);
 
-  // Hwo bought цей сегмент за категоріями (Action 3 + Action 2 крос-референс)
+  // Хто купив цей сегмент за категоріями — ТІЛЬКИ ті що БУЛИ В ПЛАНІ (planned&bought).
+  // Інакше один клієнт показався б одночасно у "Активні: bought=1" І "Незаплановані: 1"
+  // — двічі для тієї ж людини.
   const factSegment = factResponse?.facts.find(f => f.segmentCode === segmentCode);
   const buyersByCategory = useMemo(() => {
     const map = new Map<string, Client1C['category']>();
@@ -79,13 +81,14 @@ export function BrandExpandedDetails({
     if (!factSegment) return out;
     for (const buyer of factSegment.clients) {
       if (buyer.amount <= 0) continue;
+      if (!plannedIds.has(buyer.clientId)) continue; // skip unplanned — вони у блоці Незаплановані
       const cat = map.get(buyer.clientId) ?? 'none';
       if (cat === 'active') out.active += 1;
       else if (cat === 'new') out.new += 1;
       else if (cat === 'sleeping' || cat === 'lost' || cat === 'none') out.sleeping_lost += 1;
     }
     return out;
-  }, [factSegment, allClients]);
+  }, [factSegment, allClients, plannedIds]);
 
   const factByCategory = useMemo(() => {
     const map = new Map<string, Client1C['category']>();
@@ -93,13 +96,14 @@ export function BrandExpandedDetails({
     const out = { active: 0, new: 0, sleeping_lost: 0 };
     if (!factSegment) return out;
     for (const buyer of factSegment.clients) {
+      if (!plannedIds.has(buyer.clientId)) continue; // skip unplanned — їх fact у блоці Незаплановані
       const cat = map.get(buyer.clientId) ?? 'none';
       if (cat === 'active') out.active += buyer.amount;
       else if (cat === 'new') out.new += buyer.amount;
       else out.sleeping_lost += buyer.amount;
     }
     return out;
-  }, [factSegment, allClients]);
+  }, [factSegment, allClients, plannedIds]);
 
   // Скільки в плані менеджера у цій категорії
   const plannedByCategory = useMemo(() => {
