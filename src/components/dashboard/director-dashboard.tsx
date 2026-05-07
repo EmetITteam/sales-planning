@@ -4,17 +4,18 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
-import { aggregateCompany } from '@/lib/region-aggregates';
+import { aggregateCompany, aggregateManagers } from '@/lib/region-aggregates';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
 import { RMDashboard } from './rm-dashboard';
-import { BrandRow } from './brand-row';
 import { MetricCard } from './metric-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
+import { RegionAccordion } from './region-accordion';
+import { BrandRegionGroup, pivotBrandsByRegion } from './brand-region-group';
 import {
-  ChevronRight, MapPin, RefreshCw,
-  DollarSign, Target, TrendingUp, TrendingDown, Users, Eye,
+  ChevronRight, RefreshCw,
+  DollarSign, Target, TrendingUp, TrendingDown, Users,
 } from 'lucide-react';
 
 type DirView = 'dashboard' | 'viewRegion';
