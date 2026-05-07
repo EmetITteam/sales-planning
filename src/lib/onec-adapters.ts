@@ -212,12 +212,9 @@ export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
   // 1С майже точно віддасть числа рядками (як в Action 2/3/4) — обгортаємо.
   // v2.4: r.regions[] — масив регіонів (РМ → 1, Директор → 8).
   //
-  // ⚠️ 1С-bug (підтверджено 2026-05-07 на реальній відповіді):
-  // 1С повертає `regionName` і `regionCode` ПЕРЕПЛУТАНИМИ —
-  // у regionName лежить код "DNP", у regionCode — назва "Дніпро".
-  // Свопаємо тут поки 1С-розробник не виправить. TODO: прибрати swap.
-  // Heuristic: якщо regionName виглядає як 3-буквений UPPERCASE код а
-  // regionCode містить кирилицю — точно переплутані.
+  // 2026-05-07: 1С-розробник виправив порядок полів (раніше regionName/regionCode
+  // приходили переплутаними). Hueristic нижче залишаємо як defensive fallback —
+  // не спрацює коли формат правильний, але захистить якщо колись регресія.
   return {
     asOfDate: r.asOfDate,
     prevMonthAsOfDate: r.prevMonthAsOfDate,
