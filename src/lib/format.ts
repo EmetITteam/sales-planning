@@ -93,29 +93,20 @@ export function getProbColor(prob: number) {
 }
 
 /**
- * Світлофор: порівнюємо поточний % виконання (factPct) з нормою на дату (calcPct).
+ * Світлофор: порівнюємо поточний % виконання з нормою.
+ * Бінарна логіка (за вимогою користувача 2026-05-07):
+ *   factPct ≥ calcPct → На плані (зелений)
+ *   factPct < calcPct → Відставання (червоний)
  *
- * RATIO-based (raтio = pct / expected):
- *   ratio >= 0.95 → На плані (зелений)   — досягнуто ≥95% норми
- *   ratio >= 0.70 → Ризик (бурштиновий)  — 70-95% норми
- *   інакше        → Відставання (червоний) — <70%
+ * Без проміжного «Ризик» — або менеджер тримає темп, або не тримає. Жовте
+ * вводило в оману.
  *
- * Чому НЕ абсолютний diff: на 03.05 норма ~5%, відставання -4.8% — за старою
- * логікою (diff>=-5) це показувало «На плані» хоча реально нічого не куплено.
- * Ratio коректно обробляє і ранні дні (норма мала) і кінець місяця (норма велика).
- *
- * Edge case: якщо expected ~0 (початок місяця) — завжди «На плані» (нічого
- * ще не мало бути виконано).
- *
- * @param pct — поточний % (factPercent у більшості випадків)
+ * @param pct — поточний % виконання (factPercent)
  * @param expected — норма для порівняння (calcPct: % робочих днів пройдено)
  */
 export function getTrafficLight(pct: number, expected: number) {
-  if (expected < 0.01) {
+  if (pct >= expected) {
     return { color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500', label: 'На плані' };
   }
-  const ratio = pct / expected;
-  if (ratio >= 0.95) return { color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500', label: 'На плані' };
-  if (ratio >= 0.70) return { color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500', label: 'Ризик' };
   return { color: 'text-rose-600', bg: 'bg-rose-50', dot: 'bg-rose-500', label: 'Відставання' };
 }
