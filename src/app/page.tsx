@@ -18,7 +18,10 @@ export default function Home() {
 
   useEffect(() => {
     apiMe().then(u => {
-      if (u) setUser(u);
+      // ⚠️ ЗАВЖДИ викликаємо setUser, навіть з null. Інакше stale user зі
+      // старого sessionStorage (від попередньої версії з persist user) лишається,
+      // UI думає що залогінений, але cookie нема → /api/onec поверне 401 на все.
+      setUser(u);
       setBootstrapped(true);
     });
   }, [setUser]);

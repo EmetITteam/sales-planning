@@ -175,9 +175,19 @@ async function main() {
     if (await ellanseRow.count() === 0) {
       log.bug('high', 'Бренд Ellanse не знайдено на дашборді');
     } else {
+      // Day 9 (2026-05-07): після Variant A клік на BrandRow = expand inline
+      // (не перехід у форму). Щоб відкрити форму — кнопка "Перейти у форму →".
       await ellanseRow.click();
+      // Чекаємо поки expand розкриється
+      await page.waitForTimeout(500);
+      const goToForm = page.locator('text=/Перейти у форму/').first();
+      if (await goToForm.count() === 0) {
+        log.bug('high', 'CTA "Перейти у форму" не знайдено в expanded BrandRow');
+      } else {
+        await goToForm.click();
+      }
       await page.waitForSelector('text=/Дані по клієнтах по ТМ|Прогноз по активних/i', { timeout: 15000 });
-      log.ok('Форма ELLANSE відкрилась');
+      log.ok('Форма ELLANSE відкрилась (через expand → "Перейти у форму")');
 
       // Чекаємо поки 1С відповість — індикатор «завантажуємо клієнтів з 1С...» має зникнути.
       // Якщо індикатора не з'явилось взагалі — або кеш, або помилка; daleko не чекаємо.
@@ -279,9 +289,12 @@ async function main() {
             await backToDash.click();
             await page.waitForSelector('text=/Торгові марки|Менеджери/i', { timeout: 15000 });
 
-            // Зміряємо час повторного відкриття ELLANSE — має бути миттєво (кеш Zustand)
+            // Зміряємо час повторного відкриття ELLANSE — має бути миттєво (кеш SWR)
             const reopenStart = Date.now();
             await page.locator('text=/Ellanse/i').first().click();
+            // Чекаємо поки expand-панель з'явиться (Variant A: chevron→inline)
+            await page.waitForSelector('text=/Перейти у форму/', { timeout: 10000 });
+            await page.locator('text=/Перейти у форму/').first().click();
             await page.waitForSelector('text=/Дані по клієнтах по ТМ/i', { timeout: 15000 });
             // Чекаємо на можливий індикатор завантаження (якщо кеш прохолов — буде)
             const hadLoadingIndicator = await page.locator('text=/завантажуємо клієнтів з 1С/i').count() > 0;
