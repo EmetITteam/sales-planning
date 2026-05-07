@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { apiMe } from '@/lib/auth-client';
 import { LoginForm } from '@/components/login/login-form';
 import { AppHeader } from '@/components/layout/app-header';
 import { InstallPrompt } from '@/components/layout/install-prompt';
@@ -12,20 +10,9 @@ import { DirectorDashboard } from '@/components/dashboard/director-dashboard';
 
 export default function Home() {
   const user = useAppStore((s) => s.user);
-  const setUser = useAppStore((s) => s.setUser);
-  // Bootstrap: на mount питаємо у /api/auth/me чи є валідна cookie. Поки чекаємо
-  // — показуємо нейтральний splash щоб не блимати login form-ою для залогінених.
-  const [bootstrapped, setBootstrapped] = useState(false);
-
-  useEffect(() => {
-    apiMe().then(u => {
-      // ⚠️ ЗАВЖДИ викликаємо setUser, навіть з null. Інакше stale user зі
-      // старого sessionStorage (від попередньої версії з persist user) лишається,
-      // UI думає що залогінений, але cookie нема → /api/onec поверне 401 на все.
-      setUser(u);
-      setBootstrapped(true);
-    });
-  }, [setUser]);
+  const bootstrapped = useAppStore((s) => s.bootstrapped);
+  // Bootstrap робиться у SessionBootstrap (root layout). Тут лише чекаємо
+  // прапорець — щоб не блимати login form-ою для залогінених юзерів.
 
   if (!bootstrapped) {
     return (

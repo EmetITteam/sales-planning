@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SessionBootstrap } from "@/components/layout/session-bootstrap";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -54,7 +55,9 @@ export default function RootLayout({
       className={`${jakarta.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background">
-        <TooltipProvider>{children}</TooltipProvider>
+        <SessionBootstrap>
+          <TooltipProvider>{children}</TooltipProvider>
+        </SessionBootstrap>
       </body>
     </html>
   );

@@ -48,6 +48,12 @@ function getDefaultPeriod(): PeriodInfo {
 
 interface AppState {
   user: UserSession | null;
+  /**
+   * Прапорець що /api/auth/me відповіла (з user або null).
+   * Без нього home-сторінка не може відрізнити «ще не bootstrapped» від
+   * «bootstrapped і не залогінений» → блимання login form у залогінених.
+   */
+  bootstrapped: boolean;
   currentPeriod: PeriodInfo;
   designVariant: 'cards' | 'table';
   /**
@@ -57,6 +63,7 @@ interface AppState {
    */
   liveMode: boolean;
   setUser: (user: UserSession | null) => void;
+  setBootstrapped: (b: boolean) => void;
   setCurrentPeriod: (period: PeriodInfo) => void;
   setDesignVariant: (variant: 'cards' | 'table') => void;
   setLiveMode: (live: boolean) => void;
@@ -66,6 +73,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       user: null,
+      bootstrapped: false,
       currentPeriod: getDefaultPeriod(),
       designVariant: 'cards',
       liveMode: false,
@@ -77,6 +85,7 @@ export const useAppStore = create<AppState>()(
       setUser: (user) => set(user === null
         ? { user: null, liveMode: false }
         : { user }),
+      setBootstrapped: (b) => set({ bootstrapped: b }),
       setCurrentPeriod: (period) => set({ currentPeriod: period }),
       setDesignVariant: (variant) => set({ designVariant: variant }),
       setLiveMode: (live) => set({ liveMode: live }),

@@ -17,6 +17,7 @@ import { useAppStore } from '@/lib/store';
 
 export default function DebugRegionPage() {
   const user = useAppStore(s => s.user);
+  const bootstrapped = useAppStore(s => s.bootstrapped);
   const currentPeriod = useAppStore(s => s.currentPeriod);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<unknown>(null);
@@ -65,7 +66,9 @@ export default function DebugRegionPage() {
       <div className="bg-white rounded-2xl p-4 space-y-2 border border-[#e2e7ef]">
         <p className="text-sm">
           <span className="text-muted-foreground">Логін:</span>{' '}
-          <span className="font-mono font-semibold">{user?.login || '— не залогінений —'}</span>
+          <span className="font-mono font-semibold">
+            {!bootstrapped ? '— перевіряю сесію... —' : (user?.login || '— не залогінений —')}
+          </span>
         </p>
         <p className="text-sm">
           <span className="text-muted-foreground">Роль:</span>{' '}
