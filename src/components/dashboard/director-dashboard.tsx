@@ -5,7 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
 import { aggregateCompany } from '@/lib/region-aggregates';
-import { formatUSD, formatPct, pctOf, calcForecastPercent } from '@/lib/format';
+import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
 import { RMDashboard } from './rm-dashboard';
@@ -36,7 +36,10 @@ export function DirectorDashboard() {
 
   const { user, currentPeriod, liveMode } = useAppStore();
   const periodKey = currentPeriod.month.slice(0, 7);
-  const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : undefined;
+  // ⚠️ asOfIso ЗАВЖДИ передаємо щоб 1С повертала факт по обраному діапазону
+  const asOfIso = liveMode
+    ? new Date().toISOString().slice(0, 10)
+    : currentPeriod.weekEnd;
 
   const { data: regionResp, loading, error, refetch } = useOneCData(
     'getRegionData',
@@ -46,13 +49,15 @@ export function DirectorDashboard() {
   const company = useMemo(() => adapted ? aggregateCompany(adapted.regions) : null, [adapted]);
 
   // === Робочі дні / asOfDate для прогресу ===
+  // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).
   const monthParts = currentPeriod.month.split('-').map(Number);
   const py = Number.isFinite(monthParts[0]) && monthParts[0] > 0 ? monthParts[0] : new Date().getFullYear();
   const pm = Number.isFinite(monthParts[1]) && monthParts[1] > 0 ? monthParts[1] : new Date().getMonth() + 1;
-  const asOfDate = useMemo(
-    () => liveMode ? new Date() : new Date(py, pm - 1, new Date(py, pm, 0).getDate()),
-    [liveMode, py, pm],
-  );
+  const asOfDate = useMemo(() => {
+    if (liveMode) return new Date();
+    const [y, m, d] = currentPeriod.weekEnd.split('-').map(Number);
+    return new Date(y || py, (m || pm) - 1, d || 1);
+  }, [liveMode, currentPeriod.weekEnd, py, pm]);
   const totalWD = getWorkingDaysInMonth(py, pm - 1);
   const passedWD = getPassedWorkingDays(py, pm - 1, asOfDate);
   const calcPctValue = getMonthProgressPct(py, pm - 1, asOfDate);
@@ -142,7 +147,7 @@ export function DirectorDashboard() {
               label="План компанії"
               value={formatUSD(totalPlan)}
               isAmount
-              caption={<span className="text-muted-foreground">{periodLabel}</span>}
+              caption={<span className="text-muted-foreground">{periodLabel} · {workingDaysLabel(totalWD)}</span>}
             />
             <MetricCard
               icon={<DollarSign />}
@@ -177,7 +182,7 @@ export function DirectorDashboard() {
               )}
               caption={(
                 <div className="space-y-0.5">
-                  <p className="text-muted-foreground">Норма: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
+                  <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
                   <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                 </div>
               )}
