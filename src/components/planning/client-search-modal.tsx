@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import type { Client1C } from '@/lib/types';
+import { categoryLabel } from '@/lib/unplanned-buyers';
 import { Search, Phone, MapPin, Calendar } from 'lucide-react';
 
 interface ClientSearchModalProps {
@@ -18,12 +19,13 @@ interface ClientSearchModalProps {
   loading?: boolean;
 }
 
-const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  active: { label: 'Активний', color: 'bg-emerald-50 text-emerald-700' },
-  sleeping: { label: 'Сплячий', color: 'bg-amber-50 text-amber-700' },
-  lost: { label: 'Втрачений', color: 'bg-rose-50 text-rose-700' },
-  new: { label: 'Новий', color: 'bg-blue-50 text-blue-700' },
-  none: { label: 'Без категорії', color: 'bg-gray-50 text-gray-600' },
+// Колір (badge) — UI-знання, лишається тут. Лейбл — спільний з решти UI.
+const CATEGORY_COLOR: Record<Client1C['category'], string> = {
+  active: 'bg-emerald-50 text-emerald-700',
+  sleeping: 'bg-amber-50 text-amber-700',
+  lost: 'bg-rose-50 text-rose-700',
+  new: 'bg-blue-50 text-blue-700',
+  none: 'bg-gray-50 text-gray-600',
 };
 
 export function ClientSearchModal({ open, onClose, onSelect, excludeIds, clients, loading }: ClientSearchModalProps) {
@@ -63,7 +65,8 @@ export function ClientSearchModal({ open, onClose, onSelect, excludeIds, clients
           ) : (
             <div className="divide-y divide-border/30">
               {filtered.map(client => {
-                const cat = CATEGORY_LABELS[client.category] ?? CATEGORY_LABELS.none;
+                const catColor = CATEGORY_COLOR[client.category] ?? CATEGORY_COLOR.none;
+                const catLabel = categoryLabel(client.category);
                 return (
                   <button
                     key={client.clientId}
@@ -91,8 +94,8 @@ export function ClientSearchModal({ open, onClose, onSelect, excludeIds, clients
                           )}
                         </div>
                       </div>
-                      <Badge variant="secondary" className={`text-[10px] shrink-0 ${cat.color}`}>
-                        {cat.label}
+                      <Badge variant="secondary" className={`text-[10px] shrink-0 ${catColor}`}>
+                        {catLabel}
                       </Badge>
                     </div>
                   </button>

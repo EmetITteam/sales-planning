@@ -10,10 +10,16 @@
  * server-side можна валідувати що клієнт надіслав правильний userId.
  */
 export function loginToUserId(login: string): number {
+  // Нормалізація: 1С іноді віддає логін з різним регістром в різних методах
+  // (Login vs RegistryPlans). Без lowercase той самий менеджер потрапить
+  // у Supabase як два різних user_id і його план «розділиться навпіл».
+  const normalized = login.toLowerCase().trim();
   let hash = 0;
-  for (let i = 0; i < login.length; i++) {
-    hash = ((hash << 5) - hash) + login.charCodeAt(i);
+  for (let i = 0; i < normalized.length; i++) {
+    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
     hash |= 0;
   }
-  return Math.abs(hash);
+  // `hash >>> 0` конвертує signed 32-bit у unsigned. `Math.abs(MIN_INT)` повертає
+  // MIN_INT (overflow) — баг який ми колись могли отримати від'ємний user_id.
+  return hash >>> 0;
 }

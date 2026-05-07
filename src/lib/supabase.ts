@@ -64,9 +64,11 @@ class SupabaseTable {
     return this;
   }
 
-  upsert(row: Record<string, unknown>, opts?: { onConflict?: string }): this {
+  upsert(row: Record<string, unknown> | Record<string, unknown>[], opts?: { onConflict?: string }): this {
     this._method = 'POST';
-    this._body = [row];
+    // PostgREST приймає масив для batch upsert. Один запит замість N — критично
+    // для save planning з 25-40 рядками (інакше save = 4с замість ~200мс).
+    this._body = Array.isArray(row) ? row : [row];
     this._extraHeaders['Prefer'] = 'resolution=merge-duplicates';
     if (opts?.onConflict) this.queryParts.push(`on_conflict=${opts.onConflict}`);
     return this;
@@ -106,7 +108,7 @@ class SupabaseTable {
       });
 
       const countHeader = res.headers.get('content-range');
-      const count = countHeader ? parseInt(countHeader.split('/')[1]) : null;
+      const count = countHeader ? parseInt(countHeader.split('/')[1], 10) : null;
 
       if (this.headOnly) return { data: null, error: null, count };
 

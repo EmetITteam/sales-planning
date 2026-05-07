@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { useAppStore } from '@/lib/store';
+import { apiLogout } from '@/lib/auth-client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -32,20 +33,23 @@ const ROLE_COLORS: Record<string, string> = {
 export function AppHeader() {
   const { user, setUser, liveMode, setLiveMode } = useAppStore();
   const { mutate } = useSWRConfig();
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Спершу серверна частина — clear HttpOnly cookie. Потім локальний state.
+    await apiLogout();
     // Очистити SWR-кеш — інакше наступний логін бачить дані попереднього
     // користувача (per-login key переключиться, але старий ключ лишився).
     mutate(() => true, undefined, { revalidate: false });
     setUser(null);
   };
-  const [hideAmounts, setHideAmounts] = useState(false);
+  // Lazy init з localStorage — без useEffect+setState (cascading render).
+  // SSR-safe: на сервері window нема → завжди false; перший render у браузері
+  // одразу читає правильне значення.
+  const [hideAmounts, setHideAmounts] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(HIDE_AMOUNTS_KEY) === '1';
+  });
 
-  // Init з localStorage + синхронізація з <body data-hide-amounts>
-  useEffect(() => {
-    const saved = typeof window !== 'undefined' && localStorage.getItem(HIDE_AMOUNTS_KEY) === '1';
-    setHideAmounts(saved);
-  }, []);
-
+  // Синхронізація з <body data-hide-amounts> — сюди setState не входить.
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.body.dataset.hideAmounts = hideAmounts ? 'true' : 'false';
@@ -95,7 +99,7 @@ export function AppHeader() {
           title={liveMode ? 'Перейти на звітний фільтр' : 'Перегляд "на сьогодні" (read-only)'}
         >
           <Zap className={`h-3.5 w-3.5 ${liveMode ? 'fill-amber-400' : ''}`} />
-          {liveMode ? 'На сьогодні' : 'На сьогодні'}
+          {liveMode ? 'На сьогодні' : 'Звітний фільтр'}
         </button>
 
         {liveMode && (

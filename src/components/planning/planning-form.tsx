@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
 import { savePlanning, loadPlanning, unpackGapAction, unpackForecastStageComment } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
@@ -15,13 +16,17 @@ import {
 } from '@/lib/mock-data';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptClientsForSegment, adaptClientsForPlanning, adaptTrainings } from '@/lib/onec-adapters';
-import { loginToUserId } from '@/lib/login-to-user-id';
+import {
+  getUnplannedBuyersForSegment, splitUnplannedForPlanning,
+  groupUnplannedByCategory, categoryLabel,
+} from '@/lib/unplanned-buyers';
 import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
-import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions } from '@/lib/types';
+import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions, SalesFactResponse } from '@/lib/types';
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
-  ArrowUpRight, ArrowDownRight, Trash2, Plus, Check, Phone, Calendar,
+  ArrowUpRight, ArrowDownRight, Trash2, Check, Phone, Calendar,
   AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw, Eye, GraduationCap,
+  AlertCircle,
 } from 'lucide-react';
 
 interface PlanningFormProps {
@@ -47,6 +52,12 @@ interface PlanningFormProps {
    */
   planAmount?: number;
   factAmount?: number;
+  /**
+   * Адаптована відповідь Action 3 (`getSalesFact`) — потрібна щоб у формі
+   * показати «незапланованих покупців» (які купили без плану) під списками.
+   * null поки 1С не відповіла або у DEMO режимі.
+   */
+  factResponse?: SalesFactResponse | null;
 }
 
 // loginToUserId переїхав у спільний @/lib/login-to-user-id (потрібен і серверу).
@@ -63,13 +74,13 @@ export function PlanningForm({
   segmentCode, onBack, readOnly = false, targetUserLogin,
   clientsResponse = null, clientsLoading = false, clientsError = null,
   planAmount: propPlanAmount = 0, factAmount: propFactAmount = 0,
+  factResponse = null,
 }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
   const { currentPeriod, user } = useAppStore();
   // Дані вантажимо/зберігаємо для targetUserLogin (якщо переданий — РМ дивиться чужий план)
   // або для поточного увійшовшого user.login.
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
-  const userId = loginToUserId(effectiveLogin);
 
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
   // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
@@ -86,15 +97,33 @@ export function PlanningForm({
   const [gapSearchOpen, setGapSearchOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Підтвердження видалення — заміняє blocking browser `confirm()`. type вказує
+  // куди застосовувати: forecast row (по clientId) або gap closure (по index).
+  const [pendingDelete, setPendingDelete] = useState<
+    | { type: 'forecast'; clientId: string; clientName: string }
+    | { type: 'gap'; index: number; clientName: string }
+    | null
+  >(null);
   // Прапорець: чи закінчилась спроба завантаження з Supabase. Якщо так і даних
   // нема — auto-populate Прогноз з реальних активних клієнтів 1С.
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
 
-  // FEATURE: завантаження збережених даних з Supabase
+  // FEATURE: завантаження збережених даних з Supabase.
+  // ⚠️ При зміні (effectiveLogin, segmentCode, currentPeriod) ОЧИЩАЄМО stale state
+  // ДО fetch — інакше при логауті/drill-down іншого менеджера у формі лишаються
+  // прогнози попереднього користувача. supabaseLoaded скидаємо щоб handleSave guard
+  // не дав зберегти доки не дочекались відповіді.
   useEffect(() => {
+    setForecasts([]);
+    setGapClosures([]);
+    setGapActions({ action1: '', action2: '', action3: '' });
+    setSupabaseLoaded(false);
+
+    let cancelled = false;
     loadPlanning(effectiveLogin, segmentCode, currentPeriod.id).then(data => {
+      if (cancelled) return;
       setSupabaseLoaded(true);
-      if (!data) return; // fallback на mock дані
+      if (!data) return;
       if (data.forecasts.length > 0) {
         setForecasts(data.forecasts.map(f => {
           const unpacked = unpackForecastStageComment(f.stage_comment);
@@ -107,7 +136,7 @@ export function PlanningForm({
             trainingId: unpacked.trainingId,
             trainingName: unpacked.trainingName,
             trainingDate: unpacked.trainingDate,
-            stageDone: false,
+            stageDone: unpacked.stageDone,
             factAmount: 0,
             lastPurchaseDate: null,
             lastPurchaseAmount: 0,
@@ -147,13 +176,22 @@ export function PlanningForm({
         });
       }
     });
-  }, [segmentCode, currentPeriod.id, userId]);
+    return () => { cancelled = true; };
+  }, [segmentCode, currentPeriod.id, effectiveLogin]);
 
   const handleSave = async () => {
+    // SAFETY: не дозволяємо save доки не дочекались load з Supabase. Інакше
+    // можливий race: натиснули зберегти → POST порожнього стану → у БД
+    // зникають попередньо збережені рядки. На сервері є симетричний захист
+    // (clearAll flag), цей — додатковий.
+    if (!supabaseLoaded) {
+      setSaveResult({ ok: false, msg: 'Зачекайте — дані ще завантажуються' });
+      setTimeout(() => setSaveResult(null), 3000);
+      return;
+    }
     setSaving(true);
     setSaveResult(null);
     const result = await savePlanning({
-      userId,
       segmentCode,
       periodId: currentPeriod.id,
       period: {
@@ -161,13 +199,12 @@ export function PlanningForm({
         weekEnd: currentPeriod.weekEnd,
         month: currentPeriod.month,
       },
-      userMeta: {
-        login: effectiveLogin,
-        fullName: targetUserLogin ? effectiveLogin : (user?.fullName || effectiveLogin),
-        role: targetUserLogin ? undefined : user?.role,
-        region: targetUserLogin ? undefined : user?.region,
-        regionCode: targetUserLogin ? undefined : user?.regionCode,
-      },
+      // Drill-down: РМ зберігає за свого менеджера. Сервер перевірить що цей
+      // логін у session.managedUsers; якщо ні — 403.
+      targetLogin: targetUserLogin || undefined,
+      // Профіль потрібен серверу лише при drill-down (бо у session дані РМ а не
+      // цільового менеджера). Для свого збереження сервер бере з сесії.
+      userMeta: targetUserLogin ? { fullName: targetUserLogin } : undefined,
       forecasts,
       gapClosures,
       gapActions,
@@ -185,8 +222,12 @@ export function PlanningForm({
 
   // Розрахунок очікуваного по наростаючому періоду — РОБОЧІ ДНІ (не календарні),
   // як на дашборді. Свята України 2026 враховані у working-days.ts.
-  const periodMonth = new Date(currentPeriod.month);
-  const periodEndDate = new Date(currentPeriod.weekEnd);
+  // ⚠️ Парсимо вручну (не `new Date(string)`) — на UTC-серверах локальний час
+  // може зсунутись на день назад (`new Date('2026-05-01')` → квітень при .getMonth()).
+  const [my, mm, md] = currentPeriod.month.split('-').map(Number);
+  const periodMonth = new Date(my || new Date().getFullYear(), (mm || 1) - 1, md || 1);
+  const [ey, em, ed] = currentPeriod.weekEnd.split('-').map(Number);
+  const periodEndDate = new Date(ey || my || new Date().getFullYear(), (em || mm || 1) - 1, ed || md || 1);
   const totalWorkingDays = getWorkingDaysInMonth(periodMonth.getFullYear(), periodMonth.getMonth());
   const passedWorkingDays = getPassedWorkingDays(periodMonth.getFullYear(), periodMonth.getMonth(), periodEndDate);
   const periodLabel = getMonthName(periodMonth.getFullYear(), periodMonth.getMonth());
@@ -242,6 +283,24 @@ export function PlanningForm({
   const trainings = useMemo(() => {
     return trainingsResponse ? adaptTrainings(trainingsResponse) : [];
   }, [trainingsResponse]);
+
+  // === Незаплановані покупці по сегменту (з 1С) ===
+  // Крос-референс Action 2 (категорії) + Action 3 (хто купував) − план менеджера
+  // (forecasts ∪ gapClosures). Активні незаплановані → блок «Прогноз»,
+  // решта (Сплячий/Втрачений/Новий/БЗ) → блок «Закриття розриву».
+  const plannedClientIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of forecasts) if (f.clientId1c) set.add(f.clientId1c);
+    for (const g of gapClosures) if (g.clientId1c) set.add(g.clientId1c);
+    return set;
+  }, [forecasts, gapClosures]);
+
+  const unplannedAll = useMemo(() => {
+    return getUnplannedBuyersForSegment(allManagerClients, factResponse, segmentCode, plannedClientIds);
+  }, [allManagerClients, factResponse, segmentCode, plannedClientIds]);
+
+  const unplannedSplit = useMemo(() => splitUnplannedForPlanning(unplannedAll), [unplannedAll]);
+  const unplannedByCategory = useMemo(() => groupUnplannedByCategory(unplannedAll), [unplannedAll]);
 
   // Категорії клієнтів (з 1С) — для верхньої таблиці «Дані по клієнтах по ТМ»
   const activeClients = segmentClients.filter(c => c.category === 'active');
@@ -305,18 +364,22 @@ export function PlanningForm({
 
   const removeForecast = (clientId: string) => {
     const target = forecasts.find(f => f.clientId1c === clientId);
-    const name = target?.clientName || 'цього клієнта';
-    if (confirm(`Видалити «${name}» з прогнозу?\n\nДія застосується після збереження.`)) {
-      setForecasts(prev => prev.filter(f => f.clientId1c !== clientId));
-    }
+    setPendingDelete({ type: 'forecast', clientId, clientName: target?.clientName || 'цього клієнта' });
   };
 
   const removeGapClosure = (i: number) => {
     const target = gapClosures[i];
-    const name = target?.clientName || 'цього клієнта';
-    if (confirm(`Видалити «${name}» зі списку Закриття розриву?\n\nДія застосується після збереження.`)) {
-      setGapClosures(prev => prev.filter((_, j) => j !== i));
+    setPendingDelete({ type: 'gap', index: i, clientName: target?.clientName || 'цього клієнта' });
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    if (pendingDelete.type === 'forecast') {
+      setForecasts(prev => prev.filter(f => f.clientId1c !== pendingDelete.clientId));
+    } else {
+      setGapClosures(prev => prev.filter((_, j) => j !== pendingDelete.index));
     }
+    setPendingDelete(null);
   };
 
   const addClient = (client: Client1C) => {
@@ -331,14 +394,11 @@ export function PlanningForm({
   };
 
   const addGapClient = (client: Client1C) => {
-    const categoryLabel: Record<string, string> = {
-      active: 'Активний', sleeping: 'Сплячий', lost: 'Втрачений',
-      new: 'Новий', none: '',
-    };
     setGapClosures(prev => [...prev, {
       clientId1c: client.clientId,
       clientName: client.clientName,
-      category: categoryLabel[client.category] ?? '',
+      // Для `none` зберігаємо порожньо щоб chip не показувався «Без закупок» у gap-картці.
+      category: client.category === 'none' ? '' : categoryLabel(client.category),
       potentialAmount: client.lastPurchaseAmount || 0,
       stage: '', stageComment: '', stageDone: false,
       completed: false, deadline: '', factAmount: 0,
@@ -350,6 +410,47 @@ export function PlanningForm({
 
   const existingIds = forecasts.map(f => f.clientId1c);
   const gapExistingIds = gapClosures.map(g => g.clientId1c).filter(Boolean);
+
+  // Read-only рядок «незапланованого покупця» — спільна розмітка для блоків
+  // «Прогноз» і «Закриття розриву». Тільки перегляд — менеджер планує його
+  // на наступний місяць, у поточному фіксуємо лише факт.
+  const UnplannedRow = ({ clientId, clientName, factAmount, category }: {
+    clientId: string; clientName: string; factAmount: number;
+    category: Client1C['category'];
+  }) => (
+    <div key={`unplanned-${clientId}`}
+         className="bg-white/60 rounded-2xl border border-dashed border-fuchsia-300/60 px-5 py-3 flex items-center gap-3">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-fuchsia-50 shrink-0">
+        <AlertCircle className="h-4 w-4 text-fuchsia-500" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-[13px] font-semibold truncate">{clientName}</p>
+          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-fuchsia-50 text-fuchsia-700 font-bold whitespace-nowrap">
+            не було в плані
+          </span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f4f7fb] text-muted-foreground font-semibold whitespace-nowrap">
+            {categoryLabel(category)}
+          </span>
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-0.5">Запланувати можна на наступний місяць</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-[10px] text-muted-foreground">Факт</p>
+        <p className="text-[14px] font-bold text-emerald-600 amount">{formatUSD(factAmount)}</p>
+      </div>
+    </div>
+  );
+
+  // Підпис option-а у select навчань: "[Тип] DD.MM — Назва". Тип допомагає
+  // менеджеру одразу бачити що це Семінар vs Майстер-клас vs інше.
+  const formatTrainingOption = (t: { date: string; trainingName: string; trainingType?: string }, maxNameLen = 50) => {
+    const name = t.trainingName.length > maxNameLen
+      ? t.trainingName.slice(0, maxNameLen) + '…'
+      : t.trainingName;
+    const typePrefix = t.trainingType ? `[${t.trainingType}] ` : '';
+    return `${typePrefix}${formatDate(t.date)} — ${name}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -400,14 +501,55 @@ export function PlanningForm({
         </div>
         <div className="divide-y divide-[#f0f2f8]">
           {categories.map(cat => (
-            <div key={cat.category} className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb]">{CAT_ICONS[cat.category]}</div>
-              <p className="text-[13px] font-medium">{cat.label}</p>
-              <div className="text-right"><p className="text-[10px] text-muted-foreground">Кількість</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
-              <div className="text-right"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
-              <div className="text-right"><p className="text-[10px] text-muted-foreground">Закрив. %</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
+            <div key={cat.category} className="flex md:grid md:grid-cols-[32px_1fr_80px_100px_80px] flex-wrap gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb] shrink-0">{CAT_ICONS[cat.category]}</div>
+              <p className="text-[13px] font-medium flex-1 min-w-0">{cat.label}</p>
+              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Кількість</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
+              <div className="text-right basis-[90px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
+              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Закрив. %</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
             </div>
           ))}
+          {/* Незаплановані — покупці яких немає у плані менеджера, але вони
+              вже купують у поточному місяці. Розбиваємо по 4 категоріях
+              (active/sleeping/lost/new/none). Сума = факт продажів. */}
+          {unplannedAll.length > 0 && (() => {
+            const unplannedTotal = unplannedAll.reduce((s, b) => s + b.factAmount, 0);
+            const unplannedPct = pctOf(unplannedTotal, planAmount);
+            const subRows: Array<[string, typeof unplannedAll]> = [
+              ['Активний', unplannedByCategory.active],
+              ['Сплячий', unplannedByCategory.sleeping],
+              ['Втрачений', unplannedByCategory.lost],
+              ['Новий', unplannedByCategory.new],
+              ['Без закупок', unplannedByCategory.none],
+            ];
+            return (
+              <>
+                <div className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-3 bg-fuchsia-50/40">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fuchsia-100">
+                    <AlertCircle className="h-4 w-4 text-fuchsia-600" />
+                  </div>
+                  <p className="text-[13px] font-semibold">Незаплановані <span className="text-[10px] text-muted-foreground font-normal">(купили без плану)</span></p>
+                  <div className="text-right"><p className="text-[10px] text-muted-foreground">Кількість</p><p className="text-[14px] font-bold">{unplannedAll.length}</p></div>
+                  <div className="text-right"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-fuchsia-700">{formatUSD(unplannedTotal)}</p></div>
+                  <div className="text-right"><p className="text-[10px] text-muted-foreground">% від плану</p><p className="text-[14px] font-bold text-fuchsia-700">{unplannedPct.toFixed(1)}%</p></div>
+                </div>
+                {subRows.filter(([, items]) => items.length > 0).map(([label, items]) => {
+                  const sum = items.reduce((s, b) => s + b.factAmount, 0);
+                  return (
+                    <div key={`unp-${label}`}
+                         className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-2 pl-12 bg-fuchsia-50/20">
+                      <div />
+                      <p className="text-[12px] text-muted-foreground">↳ {label}</p>
+                      <p className="text-[12px] text-right">{items.length}</p>
+                      <p className="text-[12px] font-mono text-right amount text-muted-foreground">{formatUSD(sum)}</p>
+                      <div />
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
+
           <div className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-3 bg-[#f4f7fb]">
             <div />
             <p className="text-[13px] font-bold">Всього</p>
@@ -446,6 +588,11 @@ export function PlanningForm({
         </div>
 
         <div className="space-y-2">
+          {unplannedSplit.forecast.length > 0 && sortedForecasts.length > 0 && (
+            <div className="px-5 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Запланованих: {sortedForecasts.length}
+            </div>
+          )}
           {sortedForecasts.map((row) => {
             const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
             return (
@@ -531,7 +678,7 @@ export function PlanningForm({
                           {trainings.map(t => (
                             <SelectItem key={t.trainingId} value={t.trainingId}>
                               <span className="text-[12px]">
-                                {formatDate(t.date)} — {t.trainingName.length > 50 ? t.trainingName.slice(0, 50) + '…' : t.trainingName}
+                                {formatTrainingOption(t, 50)}
                               </span>
                             </SelectItem>
                           ))}
@@ -655,7 +802,7 @@ export function PlanningForm({
                         <SelectContent>
                           {trainings.map(t => (
                             <SelectItem key={t.trainingId} value={t.trainingId}>
-                              <span className="text-[12px]">{formatDate(t.date)} — {t.trainingName.length > 40 ? t.trainingName.slice(0, 40) + '…' : t.trainingName}</span>
+                              <span className="text-[12px]">{formatTrainingOption(t, 40)}</span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -670,6 +817,21 @@ export function PlanningForm({
               </div>
             );
           })}
+
+          {/* Незаплановані покупці (категорія `active`) — read-only внизу.
+              Купив без плану цього місяця, але активний — закладемо на наступний. */}
+          {unplannedSplit.forecast.length > 0 && (
+            <>
+              <div className="px-5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-fuchsia-700">
+                Незапланованих: {unplannedSplit.forecast.length}
+              </div>
+              {unplannedSplit.forecast.map(b => (
+                <UnplannedRow key={`fc-unp-${b.clientId}`}
+                  clientId={b.clientId} clientName={b.clientName}
+                  factAmount={b.factAmount} category={b.category} />
+              ))}
+            </>
+          )}
         </div>
 
         {/* Підсумок прогнозу */}
@@ -712,19 +874,21 @@ export function PlanningForm({
           )}
         </div>
 
-        {gapClosures.length > 0 && (
+        {(gapClosures.length > 0 || unplannedSplit.gap.length > 0) && (
           <div>
             {/* Заголовки колонок (тільки md+) */}
-            <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
-              <div />
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Потенціал</p>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Етап</p>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Статус</p>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Дія / Навчання</p>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Факт</p>
-              <div />
-            </div>
+            {gapClosures.length > 0 && (
+              <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
+                <div />
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Потенціал</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Етап</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Статус</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Дія / Навчання</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Факт</p>
+                <div />
+              </div>
+            )}
 
             <div className="space-y-2">
             {gapClosures.map((row, i) => {
@@ -822,7 +986,7 @@ export function PlanningForm({
                             {trainings.map(t => (
                               <SelectItem key={t.trainingId} value={t.trainingId}>
                                 <span className="text-[12px]">
-                                  {formatDate(t.date)} — {t.trainingName.length > 50 ? t.trainingName.slice(0, 50) + '…' : t.trainingName}
+                                  {formatTrainingOption(t, 50)}
                                 </span>
                               </SelectItem>
                             ))}
@@ -941,7 +1105,7 @@ export function PlanningForm({
                           <SelectContent>
                             {trainings.map(t => (
                               <SelectItem key={t.trainingId} value={t.trainingId}>
-                                <span className="text-[12px]">{formatDate(t.date)} — {t.trainingName.length > 40 ? t.trainingName.slice(0, 40) + '…' : t.trainingName}</span>
+                                <span className="text-[12px]">{formatTrainingOption(t, 40)}</span>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -955,15 +1119,32 @@ export function PlanningForm({
                 </div>
               );
             })}
+
+              {/* Незаплановані з категорій Сплячий / Втрачений / Новий / БЗ —
+                  read-only внизу. Менеджер планує їх на наступний місяць. */}
+              {unplannedSplit.gap.length > 0 && (
+                <>
+                  <div className="px-5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-fuchsia-700">
+                    Незапланованих: {unplannedSplit.gap.length}
+                  </div>
+                  {unplannedSplit.gap.map(b => (
+                    <UnplannedRow key={`gap-unp-${b.clientId}`}
+                      clientId={b.clientId} clientName={b.clientName}
+                      factAmount={b.factAmount} category={b.category} />
+                  ))}
+                </>
+              )}
             </div>
 
-            <div className="mt-3 bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
-              <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold amount">{formatUSD(gapTotal)}</p></div>
-              <div className="w-px h-8 bg-amber-200/40" />
-              <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600 amount">{formatUSD(gapFactTotal)}</p></div>
-              <div className="w-px h-8 bg-amber-200/40" />
-              <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{gapClosures.length}</p></div>
-            </div>
+            {gapClosures.length > 0 && (
+              <div className="mt-3 bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
+                <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold amount">{formatUSD(gapTotal)}</p></div>
+                <div className="w-px h-8 bg-amber-200/40" />
+                <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600 amount">{formatUSD(gapFactTotal)}</p></div>
+                <div className="w-px h-8 bg-amber-200/40" />
+                <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{gapClosures.length}</p></div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -988,7 +1169,7 @@ export function PlanningForm({
       {/* Sticky save bar — внизу екрана. Менеджер у довгій формі (25+ рядків)
           бачить «Зберегти» весь час, не треба скролити. */}
       {!readOnly && (
-        <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex items-center justify-end gap-3 z-10">
+        <div className="sticky bottom-0 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex items-center justify-end gap-3 z-10">
           {saveResult && (
             <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${
               saveResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
@@ -1015,6 +1196,17 @@ export function PlanningForm({
 
       <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} clients={segmentClients} loading={clientsLoading} />
       <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[...gapExistingIds, ...existingIds]} clients={allManagerClients} loading={clientsLoading} />
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={`Видалити «${pendingDelete?.clientName}»?`}
+        description={pendingDelete?.type === 'forecast'
+          ? 'Клієнт зникне з блоку «Прогноз по активних». Дія застосується після збереження.'
+          : 'Клієнт зникне з блоку «Закриття розриву». Дія застосується після збереження.'}
+        confirmLabel="Видалити"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

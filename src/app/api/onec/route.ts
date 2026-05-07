@@ -18,8 +18,50 @@
  */
 
 import { NextRequest } from 'next/server';
+import { validateApiRequest } from '@/lib/api-auth';
+import { getSession } from '@/lib/session';
+import { checkRateLimit } from '@/lib/rate-limit';
+
+// Дозволені 1С actions — whitelist щоб через прокі не можна було звертатись
+// до довільних 1С-методів. `login` НЕ дозволений тут — для нього є /api/auth/login
+// (там одразу cookie ставиться). Інакше можна було б обходити cookie встановлення.
+const ALLOWED_ACTIONS = new Set([
+  'getClientsForPlanning',
+  'getSalesFact',
+  'getRegistryPlans',
+  'getRegionData',
+  'getTrainings',
+]);
+
+// Action → яке поле у payload.login треба ОВЕРРАЙДНУТИ з сесії.
+// Це гарантує що менеджер не може запросити `getClientsForPlanning({login: "boss@emet.com"})`.
+const LOGIN_BOUND_ACTIONS = new Set([
+  'getClientsForPlanning',
+  'getSalesFact',
+  'getRegionData',
+]);
 
 export async function POST(request: NextRequest) {
+  const auth = validateApiRequest(request);
+  if (!auth.valid) {
+    return Response.json({ status: 'error', message: auth.error }, { status: 401 });
+  }
+  const session = await getSession();
+  if (!session) {
+    return Response.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Rate limit per session.login. Захист від рантонутого скрипта що дамп-ить
+  // 1С через прокі. Liміт 60 req/min + 600 req/hour — для UI достатньо
+  // (звичайний користувач робить ~5-10 req/min).
+  const rl = checkRateLimit(`onec:${session.login}`);
+  if (!rl.allowed) {
+    return Response.json(
+      { status: 'error', message: `Забагато запитів. Спробуйте через ${rl.retryAfterSec}с.` },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec ?? 60) } },
+    );
+  }
+
   const baseUrl = process.env.ONEC_BASE_URL;
   const login = process.env.ONEC_LOGIN;
   const password = process.env.ONEC_PASSWORD;
@@ -42,10 +84,29 @@ export async function POST(request: NextRequest) {
   if (!action || typeof action !== 'string') {
     return Response.json({ status: 'error', message: 'Missing or invalid action' }, { status: 400 });
   }
+  if (!ALLOWED_ACTIONS.has(action)) {
+    return Response.json(
+      { status: 'error', message: `Action "${action}" не дозволений` },
+      { status: 403 },
+    );
+  }
 
-  // Спеціальний випадок для login — payload містить пароль користувача
-  // (а не сервісний). Передаємо як є.
-  const requestBody = JSON.stringify({ action, payload: payload ?? {} });
+  // SECURITY: для actions з login-параметром примусово підставляємо логін з сесії
+  // (або з managedUsers — drill-down). Без цього менеджер міг би запросити
+  // дані боса або сусіда.
+  let safePayload = payload ?? {};
+  if (LOGIN_BOUND_ACTIONS.has(action)) {
+    const requestedLogin = (safePayload as { login?: string }).login;
+    if (!requestedLogin) {
+      safePayload = { ...safePayload, login: session.login };
+    } else if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin)) {
+      return Response.json(
+        { status: 'error', message: 'Forbidden: login outside your scope' },
+        { status: 403 },
+      );
+    }
+  }
+  const requestBody = JSON.stringify({ action, payload: safePayload });
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

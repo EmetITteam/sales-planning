@@ -2,6 +2,7 @@
 
 import useSWR from 'swr';
 import { callOneC, OneCError, OneCNetworkError } from './onec-client';
+import { useAppStore } from './store';
 import type { OneCAction, OneCActionMap } from './onec-types';
 
 interface UseOneCDataResult<T> {
@@ -30,6 +31,7 @@ export function useOneCData<A extends OneCAction>(
   action: A,
   payload: OneCActionMap[A]['request'] | null,
 ): UseOneCDataResult<OneCActionMap[A]['response']> {
+  const liveMode = useAppStore(s => s.liveMode);
   const key = payload ? `onec|${action}|${JSON.stringify(payload)}` : null;
 
   const { data, error, isLoading, mutate } = useSWR(
@@ -41,9 +43,9 @@ export function useOneCData<A extends OneCAction>(
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      // 5 хвилин dedup — дані 1С міняються рідше ніж раз на хвилину,
-      // тому небезпечно agresivно revalidate коли користувач навігує.
-      dedupingInterval: 300_000,
+      // У live-режимі користувач очікує «зараз» — короткий dedup (30с).
+      // У звітному — 5хв (дані за минулий тиждень/місяць не змінюються).
+      dedupingInterval: liveMode ? 30_000 : 300_000,
     },
   );
 

@@ -23,7 +23,10 @@ type RMView = 'dashboard' | 'myPlanning' | 'viewManager';
  * Коли Action 5 буде готовий — переписуємо на реальні агрегати з getRegionData
  * + adaptRegionData (адаптер уже готовий).
  */
-export function RMDashboard({ regionCode: _regionCode }: RMDashboardProps = {}) {
+export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
+  // regionCode зараз не використовується (стаб) — буде потрібен коли підключимо
+  // Action 5 для фільтрації RegionData. Тримаємо у сигнатурі щоб не міняти call-sites.
+  void regionCode;
   const [view, setView] = useState<RMView>('dashboard');
   const [selectedManager, setSelectedManager] = useState<string>('');
 
@@ -75,7 +78,7 @@ export function RMDashboard({ regionCode: _regionCode }: RMDashboardProps = {}) 
             Метод 1С <code className="px-1 rounded bg-amber-100">getRegionData</code> (Action 5)
             ще у розробці. Поки тут видно тільки список менеджерів, кнопку «Моє планування»
             та можливість провалитись у дашборд кожного менеджера — там вже реальні дані з 1С.
-            Сума план/факт по регіону з'явиться коли програміст здасть Action 5.
+            Сума план/факт по регіону з&apos;явиться коли програміст здасть Action 5.
           </p>
         </div>
       </div>

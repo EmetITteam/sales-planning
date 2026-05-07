@@ -23,11 +23,11 @@ import type { TMSummaryCard } from '@/lib/types';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import { BrandRow } from './brand-row';
+import { BrandExpandedDetails } from './brand-expanded-details';
 import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
 import {
-  DollarSign, Target, TrendingUp, TrendingDown, ChevronRight,
-  ClipboardCheck, RefreshCw,
+  DollarSign, Target, TrendingUp, TrendingDown, RefreshCw,
 } from 'lucide-react';
 
 interface ManagerDashboardProps {
@@ -40,6 +40,9 @@ interface ManagerDashboardProps {
 export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDashboardProps = {}) {
   const [view, setView] = useState<'dashboard' | 'plan' | 'control'>('dashboard');
   const [selectedSegment, setSelectedSegment] = useState('');
+  // Variant A (Sasha 2026-05-06): chevron на BrandRow розкриває деталі по сегменту.
+  // Один сегмент за раз — інакше дашборд перетворюється на «гармошку».
+  const [expandedSegment, setExpandedSegment] = useState<string | null>(null);
   const isViewing = !!targetUserLogin;
 
   const { currentPeriod, liveMode, user } = useAppStore();
@@ -49,56 +52,23 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   // отримують справжні дані. Умова не залежить від targetUserLogin (РМ переглядає
   // менеджера) — для демо РМ це теж буде demo data.
   const isDemo = isDemoLogin(user?.login);
-  // Зріз даних: live → сьогодні, інакше → кінець обраного фільтру
-  const asOfDate = liveMode ? new Date() : new Date(currentPeriod.weekEnd);
+  // Зріз даних: live → сьогодні, інакше → кінець обраного фільтру.
+  // useMemo щоб identity Date була стабільна між рендерами (інакше React Compiler
+  // не може мемоізувати залежний summaries useMemo).
+  const asOfDate = useMemo(
+    () => (liveMode ? new Date() : new Date(currentPeriod.weekEnd)),
+    [liveMode, currentPeriod.weekEnd],
+  );
   const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
   const periodMonthLabel = getMonthName(asOfDate.getFullYear(), asOfDate.getMonth());
   const totalWorkingDaysInMonth = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
 
-  // Реальний факт продажів з 1С — без clientIds (загальна картина по сегментах).
-  // Period — YYYY-MM, asOfDate тільки в liveMode (інакше — повний місяць за дефолтом).
-  const periodKey = currentPeriod.month.slice(0, 7); // "2026-05"
-  const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : undefined;
-  const { data: factResponse, loading: factLoading, error: factError, refetch: refetchFact } = useOneCData(
-    'getSalesFact',
-    !isDemo && effectiveLogin !== 'anonymous'
-      ? { login: effectiveLogin, period: periodKey, clientIds: [], asOfDate: asOfIso }
-      : null,
-  );
-
-  // План з 1С (Action 4). Один виклик повертає плани по ВСІХ менеджерах за місяць —
-  // фільтруємо у adapter по 8 активних регіонах, далі тут — по поточному логіну.
-  // dateFrom/dateTo — перше і останнє число місяця period.
-  // ⚠️ Парсимо вручну (НЕ через `new Date(string)`) — на серверах поза UTC
-  // `new Date("2026-05-01")` може дати квітень при .getMonth() в локальному часі.
-  const [py, pm] = currentPeriod.month.split('-').map(Number);
-  const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
-  const lastDayNum = new Date(py, pm, 0).getDate(); // День 0 наступного місяця = останній цього
-  const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
-  const { data: plansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useRegistryPlans(
-    !isDemo && effectiveLogin !== 'anonymous' ? dateFrom : null,
-    !isDemo && effectiveLogin !== 'anonymous' ? dateTo : null,
-  );
-
-  // Map { segmentCode → planAmount } для поточного користувача.
-  // Нормалізуємо логіни до lower-case з обох сторін щоб уникнути проблем
-  // з різним casing'ом emails (Ivanov@... vs ivanov@...) у 1С.
-  const effectiveLoginLower = effectiveLogin.toLowerCase().trim();
-  const myPlansBySegment = useMemo(() => {
-    if (!plansResponse) return null;
-    const map = new Map<string, number>();
-    for (const p of adaptRegistryPlans(plansResponse)) {
-      // adaptRegistryPlans вже lowercase'ить managerLogin
-      if (p.managerLogin === effectiveLoginLower) {
-        map.set(p.segmentCode, (map.get(p.segmentCode) ?? 0) + p.planAmount);
-      }
-    }
-    return map;
-  }, [plansResponse, effectiveLoginLower]);
-
-  // Клієнти з 1С — кешовано в Zustand. Один виклик при заході менеджера, передаємо
-  // у PlanningForm через prop (форма миттєво відкривається без власного fetch'у).
-  // У demo режимі не звертаємось до 1С — підставляємо локальні мокові дані.
+  // === ETAP 1. Action 2 (getClientsForPlanning) — повний список клієнтів менеджера ===
+  // SWR кешує per login. Передаємо у PlanningForm через prop, плюс використовуємо
+  // тут для:
+  //   1) ClientStatsCard (категорії клієнтів — active/sleeping/new counts)
+  //   2) clientIds для Action 3 (щоб отримати ВСІХ покупців а не лише плану)
+  //   3) cross-reference у формі — визначити «незапланованих» по категорії
   const {
     data: realClientsResponse,
     loading: clientsLoading,
@@ -106,6 +76,53 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
     refetch: refetchClients,
   } = useClientsForPlanning(!isDemo && effectiveLogin !== 'anonymous' ? effectiveLogin : null);
   const clientsResponse = isDemo ? getDemoClientsForPlanningResponse() : realClientsResponse;
+
+  // === ETAP 2. Action 3 (getSalesFact) ===
+  // ⚠️ clientIds = ВСІ клієнти менеджера (з Action 2). Тоді clients[] у відповіді
+  //    містить усіх покупців місяця, а не тільки запланованих. Це потрібно щоб
+  //    визначити «незапланованих» (купили без плану) і розкласти по категоріях.
+  // Послідовність: чекаємо Action 2 → беремо всі clientId-и → Action 3.
+  const periodKey = currentPeriod.month.slice(0, 7); // "2026-05"
+  const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : undefined;
+  const allClientIds: string[] = useMemo(() => {
+    return clientsResponse?.clients.map(c => c.clientId) ?? [];
+  }, [clientsResponse]);
+  const { data: factResponse, loading: factLoading, error: factError, refetch: refetchFact } = useOneCData(
+    'getSalesFact',
+    !isDemo && effectiveLogin !== 'anonymous' && allClientIds.length > 0
+      ? { login: effectiveLogin, period: periodKey, clientIds: allClientIds, asOfDate: asOfIso }
+      : null,
+  );
+
+  // === ETAP 3. Action 4 (getRegistryPlans) — план місяця по ВСІХ менеджерах ===
+  // ⚠️ Парсимо date вручну (НЕ через `new Date(string)`) — на серверах поза UTC
+  // `new Date("2026-05-01")` може дати квітень при .getMonth() в локальному часі.
+  // Guard: якщо persisted state раптом порожній/невалідний — fallback у поточний місяць
+  // замість того щоб шити `NaN-NaN-01` у 1С.
+  const monthParts = currentPeriod.month.split('-').map(Number);
+  const py = Number.isFinite(monthParts[0]) && monthParts[0] > 0 ? monthParts[0] : new Date().getFullYear();
+  const pm = Number.isFinite(monthParts[1]) && monthParts[1] > 0 ? monthParts[1] : new Date().getMonth() + 1;
+  const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
+  const lastDayNum = new Date(py, pm, 0).getDate();
+  const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
+  const { data: plansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useRegistryPlans(
+    !isDemo && effectiveLogin !== 'anonymous' ? dateFrom : null,
+    !isDemo && effectiveLogin !== 'anonymous' ? dateTo : null,
+  );
+
+  // Map { segmentCode → planAmount } для поточного користувача.
+  // Нормалізуємо логіни до lower-case з обох сторін.
+  const effectiveLoginLower = effectiveLogin.toLowerCase().trim();
+  const myPlansBySegment = useMemo(() => {
+    if (!plansResponse) return null;
+    const map = new Map<string, number>();
+    for (const p of adaptRegistryPlans(plansResponse)) {
+      if (p.managerLogin === effectiveLoginLower) {
+        map.set(p.segmentCode, (map.get(p.segmentCode) ?? 0) + p.planAmount);
+      }
+    }
+    return map;
+  }, [plansResponse, effectiveLoginLower]);
 
   // Агрегати по категоріях клієнтів (для ClientStatsCard) — з реальних даних 1С
   // або з демо-цифр у DEMO режимі.
@@ -188,6 +205,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
 
   if (view === 'plan' && selectedSegment) {
     const seg = summaries.find(s => s.segmentCode === selectedSegment);
+    const adaptedFact = factResponse ? adaptSalesFact(factResponse) : null;
     return (
       <PlanningForm
         segmentCode={selectedSegment}
@@ -199,6 +217,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
         clientsError={clientsError}
         planAmount={seg?.planAmount ?? 0}
         factAmount={seg?.factAmount ?? 0}
+        factResponse={adaptedFact}
       />
     );
   }
@@ -210,6 +229,36 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
   // виглядає зламано. Skeleton чесніший.
   const showSkeleton = !isDemo && (factLoading || plansLoading) && totalPlan === 0 && totalFact === 0;
   if (showSkeleton) return <DashboardSkeleton role="manager" />;
+
+  // Empty state: 1С відповіла, але у менеджера 0 клієнтів закріплено (Action 2 → []).
+  // Без цього — пустий дашборд без пояснень, користувач думає що щось зламалось.
+  // Не блокуємо стаб для адміна (`isViewing`) — він теж побачить чесне «нема даних».
+  const noClientsFromOneC = !isDemo && !clientsLoading && !clientsError
+    && clientsResponse !== null && clientsResponse !== undefined
+    && clientsResponse.clients.length === 0;
+  if (noClientsFromOneC) {
+    return (
+      <div className="space-y-4">
+        {isViewing && (
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
+            <span className="font-semibold">👁 Перегляд менеджера:</span>
+            <span className="font-bold">{targetUserName || targetUserLogin}</span>
+          </div>
+        )}
+        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-2">
+          <p className="text-[15px] font-bold text-foreground">У 1С не знайдено закріплених клієнтів</p>
+          <p className="text-[13px] text-muted-foreground max-w-md mx-auto">
+            Логін <span className="font-mono font-semibold">{effectiveLogin}</span> не має жодного клієнта у регістрі планування 1С.
+            Зверніться до адміністратора 1С щоб закріпити клієнтів за вашим логіном.
+          </p>
+          <button onClick={refetchClients}
+            className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#066aab] hover:underline">
+            <RefreshCw className="h-3 w-3" /> Спробувати ще раз
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -304,23 +353,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
         <ClientStatsCard stats={clientStats ?? { active: { total: 0, bought: 0 }, sleeping: { total: 0, bought: 0 }, newClients: { total: 0, bought: 0 }, totalBought: 0, totalClients: 0 }} />
       </div>
 
-      {/* Control banner — приховано до часу коли реально буде що показати.
-          ClientControlView зараз стаб «у розробці», вести користувача туди = розчарування. */}
-      {false && (
-        <button
-          onClick={() => setView('control')}
-          className="w-full flex items-center gap-4 bg-gradient-to-r from-[#066aab]/5 via-[#0880cc]/5 to-[#066aab]/5 hover:from-[#066aab]/10 hover:to-[#0880cc]/10 rounded-2xl border border-[#066aab]/15 p-5 transition-all duration-300 cursor-pointer group"
-        >
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
-            <ClipboardCheck className="h-5 w-5" />
-          </div>
-          <div className="text-left flex-1">
-            <p className="text-[15px] font-bold text-foreground">Контроль виконання</p>
-            <p className="text-[13px] text-muted-foreground mt-0.5">Понедільний план → факт по клієнтах за місяць</p>
-          </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[#066aab] group-hover:translate-x-1 transition-all" />
-        </button>
-      )}
+      {/* Control banner — приховано до часу коли вирішимо дизайн (потижневий план?
+          новий метод 1С для weekly fact?). Stub-сторінка лишається у роутингу. */}
 
       {/* Бренди — горизонтальні строки через переиспользуемый BrandRow */}
       <div>
@@ -337,23 +371,41 @@ export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDas
           )}
         </div>
         <div className="space-y-2">
-          {summaries.map((tm) => (
-            <BrandRow
-              key={tm.segmentCode}
-              segmentName={tm.segmentName}
-              planAmount={tm.planAmount}
-              factAmount={tm.factAmount}
-              calcPct={tm.calcPercent}
-              asOfDate={asOfDate}
-              expectedPercent={tm.expectedPercent}
-              hasManagerPlan={tm.hasManagerPlan}
-              clientCount={tm.clientCount}
-              prevMonthFactAmount={tm.prevMonthFactAmount}
-              prevMonthFactPercent={tm.prevMonthFactPercent}
-              onClick={() => { setSelectedSegment(tm.segmentCode); setView('plan'); }}
-              readOnly={liveMode}
-            />
-          ))}
+          {summaries.map((tm) => {
+            const isExpanded = expandedSegment === tm.segmentCode;
+            const adaptedFact = factResponse ? adaptSalesFact(factResponse) : null;
+            return (
+              <div key={tm.segmentCode}>
+                <BrandRow
+                  segmentName={tm.segmentName}
+                  planAmount={tm.planAmount}
+                  factAmount={tm.factAmount}
+                  calcPct={tm.calcPercent}
+                  asOfDate={asOfDate}
+                  expectedPercent={tm.expectedPercent}
+                  hasManagerPlan={tm.hasManagerPlan}
+                  clientCount={tm.clientCount}
+                  prevMonthFactAmount={tm.prevMonthFactAmount}
+                  prevMonthFactPercent={tm.prevMonthFactPercent}
+                  onClick={() => setExpandedSegment(prev => prev === tm.segmentCode ? null : tm.segmentCode)}
+                  readOnly={liveMode}
+                  expandable
+                  expanded={isExpanded}
+                />
+                {isExpanded && (
+                  <BrandExpandedDetails
+                    login={effectiveLogin}
+                    segmentCode={tm.segmentCode}
+                    segmentName={tm.segmentName}
+                    periodId={currentPeriod.id}
+                    clientsResponse={clientsResponse ?? null}
+                    factResponse={adaptedFact}
+                    onPlan={() => { setSelectedSegment(tm.segmentCode); setView('plan'); }}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

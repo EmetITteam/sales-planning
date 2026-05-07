@@ -18,7 +18,10 @@ type DirView = 'dashboard' | 'myPlanning' | 'viewRM';
  */
 export function DirectorDashboard() {
   const [view, setView] = useState<DirView>('dashboard');
+  // selectedRM зараз не використовується у render (RMDashboard ще стаб і не приймає
+  // login). Залишаємо setter для майбутньої прокидки коли підключимо Action 5.
   const [selectedRM, setSelectedRM] = useState<string>('');
+  void selectedRM;
 
   const { user } = useAppStore();
   const rms = user?.managedUsers ?? [];

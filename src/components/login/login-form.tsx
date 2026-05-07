@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { MOCK_USERS } from '@/lib/mock-data';
-import { callOneC, OneCError, OneCNetworkError } from '@/lib/onec-client';
-import { adaptLogin } from '@/lib/onec-adapters';
+import { apiLogin } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BarChart3, ArrowRight } from 'lucide-react';
@@ -22,33 +20,30 @@ export function LoginForm() {
     setError('');
     setLoading(true);
     try {
-      const response = await callOneC('login', { login, password });
-      if (!response.auth) {
-        setError('Невірний логін або пароль');
-        return;
-      }
-      setUser(adaptLogin(response));
+      const user = await apiLogin({ login, password });
+      setUser(user);
     } catch (err) {
-      if (err instanceof OneCError) {
-        // Бізнес-помилка з 1С
-        setError(err.message || 'Невірний логін або пароль');
-      } else if (err instanceof OneCNetworkError) {
-        setError('Немає звʼязку з 1С. Спробуйте пізніше.');
-      } else {
-        setError('Невідома помилка. Зверніться до адміністратора.');
-      }
+      // /api/auth/login повертає чіткий error message (401 для невірного пароля,
+      // 502 для проблем з 1С) — показуємо як є.
+      setError(err instanceof Error ? err.message : 'Невідома помилка');
     } finally {
       setLoading(false);
     }
   };
 
   // Демо-кнопки за замовчуванням ВИМКНЕНІ — opt-in через NEXT_PUBLIC_DEMO_LOGIN=true.
-  // Раніше було навпаки (треба було явно ставити =false щоб приховати) — небезпечно
-  // якщо хтось забуде встановити змінну на production deploy.
   const isDemoMode = process.env.NEXT_PUBLIC_DEMO_LOGIN === 'true';
-  const quickLogin = (loginKey: string) => {
-    const user = MOCK_USERS[loginKey];
-    if (user) setUser(user);
+  const quickLogin = async (loginKey: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      const user = await apiLogin({ login: loginKey, demo: true });
+      setUser(user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Demo login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

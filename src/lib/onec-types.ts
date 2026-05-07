@@ -173,13 +173,21 @@ export interface OneCRegionManager {
   totalPrevMonthFact: number;
 }
 
+/** v2.4: один регіон у відповіді (РМ — 1, Директор — 8). */
+export interface OneCRegion {
+  regionName: string;
+  /** v2.4: код підрозділу від 1С (DNP/KYV/...). */
+  regionCode: string;
+  managers: OneCRegionManager[];
+}
+
 export interface GetRegionDataResponse {
-  region: string;
   /** v2.1: дата зрізу поточного місяця */
   asOfDate: string;
   /** v2.3: останній день минулого місяця (повний минулий місяць) */
   prevMonthAsOfDate: string;
-  managers: OneCRegionManager[];
+  /** v2.4: масив регіонів (РМ — 1, Директор — всі). */
+  regions: OneCRegion[];
 }
 
 // === Action 6: getTrainings (новий у v2.1) ===

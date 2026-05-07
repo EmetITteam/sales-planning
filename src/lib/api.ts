@@ -1,7 +1,6 @@
 import type { ForecastRow, GapClosureRow, GapActions, PeriodInfo } from './types';
 
 interface SavePlanningParams {
-  userId: number;
   segmentCode: string;
   periodId: number;
   /**
@@ -10,12 +9,17 @@ interface SavePlanningParams {
    */
   period: Pick<PeriodInfo, 'weekStart' | 'weekEnd' | 'month'>;
   /**
-   * Метадані користувача — потрібно щоб upsert-ити рядок у `users`
-   * (FK з forecasts.user_id + gap_closures.user_id).
-   * Реальна схема users: id, login, full_name (NOT NULL), role, region, region_code.
+   * Drill-down: якщо РМ зберігає за свого менеджера — тут логін цільового
+   * менеджера. Сервер перевірить що він у session.managedUsers. Якщо undefined
+   * — сервер бере login з сесії (звичайне зберігання свого плану).
    */
-  userMeta: {
-    login: string;
+  targetLogin?: string;
+  /**
+   * Метадані профілю — потрібно щоб upsert-ити рядок у `users` ТІЛЬКИ для
+   * drill-down (РМ зберігає за свого менеджера, у session дані РМ а не цільового).
+   * Якщо `targetLogin` не передано — сервер ігнорує і бере профіль з сесії.
+   */
+  userMeta?: {
     fullName: string;
     role?: string;
     region?: string;
@@ -24,18 +28,23 @@ interface SavePlanningParams {
   forecasts: ForecastRow[];
   gapClosures: GapClosureRow[];
   gapActions: GapActions;
+  /** Якщо true — сервер дозволяє повний wipe (інакше пустий list = no-op). */
+  clearAll?: boolean;
 }
 
-// === Forecast: пакуємо trainingId/Name/Date у JSON у legacy `stage_comment` ===
+// === Forecast: пакуємо trainingId/Name/Date + stageDone у JSON у legacy `stage_comment` ===
 // Та сама логіка як для gap-closure (`action`) — обхід міграції БД.
+// v3 (2026-05-07): додано stageDone (раніше втрачався після reload).
 export function packForecastStageComment(f: ForecastRow): string {
-  if (!f.trainingId && !f.trainingName && !f.trainingDate) {
-    // Якщо обучення не задано — пишемо звичайний коментар (чисто текст, без JSON)
+  // Якщо нема ні навчання ні позначки виконання — пишемо звичайний коментар (чисто текст)
+  // щоб legacy-сумісність не ламалась.
+  if (!f.trainingId && !f.trainingName && !f.trainingDate && !f.stageDone) {
     return f.stageComment || '';
   }
   return JSON.stringify({
-    v: 2,
+    v: 3,
     comment: f.stageComment,
+    stageDone: f.stageDone,
     trainingId: f.trainingId,
     trainingName: f.trainingName,
     trainingDate: f.trainingDate,
@@ -44,18 +53,21 @@ export function packForecastStageComment(f: ForecastRow): string {
 
 export interface UnpackedForecastStageComment {
   comment: string;
+  stageDone: boolean;
   trainingId?: string;
   trainingName?: string;
   trainingDate?: string;
 }
 
 export function unpackForecastStageComment(raw: string | null): UnpackedForecastStageComment {
-  if (!raw) return { comment: '' };
+  if (!raw) return { comment: '', stageDone: false };
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && parsed.v === 2) {
+    if (parsed && typeof parsed === 'object' && (parsed.v === 2 || parsed.v === 3)) {
       return {
         comment: parsed.comment ?? '',
+        // v2 не зберігав stageDone — fallback false. v3+ — читаємо.
+        stageDone: !!parsed.stageDone,
         trainingId: parsed.trainingId,
         trainingName: parsed.trainingName,
         trainingDate: parsed.trainingDate,
@@ -64,7 +76,7 @@ export function unpackForecastStageComment(raw: string | null): UnpackedForecast
   } catch {
     // Legacy: звичайний текст коментаря
   }
-  return { comment: raw };
+  return { comment: raw, stageDone: false };
 }
 
 // Пакуємо нові поля gap-closure (v2.1) в JSON у legacy колонці `action` Supabase —
@@ -119,11 +131,12 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: params.userId,
         segmentCode: params.segmentCode,
         periodId: params.periodId,
         period: params.period,
+        targetLogin: params.targetLogin,
         userMeta: params.userMeta,
+        clearAll: params.clearAll,
         forecasts: params.forecasts.map(f => ({
           clientId1c: f.clientId1c,
           clientName: f.clientName,
@@ -158,7 +171,7 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
   }
 }
 
-interface LoadPlanningResult {
+export interface LoadPlanningResult {
   forecasts: Array<{
     id: number;
     client_id_1c: string;

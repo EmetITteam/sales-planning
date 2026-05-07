@@ -71,12 +71,15 @@ function mapSegmentCode(code: string): string {
 // === login ===
 export function adaptLogin(r: LoginResponse): UserSession {
   return {
-    login: r.login,
+    // Нормалізуємо логін до lower-case + trim — інакше при join з Action 4
+    // (registryPlans.managerLogin теж lower-cased у нас) міг би бути desync.
+    // Також `loginToUserId` lowercase'ить — тут джерело істини консистентне.
+    login: (r.login || '').toLowerCase().trim(),
     fullName: r.fullName,
     role: r.roleCode,
     region: r.region,
     regionCode: r.regionCode,
-    managedUsers: r.managedUsers ?? [],
+    managedUsers: (r.managedUsers ?? []).map(l => (l || '').toLowerCase().trim()),
   };
 }
 
@@ -204,34 +207,39 @@ export function adaptRegistryPlans(r: GetRegistryPlansResponse): RegistryPlan[] 
     });
 }
 
-// === getRegionData ===
+// === getRegionData (v2.4: regions[]) ===
 export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
   // 1С майже точно віддасть числа рядками (як в Action 2/3/4) — обгортаємо.
-  // regionCode виводимо з REGIONS по назві (у спеці немає поля).
-  const region = REGIONS.find(reg => reg.name === r.region);
+  // v2.4: r.regions[] — масив регіонів (РМ → 1, Директор → 8). regionCode тепер
+  // приходить від 1С але якщо порожній — fallback на пошук по REGIONS (за назвою).
   return {
-    regionName: r.region,
-    regionCode: region?.code ?? '',
     asOfDate: r.asOfDate,
     prevMonthAsOfDate: r.prevMonthAsOfDate,
-    managers: r.managers.map(m => {
-      const totalPrevMonthFact = toNumber(m.totalPrevMonthFact as number | string);
+    regions: r.regions.map(reg => {
+      const fallback = REGIONS.find(x => x.name === reg.regionName);
       return {
-        login: m.managerLogin,
-        name: m.managerName,
-        totalPrevMonthFact,
-        segments: m.segments.map(s => {
-          const planAmount = toNumber(s.planAmountUSD as number | string);
-          const factAmount = toNumber(s.factAmountUSD as number | string);
+        regionName: reg.regionName,
+        regionCode: reg.regionCode || fallback?.code || '',
+        managers: reg.managers.map(m => {
+          const totalPrevMonthFact = toNumber(m.totalPrevMonthFact as number | string);
           return {
-            segmentCode: mapSegmentCode(s.segmentCode),
-            segmentName: s.segmentName,
-            planAmount,
-            factAmount,
-            factPercent: planAmount > 0 ? (factAmount / planAmount) * 100 : 0,
-            prevMonthFactAmount: toNumber(s.prevMonthFactUSD as number | string),
-            prevMonthPlanAmount: toNumber(s.prevMonthPlanUSD as number | string),
-            prevMonthFactPercent: toNumber(s.prevMonthFactPercent as number | string),
+            login: (m.managerLogin || '').toLowerCase().trim(),
+            name: m.managerName,
+            totalPrevMonthFact,
+            segments: m.segments.map(s => {
+              const planAmount = toNumber(s.planAmountUSD as number | string);
+              const factAmount = toNumber(s.factAmountUSD as number | string);
+              return {
+                segmentCode: mapSegmentCode(s.segmentCode),
+                segmentName: s.segmentName,
+                planAmount,
+                factAmount,
+                factPercent: planAmount > 0 ? (factAmount / planAmount) * 100 : 0,
+                prevMonthFactAmount: toNumber(s.prevMonthFactUSD as number | string),
+                prevMonthPlanAmount: toNumber(s.prevMonthPlanUSD as number | string),
+                prevMonthFactPercent: toNumber(s.prevMonthFactPercent as number | string),
+              };
+            }),
           };
         }),
       };

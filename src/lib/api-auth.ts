@@ -23,14 +23,29 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:3000',
 ];
 
+function parseOriginHost(value: string): string | null {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
 export function validateApiRequest(request: NextRequest): { valid: boolean; error?: string; userId?: number } {
   // 1) same-origin (наш фронт)
-  const origin = request.headers.get('origin') || request.headers.get('referer') || '';
-  if (origin && ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed))) {
-    return { valid: true };
+  // Origin браузер ставить автоматично і JS не може підмінити. Referer не довіряємо
+  // (можна виставити з curl). Перевіряємо EXACT match origin (через URL parse) —
+  // інакше `https://sales-planning-lyart.vercel.app.evil.com` пройшов би через
+  // startsWith.
+  const origin = request.headers.get('origin');
+  if (origin) {
+    const parsed = parseOriginHost(origin);
+    if (parsed && ALLOWED_ORIGINS.includes(parsed)) {
+      return { valid: true };
+    }
   }
 
-  // 2) dev — без ключа
+  // 2) dev — без ключа (origin може бути відсутній у тестах curl)
   if (process.env.NODE_ENV !== 'production') {
     return { valid: true };
   }

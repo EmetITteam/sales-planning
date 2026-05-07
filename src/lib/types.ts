@@ -81,21 +81,24 @@ export interface ManagerRegionData {
   totalPrevMonthFact?: number;
 }
 
-export interface RegionDataResponse {
+// === Один регіон (UI) ===
+export interface RegionData {
   regionName: string;
   regionCode: string;
   managers: ManagerRegionData[];
+}
+
+// === Відповідь Action 5: масив регіонів (РМ — 1, Директор — всі) ===
+export interface RegionDataResponse {
+  regions: RegionData[];
   // 🆕 v2.1: дати на які рахувалися факти (для tooltip і прозорості)
   asOfDate?: string;
   prevMonthAsOfDate?: string;
 }
 
 // === Зведення по всіх регіонах (для директора) ===
-export interface RegionSummary {
-  regionName: string;
-  regionCode: string;
-  managers: ManagerRegionData[];
-}
+// Залишено як alias для зворотньої сумісності з UI компонентами.
+export type RegionSummary = RegionData;
 
 // === Зведена по категоріях клієнтів ===
 export interface ClientCategorySummary {

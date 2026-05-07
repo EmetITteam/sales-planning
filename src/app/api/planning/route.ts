@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
-import { validateApiRequest, validateRequiredParams } from '@/lib/api-auth';
+import { validateApiRequest } from '@/lib/api-auth';
 import { loginToUserId } from '@/lib/login-to-user-id';
+import { getSession } from '@/lib/session';
 import { NextRequest } from 'next/server';
 
 // GET — завантажити дані планування
@@ -8,20 +9,29 @@ export async function GET(request: NextRequest) {
   const auth = validateApiRequest(request);
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
 
+  const session = await getSession();
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { searchParams } = request.nextUrl;
-  const login = searchParams.get('login');
+  // login query-параметр приймаємо тільки для drill-down (РМ → менеджер).
+  // Перевіряємо: якщо передано НЕ свій логін — мусить бути у managedUsers.
+  const requestedLogin = searchParams.get('login') || session.login;
+  if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin)) {
+    return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
+  }
   const segmentCode = searchParams.get('segmentCode');
   const periodIdStr = searchParams.get('periodId');
 
-  if (!login || !segmentCode || !periodIdStr) {
-    return Response.json({ error: 'Missing: login, segmentCode, periodId' }, { status: 400 });
+  if (!segmentCode || !periodIdStr) {
+    return Response.json({ error: 'Missing: segmentCode, periodId' }, { status: 400 });
   }
   const pid = parseInt(periodIdStr, 10);
   if (isNaN(pid)) {
     return Response.json({ error: 'periodId must be a number' }, { status: 400 });
   }
-  // SECURITY: userId обчислюємо з login на сервері — клієнт не може запросити чужі дані.
-  const uid = loginToUserId(login);
+  // SECURITY: userId обчислюємо з login сесії (або managed login) — клієнт не
+  // може запросити чужі дані бо login приходить ТІЛЬКИ з підписаної cookie.
+  const uid = loginToUserId(requestedLogin);
 
   const [forecasts, gapClosures, summary] = await Promise.all([
     supabase.from('forecasts').select('*')
@@ -56,6 +66,9 @@ export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
 
+  const session = await getSession();
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
   let body;
   try {
     body = await request.json();
@@ -63,10 +76,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { userId: bodyUserId, segmentCode, periodId, period, userMeta, forecasts, gapClosures, summary } = body;
+  const { segmentCode, periodId, period, userMeta, forecasts, gapClosures, summary, clearAll, targetLogin } = body;
 
-  if (!segmentCode || !periodId || !userMeta?.login) {
-    return Response.json({ error: 'Missing: segmentCode, periodId, userMeta.login' }, { status: 400 });
+  if (!segmentCode || !periodId) {
+    return Response.json({ error: 'Missing: segmentCode, periodId' }, { status: 400 });
   }
 
   const pid = parseInt(String(periodId), 10);
@@ -74,15 +87,16 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'periodId must be a number' }, { status: 400 });
   }
 
-  // SECURITY: userId завжди обчислюємо з userMeta.login на сервері.
-  // Якщо клієнт прислав свій (з "user_id":42) — ігноруємо. Це гарантує що
-  // зловмисник не може записати дані під чужим userId підмінивши body.
-  const uid = loginToUserId(String(userMeta.login));
-  if (bodyUserId !== undefined && parseInt(String(bodyUserId), 10) !== uid) {
-    console.warn('[planning.POST] userId mismatch — using server-computed:', {
-      bodyUserId, login: userMeta.login, computedUid: uid,
-    });
+  // SECURITY: login беремо ТІЛЬКИ з підписаної сесії (cookie). body.userMeta
+  // використовуємо лише для метаданих профілю (fullName/region) при upsert у users.
+  // Drill-down: якщо `targetLogin` переданий — мусить бути у session.managedUsers.
+  const effectiveLogin = targetLogin && targetLogin !== session.login
+    ? targetLogin
+    : session.login;
+  if (effectiveLogin !== session.login && !session.managedUsers.includes(effectiveLogin)) {
+    return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
+  const uid = loginToUserId(effectiveLogin);
 
   const errors: string[] = [];
   const ctx = { uid, pid, segmentCode };
@@ -123,55 +137,69 @@ export async function POST(request: NextRequest) {
   }
 
   // ---- 2. Upsert user (FK) ----
-  if (!errors.length && userMeta?.login) {
+  // Профіль беремо з session (якщо це сам менеджер зберігає) або з body.userMeta
+  // (якщо РМ зберігає за свого менеджера — тоді у session дані РМ, не цільового).
+  if (!errors.length) {
+    const profile = effectiveLogin === session.login
+      ? { full_name: session.fullName, role: session.role, region: session.region, region_code: session.regionCode }
+      : {
+          full_name: userMeta?.fullName || effectiveLogin,
+          role: userMeta?.role || null,
+          region: userMeta?.region || null,
+          region_code: userMeta?.regionCode || null,
+        };
     const { error: e } = await supabase.from('users').upsert({
-      id: uid, login: userMeta.login, full_name: userMeta.fullName || userMeta.login,
-      role: userMeta.role || null, region: userMeta.region || null, region_code: userMeta.regionCode || null,
+      id: uid, login: effectiveLogin, ...profile,
     }, { onConflict: 'id' });
     if (e) { errors.push(`Upsert user: ${e.message}`); console.error('[planning.POST] user error:', { ...ctx, error: e.message }); }
   }
 
-  // ---- 3. UPSERT нових рядків ----
+  // ---- 3. BATCH UPSERT — один POST на таблицю замість N послідовних ----
   // У forecasts/gap_closures є unique constraint
   // (period_id, user_id, segment_code, client_id_1c) — використовуємо як onConflict.
-  // Це: якщо запис є — оновлюємо, якщо нема — вставляємо. Атомарно в межах батчу.
-  // Наш кастомний supabase.upsert приймає 1 рядок за раз — циклимо.
-  // (PostgREST взагалі-то підтримує батч upsert у POST; майбутньо можна
-  // розширити src/lib/supabase.ts).
+  // PostgREST приймає масив у тілі і атомарно мерджить (resolution=merge-duplicates).
   const upsertConflict = { onConflict: 'period_id,user_id,segment_code,client_id_1c' };
-  if (!errors.length) {
-    for (let i = 0; i < forecastRows.length; i++) {
-      const { error: ei } = await supabase.from('forecasts').upsert(forecastRows[i], upsertConflict);
-      if (ei) { errors.push(`Upsert forecast row ${i}: ${ei.message}`); console.error('[planning.POST] upsert forecast row error:', { ...ctx, i, error: ei.message }); break; }
-    }
+  if (!errors.length && forecastRows.length > 0) {
+    const { error: e } = await supabase.from('forecasts').upsert(forecastRows, upsertConflict);
+    if (e) { errors.push(`Upsert forecasts (batch ${forecastRows.length}): ${e.message}`); console.error('[planning.POST] upsert forecasts batch error:', { ...ctx, count: forecastRows.length, error: e.message }); }
   }
-  if (!errors.length) {
-    for (let i = 0; i < gapRows.length; i++) {
-      const { error: ei } = await supabase.from('gap_closures').upsert(gapRows[i], upsertConflict);
-      if (ei) { errors.push(`Upsert gap row ${i}: ${ei.message}`); console.error('[planning.POST] upsert gap error:', { ...ctx, i, error: ei.message }); break; }
-    }
+  if (!errors.length && gapRows.length > 0) {
+    const { error: e } = await supabase.from('gap_closures').upsert(gapRows, upsertConflict);
+    if (e) { errors.push(`Upsert gap_closures (batch ${gapRows.length}): ${e.message}`); console.error('[planning.POST] upsert gap batch error:', { ...ctx, count: gapRows.length, error: e.message }); }
   }
 
   // ---- 4. DELETE рядків яких більше нема в новому списку ----
-  // Тільки після успішного UPSERT (errors порожні) — інакше пропускаємо.
-  // notIn з пустим списком = no filter → DELETE усіх (саме те потрібно
-  // коли користувач очистив весь розділ).
+  // ⚠️ SAFETY: якщо клієнт прислав ПОРОЖНІЙ масив без явного `clearAll: true` —
+  // НЕ виконуємо DELETE. Це захист від race / state-bug, де клієнт міг
+  // post-нути порожньо до того як завантажились дані з Supabase. Повний wipe
+  // має бути свідомим (UI клавіша «Очистити весь сегмент» → clearAll=true).
+  // notIn з пустим списком + clearAll=true = no filter → DELETE усіх (запланована поведінка).
   if (!errors.length) {
     const keepClientIds = forecastRows.map(r => r.client_id_1c);
-    const { error: e } = await supabase.from('forecasts').delete()
-      .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
-      .notIn('client_id_1c', keepClientIds);
-    if (e) { errors.push(`Delete stale forecasts: ${e.message}`); console.error('[planning.POST] delete forecasts error:', { ...ctx, error: e.message }); }
+    if (keepClientIds.length === 0 && !clearAll) {
+      console.warn('[planning.POST] skip DELETE forecasts: empty list without clearAll=true', ctx);
+    } else {
+      const { error: e } = await supabase.from('forecasts').delete()
+        .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
+        .notIn('client_id_1c', keepClientIds);
+      if (e) { errors.push(`Delete stale forecasts: ${e.message}`); console.error('[planning.POST] delete forecasts error:', { ...ctx, error: e.message }); }
+    }
   }
   if (!errors.length) {
     const keepClientIds = gapRows.map(r => r.client_id_1c);
-    const { error: e } = await supabase.from('gap_closures').delete()
-      .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
-      .notIn('client_id_1c', keepClientIds);
-    if (e) { errors.push(`Delete stale gap_closures: ${e.message}`); console.error('[planning.POST] delete gaps error:', { ...ctx, error: e.message }); }
+    if (keepClientIds.length === 0 && !clearAll) {
+      console.warn('[planning.POST] skip DELETE gap_closures: empty list without clearAll=true', ctx);
+    } else {
+      const { error: e } = await supabase.from('gap_closures').delete()
+        .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
+        .notIn('client_id_1c', keepClientIds);
+      if (e) { errors.push(`Delete stale gap_closures: ${e.message}`); console.error('[planning.POST] delete gaps error:', { ...ctx, error: e.message }); }
+    }
   }
 
-  // ---- 5. Upsert підсумки ----
+  // ---- 5. Upsert / Delete підсумки ----
+  // Якщо summary прийшов — upsert. Якщо `clearAll=true` ТА summary немає —
+  // видаляємо «осиротілий» рядок period_summaries (інакше залишається назавжди).
   if (!errors.length && summary) {
     const { error: e } = await supabase.from('period_summaries').upsert({
       period_id: pid, user_id: uid, segment_code: segmentCode,
@@ -181,6 +209,10 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'period_id,user_id,segment_code' });
     if (e) { errors.push(`Upsert summary: ${e.message}`); console.error('[planning.POST] upsert summary error:', { ...ctx, error: e.message }); }
+  } else if (!errors.length && clearAll) {
+    const { error: e } = await supabase.from('period_summaries').delete()
+      .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode);
+    if (e) { errors.push(`Delete summary: ${e.message}`); console.error('[planning.POST] delete summary error:', { ...ctx, error: e.message }); }
   }
 
   if (errors.length > 0) {

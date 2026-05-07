@@ -71,6 +71,9 @@ export const useAppStore = create<AppState>()(
       liveMode: false,
       // Скидаємо liveMode при logout. SWR cache очиститься окремо у app-header.tsx
       // через mutate(() => true, undefined, { revalidate: false }).
+      // ⚠️ user тут — лише UI-кеш. Джерело істини = HttpOnly cookie на сервері
+      // (читаємо через /api/auth/me у SessionBootstrap). При reload store починає
+      // з null, потім /me populate-ить.
       setUser: (user) => set(user === null
         ? { user: null, liveMode: false }
         : { user }),
@@ -81,9 +84,9 @@ export const useAppStore = create<AppState>()(
     {
       name: 'emet-sales-planning',
       storage: createJSONStorage(() => sessionStorage),
-      // Persistимо лише session (user) і вибраний період. liveMode — НЕ persistимо.
+      // Persistимо ЛИШЕ обраний період. user тепер з cookie (через /api/auth/me),
+      // не з sessionStorage — щоб не довіряти стороні клієнта.
       partialize: (state) => ({
-        user: state.user,
         currentPeriod: state.currentPeriod,
       }),
     },
