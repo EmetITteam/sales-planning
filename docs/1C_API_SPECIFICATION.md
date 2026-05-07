@@ -1,10 +1,15 @@
 # ТЗ для 1С-розробника: HTTP-сервіси для Sales Planning (Спринт 1)
 
-> **Версія:** 2.3 від 05.05.2026
+> **Версія:** 2.4 від 07.05.2026
 > **Контекст:** Уніфікований HTTP-сервіс для 3 систем (СРМ Мітинг, Планування, Аналітика).
 > Спринт 1 — Планування. Розширюємо існуючий сервіс з Мітингу, нічого не ламаємо.
 
-> ### 🆕 Зміни у v2.3 (05.05.2026, друга редакція)
+> ### 🆕 Зміни у v2.4 (07.05.2026)
+> Перед роботою над Action 5:
+> - **Action 5 `getRegionData` — відповідь тепер містить масив `regions[]`** замість одного `region`. Це робить метод універсальним: для РМ повертається 1 регіон, для Директора — всі підпорядковані регіони у тому ж форматі. Frontend не робить декілька запитів.
+> - У кожному `regions[]` додано `regionCode` — щоб не виводити з імені на стороні фронту.
+>
+> ### Зміни у v2.3 (05.05.2026, друга редакція)
 > На основі другого раунду відгуку директора з продажів — фінальне узгодження логіки prev-month:
 > - **Action 5 `getRegionData` — змінено семантику prev-month полів.** Замість «факт минулого місяця на той самий N-й робочий день» тепер **повний факт минулого місяця**. Логіка з N-м робочим днем була складна для розуміння менеджерам; директор з продажів попросила показувати простий «повний минулий місяць vs поточний» зверху на дашборді. Стосується: `prevMonthFactUSD`, `prevMonthPlanUSD`, `prevMonthFactPercent`, `totalPrevMonthFact`. Поле `prevMonthAsOfDate` тепер = останній день минулого місяця (раніше було N-й робочий день).
 > - **Action 2 `getClientsForPlanning` — категорії клієнтів виправлено на російські.** Спека помилково вказувала українські варіанти, реально 1С віддає російською. Виправлено: `"Активный"`, `"Спящий"`, `"Потерянный"`, `"Новый"`, `"Без закупок"` (з пробілом).
@@ -451,71 +456,88 @@ Authorization: Basic <base64(login:password)>
 | `period` | string | Місяць (YYYY-MM) |
 | `asOfDate` | string | **🆕 Опціональний.** Дата у форматі YYYY-MM-DD. Якщо передано — факт поточного місяця рахується по цю дату включно. Якщо не передано — береться **останній день місяця `period`** (повний місяць). **Факт минулого місяця завжди рахується ПОВНИЙ** — від 1-го по останній день минулого місяця, незалежно від `asOfDate`. |
 
-**Відповідь:**
+**Відповідь (v2.4 — `regions[]` масив):**
 ```json
 {
   "status": "success",
   "data": {
-    "region": "Дніпро",
     "asOfDate": "2026-04-15",
     "prevMonthAsOfDate": "2026-03-31",
-    "managers": [
+    "regions": [
       {
-        "managerName": "Сірик Людмила",
-        "managerLogin": "siryk@emet.com",
-        "segments": [
+        "regionName": "Дніпро",
+        "regionCode": "DNP",
+        "managers": [
           {
-            "segmentCode": "PETARAN",
-            "segmentName": "Petaran",
-            "planAmountUSD": 7490,
-            "factAmountUSD": 3200,
-            "prevMonthFactUSD": 2800,
-            "prevMonthPlanUSD": 7000,
-            "prevMonthFactPercent": 40.0
+            "managerName": "Сірик Людмила",
+            "managerLogin": "siryk@emet.com",
+            "segments": [
+              {
+                "segmentCode": "PETARAN",
+                "segmentName": "Petaran",
+                "planAmountUSD": 7490,
+                "factAmountUSD": 3200,
+                "prevMonthFactUSD": 2800,
+                "prevMonthPlanUSD": 7000,
+                "prevMonthFactPercent": 40.0
+              },
+              {
+                "segmentCode": "NEURAMIS",
+                "segmentName": "Neuramis",
+                "planAmountUSD": 5000,
+                "factAmountUSD": 2100,
+                "prevMonthFactUSD": 1900,
+                "prevMonthPlanUSD": 4500,
+                "prevMonthFactPercent": 42.2
+              }
+            ],
+            "totalPlan": 12490,
+            "totalFact": 5300,
+            "totalPrevMonthFact": 4700
           },
           {
-            "segmentCode": "NEURAMIS",
-            "segmentName": "Neuramis",
-            "planAmountUSD": 5000,
-            "factAmountUSD": 2100,
-            "prevMonthFactUSD": 1900,
-            "prevMonthPlanUSD": 4500,
-            "prevMonthFactPercent": 42.2
+            "managerName": "Петренко Валентина",
+            "managerLogin": "petrenko@emet.com",
+            "segments": [
+              {
+                "segmentCode": "PETARAN",
+                "segmentName": "Petaran",
+                "planAmountUSD": 6000,
+                "factAmountUSD": 4500,
+                "prevMonthFactUSD": 4200,
+                "prevMonthPlanUSD": 5500,
+                "prevMonthFactPercent": 76.4
+              }
+            ],
+            "totalPlan": 9000,
+            "totalFact": 5700,
+            "totalPrevMonthFact": 4200
           }
-        ],
-        "totalPlan": 12490,
-        "totalFact": 5300,
-        "totalPrevMonthFact": 4700
-      },
-      {
-        "managerName": "Петренко Валентина",
-        "managerLogin": "petrenko@emet.com",
-        "segments": [
-          {
-            "segmentCode": "PETARAN",
-            "segmentName": "Petaran",
-            "planAmountUSD": 6000,
-            "factAmountUSD": 4500,
-            "prevMonthFactUSD": 4200,
-            "prevMonthPlanUSD": 5500,
-            "prevMonthFactPercent": 76.4
-          }
-        ],
-        "totalPlan": 9000,
-        "totalFact": 5700,
-        "totalPrevMonthFact": 4200
+        ]
       }
+      // ... для Директора тут додаються інші регіони
     ]
   }
 }
 ```
 
-**Нові поля у відповіді:**
+**Чому масив:** РМ бачить 1 регіон, Директор — всі 8. Раніше було б два варіанти структури або 8 окремих викликів. Тепер один формат для обох ролей: РМ повертає `regions: [свій_регіон]`, Директор — `regions: [всі 8]`.
+
+**Поля верхнього рівня:**
 
 | Поле | Тип | Опис |
 |------|-----|------|
 | `asOfDate` | string | Дата на яку рахувався факт поточного місяця (YYYY-MM-DD) |
 | `prevMonthAsOfDate` | string | **v2.3:** Останній день минулого місяця (YYYY-MM-DD). Раніше був N-й робочий день минулого, тепер — повний минулий місяць. |
+| `regions` | array | **🆕 v2.4:** Масив регіонів. Для РМ — 1 елемент (свій регіон), для Директора — всі підконтрольні підрозділи. |
+
+**Поля regions:**
+
+| Поле | Тип | Опис |
+|------|-----|------|
+| `regionName` | string | Назва підрозділу (наприклад "Дніпро") |
+| `regionCode` | string | **🆕 v2.4:** Код підрозділу (формат як у `login` Action 1: DNP/KYV/ODS/...). Frontend джойнить з нашою мапою REGIONS. |
+| `managers` | array | Менеджери цього регіону (структура нижче) |
 
 **Поля managers:**
 
@@ -540,17 +562,19 @@ Authorization: Basic <base64(login:password)>
 | `prevMonthPlanUSD` | number | **🆕** План минулого місяця (USD) — для розрахунку % виконання |
 | `prevMonthFactPercent` | number | **🆕 v2.3:** % виконання плану минулого місяця за повний місяць. Розрахунок: `prevMonthFactUSD / prevMonthPlanUSD * 100` |
 
-**Логіка в 1С:**
+**Логіка в 1С (v2.4):**
 
 1. За логіном визначити роль і підрозділ (з того ж механізму що в `login`)
-2. **РМ** → отримати всіх менеджерів свого підрозділу
-3. **Директор** → отримати всіх менеджерів всіх підрозділів
-4. Визначити `prevMonthAsOfDate` = останній день минулого місяця (наприклад, для `period="2026-04"` → `"2026-03-31"`)
-5. По кожному менеджеру:
+2. Сформувати список **підрозділів для виводу**:
+   - **РМ** → один елемент = свій підрозділ
+   - **Директор** → всі активні плануючі підрозділи (8 на 2026-05: Дніпро, Київ, Одеса, Харків, Запоріжжя, Вінниця, Миколаєв, Житомир — або список з якогось довідника на стороні 1С)
+3. Визначити `prevMonthAsOfDate` = останній день минулого місяця (наприклад, для `period="2026-04"` → `"2026-03-31"`)
+4. **Для кожного підрозділу зі списку** → отримати список його менеджерів → по кожному менеджеру:
    - План поточного місяця: з регістру `ПлануванняПродажів` за `period`, GROUP BY сегмент
    - Факт поточного місяця: з оборотів `Продажі` за період [1-е число `period` ; `asOfDate`], GROUP BY сегмент
    - План минулого місяця: з регістру `ПлануванняПродажів` за минулий місяць, GROUP BY сегмент
    - Факт минулого місяця: з оборотів `Продажі` за **повний минулий місяць** [1-е число минулого ; останній день минулого], GROUP BY сегмент
+5. Заповнити `regionCode` з тим самим форматом що в Action 1 (`login.regionCode`).
 6. `totalPlan` / `totalFact` / `totalPrevMonthFact` = сума по всіх сегментах менеджера
 
 **Чому повний минулий місяць (а не на N-й робочий день):**
@@ -724,9 +748,10 @@ Content-Type: application/json
 - [ ] Деталізація по сегментах
 
 **getRegionData:**
-- [ ] РМ бачить тільки свій підрозділ
-- [ ] Директор бачить всі підрозділи
-- [ ] totalPlan і totalFact вірно підсумовані
+- [ ] 🆕 v2.4: РМ → `regions: [свій_регіон]` (1 елемент у масиві)
+- [ ] 🆕 v2.4: Директор → `regions: [всі 8 активних]` (Дніпро, Київ, Одеса, Харків, Запоріжжя, Вінниця, Миколаєв, Житомир)
+- [ ] 🆕 v2.4: кожен елемент `regions[]` має `regionCode` (формат як у Action 1 login)
+- [ ] totalPlan і totalFact вірно підсумовані per-manager
 - [ ] 🆕 `asOfDate` обмежує факт по передану дату (порівняти: запит з `asOfDate` середини місяця має менший факт ніж без нього)
 - [ ] 🆕 v2.3: `prevMonthFactUSD` = ПОВНИЙ факт минулого місяця (з 1-го по останній день), НЕ залежить від `asOfDate`
 - [ ] 🆕 `prevMonthFactPercent` = `prevMonthFactUSD / prevMonthPlanUSD * 100` (за повний минулий місяць)
