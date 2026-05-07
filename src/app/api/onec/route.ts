@@ -92,14 +92,18 @@ export async function POST(request: NextRequest) {
   }
 
   // SECURITY: для actions з login-параметром примусово підставляємо логін з сесії
-  // (або з managedUsers — drill-down). Без цього менеджер міг би запросити
-  // дані боса або сусіда.
+  // або перевіряємо доступ.
+  // - Менеджер: тільки свій логін
+  // - РМ: свій + managedUsers (менеджери регіону) напряму
+  // - Director: будь-хто (бо session.managedUsers містить РМ, не менеджерів —
+  //   transitive перевірити без додаткового 1С виклику не можемо. Director
+  //   за визначенням бачить всю компанію.)
   let safePayload = payload ?? {};
   if (LOGIN_BOUND_ACTIONS.has(action)) {
     const requestedLogin = (safePayload as { login?: string }).login;
     if (!requestedLogin) {
       safePayload = { ...safePayload, login: session.login };
-    } else if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin)) {
+    } else if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin) && session.role !== 'director') {
       return Response.json(
         { status: 'error', message: 'Forbidden: login outside your scope' },
         { status: 403 },

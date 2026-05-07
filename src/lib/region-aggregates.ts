@@ -65,7 +65,11 @@ export function aggregateRegion(region: RegionData): RegionAggregate {
   const segments = SEGMENTS.map(s => bySeg.get(s.code)!);
   const totalPlan = segments.reduce((a, s) => a + s.planAmount, 0);
   const totalFact = segments.reduce((a, s) => a + s.factAmount, 0);
-  const totalPrevMonthFact = segments.reduce((a, s) => a + s.prevMonthFactAmount, 0);
+  // ⚠️ totalPrevMonthFact беремо з manager.totalPrevMonthFact (що 1С прислала),
+  // НЕ суму по segments. Бо segments — лише по 9 наших брендах, а totalPrev
+  // включає продажі по ВСІХ номенклатурах (можуть бути позасегментні).
+  // Перевірено vs 1С звітом: $1,027,384 (1С) vs наша сума по сегментах $1,024,476.
+  const totalPrevMonthFact = region.managers.reduce((a, m) => a + (m.totalPrevMonthFact ?? 0), 0);
   const totalPrevMonthPlan = segments.reduce((a, s) => a + s.prevMonthPlanAmount, 0);
 
   return {

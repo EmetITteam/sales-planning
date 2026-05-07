@@ -236,7 +236,16 @@ export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
       return {
         regionName: realName,
         regionCode: realCode || fallback?.code || '',
-        managers: reg.managers.map(m => {
+        // Фільтруємо менеджерів без плану — 1С повертає у managers[] усіх
+        // (включно з тими хто звільнений / у відпустці / без плану), у нас
+        // вони показувались як "Хамуляк А. 0%" псуючи UI. Ховаємо їх.
+        managers: reg.managers.filter(m => {
+          const totalPlan = m.segments.reduce((a, s) => a + toNumber(s.planAmountUSD as number | string), 0);
+          const totalFact = m.segments.reduce((a, s) => a + toNumber(s.factAmountUSD as number | string), 0);
+          const totalPrev = toNumber(m.totalPrevMonthFact as number | string);
+          // Показуємо якщо є хоч щось — план, факт або історія минулого місяця
+          return totalPlan > 0 || totalFact > 0 || totalPrev > 0;
+        }).map(m => {
           const totalPrevMonthFact = toNumber(m.totalPrevMonthFact as number | string);
           return {
             login: (m.managerLogin || '').toLowerCase().trim(),

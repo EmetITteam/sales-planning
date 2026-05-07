@@ -106,7 +106,10 @@ export function PeriodFilter() {
             <div className="px-3 py-2.5 border-t border-[#e2e7ef]">
               <button
                 onClick={() => {
-                  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
+                  // ⚠️ НЕ через toISOString() — UTC-зсув обрізає 30.04 у 29.04
+                  // на серверах поза UTC. Будуємо рядок вручну.
+                  const lastDay = new Date(year, month, 0).getDate();
+                  const monthEnd = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
                   setCurrentPeriod({
                     id: weekEndToId(monthEnd),
                     weekStart: `${selectedMonth}-01`,

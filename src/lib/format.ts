@@ -93,20 +93,16 @@ export function getProbColor(prob: number) {
 }
 
 /**
- * Світлофор: порівнюємо поточний % виконання з нормою.
- * Бінарна логіка (за вимогою користувача 2026-05-07):
- *   factPct ≥ calcPct → На плані (зелений)
+ * Світлофор: порівнюємо поточний % виконання з нормою. Бінарна логіка.
+ *   factPct ≥ calcPct → В плані (зелений)
  *   factPct < calcPct → Відставання (червоний)
- *
- * Без проміжного «Ризик» — або менеджер тримає темп, або не тримає. Жовте
- * вводило в оману.
  *
  * @param pct — поточний % виконання (factPercent)
  * @param expected — норма для порівняння (calcPct: % робочих днів пройдено)
  */
 export function getTrafficLight(pct: number, expected: number) {
   if (pct >= expected) {
-    return { color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500', label: 'На плані' };
+    return { color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500', label: 'В плані' };
   }
   return { color: 'text-rose-600', bg: 'bg-rose-50', dot: 'bg-rose-500', label: 'Відставання' };
 }
