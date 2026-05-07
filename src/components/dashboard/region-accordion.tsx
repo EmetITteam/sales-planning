@@ -99,28 +99,34 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, o
         </div>
 
         <div className="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
-          <div className="text-right">
+          {/* Фіксовані min-width на колонках щоб ряди різних регіонів вирівнювались
+              вертикально незалежно від довжини сум. */}
+          <div className="text-right min-w-[180px]">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Факт / План</p>
-            <p className="text-[14px] font-bold font-mono leading-none mt-1.5">
+            <p className="text-[14px] font-bold font-mono leading-none mt-1.5 whitespace-nowrap">
               <span className="amount">{formatUSD(aggregate.totalFact)}</span>
               <span className="text-muted-foreground/50 font-normal"> / </span>
               <span className="amount text-muted-foreground/70">{formatUSD(aggregate.totalPlan)}</span>
             </p>
           </div>
-          {aggregate.totalPrevMonthFact > 0 && (
-            <div className="text-right">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Мин. міс.</p>
-              <p className="text-[12px] font-bold leading-none mt-1.5">
-                <span className="amount">{formatUSD(aggregate.totalPrevMonthFact)}</span>
-                <span className="text-muted-foreground"> / {prevPct.toFixed(1)}%</span>
-              </p>
-              <p className={`text-[11px] font-bold leading-none mt-1 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {dynBetter ? <TrendingUp className="inline h-3 w-3 -mt-0.5 mr-0.5" /> : <TrendingDown className="inline h-3 w-3 -mt-0.5 mr-0.5" />}
-                <span className="amount whitespace-nowrap">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
-              </p>
-            </div>
-          )}
-          <div className="flex flex-col items-center gap-1">
+          <div className="text-right min-w-[150px]">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Мин. міс.</p>
+            {aggregate.totalPrevMonthFact > 0 ? (
+              <>
+                <p className="text-[12px] font-bold leading-none mt-1.5 whitespace-nowrap">
+                  <span className="amount">{formatUSD(aggregate.totalPrevMonthFact)}</span>
+                  <span className="text-muted-foreground"> / {prevPct.toFixed(1)}%</span>
+                </p>
+                <p className={`text-[11px] font-bold leading-none mt-1 ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {dynBetter ? <TrendingUp className="inline h-3 w-3 -mt-0.5 mr-0.5" /> : <TrendingDown className="inline h-3 w-3 -mt-0.5 mr-0.5" />}
+                  <span className="amount whitespace-nowrap">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+                </p>
+              </>
+            ) : (
+              <p className="text-[12px] text-muted-foreground/40 leading-none mt-1.5">—</p>
+            )}
+          </div>
+          <div className="flex flex-col items-center gap-1 w-14">
             <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
               <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
                 style={{ width: `${Math.min(pct, 100)}%` }} />
@@ -130,7 +136,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, o
               {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
             </span>
           </div>
-          <div>
+          <div className="w-[100px]">
             <div className="h-[12px] leading-none mb-1.5" aria-hidden />
             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
           </div>
