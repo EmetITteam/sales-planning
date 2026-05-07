@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useRegistryPlans } from '@/lib/use-registry-plans';
 import { RMDashboard } from './rm-dashboard';
 import { ManagerDashboard } from './manager-dashboard';
 import { ChevronRight, MapPin, ClipboardList, AlertTriangle, Users } from 'lucide-react';
@@ -23,8 +24,34 @@ export function DirectorDashboard() {
   const [selectedRM, setSelectedRM] = useState<string>('');
   void selectedRM;
 
-  const { user } = useAppStore();
-  const rms = user?.managedUsers ?? [];
+  const { user, currentPeriod } = useAppStore();
+  const rmLogins = useMemo(() => user?.managedUsers ?? [], [user?.managedUsers]);
+
+  // Імена РМ беремо з Action 4 — там є managerName для кожного запису плану.
+  // 1С Action 1 поки не повертає [{login, fullName}] — крос-референс на фронті.
+  const monthParts = currentPeriod.month.split('-').map(Number);
+  const py = Number.isFinite(monthParts[0]) && monthParts[0] > 0 ? monthParts[0] : new Date().getFullYear();
+  const pm = Number.isFinite(monthParts[1]) && monthParts[1] > 0 ? monthParts[1] : new Date().getMonth() + 1;
+  const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
+  const lastDayNum = new Date(py, pm, 0).getDate();
+  const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
+  const { data: plansResponse } = useRegistryPlans(dateFrom, dateTo);
+
+  const namesByLogin = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!plansResponse) return m;
+    for (const p of plansResponse.plans) {
+      const login = (p.managerLogin || '').toLowerCase().trim();
+      if (login && p.managerName && !m.has(login)) m.set(login, p.managerName);
+    }
+    return m;
+  }, [plansResponse]);
+
+  const rms = useMemo(() => {
+    return rmLogins
+      .map(login => ({ login, fullName: namesByLogin.get(login.toLowerCase().trim()) || null }))
+      .sort((a, b) => (a.fullName || a.login).localeCompare(b.fullName || b.login, 'uk'));
+  }, [rmLogins, namesByLogin]);
 
   if (view === 'myPlanning') {
     return (
@@ -100,16 +127,21 @@ export function DirectorDashboard() {
           </p>
         ) : (
           <div className="space-y-2">
-            {rms.map(login => (
+            {rms.map(rm => (
               <button
-                key={login}
-                onClick={() => { setSelectedRM(login); setView('viewRM'); }}
+                key={rm.login}
+                onClick={() => { setSelectedRM(rm.login); setView('viewRM'); }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all duration-200 cursor-pointer group"
               >
                 <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[12px] font-bold text-[#066aab] shrink-0">
                   <MapPin className="h-4 w-4" />
                 </div>
-                <span className="flex-1 text-left text-[13px] font-medium truncate">{login}</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-[13px] font-semibold truncate">{rm.fullName || rm.login}</p>
+                  {rm.fullName && (
+                    <p className="text-[11px] text-muted-foreground truncate">{rm.login}</p>
+                  )}
+                </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] group-hover:translate-x-0.5 transition-all" />
               </button>
             ))}

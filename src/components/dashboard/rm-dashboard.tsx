@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useRegistryPlans } from '@/lib/use-registry-plans';
 import { ManagerDashboard } from './manager-dashboard';
 import { ChevronRight, MapPin, ClipboardList, AlertTriangle, Eye } from 'lucide-react';
 
@@ -30,9 +31,51 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const [view, setView] = useState<RMView>('dashboard');
   const [selectedManager, setSelectedManager] = useState<string>('');
 
-  const { user } = useAppStore();
+  const { user, currentPeriod } = useAppStore();
   const regionName = user?.region || '—';
-  const managers = user?.managedUsers ?? [];
+  const managerLogins = useMemo(() => user?.managedUsers ?? [], [user?.managedUsers]);
+
+  // Імена менеджерів беремо з Action 4 (getRegistryPlans) — там є managerName
+  // для кожного запису плану. Action 1 повертає лише логіни — спека 1С поки
+  // не розширена до [{login, fullName}], тому крос-референс на фронті.
+  const monthParts = currentPeriod.month.split('-').map(Number);
+  const py = Number.isFinite(monthParts[0]) && monthParts[0] > 0 ? monthParts[0] : new Date().getFullYear();
+  const pm = Number.isFinite(monthParts[1]) && monthParts[1] > 0 ? monthParts[1] : new Date().getMonth() + 1;
+  const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
+  const lastDayNum = new Date(py, pm, 0).getDate();
+  const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
+  const { data: plansResponse } = useRegistryPlans(dateFrom, dateTo);
+
+  // Map login(lower) → fullName з Action 4. Якщо менеджер ще не має плану на
+  // місяць — імені нема, тоді fallback на сам login.
+  const namesByLogin = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!plansResponse) return m;
+    for (const p of plansResponse.plans) {
+      const login = (p.managerLogin || '').toLowerCase().trim();
+      if (login && p.managerName && !m.has(login)) m.set(login, p.managerName);
+    }
+    return m;
+  }, [plansResponse]);
+
+  // Список менеджерів з іменами (де відомі) + сортування за іменем.
+  const managers = useMemo(() => {
+    return managerLogins
+      .map(login => {
+        const lc = login.toLowerCase().trim();
+        return { login, fullName: namesByLogin.get(lc) || null };
+      })
+      .sort((a, b) => (a.fullName || a.login).localeCompare(b.fullName || b.login, 'uk'));
+  }, [managerLogins, namesByLogin]);
+
+  // Ініціали для аватарки: «Іванов Петро Сергійович» → «ІП». Якщо тільки login — перша літера.
+  const initials = (m: { login: string; fullName: string | null }) => {
+    if (m.fullName) {
+      const parts = m.fullName.trim().split(/\s+/).slice(0, 2);
+      return parts.map(p => p[0]?.toUpperCase() || '').join('') || m.login[0]?.toUpperCase() || '?';
+    }
+    return m.login[0]?.toUpperCase() || '?';
+  };
 
   if (view === 'myPlanning') {
     return (
@@ -46,12 +89,13 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   }
 
   if (view === 'viewManager') {
+    const selectedName = namesByLogin.get(selectedManager.toLowerCase().trim()) || selectedManager;
     return (
       <div className="space-y-4">
         <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до регіону
         </button>
-        <ManagerDashboard targetUserLogin={selectedManager} targetUserName={selectedManager} />
+        <ManagerDashboard targetUserLogin={selectedManager} targetUserName={selectedName} />
       </div>
     );
   }
@@ -107,16 +151,23 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           </p>
         ) : (
           <div className="space-y-2">
-            {managers.map(login => (
+            {managers.map(m => (
               <button
-                key={login}
-                onClick={() => { setSelectedManager(login); setView('viewManager'); }}
+                key={m.login}
+                onClick={() => { setSelectedManager(m.login); setView('viewManager'); }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all duration-200 cursor-pointer group"
               >
                 <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[12px] font-bold text-[#066aab] shrink-0">
-                  {login.charAt(0).toUpperCase()}
+                  {initials(m)}
                 </div>
-                <span className="flex-1 text-left text-[13px] font-medium truncate">{login}</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-[13px] font-semibold truncate">
+                    {m.fullName || m.login}
+                  </p>
+                  {m.fullName && (
+                    <p className="text-[11px] text-muted-foreground truncate">{m.login}</p>
+                  )}
+                </div>
                 <Eye className="h-4 w-4 text-muted-foreground/40 group-hover:text-[#066aab] transition-colors" />
                 <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] group-hover:translate-x-0.5 transition-all" />
               </button>
