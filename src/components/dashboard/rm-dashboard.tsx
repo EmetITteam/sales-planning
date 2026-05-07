@@ -143,6 +143,12 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             {managerList.length} {managerList.length === 1 ? 'менеджер' : 'менеджерів'} · {periodLabel}
           </p>
         </div>
+        <button
+          onClick={() => setView('myPlanning')}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#e8f4fc] hover:bg-[#c5e3f6] text-[#066aab] text-[12px] font-semibold transition-colors"
+        >
+          <ClipboardList className="h-3.5 w-3.5" /> Моє планування
+        </button>
         {!loading && (
           <button
             onClick={refetch}
@@ -153,6 +159,15 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           </button>
         )}
       </div>
+
+      {/* Mobile fallback for 'Моє планування' (sm:hidden, header has hidden sm:flex) */}
+      <button
+        onClick={() => setView('myPlanning')}
+        className="sm:hidden flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[#e8f4fc] text-[#066aab] text-[13px] font-semibold"
+      >
+        <ClipboardList className="h-4 w-4" /> Моє планування
+        <ChevronRight className="h-4 w-4 ml-auto" />
+      </button>
 
       {noRegion && (
         <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-2">
@@ -239,21 +254,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             </div>
           </div>
 
-          {/* My planning + Manager list */}
-          <button
-            onClick={() => setView('myPlanning')}
-            className="w-full flex items-center gap-4 bg-gradient-to-r from-[#066aab]/5 via-[#0880cc]/5 to-[#066aab]/5 hover:from-[#066aab]/10 hover:to-[#0880cc]/10 rounded-2xl border border-[#066aab]/15 p-5 transition-all duration-300 cursor-pointer group"
-          >
-            <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
-              <ClipboardList className="h-5 w-5" />
-            </div>
-            <div className="text-left flex-1">
-              <p className="text-[15px] font-bold text-foreground">Моє планування</p>
-              <p className="text-[13px] text-muted-foreground mt-0.5">Заповнити власний прогноз по ТМ</p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[#066aab] group-hover:translate-x-1 transition-all" />
-          </button>
-
+          {/* Manager list */}
           <div>
             <h3 className="text-[15px] font-bold mb-4">Менеджери регіону</h3>
             <div className="space-y-2">
