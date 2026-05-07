@@ -165,8 +165,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
       {region && aggregate && (
         <>
-          {/* Hero metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Hero metrics — 3 картки. 4-у позицію (ClientStatsCard) додамо
+              коли підключимо Action 2 для агрегату клієнтів по регіону. */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <MetricCard
               icon={<Target />}
               iconColor="text-[#066aab]"
@@ -212,13 +213,6 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                 </div>
               )}
-            />
-            <MetricCard
-              icon={<MapPin />}
-              iconColor="text-[#066aab]"
-              label="Менеджерів у плані"
-              value={String(managerList.filter(m => m.totalPlan > 0).length)}
-              caption={<span className="text-muted-foreground">з {managerList.length} підлеглих</span>}
             />
           </div>
 

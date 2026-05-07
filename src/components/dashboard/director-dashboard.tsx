@@ -140,8 +140,9 @@ export function DirectorDashboard() {
 
       {company && company.regionAggregates.length > 0 && (
         <>
-          {/* Hero metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Hero metrics — 3 картки. 4-у позицію (ClientStatsCard) додамо
+              коли підключимо Action 2 для агрегату клієнтів по компанії. */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <MetricCard
               icon={<Target />}
               iconColor="text-[#066aab]"
@@ -187,13 +188,6 @@ export function DirectorDashboard() {
                   <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                 </div>
               )}
-            />
-            <MetricCard
-              icon={<Users />}
-              iconColor="text-[#066aab]"
-              label="Активні регіони"
-              value={String(company.regionAggregates.filter(r => r.totalPlan > 0).length)}
-              caption={<span className="text-muted-foreground">з {company.regionAggregates.length} підконтрольних</span>}
             />
           </div>
 
