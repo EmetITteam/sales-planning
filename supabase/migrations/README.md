@@ -26,6 +26,7 @@ supabase db push
 | 2026-05-08 | `20260508_001_add_indices.sql` | Індекси для швидших queries | ✅ applied 2026-05-08 (manual via Dashboard SQL Editor) |
 | 2026-05-08 | `20260508_002_drop_dead_columns.sql` | Видалити legacy `month_forecast_pct/usd` з period_summaries | ✅ applied 2026-05-08 (manual via Dashboard SQL Editor) |
 | 2026-05-08 | `20260508_003_unpack_stage_comment.sql` | JSON-pack у text колонках → дедіковані колонки training_id/name/date + stage_done | ✅ applied 2026-05-08 (manual via Dashboard SQL Editor) |
+| 2026-05-08 | `20260508_004_fix_gap_closures_unique.sql` | **HOTFIX:** додає відсутній UNIQUE constraint на `(period_id, user_id, segment_code, client_id_1c)` у `gap_closures`. Без нього save падає з 42P10 для будь-кого з сплячими клієнтами. Виявлено через QA-тест на проді. | ✅ applied 2026-05-08 (manual via Dashboard SQL Editor; pre-check returned 0 dups) |
 
 **Backups taken before apply:**
 - `backups/2026-05-08/*.json` — local JSON dump via REST (5 tables, see manifest.json)
