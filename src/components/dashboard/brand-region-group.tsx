@@ -38,10 +38,10 @@ interface Props {
   /** Click на регіоні всередині — drill-down у RMDashboard цього регіону. */
   onRegionClick: (regionCode: string) => void;
   /**
-   * Click на менеджеру всередині regional sub-list — швидкий drill-down напряму
-   * у ManagerDashboard. Якщо не передано — менеджери НЕ показуються.
+   * Click на менеджеру всередині regional sub-list — drill-down у PlanningForm
+   * для (manager × brand). Якщо не передано — менеджери НЕ показуються.
    */
-  onManagerClick?: (login: string) => void;
+  onManagerClick?: (login: string, segmentCode: string) => void;
 }
 
 /**
@@ -109,7 +109,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                     {r.managers.map(m => (
                       <button
                         key={m.login}
-                        onClick={() => onManagerClick(m.login)}
+                        onClick={() => onManagerClick(m.login, brand.segmentCode)}
                         className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-white hover:bg-[#e8f4fc] border border-[#f0f2f8] text-[12px] text-left transition-colors cursor-pointer"
                       >
                         <span className="font-medium truncate flex-1">{m.name || m.login}</span>

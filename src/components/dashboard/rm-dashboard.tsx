@@ -285,7 +285,11 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   brand={brand}
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
-                  onManagerClick={(login) => { setSelectedManager(login); setView('viewManager'); }}
+                  onManagerClick={(login, segCode) => {
+                    setSelectedManager(login);
+                    setSelectedSegmentForManager(segCode);
+                    setView('viewManager');
+                  }}
                 />
               ))}
             </div>

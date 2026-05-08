@@ -38,6 +38,9 @@ export function DirectorDashboard() {
   const [view, setView] = useState<DirView>('dashboard');
   const [selectedRegionCode, setSelectedRegionCode] = useState<string>('');
   const [selectedManagerLogin, setSelectedManagerLogin] = useState<string>('');
+  // Якщо клік був на конкретному бренді у контексті менеджера (BrandRegionGroup
+  // expand → manager) — одразу відкриваємо планування brand×manager.
+  const [selectedSegmentForManager, setSelectedSegmentForManager] = useState<string>('');
 
   const { user, currentPeriod, liveMode } = useAppStore();
   const periodKey = currentPeriod.month.slice(0, 7);
@@ -98,10 +101,14 @@ export function DirectorDashboard() {
     }
     return (
       <div className="space-y-4">
-        <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        <button onClick={() => { setView('dashboard'); setSelectedSegmentForManager(''); }} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до огляду
         </button>
-        <ManagerDashboard targetUserLogin={selectedManagerLogin} targetUserName={managerName} />
+        <ManagerDashboard
+          targetUserLogin={selectedManagerLogin}
+          targetUserName={managerName}
+          initialSegmentCode={selectedSegmentForManager || undefined}
+        />
       </div>
     );
   }
@@ -274,7 +281,11 @@ export function DirectorDashboard() {
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
                   onRegionClick={(code) => { setSelectedRegionCode(code); setView('viewRegion'); }}
-                  onManagerClick={(login) => { setSelectedManagerLogin(login); setView('viewManager'); }}
+                  onManagerClick={(login, segCode) => {
+                    setSelectedManagerLogin(login);
+                    setSelectedSegmentForManager(segCode);
+                    setView('viewManager');
+                  }}
                 />
               ))}
             </div>

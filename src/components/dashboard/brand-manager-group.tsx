@@ -27,8 +27,12 @@ interface Props {
   brand: BrandWithManagers;
   calcPct: number;
   asOfDate: Date;
-  /** Click на менеджеру всередині — drill-down у ManagerDashboard. */
-  onManagerClick: (login: string) => void;
+  /**
+   * Click на менеджеру всередині — drill-down у PlanningForm для цього (manager × brand).
+   * Логіка: ми вже у контексті конкретного бренду, тому йдемо одразу у форму планування
+   * саме цього бренду для цього менеджера, а не у весь manager dashboard.
+   */
+  onManagerClick: (login: string, segmentCode: string) => void;
 }
 
 /**
@@ -70,7 +74,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick }: 
               asOfDate={asOfDate}
               prevMonthFactAmount={m.prevFact}
               prevMonthFactPercent={pctOf(m.prevFact, m.prevPlan)}
-              onClick={() => onManagerClick(m.login)}
+              onClick={() => onManagerClick(m.login, brand.segmentCode)}
             />
           ))}
         </div>
