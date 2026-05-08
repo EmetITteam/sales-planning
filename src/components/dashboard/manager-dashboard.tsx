@@ -47,10 +47,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
   // Variant A (Sasha 2026-05-06): chevron на BrandRow розкриває деталі по сегменту.
   // Один сегмент за раз — інакше дашборд перетворюється на «гармошку».
   const [expandedSegment, setExpandedSegment] = useState<string | null>(null);
-  const isViewing = !!targetUserLogin;
 
   const { currentPeriod, liveMode, user } = useAppStore();
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
+  // isViewing = «я дивлюсь чужий профіль» (не свій).
+  // Якщо РМ клікнув СЕБЕ у списку менеджерів регіону — це його ж план,
+  // має бути редагованим, а не read-only.
+  const isViewing = !!targetUserLogin && targetUserLogin.toLowerCase().trim() !== (user?.login || '').toLowerCase().trim();
   // DEMO режим: тестові логіни не існують у 1С → не робимо до неї запитів,
   // а показуємо мокові цифри (для презентацій + dev). Реальні 1С-юзери
   // отримують справжні дані. Умова не залежить від targetUserLogin (РМ переглядає
@@ -59,10 +62,14 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
   // Зріз даних: live → сьогодні, інакше → кінець обраного фільтру.
   // useMemo щоб identity Date була стабільна між рендерами (інакше React Compiler
   // не може мемоізувати залежний summaries useMemo).
-  const asOfDate = useMemo(
-    () => (liveMode ? new Date() : new Date(currentPeriod.weekEnd)),
-    [liveMode, currentPeriod.weekEnd],
-  );
+  // ⚠️ Парсимо weekEnd вручну (без `new Date(string)`) — UTC-зсув може дати
+  // попередній день на серверах поза UTC. Та сама схема як на РМ/Director.
+  const asOfDate = useMemo(() => {
+    if (liveMode) return new Date();
+    const [y, m, d] = currentPeriod.weekEnd.split('-').map(Number);
+    if (!y || !m || !d) return new Date();
+    return new Date(y, m - 1, d);
+  }, [liveMode, currentPeriod.weekEnd]);
   const asOfLabel = liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd);
   const periodMonthLabel = getMonthName(asOfDate.getFullYear(), asOfDate.getMonth());
   const totalWorkingDaysInMonth = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
@@ -87,7 +94,12 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
   //    визначити «незапланованих» (купили без плану) і розкласти по категоріях.
   // Послідовність: чекаємо Action 2 → беремо всі clientId-и → Action 3.
   const periodKey = currentPeriod.month.slice(0, 7); // "2026-05"
-  const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : undefined;
+  // ⚠️ ЗАВЖДИ передаємо asOfDate у Action 3: live → today, інакше → дата з фільтра.
+  // Якщо undefined — 1С повертає факт за весь місяць, тому фільтр і live дають
+  // ОДНАКОВІ цифри. Така ж логіка вже на РМ/Director, тут раніше була стара.
+  const asOfIso = liveMode
+    ? new Date().toISOString().slice(0, 10)
+    : currentPeriod.weekEnd;
   const allClientIds: string[] = useMemo(() => {
     return clientsResponse?.clients.map(c => c.clientId) ?? [];
   }, [clientsResponse]);
