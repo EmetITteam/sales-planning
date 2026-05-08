@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Planning — інструкція користувача</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root { --emet:#066aab; --emet-light:#0880cc; --bg:#f4f7fb; --card:#fff; --border:#e2e7ef; --text:#0f172a; --muted:#64748b; --emerald:#10b981; --rose:#f43f5e; --amber:#f59e0b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .layout { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } aside { position: static !important; height: auto !important; border-right: 0 !important; border-bottom: 1px solid var(--border); } main { padding: 24px !important; } }
+
+  /* === SIDEBAR === */
+  aside {
+    background: white; border-right: 1px solid var(--border);
+    padding: 28px 24px;
+    position: sticky; top: 0;
+    height: 100vh; overflow-y: auto;
+  }
+  aside .brand {
+    font-size: 18px; font-weight: 800;
+    background: linear-gradient(135deg, var(--emet), var(--emet-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+  }
+  aside .brand-sub { font-size: 12px; color: var(--muted); margin-bottom: 28px; }
+  aside h4 { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin: 18px 0 8px; }
+  aside ul { list-style: none; }
+  aside li { margin: 2px 0; }
+  aside a { display: block; padding: 7px 12px; font-size: 14px; color: var(--text); text-decoration: none; border-radius: 8px; transition: all .15s; }
+  aside a:hover { background: var(--bg); color: var(--emet); }
+  aside .role-link { font-weight: 700; font-size: 15px; padding: 10px 12px; }
+  aside .role-link.manager:hover { color: #0e7490; }
+  aside .role-link.rm:hover { color: #15803d; }
+  aside .role-link.director:hover { color: #92400e; }
+  aside .badge {
+    display: inline-block; padding: 2px 8px;
+    border-radius: 999px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-left: 6px;
+  }
+  aside .badge.manager { background: #ecfeff; color: #0e7490; }
+  aside .badge.rm { background: #f0fdf4; color: #15803d; }
+  aside .badge.director { background: #fef3c7; color: #92400e; }
+
+  /* === MAIN === */
+  main { padding: 48px 64px; max-width: 980px; }
+  .header { margin-bottom: 40px; padding-bottom: 28px; border-bottom: 2px solid var(--border); }
+  h1 { font-size: 38px; font-weight: 800; letter-spacing: -.6px; margin-bottom: 8px; }
+  .lead { font-size: 16px; color: var(--muted); }
+
+  h2 {
+    font-size: 26px; font-weight: 800; letter-spacing: -.4px;
+    margin: 56px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    scroll-margin-top: 24px;
+  }
+  h3 { font-size: 19px; font-weight: 700; margin: 32px 0 10px; scroll-margin-top: 24px; }
+  h4 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; color: var(--emet); }
+
+  p { margin-bottom: 14px; font-size: 15px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  ul.bullets { padding-left: 22px; margin-bottom: 16px; }
+  ul.bullets li { font-size: 14px; margin-bottom: 6px; }
+
+  ol.steps { padding-left: 22px; margin-bottom: 20px; }
+  ol.steps li { font-size: 14px; margin-bottom: 8px; }
+  ol.steps li strong { color: var(--emet); }
+
+  /* === SCREENSHOT BOX === */
+  figure {
+    margin: 20px 0 28px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,.05);
+  }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13px; color: var(--muted); padding: 10px 14px; text-align: center; background: #fafbfe; border-top: 1px solid var(--border); }
+
+  /* === CALLOUTS === */
+  .callout {
+    border-left: 4px solid var(--emet);
+    background: #f0f7fb;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .callout.warn { border-left-color: var(--amber); background: #fffbeb; }
+  .callout.info { border-left-color: var(--emet); background: #f0f7fb; }
+  .callout.tip { border-left-color: var(--emerald); background: #ecfdf5; }
+  .callout strong { display: block; margin-bottom: 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+  .callout.warn strong { color: var(--amber); }
+  .callout.tip strong { color: var(--emerald); }
+  .callout.info strong { color: var(--emet); }
+
+  /* === BADGES INLINE === */
+  .role-tag {
+    display: inline-block;
+    padding: 2px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    vertical-align: middle;
+  }
+  .role-tag.manager { background: #ecfeff; color: #0e7490; }
+  .role-tag.rm { background: #f0fdf4; color: #15803d; }
+  .role-tag.director { background: #fef3c7; color: #92400e; }
+
+  /* === STAGE PILLS === */
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: white; border: 1px solid var(--border); margin-right: 6px; }
+  .pill.call { color: var(--emet); border-color: rgba(6,106,171,.3); }
+  .pill.meeting { color: #c026d3; border-color: rgba(192,38,211,.3); }
+  .pill.training { color: var(--amber); border-color: rgba(245,158,11,.3); }
+
+  /* === TABLES === */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 14px; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+
+  code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  /* === ANCHOR LINKS === */
+  .anchor-list a { color: var(--emet); text-decoration: none; font-weight: 600; }
+  .anchor-list a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ─── SIDEBAR ─── -->
+  <aside>
+    <div class="brand">Sales Planning</div>
+    <div class="brand-sub">Інструкція користувача</div>
+
+    <h4>Загальне</h4>
+    <ul>
+      <li><a href="#login">Як зайти у систему</a></li>
+      <li><a href="#periods">Періоди і фільтри</a></li>
+      <li><a href="#colors">Що означають кольори</a></li>
+    </ul>
+
+    <h4>Менеджер <span class="badge manager">M</span></h4>
+    <ul>
+      <li><a href="#m-dashboard">Дашборд</a></li>
+      <li><a href="#m-brand">Бренд — деталізація</a></li>
+      <li><a href="#m-form">Форма планування</a></li>
+      <li><a href="#m-forecasts">Прогноз по активних</a></li>
+      <li><a href="#m-gap">Закриття розриву</a></li>
+      <li><a href="#m-save">Збереження</a></li>
+    </ul>
+
+    <h4>Регіональний керівник <span class="badge rm">RM</span></h4>
+    <ul>
+      <li><a href="#rm-dashboard">Дашборд регіону</a></li>
+      <li><a href="#rm-managers">Менеджери</a></li>
+      <li><a href="#rm-drilldown">Drill-down</a></li>
+      <li><a href="#rm-mine">Моє планування</a></li>
+    </ul>
+
+    <h4>Директор <span class="badge director">D</span></h4>
+    <ul>
+      <li><a href="#d-dashboard">Огляд по компанії</a></li>
+      <li><a href="#d-regions">Регіони</a></li>
+      <li><a href="#d-brands">По брендах</a></li>
+    </ul>
+
+    <h4>FAQ</h4>
+    <ul>
+      <li><a href="#faq">Часті питання</a></li>
+    </ul>
+  </aside>
+
+  <!-- ─── MAIN ─── -->
+  <main>
+    <div class="header">
+      <h1>Інструкція користувача</h1>
+      <p class="lead">Sales Planning — внутрішня платформа EMET для планування і контролю продажів. Цей документ покриває ключові сценарії для трьох ролей: <span class="role-tag manager">Менеджер</span> · <span class="role-tag rm">Регіональний керівник</span> · <span class="role-tag director">Директор</span>.</p>
+    </div>
+
+    <!-- ─── ЗАГАЛЬНЕ ─── -->
+    <h2 id="login">Як зайти у систему</h2>
+    <p>Відкрийте у браузері: <code>https://sales-planning-lyart.vercel.app/</code> (рекомендуємо додати у закладки).</p>
+    <p>Введіть <strong>той самий логін і пароль</strong>, що у 1С. Окремий пароль не створюється.</p>
+
+    <figure>
+      <img src="screenshots/01-login.png" alt="Сторінка логіну">
+      <figcaption>Сторінка входу — потрібен email і пароль 1С</figcaption>
+    </figure>
+
+    <div class="callout warn">
+      <strong>⚠️ 1С тимчасово недоступний</strong>
+      Якщо побачите жовтий банер «1С тимчасово недоступний» — це <strong>не пов'язано з вашим паролем</strong>. Зачекайте 1-2 хвилини і спробуйте ще. Якщо не пройде — зверніться до IT.
+    </div>
+
+    <h2 id="periods">Періоди і фільтри</h2>
+    <p>У верхньому правому куті — фільтр періоду. За замовчуванням ви бачите дані за поточний місяць.</p>
+    <ul class="bullets">
+      <li><strong>«На сьогодні»</strong> (live mode, синій кружок) — факт оновлюється з 1С у реальному часі. У цьому режимі форма у read-only.</li>
+      <li><strong>Конкретна дата</strong> (наприклад «04.05.2026») — факт станом на ту дату. Можна редагувати план.</li>
+      <li><strong>«Весь місяць»</strong> у dropdown-меню — повний підсумок за обраний місяць.</li>
+    </ul>
+
+    <h2 id="colors">Що означають кольори</h2>
+    <table>
+      <tr><th>Колір</th><th>Що означає</th></tr>
+      <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--emerald);vertical-align:middle;"></span> Зелений</td><td>«В плані» — % виконання вище або дорівнює нормі на дату</td></tr>
+      <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--rose);vertical-align:middle;"></span> Червоний</td><td>«Відставання» — % виконання нижче норми</td></tr>
+      <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--amber);vertical-align:middle;"></span> Жовтий</td><td>Прогноз / попередження</td></tr>
+    </table>
+
+    <p><strong>Норма</strong> = % робочих днів, які пройшли у місяці. Наприклад, на 5-те число травня (3 робочі дні з 21) норма = ~14%.</p>
+
+    <!-- ─── РОЗДІЛ: МЕНЕДЖЕР ─── -->
+    <h2 id="m-dashboard"><span class="role-tag manager">Менеджер</span> Дашборд</h2>
+    <p>Після входу ви бачите свій особистий дашборд. Зверху — 4 hero-картки з ключовими цифрами, нижче — список 9 торгових марок.</p>
+
+    <figure>
+      <img src="screenshots/06-manager-dashboard.png" alt="Дашборд менеджера">
+      <figcaption>Дашборд менеджера — план / факт / виконання + 9 брендів</figcaption>
+    </figure>
+
+    <h4>Hero-картки (зверху)</h4>
+    <ul class="bullets">
+      <li><strong>План місяця</strong> — сума по всіх брендах, яку треба зробити за місяць</li>
+      <li><strong>Факт</strong> — наростаюча сума продажів з 1С + динаміка vs минулий місяць</li>
+      <li><strong>Виконання</strong> — % факту до плану + норма + прогноз до кінця місяця</li>
+      <li><strong>Клієнти — факт купівель</strong> — скільки ваших активних/сплячих/нових клієнтів вже купили щось у цьому місяці</li>
+    </ul>
+
+    <h4>Торгові марки (рядки)</h4>
+    <p>Кожен рядок — окремий бренд. Що ви бачите:</p>
+    <ul class="bullets">
+      <li><strong>Кружок зліва</strong> — статус: зелений «В плані» або червоний «Відставання»</li>
+      <li><strong>%</strong> — поточне виконання (факт / план)</li>
+      <li><strong>Прогноз</strong> — куди прийде у кінці місяця при поточному темпі</li>
+      <li><strong>План / Факт / Клієнти</strong> — конкретні цифри</li>
+      <li><strong>Мин. міс.</strong> — для порівняння</li>
+    </ul>
+
+    <h2 id="m-brand"><span class="role-tag manager">Менеджер</span> Бренд — деталізація</h2>
+    <p>Клік по будь-якому рядку бренда відкриває розширений вигляд із розкладом по сегментах клієнтів.</p>
+
+    <figure>
+      <img src="screenshots/07-manager-brand-expand.png" alt="Деталізація бренду">
+      <figcaption>Бренд розгорнутий — видно скільки активних, нових і незапланованих клієнтів</figcaption>
+    </figure>
+
+    <p>Чотири блоки всередині:</p>
+    <ul class="bullets">
+      <li><strong>Активні</strong> — купили цей бренд за останні 3 місяці</li>
+      <li><strong>Нові</strong> — нові клієнти у вашому реєстрі</li>
+      <li><strong>Активізація</strong> — Сплячі / Втрачені / Без закупок (потенціал для повернення)</li>
+      <li><strong>Незаплановані</strong> — купують без плану, потрібно врахувати у наступному циклі</li>
+    </ul>
+
+    <p>Щоб реально планувати — натисніть «Перейти у форму →» праворуч.</p>
+
+    <h2 id="m-form"><span class="role-tag manager">Менеджер</span> Форма планування</h2>
+    <p>Форма має 3 секції: <strong>Hero-метрики бренда</strong>, <strong>Дані по клієнтах по ТМ</strong>, <strong>Прогноз по активних клієнтах</strong>, <strong>Закриття розриву</strong>.</p>
+
+    <figure>
+      <img src="screenshots/08-planning-form-top.png" alt="Форма планування — верх">
+      <figcaption>Верх форми — метрики бренду + категорії клієнтів</figcaption>
+    </figure>
+
+    <h2 id="m-forecasts"><span class="role-tag manager">Менеджер</span> Прогноз по активних</h2>
+    <p>Список ваших активних клієнтів за обраним брендом. Система <strong>автоматично</strong> підставляє суму останньої покупки як стартовий прогноз — ви просто корегуєте.</p>
+
+    <figure>
+      <img src="screenshots/09-planning-forecasts.png" alt="Прогноз по активних клієнтах">
+      <figcaption>Прогноз — кожен рядок це клієнт. Прогноз / Етап / Коментар</figcaption>
+    </figure>
+
+    <h4>Колонки</h4>
+    <ul class="bullets">
+      <li><strong>Клієнт</strong> — імʼя + дата і сума останньої покупки</li>
+      <li><strong>Прогноз</strong> — скільки очікуєте від нього у поточному місяці</li>
+      <li><strong>Етап</strong> — як збираєтесь з ним працювати: <span class="pill call">📞 Дзвінок</span> <span class="pill meeting">📅 Зустріч</span> <span class="pill training">🎓 Навчання</span></li>
+      <li><strong>Статус</strong> — позначка про виконання етапу</li>
+      <li><strong>Коментар</strong> — конкретна ціль або деталі (вручну)</li>
+      <li><strong>Факт</strong> — реальна сума продажів за період (з 1С)</li>
+    </ul>
+
+    <div class="callout tip">
+      <strong>💡 Етап «Навчання»</strong>
+      Якщо обрати «Навчання» — система покаже список майбутніх семінарів і майстер-класів з 1С. Достатньо обрати, на який запрошуєте клієнта. Дата автоматично потрапить у дедлайн.
+    </div>
+
+    <p><strong>Кнопка «Додати клієнта»</strong> вгорі справа — для додавання клієнта якого нема у списку (наприклад новий або сплячий, з якого ви плануєте отримати покупку).</p>
+
+    <h2 id="m-gap"><span class="role-tag manager">Менеджер</span> Закриття розриву</h2>
+    <p>Якщо ваш план + поточні прогнози не покривають план — система рахує розрив і показує сплячих/втрачених клієнтів які можуть його закрити.</p>
+
+    <figure>
+      <img src="screenshots/10-planning-gap-closures.png" alt="Закриття розриву">
+      <figcaption>Закриття розриву — сплячі/втрачені клієнти з потенціалом</figcaption>
+    </figure>
+
+    <p>Колонки аналогічні «Прогнозу», тільки <strong>«Прогноз» замінено на «Потенціал»</strong> — скільки очікується якщо повернути клієнта.</p>
+
+    <div class="callout info">
+      <strong>ℹ️ Як рахується розрив</strong>
+      Розрив = План − Факт − Прогноз. Якщо все покрито (зелена плашка «Покрито») — блок інформативний; якщо є розрив — система показує суму у рожевій плашці і пропонує клієнтів для закриття.
+    </div>
+
+    <h2 id="m-save"><span class="role-tag manager">Менеджер</span> Збереження</h2>
+    <p>Внизу форми — кнопка <strong>«Зберегти»</strong>. Зберігається все одразу: і прогнози, і закриття розриву, і коментарі.</p>
+
+    <figure>
+      <img src="screenshots/11-planning-bottom.png" alt="Низ форми — Зберегти">
+      <figcaption>Кнопка «Зберегти» завжди внизу форми</figcaption>
+    </figure>
+
+    <ul class="bullets">
+      <li>Натисніть один раз — кнопка стане «Зберігаю…», запит піде на сервер.</li>
+      <li>З'явиться зелена плашка «Збережено!» — все потрапило у БД.</li>
+      <li>Якщо червона плашка з помилкою — повторіть або зверніться до IT.</li>
+    </ul>
+
+    <div class="callout warn">
+      <strong>⚠️ Видалення клієнта зі списку</strong>
+      Іконка кошика праворуч від рядка — видаляє клієнта з прогнозу. Потім «Зберегти». Якщо випадково — просто оновіть сторінку до натискання «Зберегти», тоді даних не загубите.
+    </div>
+
+    <!-- ─── РОЗДІЛ: РМ ─── -->
+    <h2 id="rm-dashboard"><span class="role-tag rm">Регіональний керівник</span> Дашборд регіону</h2>
+    <p>РМ бачить агрегований стан свого регіону + список менеджерів з персональним прогресом + бренди-у-розрізі-менеджерів.</p>
+
+    <figure>
+      <img src="screenshots/02-rm-dashboard.png" alt="Дашборд РМ — верх">
+      <figcaption>РМ-дашборд: hero-метрики регіону + менеджерський рейтинг</figcaption>
+    </figure>
+
+    <h4>Hero-картки (як у менеджера, але для регіону)</h4>
+    <ul class="bullets">
+      <li><strong>План регіону / Факт / Виконання</strong> — сума по всіх менеджерах</li>
+      <li><strong>Клієнти — факт купівель</strong> — агрегат по всіх менеджерах регіону</li>
+    </ul>
+
+    <h2 id="rm-managers"><span class="role-tag rm">Регіональний керівник</span> Менеджери регіону</h2>
+    <p>Список усіх ваших менеджерів зі статусом виконання. Менеджери без активного плану не показуються.</p>
+
+    <figure>
+      <img src="screenshots/03-rm-brands.png" alt="Бренди РМ">
+      <figcaption>«По брендах — з розбивкою по менеджерах» — клік по бренду розкриває склад</figcaption>
+    </figure>
+
+    <h2 id="rm-drilldown"><span class="role-tag rm">Регіональний керівник</span> Drill-down</h2>
+    <p>Два шляхи перейти у план конкретного менеджера:</p>
+    <ol class="steps">
+      <li><strong>З секції «Менеджери»</strong> — клік по рядку менеджера → відкривається його повний дашборд (read-only).</li>
+      <li><strong>З секції «По брендах»</strong> — клік по рядку бренда розгортає склад по менеджерах. Клік по конкретному менеджеру → відкривається форма планування саме за тим брендом.</li>
+    </ol>
+
+    <figure>
+      <img src="screenshots/05-rm-brand-expanded.png" alt="Бренд розгорнутий">
+      <figcaption>Бренд × менеджери — клік по менеджеру веде у його план за цим брендом</figcaption>
+    </figure>
+
+    <div class="callout info">
+      <strong>ℹ️ Read-only режим</strong>
+      Коли ви дивитесь план чужого менеджера — форма у режимі «тільки читання». Ви не можете випадково зберегти зміни за нього.
+    </div>
+
+    <h2 id="rm-mine"><span class="role-tag rm">Регіональний керівник</span> Моє планування</h2>
+    <p>РМ — це теж менеджер. У вас є свої клієнти і свій план. Кнопка <strong>«Моє планування»</strong> вгорі дашборду відкриває ваш особистий планувальник — повний дашборд з 9 брендами і формою.</p>
+
+    <figure>
+      <img src="screenshots/06-manager-dashboard.png" alt="Моє планування РМ">
+      <figcaption>«Моє планування» РМ — той самий інтерфейс що у менеджера</figcaption>
+    </figure>
+
+    <p>Кнопка «Повернутись до регіону» вгорі повертає до огляду регіону.</p>
+
+    <!-- ─── РОЗДІЛ: ДИРЕКТОР ─── -->
+    <h2 id="d-dashboard"><span class="role-tag director">Директор</span> Огляд по компанії</h2>
+    <p>Директор бачить зведення по <strong>усіх 8 регіонах</strong> компанії. Структура аналогічна РМ, але масштаб — компанія цілком.</p>
+
+    <div class="callout info">
+      <strong>📸 Скріншот директорського дашборду буде додано окремо</strong>
+      Структурно — це той самий вигляд що у РМ, але:
+      <br>· Hero-метрики — по компанії (не регіону)
+      <br>· Замість «Менеджерського рейтингу» — список 8 регіонів через RegionAccordion
+      <br>· «По брендах» — з розбивкою по регіонах (не менеджерах)
+    </div>
+
+    <h2 id="d-regions"><span class="role-tag director">Директор</span> Регіони</h2>
+    <p>Кожен регіон у вигляді картки з статусом + список менеджерів регіону у розгорнутому стані. Клік по регіону → переходите в RM-дашборд цього регіону.</p>
+    <ul class="bullets">
+      <li><strong>З розгорнутого регіону</strong> — клік по менеджеру у міні-списку → одразу його план</li>
+      <li><strong>З картки регіону</strong> — клік по «→» іконці справа → детальний огляд регіону</li>
+    </ul>
+
+    <h2 id="d-brands"><span class="role-tag director">Директор</span> По брендах</h2>
+    <p>Той самий blок «По брендах» але з розбивкою <strong>по регіонах</strong> (не менеджерах). Корисно щоб побачити який регіон за яким брендом сильніший.</p>
+    <p>Клік по регіону всередині розгорнутого бренду → переходите у деталі цього регіону за тим брендом.</p>
+
+    <!-- ─── FAQ ─── -->
+    <h2 id="faq">Часті питання</h2>
+
+    <h3>Не бачу свого регіону / менеджера</h3>
+    <p>Перевірте у 1С — чи закріплений правильний логін за регіоном/підрозділом. Якщо потрібно — попросіть 1С-розробника перевірити.</p>
+
+    <h3>Цифри не співпадають з 1С</h3>
+    <p>Перевірте дату фільтра (вгорі справа). Live-mode = на сьогодні, фільтр = на конкретну дату. Часто це причина різниці.</p>
+
+    <h3>Клієнт відсутній у списку</h3>
+    <p>«Активні клієнти» = купували цей бренд за останні 3 місяці. Якщо клієнт давніше — шукайте у «Закритті розриву». Якщо взагалі немає — натисніть «Додати клієнта» і виберіть з повного списку.</p>
+
+    <h3>Зберіг план — куди він йде?</h3>
+    <p>Прогноз зберігається у нашій БД (Supabase). Доступ — тільки за вашим логіном і вашого керівника. Дані 1С при цьому не зачіпаються.</p>
+
+    <h3>Чи можна відкотити збереження?</h3>
+    <p>Останнє натискання «Зберегти» перезаписує попередні. Версіонування немає, тому видалені клієнти зникають. Перш ніж тиснути «Зберегти» переконайтесь що все правильно.</p>
+
+    <h3>Поки клієнти підгружаються — нічого не показано</h3>
+    <p>Тепер у формі є спіннер «Завантажуємо клієнтів з 1С…». Зачекайте 2-3 секунди — список з'явиться. Якщо не з'являється довго — оновіть сторінку.</p>
+
+    <hr style="margin:60px 0 24px;border:none;border-top:1px solid var(--border);">
+    <p style="font-size:13px;color:var(--muted);text-align:center;">Sales Planning · EMET · 2026<br>Питання та пропозиції — IT-департамент</p>
+  </main>
+
+</div>
+
+</body>
+</html>
