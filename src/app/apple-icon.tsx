@@ -16,23 +16,14 @@ export default function AppleIcon() {
           alignItems: 'center',
           justifyContent: 'center',
           background: 'linear-gradient(135deg, #066aab 0%, #0880cc 100%)',
+          fontFamily: 'system-ui, sans-serif',
+          fontWeight: 800,
+          fontSize: 70,
+          color: 'white',
+          letterSpacing: -3,
         }}
       >
-        <svg
-          width="100"
-          height="100"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-          <path d="M18 17V9" />
-          <path d="M13 17V5" />
-          <path d="M8 17v-3" />
-        </svg>
+        EMÉT
       </div>
     ),
     { ...size },

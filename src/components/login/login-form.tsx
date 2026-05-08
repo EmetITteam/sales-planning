@@ -5,7 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { apiLogin, LoginError } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { BarChart3, ArrowRight, AlertTriangle } from 'lucide-react';
+import { ArrowRight, AlertTriangle } from 'lucide-react';
 
 export function LoginForm() {
   const setUser = useAppStore((s) => s.setUser);
@@ -58,8 +58,9 @@ export function LoginForm() {
       <div className="w-full max-w-[380px] relative">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/20 mb-4">
-            <BarChart3 className="h-7 w-7" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg shadow-[#066aab]/15 border border-border/50 mb-4 p-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/emet-logo.png" alt="EMET" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-[#066aab] to-[#0880cc] bg-clip-text text-transparent">
             Sales Planning

@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PeriodFilter } from './period-filter';
-import { BarChart3, LogOut, ChevronDown, Eye, EyeOff, Zap } from 'lucide-react';
+import { LogOut, ChevronDown, Eye, EyeOff, Zap } from 'lucide-react';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -71,11 +71,10 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border/50">
       <div className="flex h-[56px] items-center gap-4 px-5">
-        {/* Logo */}
+        {/* Logo: EMET-знак + назва продукту */}
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-sm">
-            <BarChart3 className="h-4 w-4" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/emet-logo.png" alt="EMET" className="h-8 w-8 object-contain" />
           <span className="text-[15px] font-semibold tracking-tight hidden sm:inline bg-gradient-to-r from-[#066aab] to-[#0880cc] bg-clip-text text-transparent">
             Sales Planning
           </span>
