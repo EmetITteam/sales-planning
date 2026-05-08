@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
@@ -54,6 +54,17 @@ export function DirectorDashboard() {
   );
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const company = useMemo(() => adapted ? aggregateCompany(adapted.regions) : null, [adapted]);
+
+  // Auto-retry один раз якщо 1С повернула порожньо. На першому запиті після
+  // логіну Action 5 іноді не встигає індексу — другий запит зазвичай вже OK.
+  const autoRetryDoneRef = useRef(false);
+  useEffect(() => {
+    if (!autoRetryDoneRef.current && regionResp && adapted && adapted.regions.length === 0 && !error && !loading) {
+      autoRetryDoneRef.current = true;
+      const t = setTimeout(() => refetch(), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [regionResp, adapted, error, loading, refetch]);
 
   // Агрегат клієнтів по компанії — береться з Action 5 (v2.5 clientStats per manager).
   const clientStats = useMemo(() => adapted ? aggregateCompanyClientStats(adapted.regions) : null, [adapted]);
@@ -163,11 +174,18 @@ export function DirectorDashboard() {
       </div>
 
       {noData && (
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-2">
+        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-3">
           <p className="text-[15px] font-bold">Дані по компанії не знайдено</p>
           <p className="text-[13px] text-muted-foreground">
             1С не повернула жодного регіону для логіну <span className="font-mono">{user?.login}</span>.
+            <br />Іноді це трапляється на самому першому вході — натисніть «Спробувати ще».
           </p>
+          <button
+            onClick={refetch}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-[#066aab]/15 transition-all"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Спробувати ще
+          </button>
         </div>
       )}
 

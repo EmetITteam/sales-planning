@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
@@ -65,6 +65,18 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
   const aggregate = useMemo(() => region ? aggregateRegion(region) : null, [region]);
   const managerList = useMemo(() => region ? aggregateManagers(region) : [], [region]);
+
+  // Auto-retry один раз якщо 1С повернула порожньо. Іноді на найпершому
+  // запиті після login Action 5 не встигає індексу — другий запит через
+  // 1.5с зазвичай уже коректний. Лічимо у ref щоб не зациклитись.
+  const autoRetryDoneRef = useRef(false);
+  useEffect(() => {
+    if (!autoRetryDoneRef.current && regionResp && adapted && adapted.regions.length === 0 && !error && !loading) {
+      autoRetryDoneRef.current = true;
+      const t = setTimeout(() => refetch(), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [regionResp, adapted, error, loading, refetch]);
 
   // Агрегат клієнтів по регіону — береться з Action 5 (v2.5 clientStats per manager).
   const clientStats = useMemo(() => region ? aggregateRegionClientStats(region) : null, [region]);
@@ -183,11 +195,18 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
       </button>
 
       {noRegion && (
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-2">
+        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-3">
           <p className="text-[15px] font-bold">Дані регіону не знайдено</p>
           <p className="text-[13px] text-muted-foreground">
             1С не повернула жодного регіону для логіну <span className="font-mono">{user?.login}</span>.
+            <br />Іноді це трапляється на самому першому вході — натисніть «Спробувати ще».
           </p>
+          <button
+            onClick={refetch}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-[#066aab]/15 transition-all"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Спробувати ще
+          </button>
         </div>
       )}
 

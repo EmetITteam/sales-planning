@@ -226,7 +226,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
       <PlanningForm
         segmentCode={selectedSegment}
         onBack={() => setView('dashboard')}
-        readOnly={liveMode || isViewing}
+        readOnly={isViewing}
         targetUserLogin={targetUserLogin}
         clientsResponse={clientsResponse ?? null}
         clientsLoading={clientsLoading}
