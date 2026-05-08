@@ -163,6 +163,17 @@ export interface OneCRegionSegment {
   prevMonthFactPercent: number | null;
 }
 
+/** v2.5: агрегат клієнтів менеджера по 5 категоріях. */
+export interface OneCManagerClientStats {
+  active:   { total: number | string; bought: number | string };
+  sleeping: { total: number | string; bought: number | string };
+  lost:     { total: number | string; bought: number | string };
+  new:      { total: number | string; bought: number | string };
+  none:     { total: number | string; bought: number | string };
+  totalClients: number | string;
+  totalBought:  number | string;
+}
+
 export interface OneCRegionManager {
   managerName: string;
   managerLogin: string;
@@ -171,6 +182,12 @@ export interface OneCRegionManager {
   totalFact: number;
   /** v2.1: сума факту минулого місяця */
   totalPrevMonthFact: number;
+  /**
+   * v2.5: агрегат клієнтів менеджера. Опціональне — поки 1С не здав v2.5,
+   * frontend підраховує через паралельні Action 2 виклики (useClientsAggregate).
+   * Як здасть — зчитуємо звідси та видаляємо useClientsAggregate.
+   */
+  clientStats?: OneCManagerClientStats;
 }
 
 /** v2.4: один регіон у відповіді (РМ — 1, Директор — 8). */

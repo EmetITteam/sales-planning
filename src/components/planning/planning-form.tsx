@@ -302,9 +302,22 @@ export function PlanningForm({
   const unplannedSplit = useMemo(() => splitUnplannedForPlanning(unplannedAll), [unplannedAll]);
   const unplannedByCategory = useMemo(() => groupUnplannedByCategory(unplannedAll), [unplannedAll]);
 
-  // Категорії клієнтів (з 1С) — для верхньої таблиці «Дані по клієнтах по ТМ»
-  const activeClients = segmentClients.filter(c => c.category === 'active');
-  const sleepingClients = segmentClients.filter(c => c.category === 'sleeping' || c.category === 'lost');
+  // === Активні vs Неактивні ПО ЦЬОМУ БРЕНДУ ===
+  // Логіка погоджена з директором продажу:
+  //   «активні по бренду» = купив цей бренд протягом останніх 3 місяців
+  //   «неактивні по бренду» = купив колись, але >3 місяців тому → блок «Закриття розриву»
+  // 1С-категорія (Активный/Спящий/...) — окрема глобальна оцінка по клієнту,
+  // НЕ використовуємо її тут. Використовуємо ТІЛЬКИ дату останньої покупки бренду.
+  const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
+  const cutoffDate = Date.now() - THREE_MONTHS_MS;
+  const isRecentBrandPurchase = (dateStr: string | null): boolean => {
+    if (!dateStr) return false;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return false;
+    return new Date(y, m - 1, d).getTime() >= cutoffDate;
+  };
+  const activeClients = segmentClients.filter(c => isRecentBrandPurchase(c.lastPurchaseDate));
+  const sleepingClients = segmentClients.filter(c => !isRecentBrandPurchase(c.lastPurchaseDate));
 
   // Auto-populate Прогноз з активних клієнтів 1С — якщо Supabase нічого
   // не повернув. Початковий forecastAmount = lastPurchaseAmount (остання
@@ -330,17 +343,28 @@ export function PlanningForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabaseLoaded, activeClients.length]);
 
-  // Auto-populate Закриття розриву з категорій Сплячий/Втрачений/БЗ —
-  // якщо Supabase нічого не повернув. potentialAmount = lastPurchaseAmount
-  // (історична сума яку б повернути).
+  // Auto-populate Закриття розриву — клієнти що купували цей бренд >3 місяців тому.
+  // potentialAmount = lastPurchaseAmount (історична сума яку б повернути).
+  // Підпис category — теж 3-місячна логіка не плутаючи з 1С-категорією:
+  // показуємо Сплячий/Втрачений якщо так класифікувала 1С (просто для довідки),
+  // інакше — порожньо.
   useEffect(() => {
     if (!supabaseLoaded) return;
     if (gapClosures.length > 0) return;
     if (sleepingClients.length === 0) return;
+    const categoryHint = (cat: Client1C['category']): string => {
+      switch (cat) {
+        case 'sleeping': return 'Сплячий';
+        case 'lost': return 'Втрачений';
+        case 'none': return 'Без закупок';
+        case 'new': return 'Новий';
+        default: return '';
+      }
+    };
     setGapClosures(sleepingClients.map(c => ({
       clientId1c: c.clientId,
       clientName: c.clientName,
-      category: c.category === 'sleeping' ? 'Сплячий' : c.category === 'lost' ? 'Втрачений' : 'Без закупок',
+      category: categoryHint(c.category),
       potentialAmount: c.lastPurchaseAmount || 0,
       stage: '',
       stageComment: '',
