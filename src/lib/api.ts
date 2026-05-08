@@ -137,23 +137,36 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
         targetLogin: params.targetLogin,
         userMeta: params.userMeta,
         clearAll: params.clearAll,
+        // ⚠️ Після migration M3 (2026-05-08) пишемо raw поля — без JSON-pack.
+        // Сервер кладе їх у дедіковані колонки training_id / training_name /
+        // training_date / stage_done (forecasts) і відповідні у gap_closures.
         forecasts: params.forecasts.map(f => ({
           clientId1c: f.clientId1c,
           clientName: f.clientName,
           forecastAmount: f.forecastAmount,
           stage: f.stage,
-          stageComment: packForecastStageComment(f),
+          stageComment: f.stageComment || null,
           completed: f.completed,
           manuallyAdded: f.manuallyAdded || false,
+          trainingId: f.trainingId || null,
+          trainingName: f.trainingName || null,
+          trainingDate: f.trainingDate || null,
+          stageDone: f.stageDone || false,
         })),
         gapClosures: params.gapClosures.map(g => ({
           clientId1c: g.clientId1c,
           clientName: g.clientName,
           category: g.category,
           potentialAmount: g.potentialAmount,
-          action: packGapAction(g),
           deadline: g.deadline,
           manuallyAdded: g.manuallyAdded || false,
+          stage: g.stage || null,
+          stageComment: g.stageComment || null,
+          stageDone: g.stageDone || false,
+          closureCompleted: g.completed || false,
+          trainingId: g.trainingId || null,
+          trainingName: g.trainingName || null,
+          trainingDate: g.trainingDate || null,
         })),
         summary: {
           gapAction1: params.gapActions.action1 || null,
@@ -181,6 +194,11 @@ export interface LoadPlanningResult {
     stage_comment: string | null;
     completed: boolean;
     manually_added: boolean;
+    /** v2 (after migration M3 — 2026-05-08): окремі колонки замість JSON-pack. */
+    training_id: string | null;
+    training_name: string | null;
+    training_date: string | null;
+    stage_done: boolean;
   }>;
   gapClosures: Array<{
     id: number;
@@ -188,9 +206,16 @@ export interface LoadPlanningResult {
     client_name: string;
     category: string | null;
     potential_amount: number;
-    action: string | null;
     deadline: string | null;
     manually_added: boolean;
+    /** v2 (after migration M3): окремі колонки замість JSON-pack у `action`. */
+    stage: string | null;
+    stage_comment: string | null;
+    stage_done: boolean;
+    closure_completed: boolean;
+    training_id: string | null;
+    training_name: string | null;
+    training_date: string | null;
   }>;
   summary: {
     gap_action_1: string | null;

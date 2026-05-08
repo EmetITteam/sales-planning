@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ClientSearchModal } from './client-search-modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
-import { savePlanning, loadPlanning, unpackGapAction, unpackForecastStageComment } from '@/lib/api';
+import { savePlanning, loadPlanning } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
@@ -124,49 +124,47 @@ export function PlanningForm({
       if (cancelled) return;
       setSupabaseLoaded(true);
       if (!data) return;
+      // ⚠️ Після migration M3: читаємо дедіковані колонки замість unpack JSON.
+      // Якщо БД ще має старі JSON-row (не мігровані), вони опрацюються через
+      // міграційний UPDATE на стороні Supabase (M3 заповнює нові колонки + чистить
+      // stage_comment до plain text).
       if (data.forecasts.length > 0) {
-        setForecasts(data.forecasts.map(f => {
-          const unpacked = unpackForecastStageComment(f.stage_comment);
-          return {
-            clientId1c: f.client_id_1c,
-            clientName: f.client_name,
-            forecastAmount: f.forecast_amount,
-            stage: (f.stage || '') as ForecastRow['stage'],
-            stageComment: unpacked.comment,
-            trainingId: unpacked.trainingId,
-            trainingName: unpacked.trainingName,
-            trainingDate: unpacked.trainingDate,
-            stageDone: unpacked.stageDone,
-            factAmount: 0,
-            lastPurchaseDate: null,
-            lastPurchaseAmount: 0,
-            completed: f.completed,
-            manuallyAdded: f.manually_added,
-          };
-        }));
+        setForecasts(data.forecasts.map(f => ({
+          clientId1c: f.client_id_1c,
+          clientName: f.client_name,
+          forecastAmount: f.forecast_amount,
+          stage: (f.stage || '') as ForecastRow['stage'],
+          stageComment: f.stage_comment || '',
+          trainingId: f.training_id || undefined,
+          trainingName: f.training_name || undefined,
+          trainingDate: f.training_date || undefined,
+          stageDone: f.stage_done,
+          factAmount: 0,
+          lastPurchaseDate: null,
+          lastPurchaseAmount: 0,
+          completed: f.completed,
+          manuallyAdded: f.manually_added,
+        })));
       }
       if (data.gapClosures.length > 0) {
-        setGapClosures(data.gapClosures.map(g => {
-          const unpacked = unpackGapAction(g.action);
-          return {
-            clientId1c: g.client_id_1c,
-            clientName: g.client_name,
-            category: g.category || '',
-            potentialAmount: g.potential_amount,
-            stage: unpacked.stage,
-            stageComment: unpacked.stageComment,
-            stageDone: unpacked.stageDone,
-            completed: unpacked.completed,
-            trainingId: unpacked.trainingId,
-            trainingName: unpacked.trainingName,
-            trainingDate: unpacked.trainingDate,
-            deadline: g.deadline || '',
-            factAmount: 0,
-            lastPurchaseDate: null,
-            lastPurchaseAmount: 0,
-            manuallyAdded: g.manually_added,
-          };
-        }));
+        setGapClosures(data.gapClosures.map(g => ({
+          clientId1c: g.client_id_1c,
+          clientName: g.client_name,
+          category: g.category || '',
+          potentialAmount: g.potential_amount,
+          stage: (g.stage || '') as GapClosureRow['stage'],
+          stageComment: g.stage_comment || '',
+          stageDone: g.stage_done,
+          completed: g.closure_completed,
+          trainingId: g.training_id || undefined,
+          trainingName: g.training_name || undefined,
+          trainingDate: g.training_date || undefined,
+          deadline: g.deadline || '',
+          factAmount: 0,
+          lastPurchaseDate: null,
+          lastPurchaseAmount: 0,
+          manuallyAdded: g.manually_added,
+        })));
       }
       if (data.summary) {
         setGapActions({

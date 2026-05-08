@@ -103,13 +103,19 @@ export async function POST(request: NextRequest) {
 
   // ---- 0. Pre-validate (підготувати рядки до інсерту) ----
   // Робимо це ДО будь-яких записів, щоб 400 не залишав сміття у БД.
+  // Після migration M3 (2026-05-08) пишемо у нові колонки замість JSON-pack.
   type FRow = {
     clientId1c: string; clientName: string; forecastAmount: number;
     stage: string; stageComment: string; completed: boolean; manuallyAdded?: boolean;
+    trainingId?: string; trainingName?: string; trainingDate?: string;
+    stageDone?: boolean;
   };
   type GRow = {
     clientId1c: string; clientName: string; category: string;
-    potentialAmount: number; action: string; deadline: string; manuallyAdded?: boolean;
+    potentialAmount: number; deadline: string; manuallyAdded?: boolean;
+    stage?: string; stageComment?: string; stageDone?: boolean;
+    closureCompleted?: boolean;
+    trainingId?: string; trainingName?: string; trainingDate?: string;
   };
   const forecastRows = (forecasts as FRow[] | undefined ?? []).map(f => ({
     period_id: pid, user_id: uid, segment_code: segmentCode,
@@ -117,13 +123,24 @@ export async function POST(request: NextRequest) {
     forecast_amount: f.forecastAmount, stage: f.stage || null,
     stage_comment: f.stageComment || null, completed: f.completed || false,
     manually_added: f.manuallyAdded || false,
+    training_id: f.trainingId || null,
+    training_name: f.trainingName || null,
+    training_date: f.trainingDate || null,
+    stage_done: f.stageDone || false,
   }));
   const gapRows = (gapClosures as GRow[] | undefined ?? []).map(g => ({
     period_id: pid, user_id: uid, segment_code: segmentCode,
     client_id_1c: g.clientId1c || `manual_${uid}_${Date.now()}`,
     client_name: g.clientName, category: g.category || null,
-    potential_amount: g.potentialAmount, action: g.action || null,
+    potential_amount: g.potentialAmount,
     deadline: g.deadline || null, manually_added: g.manuallyAdded || false,
+    stage: g.stage || null,
+    stage_comment: g.stageComment || null,
+    stage_done: g.stageDone || false,
+    closure_completed: g.closureCompleted || false,
+    training_id: g.trainingId || null,
+    training_name: g.trainingName || null,
+    training_date: g.trainingDate || null,
   }));
 
   // ---- 1. Upsert period (FK для forecasts/gap_closures) ----
