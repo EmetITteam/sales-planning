@@ -12,6 +12,12 @@ interface Props {
   asOfDate: Date;
   /** Drill-down у ManagerDashboard цього менеджера. */
   onDrillDown: () => void;
+  /**
+   * Click на BrandRow всередині розгорнутої картки → відкрити планування
+   * для конкретної пари (manager × brand). Якщо не передано — рядки бренду
+   * залишаються інформативними без кліку.
+   */
+  onPlanBrand?: (segmentCode: string) => void;
 }
 
 function initials(fullName: string, login: string): string {
@@ -28,7 +34,7 @@ function initials(fullName: string, login: string): string {
  *
  * Дзеркало RegionAccordion але рівнем нижче (manager × segment замість region × segment).
  */
-export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown }: Props) {
+export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPlanBrand }: Props) {
   const [expanded, setExpanded] = useState(false);
   const totalPlan = manager.segments.reduce((a, s) => a + s.planAmount, 0);
   const totalFact = manager.segments.reduce((a, s) => a + s.factAmount, 0);
@@ -163,7 +169,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown }: Pr
         </div>
       </div>
 
-      {/* Розгорнутий список 9 BrandRow */}
+      {/* Розгорнутий список 9 BrandRow — клік на бренд → планування manager × brand */}
       {expanded && (
         <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
           {manager.segments.map(seg => (
@@ -177,7 +183,8 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown }: Pr
               hasManagerPlan={false}
               prevMonthFactAmount={seg.prevMonthFactAmount}
               prevMonthFactPercent={pctOf(seg.prevMonthFactAmount ?? 0, seg.prevMonthPlanAmount ?? 0)}
-              readOnly
+              onClick={onPlanBrand ? () => onPlanBrand(seg.segmentCode) : undefined}
+              readOnly={!onPlanBrand}
             />
           ))}
         </div>

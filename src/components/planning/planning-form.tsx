@@ -306,10 +306,10 @@ export function PlanningForm({
   const activeClients = segmentClients.filter(c => c.category === 'active');
   const sleepingClients = segmentClients.filter(c => c.category === 'sleeping' || c.category === 'lost');
 
-  // Auto-populate Прогноз з реальних активних клієнтів 1С — якщо
-  // Supabase нічого не повернув і клієнти прийшли. Менеджер тоді бачить
-  // одразу всіх своїх активних клієнтів цього бренду і заповнює прогнози.
-  // Не чіпаємо forecasts якщо вже щось є (з Supabase або mock-PETARAN).
+  // Auto-populate Прогноз з активних клієнтів 1С — якщо Supabase нічого
+  // не повернув. Початковий forecastAmount = lastPurchaseAmount (остання
+  // покупка) щоб менеджер мав логічний default замість 0 — і сума у рядках
+  // одразу збігалась з «Очікуваною сумою» зверху.
   useEffect(() => {
     if (!supabaseLoaded) return;
     if (forecasts.length > 0) return;
@@ -317,7 +317,7 @@ export function PlanningForm({
     setForecasts(activeClients.map(c => ({
       clientId1c: c.clientId,
       clientName: c.clientName,
-      forecastAmount: 0,
+      forecastAmount: c.lastPurchaseAmount || 0,
       stage: '',
       stageComment: '',
       stageDone: false,
@@ -329,6 +329,31 @@ export function PlanningForm({
     })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabaseLoaded, activeClients.length]);
+
+  // Auto-populate Закриття розриву з категорій Сплячий/Втрачений/БЗ —
+  // якщо Supabase нічого не повернув. potentialAmount = lastPurchaseAmount
+  // (історична сума яку б повернути).
+  useEffect(() => {
+    if (!supabaseLoaded) return;
+    if (gapClosures.length > 0) return;
+    if (sleepingClients.length === 0) return;
+    setGapClosures(sleepingClients.map(c => ({
+      clientId1c: c.clientId,
+      clientName: c.clientName,
+      category: c.category === 'sleeping' ? 'Сплячий' : c.category === 'lost' ? 'Втрачений' : 'Без закупок',
+      potentialAmount: c.lastPurchaseAmount || 0,
+      stage: '',
+      stageComment: '',
+      stageDone: false,
+      completed: false,
+      deadline: '',
+      factAmount: 0,
+      lastPurchaseDate: c.lastPurchaseDate,
+      lastPurchaseAmount: c.lastPurchaseAmount,
+      manuallyAdded: false,
+    })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabaseLoaded, sleepingClients.length]);
   const activeSum = activeClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
   const sleepingSum = sleepingClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
   const categories: ClientCategorySummary[] = [

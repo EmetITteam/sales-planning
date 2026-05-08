@@ -35,11 +35,15 @@ interface ManagerDashboardProps {
    *  Заголовок показує ПІБ цільового менеджера, drill-down у форму = read-only. */
   targetUserLogin?: string;
   targetUserName?: string;
+  /** Якщо передано — одразу відкриває PlanningForm для вказаного сегмента
+   *  (skip dashboard view). Використовується для shortcut «Director → manager → brand
+   *  безпосередньо у планування». */
+  initialSegmentCode?: string;
 }
 
-export function ManagerDashboard({ targetUserLogin, targetUserName }: ManagerDashboardProps = {}) {
-  const [view, setView] = useState<'dashboard' | 'plan' | 'control'>('dashboard');
-  const [selectedSegment, setSelectedSegment] = useState('');
+export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegmentCode }: ManagerDashboardProps = {}) {
+  const [view, setView] = useState<'dashboard' | 'plan' | 'control'>(initialSegmentCode ? 'plan' : 'dashboard');
+  const [selectedSegment, setSelectedSegment] = useState(initialSegmentCode ?? '');
   // Variant A (Sasha 2026-05-06): chevron на BrandRow розкриває деталі по сегменту.
   // Один сегмент за раз — інакше дашборд перетворюється на «гармошку».
   const [expandedSegment, setExpandedSegment] = useState<string | null>(null);

@@ -39,6 +39,9 @@ type RMView = 'dashboard' | 'myPlanning' | 'viewManager';
 export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const [view, setView] = useState<RMView>('dashboard');
   const [selectedManager, setSelectedManager] = useState<string>('');
+  // Якщо клік був на конкретному бренді (з ManagerAccordion expand) — одразу
+  // відкриваємо планування за тим брендом у нащадковій ManagerDashboard.
+  const [selectedSegmentForManager, setSelectedSegmentForManager] = useState<string>('');
 
   const { user, currentPeriod, liveMode } = useAppStore();
   const periodKey = currentPeriod.month.slice(0, 7); // YYYY-MM
@@ -99,10 +102,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     const target = managerList.find(m => m.login === selectedManager);
     return (
       <div className="space-y-4">
-        <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        <button onClick={() => { setView('dashboard'); setSelectedSegmentForManager(''); }} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до регіону
         </button>
-        <ManagerDashboard targetUserLogin={selectedManager} targetUserName={target?.name || selectedManager} />
+        <ManagerDashboard
+          targetUserLogin={selectedManager}
+          targetUserName={target?.name || selectedManager}
+          initialSegmentCode={selectedSegmentForManager || undefined}
+        />
       </div>
     );
   }
@@ -258,6 +265,11 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
                   onDrillDown={() => { setSelectedManager(m.login); setView('viewManager'); }}
+                  onPlanBrand={(segCode) => {
+                    setSelectedManager(m.login);
+                    setSelectedSegmentForManager(segCode);
+                    setView('viewManager');
+                  }}
                 />
               ))}
             </div>

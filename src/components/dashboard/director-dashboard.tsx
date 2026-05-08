@@ -236,13 +236,18 @@ export function DirectorDashboard() {
             <div className="space-y-3">
               {company.regionAggregates.map((r, idx) => {
                 const region = adapted!.regions[idx];
-                const managersBrief = aggregateManagers(region).map(m => ({
-                  name: m.name,
-                  login: m.login,
-                  pct: m.factPercent,
-                  dev: m.factPercent - calcPctValue,
-                  onPlan: m.factPercent >= calcPctValue,
-                }));
+                const managersBrief = aggregateManagers(region)
+                  // Показуємо у mini-list тільки тих хто має CURRENT активність.
+                  // Без цього з'являлися «не працюючі» менеджери з лише prev-history
+                  // (Хамуляк А. 0% (-28.6%)). Їх prev-history все одно у regional агрегаті.
+                  .filter(m => m.totalPlan > 0 || m.totalFact > 0)
+                  .map(m => ({
+                    name: m.name,
+                    login: m.login,
+                    pct: m.factPercent,
+                    dev: m.factPercent - calcPctValue,
+                    onPlan: m.factPercent >= calcPctValue,
+                  }));
                 return (
                   <RegionAccordion
                     key={r.regionCode || r.regionName}
