@@ -66,17 +66,29 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const aggregate = useMemo(() => region ? aggregateRegion(region) : null, [region]);
   const managerList = useMemo(() => region ? aggregateManagers(region) : [], [region]);
 
-  // Auto-retry один раз якщо 1С повернула порожньо. Іноді на найпершому
-  // запиті після login Action 5 не встигає індексу — другий запит через
-  // 1.5с зазвичай уже коректний. Лічимо у ref щоб не зациклитись.
-  const autoRetryDoneRef = useRef(false);
+  // Auto-retry: до 3 спроб з backoff (1.2с / 2.5с / 5с) якщо 1С повертає
+  // порожньо. На першому запиті після login Action 5 іноді не встигає —
+  // короткий retry зазвичай дає валідну відповідь. Поки йдуть retries
+  // (autoRetryAttempt < 3) — показуємо loader, не noData.
+  const [autoRetryAttempt, setAutoRetryAttempt] = useState(0);
+  const isAutoRetrying = !!regionResp && !!adapted && adapted.regions.length === 0 && !error && autoRetryAttempt < 3;
   useEffect(() => {
-    if (!autoRetryDoneRef.current && regionResp && adapted && adapted.regions.length === 0 && !error && !loading) {
-      autoRetryDoneRef.current = true;
-      const t = setTimeout(() => refetch(), 1500);
+    if (regionResp && adapted && adapted.regions.length === 0 && !error && !loading && autoRetryAttempt < 3) {
+      const delay = autoRetryAttempt === 0 ? 1200 : autoRetryAttempt === 1 ? 2500 : 5000;
+      const t = setTimeout(() => {
+        setAutoRetryAttempt(n => n + 1);
+        refetch();
+      }, delay);
       return () => clearTimeout(t);
     }
-  }, [regionResp, adapted, error, loading, refetch]);
+  }, [regionResp, adapted, error, loading, refetch, autoRetryAttempt]);
+  // Якщо у форкомі стан скинутий через нову повну сесію (нова відповідь з даними) — нуль на attempt
+  useEffect(() => {
+    if (regionResp && adapted && adapted.regions.length > 0 && autoRetryAttempt > 0) {
+      setAutoRetryAttempt(0);
+    }
+  }, [regionResp, adapted, autoRetryAttempt]);
+  const handleManualRetry = () => { setAutoRetryAttempt(0); refetch(); };
 
   // Агрегат клієнтів по регіону — береться з Action 5 (v2.5 clientStats per manager).
   const clientStats = useMemo(() => region ? aggregateRegionClientStats(region) : null, [region]);
@@ -139,7 +151,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   ) : null;
 
   // === Empty state ===
-  const noRegion = !loading && !error && !region;
+  // Показуємо noData ТІЛЬКИ якщо retry-петля вичерпала всі 3 спроби.
+  // Поки йдуть retries — рендеримо інший стан (loader-фідбек).
+  const noRegion = !loading && !error && !region && !isAutoRetrying;
 
   // === Dashboard ===
   const totalPlan = aggregate?.totalPlan ?? 0;
@@ -194,15 +208,23 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         <ChevronRight className="h-4 w-4 ml-auto" />
       </button>
 
+      {isAutoRetrying && (
+        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-12 text-center">
+          <div className="inline-flex flex-col items-center gap-3">
+            <RefreshCw className="h-6 w-6 animate-spin text-[#066aab]" />
+            <p className="text-[13px] font-medium text-muted-foreground">Завантажуємо дані регіону…</p>
+          </div>
+        </div>
+      )}
       {noRegion && (
         <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-3">
           <p className="text-[15px] font-bold">Дані регіону не знайдено</p>
           <p className="text-[13px] text-muted-foreground">
             1С не повернула жодного регіону для логіну <span className="font-mono">{user?.login}</span>.
-            <br />Іноді це трапляється на самому першому вході — натисніть «Спробувати ще».
+            <br />Якщо це постійно — зверніться до IT.
           </p>
           <button
-            onClick={refetch}
+            onClick={handleManualRetry}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-[#066aab]/15 transition-all"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Спробувати ще
