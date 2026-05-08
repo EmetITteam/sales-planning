@@ -23,9 +23,15 @@ supabase db push
 
 | Дата | Файл | Опис | Статус застосування |
 |---|---|---|---|
-| 2026-05-08 | `20260508_001_add_indices.sql` | Індекси для швидших queries | ⏳ pending |
-| 2026-05-08 | `20260508_002_drop_dead_columns.sql` | Видалити legacy `month_forecast_pct/usd` з period_summaries | ⏳ pending |
-| 2026-05-08 | `20260508_003_unpack_stage_comment.sql` | JSON-pack у text колонках → дедіковані колонки training_id/name/date + stage_done | ⏳ pending |
+| 2026-05-08 | `20260508_001_add_indices.sql` | Індекси для швидших queries | ✅ applied 2026-05-08 (manual via Dashboard SQL Editor) |
+| 2026-05-08 | `20260508_002_drop_dead_columns.sql` | Видалити legacy `month_forecast_pct/usd` з period_summaries | ✅ applied 2026-05-08 (manual via Dashboard SQL Editor) |
+| 2026-05-08 | `20260508_003_unpack_stage_comment.sql` | JSON-pack у text колонках → дедіковані колонки training_id/name/date + stage_done | ✅ applied 2026-05-08 (manual via Dashboard SQL Editor) |
+
+**Backups taken before apply:**
+- `backups/2026-05-08/*.json` — local JSON dump via REST (5 tables, see manifest.json)
+- In-DB snapshots: `backup_20260508_users`, `backup_20260508_periods`, `backup_20260508_forecasts`, `backup_20260508_gap_closures`, `backup_20260508_period_summaries`. **Видалити через 1-2 тижні** після підтвердження що нова схема стабільна: `DROP TABLE backup_20260508_users, backup_20260508_periods, backup_20260508_forecasts, backup_20260508_gap_closures, backup_20260508_period_summaries;`
+
+**Verification after apply:** row counts unchanged (5 / 6 / 29 / 5 / 2 для users/periods/forecasts/gap_closures/period_summaries). Forecasts/gap_closures з training/stage даними = 0 рядків (ніхто ще не вводив через UI до сьогодні — нічого розпаковувати не було).
 
 ## Порядок застосування
 

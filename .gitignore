@@ -48,5 +48,8 @@ supabase/.temp/
 # QA artifacts (screenshots, videos)
 scripts/qa-output/
 
+# Local DB backups (contain client data — never commit)
+/backups/
+
 # Claude Code local task state
 .claude/
