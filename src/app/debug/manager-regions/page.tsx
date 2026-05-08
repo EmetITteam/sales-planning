@@ -29,11 +29,10 @@ export default function DebugManagerRegionsPage() {
   const bootstrapped = useAppStore(s => s.bootstrapped);
   const currentPeriod = useAppStore(s => s.currentPeriod);
   const [targetLogin, setTargetLogin] = useState(DEFAULT_LOGIN);
+  const [period, setPeriod] = useState(currentPeriod.month.slice(0, 7));
   const [response, setResponse] = useState<GetRegionDataResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const period = currentPeriod.month.slice(0, 7);
 
   const handleFetch = async () => {
     if (!user) { setError('Спочатку залогінься (треба бути Director)'); return; }
@@ -78,8 +77,16 @@ export default function DebugManagerRegionsPage() {
 
       <div className="bg-white rounded-2xl p-4 space-y-2 border border-[#e2e7ef] text-sm">
         <p>Хто запитує: <span className="font-mono font-semibold">{!bootstrapped ? '— перевіряю —' : user?.login || '— не залогінений —'}</span> (роль: <b>{user?.role ?? '—'}</b>)</p>
-        <p>Період: <span className="font-mono font-semibold">{period}</span></p>
         <div className="flex items-center gap-2 mt-3">
+          <label className="text-[13px]">Період:</label>
+          <input
+            type="month"
+            value={period}
+            onChange={e => setPeriod(e.target.value)}
+            className="h-8 px-3 rounded-lg border border-[#e2e7ef] text-[12px] font-mono focus:outline-none focus:border-[#066aab]"
+          />
+        </div>
+        <div className="flex items-center gap-2 mt-1">
           <label className="text-[13px]">Логін цільового менеджера:</label>
           <input
             type="text"

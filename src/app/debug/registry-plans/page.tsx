@@ -25,12 +25,14 @@ export default function DebugRegistryPlansPage() {
   const bootstrapped = useAppStore(s => s.bootstrapped);
   const currentPeriod = useAppStore(s => s.currentPeriod);
   const [targetLogin, setTargetLogin] = useState(DEFAULT_LOGIN);
+  // Період override напряму на сторінці — за замовчуванням з store, можна змінити.
+  const [periodInput, setPeriodInput] = useState(currentPeriod.month.slice(0, 7));
   const [allPlans, setAllPlans] = useState<OneCRegistryPlan[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // YYYY-MM-01 / YYYY-MM-(last day)
-  const [py, pm] = currentPeriod.month.split('-').map(Number);
+  const [py, pm] = periodInput.split('-').map(Number);
   const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
   const lastDay = new Date(py, pm, 0).getDate();
   const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
@@ -71,8 +73,17 @@ export default function DebugRegistryPlansPage() {
 
       <div className="bg-white rounded-2xl p-4 space-y-2 border border-[#e2e7ef] text-sm">
         <p>Хто запитує: <span className="font-mono">{!bootstrapped ? '— перевіряю —' : user?.login || '— не залогінений —'}</span></p>
-        <p>Період: <span className="font-mono">{dateFrom}{' / '}{dateTo}</span></p>
         <div className="flex items-center gap-2 mt-3">
+          <label className="text-[13px]">Період (YYYY-MM):</label>
+          <input
+            type="month"
+            value={periodInput}
+            onChange={e => setPeriodInput(e.target.value)}
+            className="h-8 px-3 rounded-lg border border-[#e2e7ef] text-[12px] font-mono focus:outline-none focus:border-[#066aab]"
+          />
+          <span className="text-[11px] text-muted-foreground">→ {dateFrom} / {dateTo}</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
           <label className="text-[13px]">Логін цільового менеджера:</label>
           <input
             type="text"
