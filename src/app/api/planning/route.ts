@@ -105,43 +105,69 @@ export async function POST(request: NextRequest) {
   // Робимо це ДО будь-яких записів, щоб 400 не залишав сміття у БД.
   // Після migration M3 (2026-05-08) пишемо у нові колонки замість JSON-pack.
   type FRow = {
-    clientId1c: string; clientName: string; forecastAmount: number;
+    clientId1c: string; clientName: string; forecastAmount: number | string;
     stage: string; stageComment: string; completed: boolean; manuallyAdded?: boolean;
     trainingId?: string; trainingName?: string; trainingDate?: string;
     stageDone?: boolean;
   };
   type GRow = {
     clientId1c: string; clientName: string; category: string;
-    potentialAmount: number; deadline: string; manuallyAdded?: boolean;
+    potentialAmount: number | string; deadline: string; manuallyAdded?: boolean;
     stage?: string; stageComment?: string; stageDone?: boolean;
     closureCompleted?: boolean;
     trainingId?: string; trainingName?: string; trainingDate?: string;
   };
-  const forecastRows = (forecasts as FRow[] | undefined ?? []).map(f => ({
-    period_id: pid, user_id: uid, segment_code: segmentCode,
-    client_id_1c: f.clientId1c, client_name: f.clientName,
-    forecast_amount: f.forecastAmount, stage: f.stage || null,
-    stage_comment: f.stageComment || null, completed: f.completed || false,
-    manually_added: f.manuallyAdded || false,
-    training_id: f.trainingId || null,
-    training_name: f.trainingName || null,
-    training_date: f.trainingDate || null,
-    stage_done: f.stageDone || false,
-  }));
-  const gapRows = (gapClosures as GRow[] | undefined ?? []).map(g => ({
-    period_id: pid, user_id: uid, segment_code: segmentCode,
-    client_id_1c: g.clientId1c || `manual_${uid}_${Date.now()}`,
-    client_name: g.clientName, category: g.category || null,
-    potential_amount: g.potentialAmount,
-    deadline: g.deadline || null, manually_added: g.manuallyAdded || false,
-    stage: g.stage || null,
-    stage_comment: g.stageComment || null,
-    stage_done: g.stageDone || false,
-    closure_completed: g.closureCompleted || false,
-    training_id: g.trainingId || null,
-    training_name: g.trainingName || null,
-    training_date: g.trainingDate || null,
-  }));
+  // Number coerce + reject non-finite/negative. Клієнт зазвичай parseFloat-ить,
+  // але belt-and-suspenders на сервері: якщо до нас прилетіло щось не-число —
+  // повертаємо 400 ДО будь-якого write у БД.
+  const toFiniteAmount = (v: unknown, label: string): number | null => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+    if (!Number.isFinite(n) || n < 0) {
+      errors.push(`Invalid ${label}: ${JSON.stringify(v)}`);
+      return null;
+    }
+    return n;
+  };
+  const forecastRows = (forecasts as FRow[] | undefined ?? []).map(f => {
+    if (!f.clientId1c) { errors.push('Forecast row missing clientId1c'); return null; }
+    const amount = toFiniteAmount(f.forecastAmount, `forecast_amount for ${f.clientId1c}`);
+    if (amount === null) return null;
+    return {
+      period_id: pid, user_id: uid, segment_code: segmentCode,
+      client_id_1c: f.clientId1c, client_name: f.clientName,
+      forecast_amount: amount, stage: f.stage || null,
+      stage_comment: f.stageComment || null, completed: f.completed || false,
+      manually_added: f.manuallyAdded || false,
+      training_id: f.trainingId || null,
+      training_name: f.trainingName || null,
+      training_date: f.trainingDate || null,
+      stage_done: f.stageDone || false,
+    };
+  }).filter((r): r is NonNullable<typeof r> => r !== null);
+  const gapRows = (gapClosures as GRow[] | undefined ?? []).map(g => {
+    const amount = toFiniteAmount(g.potentialAmount, `potential_amount for ${g.clientId1c || g.clientName}`);
+    if (amount === null) return null;
+    return {
+      period_id: pid, user_id: uid, segment_code: segmentCode,
+      client_id_1c: g.clientId1c || `manual_${uid}_${Date.now()}`,
+      client_name: g.clientName, category: g.category || null,
+      potential_amount: amount,
+      deadline: g.deadline || null, manually_added: g.manuallyAdded || false,
+      stage: g.stage || null,
+      stage_comment: g.stageComment || null,
+      stage_done: g.stageDone || false,
+      closure_completed: g.closureCompleted || false,
+      training_id: g.trainingId || null,
+      training_name: g.trainingName || null,
+      training_date: g.trainingDate || null,
+    };
+  }).filter((r): r is NonNullable<typeof r> => r !== null);
+
+  // Якщо валідатор знайшов проблеми — повертаємо 400, не пишемо нічого.
+  if (errors.length > 0) {
+    console.warn('[planning.POST] validation failed:', { ...ctx, errors });
+    return Response.json({ error: errors.join('; ') }, { status: 400 });
+  }
 
   // ---- 1. Upsert period (FK для forecasts/gap_closures) ----
   if (period?.weekStart && period?.weekEnd && period?.month) {

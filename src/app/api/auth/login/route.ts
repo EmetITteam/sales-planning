@@ -95,8 +95,13 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(20_000),
     });
   } catch (e) {
+    // Fetch fail / timeout — 1С не відповідає. Це НЕ проблема пароля.
     return Response.json(
-      { error: `Помилка зв'язку з 1С: ${e instanceof Error ? e.message : String(e)}` },
+      {
+        error: '1С тимчасово недоступний. Спробуйте через 1-2 хвилини або зверніться до адміністратора.',
+        code: 'onec_unavailable',
+        detail: e instanceof Error ? e.message : String(e),
+      },
       { status: 502 },
     );
   }
@@ -106,18 +111,23 @@ export async function POST(request: NextRequest) {
   try {
     json = JSON.parse(text);
   } catch {
+    // 1С відповіла, але це не JSON (зазвичай HTML 500-ка з IIS). Це теж infra, не пароль.
     return Response.json(
-      { error: `1С повернула не-JSON (HTTP ${upstream.status})` },
+      {
+        error: '1С повернула некоректну відповідь. Спробуйте через 1-2 хвилини або зверніться до адміністратора.',
+        code: 'onec_invalid_response',
+        detail: `HTTP ${upstream.status}`,
+      },
       { status: 502 },
     );
   }
 
   if (json.status === 'error') {
-    return Response.json({ error: json.message || 'Помилка 1С' }, { status: 401 });
+    return Response.json({ error: json.message || 'Невірний логін або пароль', code: 'invalid_credentials' }, { status: 401 });
   }
   const data = json.data as LoginResponse | undefined;
   if (!data || !data.auth) {
-    return Response.json({ error: 'Невірний логін або пароль' }, { status: 401 });
+    return Response.json({ error: 'Невірний логін або пароль', code: 'invalid_credentials' }, { status: 401 });
   }
 
   const user = adaptLogin(data);

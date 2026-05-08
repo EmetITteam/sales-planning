@@ -541,9 +541,22 @@ export function PlanningForm({
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
         <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
           <h3 className="text-[14px] font-bold">Дані по клієнтах по ТМ</h3>
-          {clientsLoading && <span className="text-[11px] text-muted-foreground animate-pulse">завантажуємо клієнтів з 1С...</span>}
+          {clientsLoading && (
+            <span className="flex items-center gap-1.5 text-[11px] text-[#066aab] font-medium">
+              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Завантажуємо клієнтів з 1С…
+            </span>
+          )}
           {clientsError && <span className="text-[11px] text-rose-600" title={clientsError}>1С недоступний — показуємо порожньо</span>}
         </div>
+        {clientsLoading && segmentClients.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+            <p className="text-[12px]">Збираємо активних, сплячих, нових клієнтів…</p>
+          </div>
+        ) : (
         <div className="divide-y divide-[#f0f2f8]">
           {categories.map(cat => (
             <div key={cat.category} className="flex md:grid md:grid-cols-[32px_1fr_80px_100px_80px] flex-wrap gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3">
@@ -603,6 +616,7 @@ export function PlanningForm({
             <p className="text-[14px] font-bold text-[#066aab] text-right">{totalCatPct.toFixed(1)}%</p>
           </div>
         </div>
+        )}
       </div>
 
       {/* === ПРОГНОЗ ПО АКТИВНИХ КЛІЄНТАХ === */}
@@ -632,6 +646,15 @@ export function PlanningForm({
           <div />
         </div>
 
+        {clientsLoading && sortedForecasts.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground bg-white rounded-2xl border border-[#e8ebf4]">
+            <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p className="text-[12px] font-medium">Завантажуємо клієнтів з 1С…</p>
+          </div>
+        )}
         <div className="space-y-2">
           {unplannedSplit.forecast.length > 0 && sortedForecasts.length > 0 && (
             <div className="px-5 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -747,8 +770,8 @@ export function PlanningForm({
                   {/* Видалити */}
                   {!readOnly && !row.completed ? (
                     <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
-                      className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
-                      <Trash2 className="h-3.5 w-3.5" />
+                      className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   ) : <div />}
                 </div>
@@ -768,7 +791,7 @@ export function PlanningForm({
                     </div>
                     {!readOnly && !row.completed && (
                       <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
-                        className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
+                        className="p-2.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
@@ -919,6 +942,15 @@ export function PlanningForm({
           )}
         </div>
 
+        {clientsLoading && gapClosures.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground bg-white rounded-2xl border border-[#e8ebf4]">
+            <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p className="text-[12px] font-medium">Завантажуємо клієнтів з 1С…</p>
+          </div>
+        )}
         {(gapClosures.length > 0 || unplannedSplit.gap.length > 0) && (
           <div>
             {/* Заголовки колонок (тільки md+) */}
@@ -1055,8 +1087,8 @@ export function PlanningForm({
                     {/* Видалити */}
                     {!readOnly ? (
                       <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
-                        className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
-                        <Trash2 className="h-3.5 w-3.5" />
+                        className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     ) : <div />}
                   </div>
@@ -1084,7 +1116,7 @@ export function PlanningForm({
                       </div>
                       {!readOnly && !row.completed && (
                         <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
-                          className="p-1.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
+                          className="p-2.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}

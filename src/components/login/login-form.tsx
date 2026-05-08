@@ -2,30 +2,32 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
-import { apiLogin } from '@/lib/auth-client';
+import { apiLogin, LoginError } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { BarChart3, ArrowRight } from 'lucide-react';
+import { BarChart3, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export function LoginForm() {
   const setUser = useAppStore((s) => s.setUser);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<{ msg: string; isInfra: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    setError('');
+    setError(null);
     setLoading(true);
     try {
       const user = await apiLogin({ login, password });
       setUser(user);
     } catch (err) {
-      // /api/auth/login повертає чіткий error message (401 для невірного пароля,
-      // 502 для проблем з 1С) — показуємо як є.
-      setError(err instanceof Error ? err.message : 'Невідома помилка');
+      // 502 (1С недоступний) показуємо інакше ніж 401 — щоб менеджер не думав що
+      // він невірно ввів пароль і не повторював 10 разів.
+      const isInfra = err instanceof LoginError && (err.status === 502 || err.code === 'onec_unavailable' || err.code === 'onec_invalid_response');
+      const msg = err instanceof Error ? err.message : 'Невідома помилка';
+      setError({ msg, isInfra });
     } finally {
       setLoading(false);
     }
@@ -34,13 +36,14 @@ export function LoginForm() {
   // Демо-кнопки за замовчуванням ВИМКНЕНІ — opt-in через NEXT_PUBLIC_DEMO_LOGIN=true.
   const isDemoMode = process.env.NEXT_PUBLIC_DEMO_LOGIN === 'true';
   const quickLogin = async (loginKey: string) => {
-    setError('');
+    setError(null);
     setLoading(true);
     try {
       const user = await apiLogin({ login: loginKey, demo: true });
       setUser(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Demo login failed');
+      const isInfra = err instanceof LoginError && err.status === 502;
+      setError({ msg: err instanceof Error ? err.message : 'Demo login failed', isInfra });
     } finally {
       setLoading(false);
     }
@@ -73,7 +76,7 @@ export function LoginForm() {
                 type="email"
                 placeholder="name@company.com"
                 value={login}
-                onChange={(e) => { setLogin(e.target.value); setError(''); }}
+                onChange={(e) => { setLogin(e.target.value); setError(null); }}
                 disabled={loading}
                 className="h-10 bg-muted/30 border-border/60"
               />
@@ -84,12 +87,24 @@ export function LoginForm() {
                 type="password"
                 placeholder="Введіть пароль"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 disabled={loading}
                 className="h-10 bg-muted/30 border-border/60"
               />
             </div>
-            {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+            {error && (
+              error.isInfra ? (
+                <div className="flex gap-2 items-start text-xs px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">{error.msg}</p>
+                    <p className="text-[11px] text-amber-700 mt-0.5">Це не пов&apos;язано з вашим паролем.</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-rose-500 font-medium">{error.msg}</p>
+              )
+            )}
             <Button
               type="submit"
               disabled={loading || !login || !password}

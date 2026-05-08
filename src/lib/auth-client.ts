@@ -13,6 +13,17 @@ interface LoginParams {
   demo?: boolean;
 }
 
+export class LoginError extends Error {
+  code?: string;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'LoginError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export async function apiLogin(params: LoginParams): Promise<UserSession> {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
@@ -21,7 +32,7 @@ export async function apiLogin(params: LoginParams): Promise<UserSession> {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || `HTTP ${res.status}`);
+    throw new LoginError(data.error || `HTTP ${res.status}`, res.status, data.code);
   }
   return data.user as UserSession;
 }
