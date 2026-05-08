@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
-import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
+import { aggregateRegion, aggregateManagers, aggregateRegionClientStats } from '@/lib/region-aggregates';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
@@ -67,9 +67,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const aggregate = useMemo(() => region ? aggregateRegion(region) : null, [region]);
   const managerList = useMemo(() => region ? aggregateManagers(region) : [], [region]);
 
-  // Агрегат клієнтів по регіону (Action 2 паралельно для всіх логінів)
+  // Агрегат клієнтів по регіону — спочатку пробуємо v2.5 (1 запит з Action 5),
+  // якщо 1С ще не здав — фолбек на паралельні Action 2 через useClientsAggregate.
+  const v25ClientStats = useMemo(() => region ? aggregateRegionClientStats(region) : null, [region]);
   const managerLogins = useMemo(() => region?.managers.map(m => m.login) ?? [], [region]);
-  const { data: clientStats, loading: clientStatsLoading } = useClientsAggregate(managerLogins.length > 0 ? managerLogins : null);
+  const fallbackLogins = v25ClientStats ? null : (managerLogins.length > 0 ? managerLogins : null);
+  const { data: fallbackStats, loading: fallbackLoading } = useClientsAggregate(fallbackLogins);
+  const clientStats = v25ClientStats ?? fallbackStats;
+  const clientStatsLoading = !v25ClientStats && fallbackLoading;
 
   // === Зріз дат для прогресу місяця ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).

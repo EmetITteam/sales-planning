@@ -12,7 +12,7 @@
  */
 
 import type {
-  UserSession, TMSummaryCard, Client1C, ForecastRow, GapClosureRow,
+  UserSession, TMSummaryCard, Client1C, ForecastRow, GapClosureRow, ClientCategoryStats,
 } from './types';
 import type {
   GetClientsForPlanningResponse,
@@ -72,14 +72,8 @@ export const SEGMENTS = [
   { code: 'OTHER', name: 'Інші ТМ' },
 ];
 
-// === Тип агрегату клієнтів (active/sleeping/new × {total, bought}) ===
-export interface ClientCategoryStats {
-  active: { total: number; bought: number };
-  sleeping: { total: number; bought: number };
-  newClients: { total: number; bought: number };
-  totalBought: number;
-  totalClients: number;
-}
+// ClientCategoryStats тип переїхав у `types.ts` (домен) — реекспорт для зворотньої сумісності.
+export type { ClientCategoryStats } from './types';
 
 // ─────────────────────────────────────────────────────────────────────
 // DEMO MODE — мокові дані тільки для логінів з MOCK_USERS.

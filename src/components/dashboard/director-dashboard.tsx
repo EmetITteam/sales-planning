@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
-import { aggregateCompany, aggregateManagers } from '@/lib/region-aggregates';
+import { aggregateCompany, aggregateManagers, aggregateCompanyClientStats } from '@/lib/region-aggregates';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
@@ -56,12 +56,18 @@ export function DirectorDashboard() {
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const company = useMemo(() => adapted ? aggregateCompany(adapted.regions) : null, [adapted]);
 
-  // Агрегат клієнтів по компанії — Action 2 паралельно для ВСІХ менеджерів усіх регіонів
+  // Агрегат клієнтів по компанії — спочатку пробуємо v2.5 (1 запит, прямо з Action 5),
+  // якщо 1С ще не здав — фолбек на 20 паралельних Action 2 (useClientsAggregate).
+  const v25ClientStats = useMemo(() => adapted ? aggregateCompanyClientStats(adapted.regions) : null, [adapted]);
   const allManagerLogins = useMemo(() => {
     if (!adapted) return [];
     return adapted.regions.flatMap(r => r.managers.map(m => m.login));
   }, [adapted]);
-  const { data: clientStats, loading: clientStatsLoading } = useClientsAggregate(allManagerLogins.length > 0 ? allManagerLogins : null);
+  // Викликаємо хук тільки якщо v2.5 не дав результату (передаємо null → SWR не fire-нет запит).
+  const fallbackLogins = v25ClientStats ? null : (allManagerLogins.length > 0 ? allManagerLogins : null);
+  const { data: fallbackStats, loading: fallbackLoading } = useClientsAggregate(fallbackLogins);
+  const clientStats = v25ClientStats ?? fallbackStats;
+  const clientStatsLoading = !v25ClientStats && fallbackLoading;
 
   // === Робочі дні / asOfDate для прогресу ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).

@@ -73,12 +73,29 @@ export interface ManagerSegmentData {
   prevMonthFactPercent?: number;
 }
 
+// === Агрегат клієнтів менеджера (для UI-картки 3 категорій) ===
+// 🆕 v2.5: 1С повертає 5 категорій (Active/Sleeping/Lost/New/None) у Action 5;
+// мапимо у UI-формат active / sleeping (sleeping+lost) / newClients.
+export interface ClientCategoryStats {
+  active: { total: number; bought: number };
+  sleeping: { total: number; bought: number };
+  newClients: { total: number; bought: number };
+  totalBought: number;
+  totalClients: number;
+}
+
 export interface ManagerRegionData {
   login: string;
   name: string;
   segments: ManagerSegmentData[];
   // 🆕 v2.1: сума факту минулого місяця на той же N-й робочий день
   totalPrevMonthFact?: number;
+  /**
+   * 🆕 v2.5: агрегат клієнтів менеджера у форматі UI-картки. Опціональне:
+   * присутнє коли 1С повернула clientStats у Action 5; інакше undefined
+   * і дашборд падає на fallback (useClientsAggregate через паралельні Action 2).
+   */
+  clientStats?: ClientCategoryStats;
 }
 
 // === Один регіон (UI) ===

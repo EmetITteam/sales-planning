@@ -16,6 +16,7 @@ import type {
   GetRegionDataResponse,
   GetTrainingsResponse,
   OneCTraining,
+  OneCManagerClientStats,
 } from './onec-types';
 import type {
   UserSession,
@@ -24,6 +25,7 @@ import type {
   RegistryPlan,
   RegionDataResponse,
   Training,
+  ClientCategoryStats,
 } from './types';
 import { isActiveDivision, REGIONS } from './regions';
 
@@ -55,6 +57,32 @@ function toNumber(v: number | string | null | undefined): number {
   if (typeof v === 'number') return v;
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * 🆕 v2.5: 5 категорій 1С → 3-картка UI.
+ *  active   = active
+ *  sleeping = sleeping + lost  (втрачений показується у тій самій картці)
+ *  new      = new
+ *  none     — у totalClients, але без власної картки
+ */
+function mapManagerClientStats(raw: OneCManagerClientStats): ClientCategoryStats {
+  return {
+    active: {
+      total: toNumber(raw.active.total),
+      bought: toNumber(raw.active.bought),
+    },
+    sleeping: {
+      total: toNumber(raw.sleeping.total) + toNumber(raw.lost.total),
+      bought: toNumber(raw.sleeping.bought) + toNumber(raw.lost.bought),
+    },
+    newClients: {
+      total: toNumber(raw.new.total),
+      bought: toNumber(raw.new.bought),
+    },
+    totalBought: toNumber(raw.totalBought),
+    totalClients: toNumber(raw.totalClients),
+  };
 }
 
 // === Мапа кодів сегментів: 1С → UI ===
@@ -251,6 +279,9 @@ export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
             login: (m.managerLogin || '').toLowerCase().trim(),
             name: m.managerName,
             totalPrevMonthFact,
+            // v2.5: якщо 1С повернула clientStats — нормалізуємо у UI-формат.
+            // Якщо ні (1С на старій версії) — undefined, дашборди фолбекнуть на useClientsAggregate.
+            clientStats: m.clientStats ? mapManagerClientStats(m.clientStats) : undefined,
             segments: m.segments.map(s => {
               const planAmount = toNumber(s.planAmountUSD as number | string);
               const factAmount = toNumber(s.factAmountUSD as number | string);

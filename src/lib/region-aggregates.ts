@@ -8,8 +8,60 @@
  * дашбордах і у формі (де теж може знадобитись підсумок).
  */
 
-import type { RegionData, ManagerSegmentData } from './types';
+import type { RegionData, ManagerSegmentData, ClientCategoryStats } from './types';
 import { SEGMENTS } from './mock-data';
+
+/** Порожній агрегат клієнтів — стартова точка для reduce. */
+function emptyClientStats(): ClientCategoryStats {
+  return {
+    active: { total: 0, bought: 0 },
+    sleeping: { total: 0, bought: 0 },
+    newClients: { total: 0, bought: 0 },
+    totalBought: 0,
+    totalClients: 0,
+  };
+}
+
+/**
+ * 🆕 v2.5: сума clientStats по всіх менеджерах регіону.
+ *
+ * Повертає null коли ХОЧА Б один менеджер не має clientStats — означає що 1С
+ * ще не здав v2.5 для цього сетапу і ми не можемо показати точну цифру по
+ * регіону. Дашборд тоді робить fallback на useClientsAggregate (старий шлях).
+ */
+export function aggregateRegionClientStats(region: RegionData): ClientCategoryStats | null {
+  const out = emptyClientStats();
+  for (const m of region.managers) {
+    if (!m.clientStats) return null;
+    out.active.total += m.clientStats.active.total;
+    out.active.bought += m.clientStats.active.bought;
+    out.sleeping.total += m.clientStats.sleeping.total;
+    out.sleeping.bought += m.clientStats.sleeping.bought;
+    out.newClients.total += m.clientStats.newClients.total;
+    out.newClients.bought += m.clientStats.newClients.bought;
+    out.totalBought += m.clientStats.totalBought;
+    out.totalClients += m.clientStats.totalClients;
+  }
+  return out;
+}
+
+/** 🆕 v2.5: сума clientStats по всіх регіонах (для Director-дашборду). */
+export function aggregateCompanyClientStats(regions: RegionData[]): ClientCategoryStats | null {
+  const out = emptyClientStats();
+  for (const region of regions) {
+    const reg = aggregateRegionClientStats(region);
+    if (!reg) return null; // якщо у будь-якому регіоні incomplete — фолбек на старий шлях
+    out.active.total += reg.active.total;
+    out.active.bought += reg.active.bought;
+    out.sleeping.total += reg.sleeping.total;
+    out.sleeping.bought += reg.sleeping.bought;
+    out.newClients.total += reg.newClients.total;
+    out.newClients.bought += reg.newClients.bought;
+    out.totalBought += reg.totalBought;
+    out.totalClients += reg.totalClients;
+  }
+  return out;
+}
 
 export interface SegmentAggregate {
   segmentCode: string;
