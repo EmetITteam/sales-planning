@@ -37,12 +37,16 @@ export default function DebugManagerRegionsPage() {
   const handleFetch = async () => {
     if (!user) { setError('Спочатку залогінься (треба бути Director)'); return; }
     if (user.role !== 'director') {
-      setError(`Ця сторінка доступна тільки Director. Твоя роль: ${user.role}. /api/onec відмовить у запиті за чужий login.`);
+      setError(`Ця сторінка доступна тільки Director. Твоя роль: ${user.role}.`);
       return;
     }
     setLoading(true); setError(null); setResponse(null);
     try {
-      const data = await callOneC('getRegionData', { login: targetLogin, period });
+      // ⚠️ ВАЖЛИВО: викликаємо з логіном ДИРЕКТОРА (поточної сесії), не цільового
+      // менеджера. Тоді 1С повертає всі 8 регіонів з усіма менеджерами, і ми
+      // шукаємо Пашковську у їх managers[]. Якщо передавати її login — 1С поверне
+      // Action 5 «як для неї» (тільки її регіон як менеджер).
+      const data = await callOneC('getRegionData', { login: user.login, period });
       setResponse(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
