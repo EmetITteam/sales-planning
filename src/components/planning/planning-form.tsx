@@ -60,8 +60,6 @@ interface PlanningFormProps {
   factResponse?: SalesFactResponse | null;
 }
 
-// loginToUserId переїхав у спільний @/lib/login-to-user-id (потрібен і серверу).
-
 // Етапи доступні і в "Прогноз по активних", і в "Закриття розриву".
 // Опція "Навчання" розкриває селектор обучень з 1С (плюс поле коментаря).
 const STAGE_OPTIONS = [

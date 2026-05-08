@@ -42,7 +42,6 @@ const REQUIRED_FILES = [
   'src/lib/use-onec-data.ts',
   'src/lib/session.ts',
   'src/lib/rate-limit.ts',
-  'src/lib/login-to-user-id.ts',
   'src/lib/working-days.ts',
   // API routes
   'src/app/api/auth/login/route.ts',

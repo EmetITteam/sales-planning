@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
-import { loginToUserId } from '@/lib/login-to-user-id';
 import { getSession } from '@/lib/session';
 import { NextRequest } from 'next/server';
 
@@ -29,9 +28,9 @@ export async function GET(request: NextRequest) {
   if (isNaN(pid)) {
     return Response.json({ error: 'periodId must be a number' }, { status: 400 });
   }
-  // SECURITY: userId обчислюємо з login сесії (або managed login) — клієнт не
-  // може запросити чужі дані бо login приходить ТІЛЬКИ з підписаної cookie.
-  const uid = loginToUserId(requestedLogin);
+  // SECURITY: user_id це сам login (M5) — клієнт не може запросити чужі дані
+  // бо login приходить ТІЛЬКИ з підписаної cookie.
+  const uid = requestedLogin;
 
   const [forecasts, gapClosures, summary] = await Promise.all([
     supabase.from('forecasts').select('*')
@@ -96,7 +95,8 @@ export async function POST(request: NextRequest) {
   if (effectiveLogin !== session.login && !session.managedUsers.includes(effectiveLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
-  const uid = loginToUserId(effectiveLogin);
+  // M5: user_id = login (раніше було hash через loginToUserId)
+  const uid = effectiveLogin;
 
   const errors: string[] = [];
   const ctx = { uid, pid, segmentCode };

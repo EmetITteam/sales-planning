@@ -101,7 +101,7 @@ export function adaptLogin(r: LoginResponse): UserSession {
   return {
     // Нормалізуємо логін до lower-case + trim — інакше при join з Action 4
     // (registryPlans.managerLogin теж lower-cased у нас) міг би бути desync.
-    // Також `loginToUserId` lowercase'ить — тут джерело істини консистентне.
+    // Це джерело істини: цей логін також є users.id (PK) у Supabase після M5.
     login: (r.login || '').toLowerCase().trim(),
     fullName: r.fullName,
     role: r.roleCode,
