@@ -23,11 +23,11 @@ function emptyClientStats(): ClientCategoryStats {
 }
 
 /**
- * 🆕 v2.5: сума clientStats по всіх менеджерах регіону.
+ * v2.5: сума clientStats по всіх менеджерах регіону.
  *
  * Повертає null коли ХОЧА Б один менеджер не має clientStats — означає що 1С
- * ще не здав v2.5 для цього сетапу і ми не можемо показати точну цифру по
- * регіону. Дашборд тоді робить fallback на useClientsAggregate (старий шлях).
+ * на цьому запиті регресне з v2.5 (раніше до повного rolloutу був fallback,
+ * наразі дашборд просто покаже 0/total — не критично).
  */
 export function aggregateRegionClientStats(region: RegionData): ClientCategoryStats | null {
   const out = emptyClientStats();
@@ -45,12 +45,12 @@ export function aggregateRegionClientStats(region: RegionData): ClientCategorySt
   return out;
 }
 
-/** 🆕 v2.5: сума clientStats по всіх регіонах (для Director-дашборду). */
+/** v2.5: сума clientStats по всіх регіонах (для Director-дашборду). */
 export function aggregateCompanyClientStats(regions: RegionData[]): ClientCategoryStats | null {
   const out = emptyClientStats();
   for (const region of regions) {
     const reg = aggregateRegionClientStats(region);
-    if (!reg) return null; // якщо у будь-якому регіоні incomplete — фолбек на старий шлях
+    if (!reg) return null; // якщо у будь-якому регіоні incomplete — UI покаже 0/total
     out.active.total += reg.active.total;
     out.active.bought += reg.active.bought;
     out.sleeping.total += reg.sleeping.total;

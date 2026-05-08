@@ -183,9 +183,9 @@ export interface OneCRegionManager {
   /** v2.1: сума факту минулого місяця */
   totalPrevMonthFact: number;
   /**
-   * v2.5: агрегат клієнтів менеджера. Опціональне — поки 1С не здав v2.5,
-   * frontend підраховує через паралельні Action 2 виклики (useClientsAggregate).
-   * Як здасть — зчитуємо звідси та видаляємо useClientsAggregate.
+   * v2.5: агрегат клієнтів менеджера. Залишене optional на випадок якщо 1С
+   * на якомусь запиті регресне до v2.4 — тоді ми не падаємо, картка просто
+   * показує 0/total. Реально prod 1С з 2026-05-08 завжди повертає це поле.
    */
   clientStats?: OneCManagerClientStats;
 }

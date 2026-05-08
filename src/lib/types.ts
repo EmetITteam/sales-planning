@@ -91,9 +91,9 @@ export interface ManagerRegionData {
   // 🆕 v2.1: сума факту минулого місяця на той же N-й робочий день
   totalPrevMonthFact?: number;
   /**
-   * 🆕 v2.5: агрегат клієнтів менеджера у форматі UI-картки. Опціональне:
-   * присутнє коли 1С повернула clientStats у Action 5; інакше undefined
-   * і дашборд падає на fallback (useClientsAggregate через паралельні Action 2).
+   * v2.5: агрегат клієнтів менеджера у форматі UI-картки. Optional на
+   * випадок якщо 1С на якомусь запиті регресне до v2.4 — тоді ми не падаємо,
+   * картка просто покаже 0/total.
    */
   clientStats?: ClientCategoryStats;
 }

@@ -279,8 +279,7 @@ export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
             login: (m.managerLogin || '').toLowerCase().trim(),
             name: m.managerName,
             totalPrevMonthFact,
-            // v2.5: якщо 1С повернула clientStats — нормалізуємо у UI-формат.
-            // Якщо ні (1С на старій версії) — undefined, дашборди фолбекнуть на useClientsAggregate.
+            // v2.5: clientStats per manager — нормалізуємо у UI-формат.
             clientStats: m.clientStats ? mapManagerClientStats(m.clientStats) : undefined,
             segments: m.segments.map(s => {
               const planAmount = toNumber(s.planAmountUSD as number | string);

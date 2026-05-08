@@ -8,7 +8,6 @@ import { aggregateCompany, aggregateManagers, aggregateCompanyClientStats } from
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
-import { useClientsAggregate } from '@/lib/use-clients-aggregate';
 import { RMDashboard } from './rm-dashboard';
 import { ManagerDashboard } from './manager-dashboard';
 import { MetricCard } from './metric-card';
@@ -56,18 +55,9 @@ export function DirectorDashboard() {
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const company = useMemo(() => adapted ? aggregateCompany(adapted.regions) : null, [adapted]);
 
-  // Агрегат клієнтів по компанії — спочатку пробуємо v2.5 (1 запит, прямо з Action 5),
-  // якщо 1С ще не здав — фолбек на 20 паралельних Action 2 (useClientsAggregate).
-  const v25ClientStats = useMemo(() => adapted ? aggregateCompanyClientStats(adapted.regions) : null, [adapted]);
-  const allManagerLogins = useMemo(() => {
-    if (!adapted) return [];
-    return adapted.regions.flatMap(r => r.managers.map(m => m.login));
-  }, [adapted]);
-  // Викликаємо хук тільки якщо v2.5 не дав результату (передаємо null → SWR не fire-нет запит).
-  const fallbackLogins = v25ClientStats ? null : (allManagerLogins.length > 0 ? allManagerLogins : null);
-  const { data: fallbackStats, loading: fallbackLoading } = useClientsAggregate(fallbackLogins);
-  const clientStats = v25ClientStats ?? fallbackStats;
-  const clientStatsLoading = !v25ClientStats && fallbackLoading;
+  // Агрегат клієнтів по компанії — береться з Action 5 (v2.5 clientStats per manager).
+  const clientStats = useMemo(() => adapted ? aggregateCompanyClientStats(adapted.regions) : null, [adapted]);
+  const clientStatsLoading = loading && !clientStats;
 
   // === Робочі дні / asOfDate для прогресу ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).
