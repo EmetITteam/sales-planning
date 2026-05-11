@@ -38,11 +38,17 @@ export function useRegionStats(
   const sortedKey = logins && logins.length > 0
     ? [...logins].sort().join(',')
     : null;
-  // Хеш plannedClientIds — короткий (sorted set length + sample). Достатньо
-  // щоб SWR відрізнив зміну плану. Не включаємо весь масив — може бути 700+ ID.
-  const planHash = plannedClientIds && plannedClientIds.length > 0
-    ? `p${plannedClientIds.length}`
-    : 'np';
+  // Хеш plannedClientIds. ⚠️ ВАЖЛИВО розрізняти 3 стани:
+  //   null/undefined → 'np' (no plan info — frontend ще не отримав planAgg)
+  //   [] (порожній)  → 'pe' (planned empty — план реально пустий, ВСІ unplanned)
+  //   [a, b, ...]    → `p${length}` (план є, передаємо кількість для cache-bust)
+  // Раніше null і [] давали той самий 'np' → SWR використовував старий кеш
+  // де передавався null, і Незаплановані лишались 0.
+  const planHash = !plannedClientIds
+    ? 'np'
+    : plannedClientIds.length === 0
+      ? 'pe'
+      : `p${plannedClientIds.length}`;
   const key = period && sortedKey
     ? `region-stats|${period}|${asOfDate ?? ''}|${sortedKey}|${planHash}`
     : null;

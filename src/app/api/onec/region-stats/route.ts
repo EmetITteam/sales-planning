@@ -37,7 +37,12 @@ interface OneCResp<T> {
   data?: T;
 }
 
-async function callOneC<T>(action: string, payload: unknown, timeoutMs = 20000): Promise<T | null> {
+async function callOneC<T>(
+  action: string,
+  payload: unknown,
+  timeoutMs = 25000,
+  attempt = 1,
+): Promise<T | null> {
   const baseUrl = process.env.ONEC_BASE_URL;
   if (!baseUrl) return null;
   const oneClogin = process.env.ONEC_LOGIN;
@@ -56,9 +61,22 @@ async function callOneC<T>(action: string, payload: unknown, timeoutMs = 20000):
     });
     const text = await res.text();
     const json = JSON.parse(text) as OneCResp<T>;
-    if (json.status !== 'success' || !json.data) return null;
+    if (json.status !== 'success' || !json.data) {
+      if (attempt < 2) {
+        // Один retry — 1С іноді віддає transient помилки на батчах
+        await new Promise(r => setTimeout(r, 500));
+        return callOneC<T>(action, payload, timeoutMs, attempt + 1);
+      }
+      console.warn('[region-stats.callOneC] failed', { action, status: json.status, message: json.message });
+      return null;
+    }
     return json.data;
-  } catch {
+  } catch (err) {
+    if (attempt < 2) {
+      await new Promise(r => setTimeout(r, 500));
+      return callOneC<T>(action, payload, timeoutMs, attempt + 1);
+    }
+    console.warn('[region-stats.callOneC] error', { action, err: err instanceof Error ? err.message : String(err) });
     return null;
   }
 }
@@ -154,12 +172,24 @@ async function handlePost(request: NextRequest) {
     Array.isArray(plannedClientIds) ? plannedClientIds : null,
   );
 
+  const successCount = results.filter(r => r.clientsResp && r.factResp).length;
+  if (successCount < safeLogins.length) {
+    console.warn('[region-stats] partial data', {
+      period,
+      requested: safeLogins.length,
+      successful: successCount,
+      failed: safeLogins.length - successCount,
+      failedLogins: results.filter(r => !r.clientsResp || !r.factResp).map(r => r.login),
+    });
+  }
   return Response.json({
     bySegment: aggregated.bySegment,
     meta: {
       period,
       logins: safeLogins.length,
-      successful: results.filter(r => r.clientsResp && r.factResp).length,
+      successful: successCount,
+      // Якщо partial — frontend може показати warning «не всі менеджери відповіли».
+      partial: successCount < safeLogins.length,
     },
   });
 }
