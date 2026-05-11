@@ -130,9 +130,17 @@ export async function POST(request: NextRequest) {
 
   const seenForecastClients = new Map<string, Set<string>>();
   const seenGapClients = new Map<string, Set<string>>();
-  // ID-и клієнтів які РЕАЛЬНО у плані (forecasts ∪ gap_closures). Потрібно
-  // /api/onec/region-stats щоб правильно рахувати «Незаплановані» (= купили
-  // але не в цьому Set).
+  // Три окремі Set-и: у яких блоках плану лежить кожен client_id_1c.
+  // Використовуємо у /api/onec/region-stats щоб класифікувати buyer факту:
+  //   buyer in forecastClientIds       → active
+  //   buyer in gapNewClientIds         → new
+  //   buyer in gapActivationClientIds  → activation
+  //   buyer ні в чому                  → unplanned
+  // Σ всіх 4 = totalFact, без дублювання (раніше unplanned пересікався з категоріями).
+  const forecastClientIds = new Set<string>();
+  const gapNewClientIds = new Set<string>();
+  const gapActivationClientIds = new Set<string>();
+  // Combined (для зворотньої сумісності — поки що повертаємо)
   const plannedClientIds = new Set<string>();
 
   for (const f of forecasts) {
@@ -144,7 +152,10 @@ export async function POST(request: NextRequest) {
     bySegment[f.segment_code].byCategory.active.plannedCount += 1;
     if (!seenForecastClients.has(f.segment_code)) seenForecastClients.set(f.segment_code, new Set());
     seenForecastClients.get(f.segment_code)!.add(`${f.user_id}|${f.client_id_1c}`);
-    if (f.client_id_1c) plannedClientIds.add(f.client_id_1c);
+    if (f.client_id_1c) {
+      forecastClientIds.add(f.client_id_1c);
+      plannedClientIds.add(f.client_id_1c);
+    }
   }
   for (const g of gaps) {
     const amount = Number(g.potential_amount) || 0;
@@ -156,7 +167,11 @@ export async function POST(request: NextRequest) {
     bySegment[g.segment_code].byCategory[cat].plannedCount += 1;
     if (!seenGapClients.has(g.segment_code)) seenGapClients.set(g.segment_code, new Set());
     seenGapClients.get(g.segment_code)!.add(`${g.user_id}|${g.client_id_1c}`);
-    if (g.client_id_1c) plannedClientIds.add(g.client_id_1c);
+    if (g.client_id_1c) {
+      if (cat === 'new') gapNewClientIds.add(g.client_id_1c);
+      else gapActivationClientIds.add(g.client_id_1c);
+      plannedClientIds.add(g.client_id_1c);
+    }
   }
   // Заповнюємо distinct counts
   for (const [seg, set] of seenForecastClients) bySegment[seg].forecastClients = set.size;
@@ -167,6 +182,9 @@ export async function POST(request: NextRequest) {
     totalGapPotential,
     bySegment,
     plannedClientIds: Array.from(plannedClientIds),
+    forecastClientIds: Array.from(forecastClientIds),
+    gapNewClientIds: Array.from(gapNewClientIds),
+    gapActivationClientIds: Array.from(gapActivationClientIds),
     meta: {
       periodId: pid,
       logins: safeLogins.length,

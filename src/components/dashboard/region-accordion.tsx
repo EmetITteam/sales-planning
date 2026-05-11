@@ -62,7 +62,11 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
     fetchLogins ? periodKeyForStats : null,
     asOfIso,
     fetchLogins,
-    planAgg?.plannedClientIds ?? null,
+    planAgg ? {
+      forecastClientIds: planAgg.forecastClientIds,
+      gapNewClientIds: planAgg.gapNewClientIds,
+      gapActivationClientIds: planAgg.gapActivationClientIds,
+    } : null,
   );
   const aggregatedPlan = useMemo(() => {
     if (!planAgg) return null;

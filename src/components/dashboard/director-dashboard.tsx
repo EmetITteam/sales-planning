@@ -117,7 +117,11 @@ export function DirectorDashboard() {
     allCompanyLogins.length > 0 ? periodKeyForStats : null,
     asOfIso,
     allCompanyLogins.length > 0 ? allCompanyLogins : null,
-    planAgg?.plannedClientIds ?? null,
+    planAgg ? {
+      forecastClientIds: planAgg.forecastClientIds,
+      gapNewClientIds: planAgg.gapNewClientIds,
+      gapActivationClientIds: planAgg.gapActivationClientIds,
+    } : null,
   );
   // Агрегат plan + fact для CategoryStatsTable: сумарно по компанії (всі сегменти разом)
   const aggregatedPlan = useMemo(() => {

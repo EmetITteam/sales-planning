@@ -25,11 +25,17 @@ export interface RegionStats {
   }>;
 }
 
+export interface PlanBucketsInput {
+  forecastClientIds?: string[] | null;
+  gapNewClientIds?: string[] | null;
+  gapActivationClientIds?: string[] | null;
+}
+
 export function useRegionStats(
   period: string | null,
   asOfDate: string | null,
   logins: string[] | null,
-  plannedClientIds: string[] | null = null,
+  planBuckets: PlanBucketsInput | null = null,
 ): {
   data: RegionStats | null;
   loading: boolean;
@@ -38,17 +44,15 @@ export function useRegionStats(
   const sortedKey = logins && logins.length > 0
     ? [...logins].sort().join(',')
     : null;
-  // Хеш plannedClientIds. ⚠️ ВАЖЛИВО розрізняти 3 стани:
-  //   null/undefined → 'np' (no plan info — frontend ще не отримав planAgg)
-  //   [] (порожній)  → 'pe' (planned empty — план реально пустий, ВСІ unplanned)
-  //   [a, b, ...]    → `p${length}` (план є, передаємо кількість для cache-bust)
-  // Раніше null і [] давали той самий 'np' → SWR використовував старий кеш
-  // де передавався null, і Незаплановані лишались 0.
-  const planHash = !plannedClientIds
+  // Хеш planBuckets — короткий, для cache-bust. Розрізняє null vs пустий
+  // план vs з даними. Включає розміри 3 sets щоб різні плани давали різні
+  // ключі.
+  const fLen = planBuckets?.forecastClientIds?.length ?? -1;
+  const nLen = planBuckets?.gapNewClientIds?.length ?? -1;
+  const aLen = planBuckets?.gapActivationClientIds?.length ?? -1;
+  const planHash = !planBuckets
     ? 'np'
-    : plannedClientIds.length === 0
-      ? 'pe'
-      : `p${plannedClientIds.length}`;
+    : `pb-${fLen}-${nLen}-${aLen}`;
   const key = period && sortedKey
     ? `region-stats|${period}|${asOfDate ?? ''}|${sortedKey}|${planHash}`
     : null;
@@ -59,7 +63,14 @@ export function useRegionStats(
       const res = await fetch('/api/onec/region-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ period, asOfDate, logins, plannedClientIds }),
+        body: JSON.stringify({
+          period,
+          asOfDate,
+          logins,
+          forecastClientIds: planBuckets?.forecastClientIds ?? null,
+          gapNewClientIds: planBuckets?.gapNewClientIds ?? null,
+          gapActivationClientIds: planBuckets?.gapActivationClientIds ?? null,
+        }),
       });
       if (!res.ok) {
         const err = await res.text().catch(() => '');

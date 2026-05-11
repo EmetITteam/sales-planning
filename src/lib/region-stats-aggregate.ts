@@ -2,29 +2,25 @@
  * Pure-функція агрегації region-stats. Винесена з API route щоб тестувалась
  * без HTTP / сесій / 1С-моків.
  *
- * Вхід: масив (clients, segments) пар по кожному менеджеру.
- * Вихід: bySegment з byCategory + unplanned (підмножина).
+ * Класифікація buyer-ів — ПО ПЛАНУ МЕНЕДЖЕРА (не по 1С-категорії клієнта,
+ * не по lastPurchaseDate бренду — ці спроби давали неузгоджені цифри).
  *
- * Класифікація клієнтів:
- *   - 'new'      = 1С-категорія `Новий` (це справжній 1С-маркер)
- *   - 'active'   = lastPurchaseDate ЦЬОГО сегмента ≥ asOfMs − 90д
- *   - 'sleeping' = (НЕ new) AND (НЕ active) — все інше; frontend колапсує
- *                  sleeping/lost/none у «Активізація»
- *   - 'unplanned' = ОКРЕМИЙ ЗРІЗ (підмножина): buyer чий ID НЕМАЄ у
- *                  plannedClientIds. Може пересікатися з усіма категоріями.
+ * Кожен buyer потрапляє рівно в ОДНУ з 4 категорій (без дублювання):
+ *   - 'active'    = клієнт у forecasts менеджера (Прогноз)
+ *   - 'new'       = клієнт у gap_closures з category=Новий
+ *   - 'activation' = клієнт у gap_closures з іншою категорією (Сплячий/Втрачений/БЗ)
+ *   - 'unplanned' = купив але НЕ ні в forecasts, ні в gap_closures
  *
- * havePlanInfo:
- *   - undefined / null → клієнт ще не отримав planAgg, unplanned лишається 0
- *   - [] (пустий)      → план реально порожній, ВСІ buyers стають unplanned
+ * Σ (active + activation + new + unplanned) = totalFact (без переcікань).
  */
 
-export type CatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
+export type BucketKey = 'active' | 'activation' | 'new' | 'unplanned';
 
-export interface ClientWithPurchases {
-  clientId: string;
-  category?: string;
-  purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }>;
-}
+// Старі ключі — для зворотньої сумісності з UI типами (CategoryStatsTable
+// очікує active/sleeping/lost/new/none у byCategory). Маппимо нашу
+// 4-bucket-логіку у цей формат: active=active, activation→sleeping,
+// new=new, інші ключі лишаються 0.
+export type CatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
 
 export interface FactSegment {
   segmentCode: string;
@@ -32,7 +28,10 @@ export interface FactSegment {
 }
 
 export interface ManagerResult {
-  clients: ClientWithPurchases[];
+  /** Action 2 повертає список клієнтів менеджера. У цьому варіанті алгоритму
+   *  ми не використовуємо їх (категорія береться з плану), але endpoint все
+   *  одно викликає Action 2 для clientIds → Action 3. */
+  clients: Array<{ clientId: string; category?: string; purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }> }>;
   segments: FactSegment[];
 }
 
@@ -50,21 +49,10 @@ export interface AggregateResult {
   bySegment: Record<string, SegmentStats>;
 }
 
-const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
-
-export function isRecentBrandPurchase(
-  dateStr: string | null | undefined,
-  cutoffMs: number,
-): boolean {
-  if (!dateStr) return false;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  if (!y || !m || !d) return false;
-  return new Date(y, m - 1, d).getTime() >= cutoffMs;
-}
-
-export function isNewClient1C(raw: string | null | undefined): boolean {
-  const c = (raw || '').toLowerCase().trim();
-  return c === 'новый' || c === 'новий';
+export interface PlanBuckets {
+  forecastClientIds?: string[] | null;
+  gapNewClientIds?: string[] | null;
+  gapActivationClientIds?: string[] | null;
 }
 
 export function mapSegmentCode(code: string): string {
@@ -91,16 +79,24 @@ function emptySegmentStats(): SegmentStats {
 
 export function aggregateRegionStats(
   managerResults: ManagerResult[],
-  plannedClientIds: string[] | null | undefined,
-  asOfMs: number = Date.now(),
+  planBuckets: PlanBuckets,
 ): AggregateResult {
-  const havePlanInfo = Array.isArray(plannedClientIds);
-  const plannedSet = new Set<string>(
-    Array.isArray(plannedClientIds)
-      ? plannedClientIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
+  const forecastSet = new Set<string>(
+    Array.isArray(planBuckets.forecastClientIds)
+      ? planBuckets.forecastClientIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
       : [],
   );
-  const cutoffMs = asOfMs - THREE_MONTHS_MS;
+  const gapNewSet = new Set<string>(
+    Array.isArray(planBuckets.gapNewClientIds)
+      ? planBuckets.gapNewClientIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
+      : [],
+  );
+  const gapActSet = new Set<string>(
+    Array.isArray(planBuckets.gapActivationClientIds)
+      ? planBuckets.gapActivationClientIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
+      : [],
+  );
+
   const bySegment: Record<string, SegmentStats> = {};
   const ensureSeg = (seg: string) => {
     if (!bySegment[seg]) bySegment[seg] = emptySegmentStats();
@@ -108,22 +104,8 @@ export function aggregateRegionStats(
   };
 
   for (const r of managerResults) {
-    const clients = Array.isArray(r.clients) ? r.clients : [];
     const segments = Array.isArray(r.segments) ? r.segments : [];
-    if (clients.length === 0 || segments.length === 0) continue;
-
-    const lastPurchaseBy = new Map<string, string>();
-    const newClientSet = new Set<string>();
-    for (const c of clients) {
-      if (!c || !c.clientId) continue;
-      if (isNewClient1C(c.category)) newClientSet.add(c.clientId);
-      const purchases = Array.isArray(c.purchases) ? c.purchases : [];
-      for (const p of purchases) {
-        if (!p || !p.segmentCode || !p.lastPurchaseDate) continue;
-        const segCode = mapSegmentCode(p.segmentCode);
-        lastPurchaseBy.set(`${c.clientId}|${segCode}`, p.lastPurchaseDate);
-      }
-    }
+    if (segments.length === 0) continue;
 
     for (const seg of segments) {
       if (!seg || !seg.segmentCode) continue;
@@ -137,18 +119,20 @@ export function aggregateRegionStats(
           : parseFloat(String(buyer.factAmountUSD));
         if (!Number.isFinite(amt) || amt === 0) continue;
 
-        let cat: CatKey;
-        if (newClientSet.has(buyer.clientId)) {
-          cat = 'new';
+        // Пріоритет: forecast → gapNew → gapAct → unplanned. Кожен buyer
+        // у РІВНО одній категорії. Σ = totalFact (без переcікань).
+        const id = buyer.clientId;
+        if (forecastSet.has(id)) {
+          sBlock.byCategory.active.factSum += amt;
+          sBlock.byCategory.active.factCount += 1;
+        } else if (gapNewSet.has(id)) {
+          sBlock.byCategory.new.factSum += amt;
+          sBlock.byCategory.new.factCount += 1;
+        } else if (gapActSet.has(id)) {
+          // 'sleeping' — frontend колапсує sleeping+lost+none у «Активізація»
+          sBlock.byCategory.sleeping.factSum += amt;
+          sBlock.byCategory.sleeping.factCount += 1;
         } else {
-          const lpd = lastPurchaseBy.get(`${buyer.clientId}|${segCode}`);
-          cat = isRecentBrandPurchase(lpd, cutoffMs) ? 'active' : 'sleeping';
-        }
-
-        sBlock.byCategory[cat].factSum += amt;
-        sBlock.byCategory[cat].factCount += 1;
-
-        if (havePlanInfo && !plannedSet.has(buyer.clientId)) {
           sBlock.unplanned.factSum += amt;
           sBlock.unplanned.factCount += 1;
         }

@@ -111,7 +111,11 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     allLogins.length > 0 ? periodKeyForStats : null,
     asOfIso,
     allLogins.length > 0 ? allLogins : null,
-    planAgg?.plannedClientIds ?? null,
+    planAgg ? {
+      forecastClientIds: planAgg.forecastClientIds,
+      gapNewClientIds: planAgg.gapNewClientIds,
+      gapActivationClientIds: planAgg.gapActivationClientIds,
+    } : null,
   );
   // Збираємо plan + fact для CategoryStatsTable: сумарно по регіону (всі бренди разом)
   const aggregatedPlan = useMemo(() => {

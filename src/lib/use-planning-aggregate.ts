@@ -29,10 +29,16 @@ export interface PlanningAggregate {
   }>;
   /**
    * Унікальні client_id_1c з усіх forecasts ∪ gap_closures цього scope.
-   * Передається у /api/onec/region-stats для правильного розрахунку
-   * «Незапланованих» (= купили, але немає у цьому Set).
+   * (Зберігаємо для зворотньої сумісності, але новий код використовує
+   * три окремі масиви нижче — для класифікації факту по плану.)
    */
   plannedClientIds: string[];
+  /** Клієнти у блоці «Прогноз» (active за рішенням менеджера). */
+  forecastClientIds: string[];
+  /** Клієнти у «Закриття розриву» з category=Новий. */
+  gapNewClientIds: string[];
+  /** Клієнти у «Закриття розриву» з іншою категорією (sleeping/lost/none). */
+  gapActivationClientIds: string[];
 }
 
 export function usePlanningAggregate(periodId: number | null, logins: string[] | null): {

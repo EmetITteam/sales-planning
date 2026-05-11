@@ -101,7 +101,7 @@ async function handlePost(request: NextRequest) {
   try { body = await request.json(); }
   catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { period, asOfDate, logins, plannedClientIds } = body ?? {};
+  const { period, asOfDate, logins, forecastClientIds, gapNewClientIds, gapActivationClientIds } = body ?? {};
   if (typeof period !== 'string' || !/^\d{4}-\d{2}$/.test(period)) {
     return Response.json({ error: 'period must be YYYY-MM' }, { status: 400 });
   }
@@ -165,12 +165,13 @@ async function handlePost(request: NextRequest) {
       clients: r.clientsResp!.clients ?? [],
       segments: r.factResp!.segments ?? [],
     }));
-  // havePlanInfo трактується pure-функцією як Array.isArray(plannedClientIds)
-  // — тому передаємо як було у body (null/undefined/масив).
-  const aggregated = aggregateRegionStats(
-    managerInputs,
-    Array.isArray(plannedClientIds) ? plannedClientIds : null,
-  );
+  // Класифікація buyer-ів по плану менеджера: forecast/gapNew/gapActivation/unplanned.
+  // Кожен у рівно одному bucket (без дублювання). Σ = totalFact.
+  const aggregated = aggregateRegionStats(managerInputs, {
+    forecastClientIds: Array.isArray(forecastClientIds) ? forecastClientIds : null,
+    gapNewClientIds: Array.isArray(gapNewClientIds) ? gapNewClientIds : null,
+    gapActivationClientIds: Array.isArray(gapActivationClientIds) ? gapActivationClientIds : null,
+  });
 
   const successCount = results.filter(r => r.clientsResp && r.factResp).length;
   if (successCount < safeLogins.length) {
