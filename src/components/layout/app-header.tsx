@@ -24,6 +24,16 @@ const ROLE_LABELS: Record<string, string> = {
   director: 'Директор з продажів',
 };
 
+// Login-based override для конкретних осіб з рівнем доступу директора, але
+// іншим формальним підписом (асистент, аудитор тощо).
+const LOGIN_LABEL_OVERRIDES: Record<string, string> = {
+  'assistant.sdu@emet.in.ua': 'Асистент директора з продажу',
+};
+
+function getRoleLabel(login: string, role: string): string {
+  return LOGIN_LABEL_OVERRIDES[login.toLowerCase().trim()] ?? ROLE_LABELS[role] ?? role;
+}
+
 const ROLE_COLORS: Record<string, string> = {
   manager: 'bg-[#c5e3f6] text-[#055a91]',
   rm: 'bg-[#e8d5f5] text-[#6b21a8]',
@@ -123,7 +133,7 @@ export function AppHeader() {
             <div className="hidden md:flex flex-col items-start">
               <span className="text-[13px] font-medium leading-tight">{user.fullName}</span>
               <span className="text-[11px] text-muted-foreground leading-tight">
-                {ROLE_LABELS[user.role]}{user.region ? ` · ${user.region}` : ''}
+                {getRoleLabel(user.login, user.role)}{user.region ? ` · ${user.region}` : ''}
               </span>
             </div>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden md:block" />
@@ -132,7 +142,7 @@ export function AppHeader() {
             <div className="px-3 py-2">
               <p className="text-sm font-medium">{user.fullName}</p>
               <p className="text-xs text-muted-foreground">{user.login}</p>
-              <Badge variant="secondary" className="mt-1.5 text-[10px]">{ROLE_LABELS[user.role]}</Badge>
+              <Badge variant="secondary" className="mt-1.5 text-[10px]">{getRoleLabel(user.login, user.role)}</Badge>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={toggleHideAmounts} className="cursor-pointer">
