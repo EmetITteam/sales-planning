@@ -118,6 +118,11 @@ export function PlanningForm({
   // Інакше: відкрив форму → auto-populate додав клієнтів → unplanned зник
   // навіть для тих хто реально не у плані.
   const [persistedClientIds, setPersistedClientIds] = useState<Set<string>>(new Set());
+  // ⚠️ Маркер "форма вже хоч раз зберігалась" (period_summaries record існує).
+  // Якщо true — auto-populate НЕ запускається (інакше після видалення +
+  // перемикання дати клієнти повертаються знов, бо load повертає [] і
+  // auto-populate думає що це 'перше відкриття').
+  const [formEverEdited, setFormEverEdited] = useState(false);
 
   // FEATURE: завантаження збережених даних з Supabase.
   // ⚠️ При зміні (effectiveLogin, segmentCode, currentPeriod) ОЧИЩАЄМО stale state
@@ -132,6 +137,7 @@ export function PlanningForm({
     setPersistedClientIds(new Set());
     setSelectedForecasts(new Set());
     setSelectedGaps(new Set());
+    setFormEverEdited(false);
 
     let cancelled = false;
     loadPlanning(effectiveLogin, segmentCode, currentPeriod.id).then(data => {
@@ -192,6 +198,10 @@ export function PlanningForm({
           action2: data.summary.gap_action_2 || '',
           action3: data.summary.gap_action_3 || '',
         });
+        // Маркер: форма вже зберігалась хоч раз (period_summaries запис існує).
+        // Auto-populate більше не спрацює навіть якщо forecasts/gap_closures
+        // порожні — це СВІДОМЕ рішення менеджера видалити всіх.
+        setFormEverEdited(true);
       }
     });
     return () => { cancelled = true; };
@@ -228,6 +238,16 @@ export function PlanningForm({
       gapActions,
     });
     setSaving(false);
+    if (result.success) {
+      // Маркер що форма редагувалась — після цього auto-populate не запуститься
+      // навіть якщо менеджер видалив всіх і тимчасово forecasts/gap пусті.
+      setFormEverEdited(true);
+      // persistedClientIds оновлюємо з поточного state (бо save їх записав у БД)
+      const justSaved = new Set<string>();
+      for (const f of forecasts) if (f.clientId1c) justSaved.add(f.clientId1c);
+      for (const g of gapClosures) if (g.clientId1c) justSaved.add(g.clientId1c);
+      setPersistedClientIds(justSaved);
+    }
     setSaveResult(result.success
       ? { ok: true, msg: 'Збережено!' }
       : { ok: false, msg: result.error || 'Помилка збереження' }
@@ -351,6 +371,7 @@ export function PlanningForm({
   // одразу збігалась з «Очікуваною сумою» зверху.
   useEffect(() => {
     if (!supabaseLoaded) return;
+    if (formEverEdited) return; // менеджер вже редагував — не повертаємо видалених
     if (forecasts.length > 0) return;
     if (activeClients.length === 0) return;
     setForecasts(activeClients.map(c => ({
@@ -369,7 +390,7 @@ export function PlanningForm({
       manuallyAdded: false,
     })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabaseLoaded, activeClients.length]);
+  }, [supabaseLoaded, formEverEdited, activeClients.length]);
 
   // Auto-populate Закриття розриву — клієнти що купували цей бренд >3 місяців тому.
   // potentialAmount = lastPurchaseAmount (історична сума яку б повернути).
@@ -378,6 +399,7 @@ export function PlanningForm({
   // інакше — порожньо.
   useEffect(() => {
     if (!supabaseLoaded) return;
+    if (formEverEdited) return; // менеджер вже редагував — не повертаємо видалених
     if (gapClosures.length > 0) return;
     if (sleepingClients.length === 0) return;
     const categoryHint = (cat: Client1C['category']): string => {
@@ -405,7 +427,7 @@ export function PlanningForm({
       manuallyAdded: false,
     })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabaseLoaded, sleepingClients.length]);
+  }, [supabaseLoaded, formEverEdited, sleepingClients.length]);
   // «Дані по клієнтах по ТМ» — РЕАЛЬНИЙ розклад планування менеджера, не
   // потенціал з 1С. Активні = forecasts (за визначенням 3-month rule). Нові +
   // Активізація = gap_closures, розділяємо за полем category (з 1С).
