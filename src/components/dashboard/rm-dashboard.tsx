@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
 import { aggregateRegion, aggregateManagers, aggregateRegionClientStats } from '@/lib/region-aggregates';
+import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
@@ -97,6 +98,10 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   }, [regionResp, adapted, autoRetryAttempt]);
   const handleManualRetry = () => { setAutoRetryAttempt(0); refetch(); };
 
+  // Aggregate planning по всіх менеджерах регіону → для розрахунку «Очікуваного %»
+  const allLogins = useMemo(() => region?.managers.map(m => m.login).filter(Boolean) ?? [], [region]);
+  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allLogins.length > 0 ? allLogins : null);
+
   // Агрегат клієнтів по регіону — береться з Action 5 (v2.5 clientStats per manager).
   const clientStats = useMemo(() => region ? aggregateRegionClientStats(region) : null, [region]);
   const clientStatsLoading = loading && !clientStats;
@@ -179,6 +184,11 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
+  // Очікуваний % = (факт + Σ прогноз менеджерів + Σ потенціал закриття розриву) / план
+  // Дані з aggregate-endpoint (Variant B). Якщо ще не догружено — null.
+  const totalExpectedPct = planAgg && totalPlan > 0
+    ? ((totalFact + planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
+    : null;
 
   return (
     <div className="space-y-8">
@@ -293,6 +303,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
                   <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
                   <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
+                  {totalExpectedPct !== null && (
+                    <p className="text-muted-foreground">Очікуваний: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+                  )}
                 </div>
               )}
             />

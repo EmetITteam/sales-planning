@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
 import { aggregateCompany, aggregateManagers, aggregateCompanyClientStats } from '@/lib/region-aggregates';
+import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
@@ -163,6 +164,12 @@ export function DirectorDashboard() {
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
+  // Очікуваний % компанії (Variant B aggregate-endpoint).
+  const allCompanyLogins = useMemo(() => adapted?.regions.flatMap(r => r.managers.map(m => m.login)).filter(Boolean) ?? [], [adapted]);
+  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allCompanyLogins.length > 0 ? allCompanyLogins : null);
+  const totalExpectedPct = planAgg && totalPlan > 0
+    ? ((totalFact + planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
+    : null;
   const totalManagers = company?.regionAggregates.reduce((a, r) => a + r.managerCount, 0) ?? 0;
 
   return (
@@ -264,6 +271,9 @@ export function DirectorDashboard() {
                   <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
                   <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
                   <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
+                  {totalExpectedPct !== null && (
+                    <p className="text-muted-foreground">Очікуваний: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+                  )}
                 </div>
               )}
             />
