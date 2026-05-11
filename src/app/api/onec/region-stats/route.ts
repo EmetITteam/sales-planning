@@ -170,6 +170,7 @@ async function handlePost(request: NextRequest) {
   const managerInputs = results
     .filter(r => r.clientsResp && r.factResp)
     .map(r => ({
+      login: r.login,
       clients: r.clientsResp!.clients ?? [],
       segments: r.factResp!.segments ?? [],
     }));
@@ -211,6 +212,9 @@ async function handlePost(request: NextRequest) {
       dedupSkippedCount: aggregated.dedup.skippedCount,
       dedupSkippedSum: aggregated.dedup.skippedSum,
       uniquePairs: aggregated.dedup.uniquePairs,
+      // Топ-30 конкретних дублів для діагностики:
+      // [{ segmentCode, clientId, clientName, occurrences: [{login, factAmountUSD}] }]
+      duplicates: aggregated.dedup.duplicates.slice(0, 30),
     },
   });
 }

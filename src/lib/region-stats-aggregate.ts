@@ -28,10 +28,11 @@ export interface FactSegment {
 }
 
 export interface ManagerResult {
-  /** Action 2 повертає список клієнтів менеджера. У цьому варіанті алгоритму
-   *  ми не використовуємо їх (категорія береться з плану), але endpoint все
-   *  одно викликає Action 2 для clientIds → Action 3. */
-  clients: Array<{ clientId: string; category?: string; purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }> }>;
+  /** Логін менеджера — потрібен для діагностики дублів (хто з ким пересікся). */
+  login?: string;
+  /** Action 2 повертає список клієнтів менеджера. clientName потрібен щоб у
+   *  meta-діагностиці дублів показати читабельне ім'я. */
+  clients: Array<{ clientId: string; clientName?: string; category?: string; purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }> }>;
   segments: FactSegment[];
 }
 
@@ -45,6 +46,18 @@ export interface SegmentStats {
   unplanned: CategoryStat;
 }
 
+export interface DuplicateOccurrence {
+  login: string;
+  factAmountUSD: number;
+}
+
+export interface DuplicateEntry {
+  segmentCode: string;
+  clientId: string;
+  clientName: string;
+  occurrences: DuplicateOccurrence[];
+}
+
 export interface AggregateResult {
   bySegment: Record<string, SegmentStats>;
   /** Діагностика dedup: скільки повторних (segment, client) пропущено та на яку суму. */
@@ -52,6 +65,8 @@ export interface AggregateResult {
     skippedCount: number;
     skippedSum: number;
     uniquePairs: number;
+    /** Топ-N конкретних дублів — для дебагу хто з ким пересікся. */
+    duplicates: DuplicateEntry[];
   };
 }
 
@@ -125,8 +140,19 @@ export function aggregateRegionStats(
   const seenPairs = new Map<string, number>();
   let dedupSkippedCount = 0;
   let dedupSkippedSum = 0;
+  // Зберігаємо ВСІ occurrences кожної пари (для діагностики дублів).
+  // Map<pairKey, Array<{login, factAmountUSD}>>
+  const pairOccurrences = new Map<string, DuplicateOccurrence[]>();
+  // Map<clientId, clientName> з усіх Action 2 — для читабельного виводу
+  const clientNameById = new Map<string, string>();
+  for (const r of managerResults) {
+    for (const c of r.clients ?? []) {
+      if (c?.clientId && c.clientName) clientNameById.set(c.clientId, c.clientName);
+    }
+  }
 
   for (const r of managerResults) {
+    const login = r.login ?? '';
     const segments = Array.isArray(r.segments) ? r.segments : [];
     if (segments.length === 0) continue;
 
@@ -145,6 +171,9 @@ export function aggregateRegionStats(
         const pairKey = `${segCode}|${buyer.clientId}`;
         const prevCount = seenPairs.get(pairKey) ?? 0;
         seenPairs.set(pairKey, prevCount + 1);
+        // Зберігаємо occurrence для діагностики
+        if (!pairOccurrences.has(pairKey)) pairOccurrences.set(pairKey, []);
+        pairOccurrences.get(pairKey)!.push({ login, factAmountUSD: amt });
         if (prevCount > 0) {
           // Дубль (segment, client) між менеджерами — рахуємо стат і скіпаємо.
           dedupSkippedCount += 1;
@@ -173,12 +202,33 @@ export function aggregateRegionStats(
     }
   }
 
+  // Збираємо ТОП дублі (де occurrences.length > 1) для діагностики.
+  // Сортуємо за загальною сумою повторного internal-факту (DESC) — найбільші
+  // дублі зверху, щоб user одразу бачила хто найбільше впливає.
+  const duplicates: DuplicateEntry[] = [];
+  for (const [pairKey, occs] of pairOccurrences) {
+    if (occs.length < 2) continue;
+    const [segmentCode, clientId] = pairKey.split('|');
+    duplicates.push({
+      segmentCode,
+      clientId,
+      clientName: clientNameById.get(clientId) ?? clientId,
+      occurrences: occs,
+    });
+  }
+  duplicates.sort((a, b) => {
+    const sumA = a.occurrences.reduce((s, o) => s + o.factAmountUSD, 0);
+    const sumB = b.occurrences.reduce((s, o) => s + o.factAmountUSD, 0);
+    return sumB - sumA;
+  });
+
   return {
     bySegment,
     dedup: {
       skippedCount: dedupSkippedCount,
       skippedSum: dedupSkippedSum,
       uniquePairs: seenPairs.size,
+      duplicates,
     },
   };
 }
