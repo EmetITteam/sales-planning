@@ -6,6 +6,7 @@ import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
 import { aggregateCompany, aggregateManagers, aggregateCompanyClientStats } from '@/lib/region-aggregates';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
+import { useRegionStats } from '@/lib/use-region-stats';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
@@ -170,6 +171,13 @@ export function DirectorDashboard() {
   const totalExpectedPct = planAgg && totalPlan > 0
     ? ((totalFact + planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
     : null;
+  // Fact-частина для розкладу по категоріях у BrandRegionGroup expand
+  const periodKeyForStats = currentPeriod.month.slice(0, 7);
+  const { data: companyStats, loading: companyStatsLoading } = useRegionStats(
+    allCompanyLogins.length > 0 ? periodKeyForStats : null,
+    asOfIso,
+    allCompanyLogins.length > 0 ? allCompanyLogins : null,
+  );
   const totalManagers = company?.regionAggregates.reduce((a, r) => a + r.managerCount, 0) ?? 0;
 
   return (
@@ -335,6 +343,9 @@ export function DirectorDashboard() {
                   brand={brand}
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
+                  planCategoriesForBrand={planAgg?.bySegment[brand.segmentCode]?.byCategory ?? null}
+                  factCategoriesForBrand={companyStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
+                  categoriesLoading={companyStatsLoading}
                   onRegionClick={(code) => { setSelectedRegionCode(code); setView('viewRegion'); }}
                   onManagerClick={(login, segCode) => {
                     setSelectedManagerLogin(login);

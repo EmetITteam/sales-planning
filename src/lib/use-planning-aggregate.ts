@@ -10,6 +10,13 @@ import useSWR from 'swr';
  * без N паралельних запитів за кожним менеджером.
  */
 
+export type PlanCategoryKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
+
+export interface CategoryStat {
+  plannedCount: number;
+  plannedSum: number;
+}
+
 export interface PlanningAggregate {
   totalForecast: number;
   totalGapPotential: number;
@@ -18,6 +25,7 @@ export interface PlanningAggregate {
     gap: number;
     forecastClients: number;
     gapClients: number;
+    byCategory: Record<PlanCategoryKey, CategoryStat>;
   }>;
 }
 

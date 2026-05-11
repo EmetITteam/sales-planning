@@ -6,6 +6,8 @@ import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
 import { aggregateRegion, aggregateManagers, aggregateRegionClientStats } from '@/lib/region-aggregates';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
+import { useRegionStats } from '@/lib/use-region-stats';
+import { CategoryStatsTable } from './category-stats-table';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
@@ -101,6 +103,48 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   // Aggregate planning по всіх менеджерах регіону → для розрахунку «Очікуваного %»
   const allLogins = useMemo(() => region?.managers.map(m => m.login).filter(Boolean) ?? [], [region]);
   const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allLogins.length > 0 ? allLogins : null);
+  // Fact частина — батч Action 2+3 з 1С через серверний proxy
+  const periodKeyForStats = currentPeriod.month.slice(0, 7);
+  const { data: regionStats, loading: statsLoading } = useRegionStats(
+    allLogins.length > 0 ? periodKeyForStats : null,
+    asOfIso,
+    allLogins.length > 0 ? allLogins : null,
+  );
+  // Збираємо plan + fact для CategoryStatsTable: сумарно по регіону (всі бренди разом)
+  const aggregatedPlan = useMemo(() => {
+    if (!planAgg) return null;
+    const out = {
+      active: { plannedCount: 0, plannedSum: 0 },
+      sleeping: { plannedCount: 0, plannedSum: 0 },
+      lost: { plannedCount: 0, plannedSum: 0 },
+      new: { plannedCount: 0, plannedSum: 0 },
+      none: { plannedCount: 0, plannedSum: 0 },
+    };
+    for (const seg of Object.values(planAgg.bySegment)) {
+      for (const cat of ['active','sleeping','lost','new','none'] as const) {
+        out[cat].plannedCount += seg.byCategory[cat].plannedCount;
+        out[cat].plannedSum   += seg.byCategory[cat].plannedSum;
+      }
+    }
+    return out;
+  }, [planAgg]);
+  const aggregatedFact = useMemo(() => {
+    if (!regionStats) return null;
+    const out = {
+      active: { factCount: 0, factSum: 0 },
+      sleeping: { factCount: 0, factSum: 0 },
+      lost: { factCount: 0, factSum: 0 },
+      new: { factCount: 0, factSum: 0 },
+      none: { factCount: 0, factSum: 0 },
+    };
+    for (const seg of Object.values(regionStats.bySegment)) {
+      for (const cat of ['active','sleeping','lost','new','none'] as const) {
+        out[cat].factCount += seg.byCategory[cat].factCount;
+        out[cat].factSum   += seg.byCategory[cat].factSum;
+      }
+    }
+    return out;
+  }, [regionStats]);
 
   // Агрегат клієнтів по регіону — береться з Action 5 (v2.5 clientStats per manager).
   const clientStats = useMemo(() => region ? aggregateRegionClientStats(region) : null, [region]);
@@ -320,6 +364,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               loading={clientStatsLoading}
             />
           </div>
+
+          {/* Розклад по категоріях клієнтів (агрегат по регіону) — над списком менеджерів */}
+          <CategoryStatsTable
+            plan={aggregatedPlan}
+            fact={aggregatedFact}
+            title={`Регіон ${region.regionName} · ${managerList.length} ${managerList.length === 1 ? 'менеджер' : 'менеджерів'}`}
+            loading={statsLoading && !aggregatedFact}
+          />
 
           {/* Менеджери регіону — ManagerAccordion (тап = expand → 9 BrandRow усередині) */}
           <div>
