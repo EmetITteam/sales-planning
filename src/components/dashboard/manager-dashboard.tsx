@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   SEGMENTS, type ClientCategoryStats,
   isDemoLogin, getDemoTMSummaries, getDemoClientStats, getDemoClientsForPlanningResponse,
@@ -129,6 +129,30 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
   // Map { segmentCode → planAmount } для поточного користувача.
   // Нормалізуємо логіни до lower-case з обох сторін.
   const effectiveLoginLower = effectiveLogin.toLowerCase().trim();
+
+  // Auto-retry для Action 4: до 3 спроб з backoff якщо 1С повернула порожній
+  // plans[] для нашого login. Аналогічно до Action 5 (region) — на першому
+  // запиті після логіну 1С іноді не встигає індексу.
+  const [planRetryAttempt, setPlanRetryAttempt] = useState(0);
+  useEffect(() => {
+    if (!plansResponse || plansLoading || plansError) return;
+    if (planRetryAttempt >= 3) return;
+    const myPlans = plansResponse.plans?.filter(p =>
+      (p.managerLogin || '').toLowerCase().trim() === effectiveLoginLower,
+    ) ?? [];
+    if (myPlans.length === 0) {
+      const delay = planRetryAttempt === 0 ? 1200 : planRetryAttempt === 1 ? 2500 : 5000;
+      const t = setTimeout(() => {
+        setPlanRetryAttempt(n => n + 1);
+        refetchPlans();
+      }, delay);
+      return () => clearTimeout(t);
+    }
+  }, [plansResponse, plansLoading, plansError, effectiveLoginLower, planRetryAttempt, refetchPlans]);
+  // Reset retry counter коли план з'явився або змінився login
+  useEffect(() => {
+    setPlanRetryAttempt(0);
+  }, [effectiveLoginLower]);
   const myPlansBySegment = useMemo(() => {
     if (!plansResponse) return null;
     const map = new Map<string, number>();
