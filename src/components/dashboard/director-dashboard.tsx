@@ -365,6 +365,7 @@ export function DirectorDashboard() {
                     dev: m.factPercent - calcPctValue,
                     onPlan: m.factPercent >= calcPctValue,
                   }));
+                const regionLogins = region.managers.map(m => m.login).filter(Boolean);
                 return (
                   <RegionAccordion
                     key={r.regionCode || r.regionName}
@@ -372,6 +373,7 @@ export function DirectorDashboard() {
                     managersBrief={managersBrief}
                     calcPct={calcPctValue}
                     asOfDate={asOfDate}
+                    regionLogins={regionLogins}
                     onDrillDown={() => { setSelectedRegionCode(r.regionCode); setView('viewRegion'); }}
                     onManagerClick={(login) => { setSelectedManagerLogin(login); setView('viewManager'); }}
                   />

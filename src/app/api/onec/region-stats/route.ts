@@ -21,6 +21,11 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 
+// Vercel: дай функції до 60с — 21 менеджер × 2 виклики 1С (Action 2 + Action 3)
+// з timeout 20с кожен. Без цього Vercel killed function на 10с (Hobby default)
+// → 500 Internal Server Error без логу. Pro plan дозволяє до 60с.
+export const maxDuration = 60;
+
 const ALLOWED_CATS = new Set(['active', 'sleeping', 'lost', 'new', 'none']);
 type CatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
 
@@ -71,6 +76,16 @@ async function callOneC<T>(action: string, payload: unknown, timeoutMs = 20000):
 }
 
 export async function POST(request: NextRequest) {
+  try {
+    return await handlePost(request);
+  } catch (err) {
+    console.error('[region-stats] unhandled', err);
+    const msg = err instanceof Error ? err.message : 'Internal error';
+    return Response.json({ error: msg, bySegment: {} }, { status: 500 });
+  }
+}
+
+async function handlePost(request: NextRequest) {
   const auth = validateApiRequest(request);
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
   const session = await getSession();
@@ -148,16 +163,23 @@ export async function POST(request: NextRequest) {
 
   for (const r of results) {
     if (!r.clientsResp || !r.factResp) continue;
+    // Захист: 1С іноді повертає payload без clients/facts (порожній менеджер)
+    const clients = Array.isArray(r.clientsResp.clients) ? r.clientsResp.clients : [];
+    const facts = Array.isArray(r.factResp.facts) ? r.factResp.facts : [];
+    if (clients.length === 0 || facts.length === 0) continue;
     // Map clientId → category для цього менеджера
     const catBy = new Map<string, CatKey>();
-    for (const c of r.clientsResp.clients) {
-      catBy.set(c.clientId, mapCategory(c.category));
+    for (const c of clients) {
+      if (c && c.clientId) catBy.set(c.clientId, mapCategory(c.category));
     }
     // Кожен fact-рядок: { segmentCode, clients: [{clientId, amount}] }
-    for (const seg of r.factResp.facts) {
+    for (const seg of facts) {
+      if (!seg || !seg.segmentCode) continue;
       const segCode = mapSegmentCode(seg.segmentCode);
       const sBlock = ensureSeg(segCode);
-      for (const buyer of seg.clients) {
+      const buyers = Array.isArray(seg.clients) ? seg.clients : [];
+      for (const buyer of buyers) {
+        if (!buyer || !buyer.clientId) continue;
         const amt = typeof buyer.amount === 'number' ? buyer.amount : parseFloat(String(buyer.amount));
         if (!Number.isFinite(amt) || amt === 0) continue;
         const cat = catBy.get(buyer.clientId) ?? 'none';

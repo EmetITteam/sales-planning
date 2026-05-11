@@ -63,9 +63,13 @@ export function useRegionStats(period: string | null, asOfDate: string | null, l
     },
   );
 
+  // Якщо хук впав з error — більше НЕ показуємо «loading» спіннер.
+  // Інакше при 500 з API спіннер крутиться нескінченно (SWR isLoading=true
+  // поки немає valid response або data). Error має «перебивати» loading.
+  const failed = !!error;
   return {
     data: data ?? null,
-    loading: isLoading,
+    loading: isLoading && !failed,
     error: error instanceof Error ? error.message : null,
   };
 }
