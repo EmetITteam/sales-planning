@@ -9,7 +9,8 @@
     "lint": "eslint",
     "qa": "node scripts/qa-review.mjs",
     "qa:headless": "cross-env HEADLESS=1 node scripts/qa-review.mjs",
-    "check:arch": "node scripts/architecture-check.mjs"
+    "check:arch": "node scripts/architecture-check.mjs",
+    "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -40,6 +41,7 @@
     "eslint-config-next": "16.2.2",
     "pg": "^8.20.0",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

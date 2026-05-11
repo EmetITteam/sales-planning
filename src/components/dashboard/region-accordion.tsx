@@ -1,9 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatUSD, getTrafficLight, pctOf } from '@/lib/format';
 import { BrandRow } from './brand-row';
+import { CategoryStatsTable } from './category-stats-table';
+import { useAppStore } from '@/lib/store';
+import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
+import { useRegionStats } from '@/lib/use-region-stats';
 import type { RegionAggregate } from '@/lib/region-aggregates';
 
 interface Props {
@@ -12,6 +16,8 @@ interface Props {
   managersBrief: Array<{ name: string; login: string; pct: number; dev: number; onPlan: boolean }>;
   calcPct: number;
   asOfDate: Date;
+  /** Логіни менеджерів цього регіону — для lazy-load category-stats при expand. */
+  regionLogins: string[];
   /** Drill-down у RMDashboard цього регіону. */
   onDrillDown: () => void;
   /**
@@ -35,7 +41,7 @@ function shortName(fullName: string): string {
  * Drill-down у RMDashboard — окрема <ChevronRight> кнопка справа з
  * stopPropagation. Mini-list менеджерів між назвою і Факт/План.
  */
-export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, onDrillDown, onManagerClick }: Props) {
+export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, regionLogins, onDrillDown, onManagerClick }: Props) {
   const [expanded, setExpanded] = useState(false);
   const pct = pctOf(aggregate.totalFact, aggregate.totalPlan);
   const tl = getTrafficLight(pct, calcPct);
@@ -43,6 +49,68 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, o
   const dynAmount = aggregate.totalFact - aggregate.totalPrevMonthFact;
   const dynBetter = dynAmount >= 0;
   const prevPct = pctOf(aggregate.totalPrevMonthFact, aggregate.totalPrevMonthPlan);
+
+  // Lazy-load: тягнемо план + факт по категоріях ТІЛЬКИ коли expanded.
+  // Чому lazy: 8 регіонів × 2 запити одразу = багато викликів 1С. Користувач
+  // зазвичай розгортає 1-2 регіони. SWR кешує між повторними розгортаннями.
+  const { currentPeriod, liveMode } = useAppStore();
+  const periodKeyForStats = currentPeriod.month.slice(0, 7);
+  const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : currentPeriod.weekEnd;
+  const fetchLogins = expanded && regionLogins.length > 0 ? regionLogins : null;
+  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, fetchLogins);
+  const { data: regionStatsData, loading: statsLoading } = useRegionStats(
+    fetchLogins ? periodKeyForStats : null,
+    asOfIso,
+    fetchLogins,
+    planAgg ? {
+      forecastClientIds: planAgg.forecastClientIds,
+      gapNewClientIds: planAgg.gapNewClientIds,
+      gapActivationClientIds: planAgg.gapActivationClientIds,
+    } : null,
+  );
+  const aggregatedPlan = useMemo(() => {
+    if (!planAgg) return null;
+    const out = {
+      active: { plannedCount: 0, plannedSum: 0 },
+      sleeping: { plannedCount: 0, plannedSum: 0 },
+      lost: { plannedCount: 0, plannedSum: 0 },
+      new: { plannedCount: 0, plannedSum: 0 },
+      none: { plannedCount: 0, plannedSum: 0 },
+    };
+    for (const seg of Object.values(planAgg.bySegment)) {
+      for (const cat of ['active','sleeping','lost','new','none'] as const) {
+        out[cat].plannedCount += seg.byCategory[cat].plannedCount;
+        out[cat].plannedSum   += seg.byCategory[cat].plannedSum;
+      }
+    }
+    return out;
+  }, [planAgg]);
+  const aggregatedFact = useMemo(() => {
+    if (!regionStatsData) return null;
+    const out = {
+      active: { factCount: 0, factSum: 0 },
+      sleeping: { factCount: 0, factSum: 0 },
+      lost: { factCount: 0, factSum: 0 },
+      new: { factCount: 0, factSum: 0 },
+      none: { factCount: 0, factSum: 0 },
+    };
+    for (const seg of Object.values(regionStatsData.bySegment)) {
+      for (const cat of ['active','sleeping','lost','new','none'] as const) {
+        out[cat].factCount += seg.byCategory[cat].factCount;
+        out[cat].factSum   += seg.byCategory[cat].factSum;
+      }
+    }
+    return out;
+  }, [regionStatsData]);
+  const aggregatedUnplanned = useMemo(() => {
+    if (!regionStatsData) return null;
+    let factCount = 0, factSum = 0;
+    for (const seg of Object.values(regionStatsData.bySegment)) {
+      factCount += seg.unplanned?.factCount ?? 0;
+      factSum   += seg.unplanned?.factSum   ?? 0;
+    }
+    return { factCount, factSum };
+  }, [regionStatsData]);
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -210,23 +278,33 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, o
         </div>
       </div>
 
-      {/* Розгорнутий список брендів */}
+      {/* Розгорнутий блок: спочатку зведена таблиця по категоріях клієнтів,
+          потім список брендів цього регіону */}
       {expanded && (
-        <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
-          {aggregate.segments.map(seg => (
-            <BrandRow
-              key={seg.segmentCode}
-              segmentName={seg.segmentName}
-              planAmount={seg.planAmount}
-              factAmount={seg.factAmount}
-              calcPct={calcPct}
-              asOfDate={asOfDate}
-              hasManagerPlan={false}
-              prevMonthFactAmount={seg.prevMonthFactAmount}
-              prevMonthFactPercent={pctOf(seg.prevMonthFactAmount, seg.prevMonthPlanAmount)}
-              readOnly
-            />
-          ))}
+        <div className="px-3 md:px-5 pb-4 pt-3 space-y-3 bg-[#fafbfe] border-t border-[#f0f2f8]">
+          <CategoryStatsTable
+            plan={aggregatedPlan}
+            fact={aggregatedFact}
+            unplanned={aggregatedUnplanned}
+            title={`${aggregate.regionName} · ${managersBrief.length} ${managersBrief.length === 1 ? 'менеджер' : 'менеджерів'}`}
+            loading={statsLoading && !aggregatedFact}
+          />
+          <div className="space-y-1.5">
+            {aggregate.segments.map(seg => (
+              <BrandRow
+                key={seg.segmentCode}
+                segmentName={seg.segmentName}
+                planAmount={seg.planAmount}
+                factAmount={seg.factAmount}
+                calcPct={calcPct}
+                asOfDate={asOfDate}
+                hasManagerPlan={false}
+                prevMonthFactAmount={seg.prevMonthFactAmount}
+                prevMonthFactPercent={pctOf(seg.prevMonthFactAmount, seg.prevMonthPlanAmount)}
+                readOnly
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

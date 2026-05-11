@@ -6,6 +6,7 @@ import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
 import { aggregateCompany, aggregateManagers, aggregateCompanyClientStats } from '@/lib/region-aggregates';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
+import { useRegionStats } from '@/lib/use-region-stats';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from '@/lib/working-days';
@@ -16,6 +17,7 @@ import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { RegionAccordion } from './region-accordion';
 import { BrandRegionGroup, pivotBrandsByRegion } from './brand-region-group';
+import { CategoryStatsTable } from './category-stats-table';
 import {
   ChevronRight, RefreshCw,
   DollarSign, Target, TrendingUp, TrendingDown, Users,
@@ -105,6 +107,67 @@ export function DirectorDashboard() {
   }, [asOfDate, py, pm]);
   const periodLabel = getMonthName(py, pm - 1);
 
+  // ⚠️ ВСІ хуки мають бути ВИЩЕ early returns. usePlanningAggregate +
+  // useRegionStats + allCompanyLogins тут — інакше при перемиканні view
+  // (viewRegion / viewManager) кількість хуків змінюється → React error #310.
+  const allCompanyLogins = useMemo(() => adapted?.regions.flatMap(r => r.managers.map(m => m.login)).filter(Boolean) ?? [], [adapted]);
+  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allCompanyLogins.length > 0 ? allCompanyLogins : null);
+  const periodKeyForStats = currentPeriod.month.slice(0, 7);
+  const { data: companyStats, loading: companyStatsLoading } = useRegionStats(
+    allCompanyLogins.length > 0 ? periodKeyForStats : null,
+    asOfIso,
+    allCompanyLogins.length > 0 ? allCompanyLogins : null,
+    planAgg ? {
+      forecastClientIds: planAgg.forecastClientIds,
+      gapNewClientIds: planAgg.gapNewClientIds,
+      gapActivationClientIds: planAgg.gapActivationClientIds,
+    } : null,
+  );
+  // Агрегат plan + fact для CategoryStatsTable: сумарно по компанії (всі сегменти разом)
+  const aggregatedPlan = useMemo(() => {
+    if (!planAgg) return null;
+    const out = {
+      active: { plannedCount: 0, plannedSum: 0 },
+      sleeping: { plannedCount: 0, plannedSum: 0 },
+      lost: { plannedCount: 0, plannedSum: 0 },
+      new: { plannedCount: 0, plannedSum: 0 },
+      none: { plannedCount: 0, plannedSum: 0 },
+    };
+    for (const seg of Object.values(planAgg.bySegment)) {
+      for (const cat of ['active','sleeping','lost','new','none'] as const) {
+        out[cat].plannedCount += seg.byCategory[cat].plannedCount;
+        out[cat].plannedSum   += seg.byCategory[cat].plannedSum;
+      }
+    }
+    return out;
+  }, [planAgg]);
+  const aggregatedFact = useMemo(() => {
+    if (!companyStats) return null;
+    const out = {
+      active: { factCount: 0, factSum: 0 },
+      sleeping: { factCount: 0, factSum: 0 },
+      lost: { factCount: 0, factSum: 0 },
+      new: { factCount: 0, factSum: 0 },
+      none: { factCount: 0, factSum: 0 },
+    };
+    for (const seg of Object.values(companyStats.bySegment)) {
+      for (const cat of ['active','sleeping','lost','new','none'] as const) {
+        out[cat].factCount += seg.byCategory[cat].factCount;
+        out[cat].factSum   += seg.byCategory[cat].factSum;
+      }
+    }
+    return out;
+  }, [companyStats]);
+  const aggregatedUnplanned = useMemo(() => {
+    if (!companyStats) return null;
+    let factCount = 0, factSum = 0;
+    for (const seg of Object.values(companyStats.bySegment)) {
+      factCount += seg.unplanned?.factCount ?? 0;
+      factSum   += seg.unplanned?.factSum   ?? 0;
+    }
+    return { factCount, factSum };
+  }, [companyStats]);
+
   // === Sub-views ===
   if (view === 'viewRegion') {
     return (
@@ -165,8 +228,6 @@ export function DirectorDashboard() {
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
   // Очікуваний % компанії (Variant B aggregate-endpoint).
-  const allCompanyLogins = useMemo(() => adapted?.regions.flatMap(r => r.managers.map(m => m.login)).filter(Boolean) ?? [], [adapted]);
-  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allCompanyLogins.length > 0 ? allCompanyLogins : null);
   const totalExpectedPct = planAgg && totalPlan > 0
     ? ((totalFact + planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
     : null;
@@ -289,6 +350,15 @@ export function DirectorDashboard() {
             />
           </div>
 
+          {/* Розклад по категоріях клієнтів — агрегат по всій компанії */}
+          <CategoryStatsTable
+            plan={aggregatedPlan}
+            fact={aggregatedFact}
+            unplanned={aggregatedUnplanned}
+            title={`Компанія · ${totalManagers} менеджерів · ${company.regionAggregates.length} регіонів`}
+            loading={companyStatsLoading && !aggregatedFact}
+          />
+
           {/* Регіони — RegionAccordion (тап = expand → 9 BrandRow усередині, drill-down іконка справа) */}
           <div>
             <h3 className="text-[15px] font-bold mb-4">Регіони</h3>
@@ -310,6 +380,7 @@ export function DirectorDashboard() {
                     dev: m.factPercent - calcPctValue,
                     onPlan: m.factPercent >= calcPctValue,
                   }));
+                const regionLogins = region.managers.map(m => m.login).filter(Boolean);
                 return (
                   <RegionAccordion
                     key={r.regionCode || r.regionName}
@@ -317,6 +388,7 @@ export function DirectorDashboard() {
                     managersBrief={managersBrief}
                     calcPct={calcPctValue}
                     asOfDate={asOfDate}
+                    regionLogins={regionLogins}
                     onDrillDown={() => { setSelectedRegionCode(r.regionCode); setView('viewRegion'); }}
                     onManagerClick={(login) => { setSelectedManagerLogin(login); setView('viewManager'); }}
                   />
@@ -335,6 +407,10 @@ export function DirectorDashboard() {
                   brand={brand}
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
+                  planCategoriesForBrand={planAgg?.bySegment[brand.segmentCode]?.byCategory ?? null}
+                  factCategoriesForBrand={companyStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
+                  unplannedForBrand={companyStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
+                  categoriesLoading={companyStatsLoading}
                   onRegionClick={(code) => { setSelectedRegionCode(code); setView('viewRegion'); }}
                   onManagerClick={(login, segCode) => {
                     setSelectedManagerLogin(login);

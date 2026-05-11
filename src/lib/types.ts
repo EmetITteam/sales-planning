@@ -118,12 +118,15 @@ export interface RegionDataResponse {
 export type RegionSummary = RegionData;
 
 // === Зведена по категоріях клієнтів ===
+// Збирається з реального плану менеджера: forecasts (active) + gap_closures
+// (new / sleeping_lost). Сума = реальний прогноз/потенціал, не потенціал з 1С.
 export interface ClientCategorySummary {
   category: 'active' | 'new' | 'sleeping_lost';
   label: string;
-  clientCount: number;
-  expectedAmount: number;
-  planCoveragePercent: number; // закривають % виконання плану
+  clientCount: number;       // count рядків у формі для цієї категорії
+  expectedAmount: number;    // сума forecastAmount/potentialAmount з рядків
+  factAmount: number;        // факт продажів цих клієнтів за період (з 1С)
+  planCoveragePercent: number; // expected/plan × 100%
 }
 
 // === Прогноз по активних клієнтах ===

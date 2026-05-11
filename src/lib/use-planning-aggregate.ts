@@ -10,6 +10,13 @@ import useSWR from 'swr';
  * без N паралельних запитів за кожним менеджером.
  */
 
+export type PlanCategoryKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
+
+export interface CategoryStat {
+  plannedCount: number;
+  plannedSum: number;
+}
+
 export interface PlanningAggregate {
   totalForecast: number;
   totalGapPotential: number;
@@ -18,7 +25,20 @@ export interface PlanningAggregate {
     gap: number;
     forecastClients: number;
     gapClients: number;
+    byCategory: Record<PlanCategoryKey, CategoryStat>;
   }>;
+  /**
+   * Унікальні client_id_1c з усіх forecasts ∪ gap_closures цього scope.
+   * (Зберігаємо для зворотньої сумісності, але новий код використовує
+   * три окремі масиви нижче — для класифікації факту по плану.)
+   */
+  plannedClientIds: string[];
+  /** Клієнти у блоці «Прогноз» (active за рішенням менеджера). */
+  forecastClientIds: string[];
+  /** Клієнти у «Закриття розриву» з category=Новий. */
+  gapNewClientIds: string[];
+  /** Клієнти у «Закриття розриву» з іншою категорією (sleeping/lost/none). */
+  gapActivationClientIds: string[];
 }
 
 export function usePlanningAggregate(periodId: number | null, logins: string[] | null): {

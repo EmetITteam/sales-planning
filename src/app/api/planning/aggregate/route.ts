@@ -69,13 +69,15 @@ export async function POST(request: NextRequest) {
   }
 
   // Завантажуємо дві таблиці паралельно. Тільки потрібні поля.
+  // У gap_closures добавляємо category — потрібно для розкладу по категоріях
+  // (Сплячі / Втрачені / Нові / БЗ → агрегуємо у блок «Активізація» + «Нові» окремо).
   const [forecastsRes, gapsRes] = await Promise.all([
     supabase.from('forecasts')
       .select('user_id,segment_code,client_id_1c,forecast_amount')
       .eq('period_id', pid)
       .in('user_id', safeLogins),
     supabase.from('gap_closures')
-      .select('user_id,segment_code,client_id_1c,potential_amount')
+      .select('user_id,segment_code,client_id_1c,potential_amount,category')
       .eq('period_id', pid)
       .in('user_id', safeLogins),
   ]);
@@ -88,10 +90,33 @@ export async function POST(request: NextRequest) {
   }
 
   type FRow = { user_id: string; segment_code: string; client_id_1c: string; forecast_amount: number };
-  type GRow = { user_id: string; segment_code: string; client_id_1c: string; potential_amount: number };
+  type GRow = { user_id: string; segment_code: string; client_id_1c: string; potential_amount: number; category: string | null };
 
   const forecasts = (forecastsRes.data ?? []) as FRow[];
   const gaps = (gapsRes.data ?? []) as GRow[];
+
+  // Маппинг 1С-категорій (зберігаємо у gap_closures.category як приходить з 1С)
+  // у наші UI-bucket-и: 'sleeping' | 'lost' | 'new' | 'none'.
+  const mapGapCategory = (raw: string | null): 'sleeping' | 'lost' | 'new' | 'none' => {
+    const c = (raw || '').toLowerCase().trim();
+    if (c === 'спячий' || c === 'сплячий') return 'sleeping';
+    if (c === 'потерянный' || c === 'втрачений') return 'lost';
+    if (c === 'новый' || c === 'новий') return 'new';
+    return 'none'; // 'без закупок' або порожнє
+  };
+
+  type CatStats = { plannedCount: number; plannedSum: number };
+  type SegCategoryBlock = {
+    active: CatStats;     // з forecasts
+    sleeping: CatStats;   // з gap_closures category=Сплячий
+    lost: CatStats;       // з gap_closures category=Втрачений
+    new: CatStats;        // з gap_closures category=Новий
+    none: CatStats;       // з gap_closures без категорії або 'Без закупок'
+  };
+  const emptyCat = (): CatStats => ({ plannedCount: 0, plannedSum: 0 });
+  const emptySegBlock = (): SegCategoryBlock => ({
+    active: emptyCat(), sleeping: emptyCat(), lost: emptyCat(), new: emptyCat(), none: emptyCat(),
+  });
 
   let totalForecast = 0;
   let totalGapPotential = 0;
@@ -100,26 +125,53 @@ export async function POST(request: NextRequest) {
     gap: number;
     forecastClients: number;
     gapClients: number;
+    byCategory: SegCategoryBlock;
   }> = {};
 
   const seenForecastClients = new Map<string, Set<string>>();
   const seenGapClients = new Map<string, Set<string>>();
+  // Три окремі Set-и: у яких блоках плану лежить кожен client_id_1c.
+  // Використовуємо у /api/onec/region-stats щоб класифікувати buyer факту:
+  //   buyer in forecastClientIds       → active
+  //   buyer in gapNewClientIds         → new
+  //   buyer in gapActivationClientIds  → activation
+  //   buyer ні в чому                  → unplanned
+  // Σ всіх 4 = totalFact, без дублювання (раніше unplanned пересікався з категоріями).
+  const forecastClientIds = new Set<string>();
+  const gapNewClientIds = new Set<string>();
+  const gapActivationClientIds = new Set<string>();
+  // Combined (для зворотньої сумісності — поки що повертаємо)
+  const plannedClientIds = new Set<string>();
 
   for (const f of forecasts) {
     const amount = Number(f.forecast_amount) || 0;
     totalForecast += amount;
-    if (!bySegment[f.segment_code]) bySegment[f.segment_code] = { forecast: 0, gap: 0, forecastClients: 0, gapClients: 0 };
+    if (!bySegment[f.segment_code]) bySegment[f.segment_code] = { forecast: 0, gap: 0, forecastClients: 0, gapClients: 0, byCategory: emptySegBlock() };
     bySegment[f.segment_code].forecast += amount;
+    bySegment[f.segment_code].byCategory.active.plannedSum += amount;
+    bySegment[f.segment_code].byCategory.active.plannedCount += 1;
     if (!seenForecastClients.has(f.segment_code)) seenForecastClients.set(f.segment_code, new Set());
     seenForecastClients.get(f.segment_code)!.add(`${f.user_id}|${f.client_id_1c}`);
+    if (f.client_id_1c) {
+      forecastClientIds.add(f.client_id_1c);
+      plannedClientIds.add(f.client_id_1c);
+    }
   }
   for (const g of gaps) {
     const amount = Number(g.potential_amount) || 0;
     totalGapPotential += amount;
-    if (!bySegment[g.segment_code]) bySegment[g.segment_code] = { forecast: 0, gap: 0, forecastClients: 0, gapClients: 0 };
+    if (!bySegment[g.segment_code]) bySegment[g.segment_code] = { forecast: 0, gap: 0, forecastClients: 0, gapClients: 0, byCategory: emptySegBlock() };
     bySegment[g.segment_code].gap += amount;
+    const cat = mapGapCategory(g.category);
+    bySegment[g.segment_code].byCategory[cat].plannedSum += amount;
+    bySegment[g.segment_code].byCategory[cat].plannedCount += 1;
     if (!seenGapClients.has(g.segment_code)) seenGapClients.set(g.segment_code, new Set());
     seenGapClients.get(g.segment_code)!.add(`${g.user_id}|${g.client_id_1c}`);
+    if (g.client_id_1c) {
+      if (cat === 'new') gapNewClientIds.add(g.client_id_1c);
+      else gapActivationClientIds.add(g.client_id_1c);
+      plannedClientIds.add(g.client_id_1c);
+    }
   }
   // Заповнюємо distinct counts
   for (const [seg, set] of seenForecastClients) bySegment[seg].forecastClients = set.size;
@@ -129,6 +181,10 @@ export async function POST(request: NextRequest) {
     totalForecast,
     totalGapPotential,
     bySegment,
+    plannedClientIds: Array.from(plannedClientIds),
+    forecastClientIds: Array.from(forecastClientIds),
+    gapNewClientIds: Array.from(gapNewClientIds),
+    gapActivationClientIds: Array.from(gapActivationClientIds),
     meta: {
       periodId: pid,
       logins: safeLogins.length,

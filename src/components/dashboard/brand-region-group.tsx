@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { pctOf } from '@/lib/format';
 import { BrandRow } from './brand-row';
+import { CategoryStatsTable } from './category-stats-table';
 import type { RegionAggregate } from '@/lib/region-aggregates';
+import type { CategoryStat, PlanCategoryKey } from '@/lib/use-planning-aggregate';
+import type { RegionStatsCategoryStat, RegionStatsCategory } from '@/lib/use-region-stats';
 
 interface BrandWithRegions {
   segmentCode: string;
@@ -42,6 +45,14 @@ interface Props {
    * для (manager × brand). Якщо не передано — менеджери НЕ показуються.
    */
   onManagerClick?: (login: string, segmentCode: string) => void;
+  /** Plan-частина для цього бренду (з /api/planning/aggregate, segment-зріз). */
+  planCategoriesForBrand?: Record<PlanCategoryKey, CategoryStat> | null;
+  /** Fact-частина для цього бренду (з /api/onec/region-stats, segment-зріз). */
+  factCategoriesForBrand?: Record<RegionStatsCategory, RegionStatsCategoryStat> | null;
+  /** «Незаплановані» для цього бренду (купили без плану). */
+  unplannedForBrand?: { factCount: number; factSum: number } | null;
+  /** Loading-стан для CategoryStatsTable. */
+  categoriesLoading?: boolean;
 }
 
 /**
@@ -52,7 +63,7 @@ interface Props {
  * `region × brand`). Дозволяє Sales Director швидко побачити «Petaran просідає
  * у Києві, але виконує план в Одесі».
  */
-export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onManagerClick }: Props) {
+export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
@@ -72,7 +83,17 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
         expanded={expanded}
       />
       {expanded && (
-        <div className="px-3 md:px-5 py-3 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-3 md:px-5 py-3 space-y-3 bg-[#fafbfe] border-t border-[#f0f2f8]">
+          {/* Розклад по категоріях клієнтів — перед списком регіонів */}
+          {(planCategoriesForBrand || factCategoriesForBrand || categoriesLoading) && (
+            <CategoryStatsTable
+              plan={planCategoriesForBrand ?? null}
+              fact={factCategoriesForBrand ?? null}
+              unplanned={unplannedForBrand ?? null}
+              title={`${brand.segmentName} · ${brand.regions.length} ${brand.regions.length === 1 ? 'регіон' : 'регіонів'}`}
+              loading={!!categoriesLoading && !factCategoriesForBrand}
+            />
+          )}
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 ml-1">
             <ChevronDown className="inline h-3 w-3 mr-1" />Регіони
           </p>
