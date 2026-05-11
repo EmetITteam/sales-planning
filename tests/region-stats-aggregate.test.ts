@@ -187,6 +187,37 @@ test('buyer з factAmountUSD=0 не рахується', () => {
   assert.equal(result.bySegment.PETARAN.byCategory.active.factCount, 1);
 });
 
+// === Dedup: один клієнт у двох менеджерів того ж сегмента → рахується ОДИН раз ===
+test('dedup: один client у двох менеджерах одного segment → рахується раз', () => {
+  // Сценарій: клієнт переходив між менеджерами — Action 3 повертає
+  // його продажі для обох. Має бути 1 раз, не дубль.
+  const result = aggregateRegionStats(
+    [
+      { clients: [], segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'shared', factAmountUSD: 1000 }] }] },
+      { clients: [], segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'shared', factAmountUSD: 1000 }] }] },
+    ],
+    { forecastClientIds: [], gapNewClientIds: [], gapActivationClientIds: [] },
+  );
+  assert.equal(result.bySegment.PETARAN.unplanned.factSum, 1000, 'НЕ $2000');
+  assert.equal(result.bySegment.PETARAN.unplanned.factCount, 1);
+});
+
+// === Dedup: той самий клієнт у РІЗНИХ сегментах → рахується В КОЖНОМУ ===
+test('dedup: один client у різних брендах → рахується у кожному', () => {
+  const result = aggregateRegionStats(
+    [{
+      clients: [],
+      segments: [
+        { segmentCode: 'PETARAN', clients: [{ clientId: 'multi', factAmountUSD: 100 }] },
+        { segmentCode: 'VITARAN', clients: [{ clientId: 'multi', factAmountUSD: 200 }] },
+      ],
+    }],
+    { forecastClientIds: [], gapNewClientIds: [], gapActivationClientIds: [] },
+  );
+  assert.equal(result.bySegment.PETARAN.unplanned.factSum, 100);
+  assert.equal(result.bySegment.VITARAN.unplanned.factSum, 200);
+});
+
 // === 11. Сценарій Вінниця: 78 buyers, план пустий → ВСІ unplanned ===
 test('Вінниця: план пустий, 78 buyers → unplanned 78 / ≈$34,279', () => {
   const buyers = Array.from({ length: 78 }, (_, i) => ({

@@ -103,6 +103,15 @@ export function aggregateRegionStats(
     return bySegment[seg];
   };
 
+  // ⚠️ Dedup-Set per (segmentCode, clientId): один клієнт може обслуговуватись
+  // кількома менеджерами (рідко але буває в EMET — переходи, тимчасова
+  // підмінка). Action 3 тоді повертає його продажі ОКРЕМО для кожного
+  // менеджера → одна реальна покупка $1000 додасться двічі = $2000.
+  // Action 5 (hero «Факт») групує на стороні 1С і не дублює — звідси
+  // різниця між сумою таблиці і hero (~5%).
+  // Тут рахуємо КОЖНУ пару (segment, client) лише один раз.
+  const counted = new Set<string>();
+
   for (const r of managerResults) {
     const segments = Array.isArray(r.segments) ? r.segments : [];
     if (segments.length === 0) continue;
@@ -118,6 +127,12 @@ export function aggregateRegionStats(
           ? buyer.factAmountUSD
           : parseFloat(String(buyer.factAmountUSD));
         if (!Number.isFinite(amt) || amt === 0) continue;
+
+        // Dedup-ключ: (segment, client) — клієнт у різних брендах рахується
+        // в кожному, але у тому ж бренді кілька менеджерів — лише раз.
+        const dedupKey = `${segCode}|${buyer.clientId}`;
+        if (counted.has(dedupKey)) continue;
+        counted.add(dedupKey);
 
         // Пріоритет: forecast → gapNew → gapAct → unplanned. Кожен buyer
         // у РІВНО одній категорії. Σ = totalFact (без переcікань).
