@@ -64,12 +64,12 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   }, [adapted, regionCode]);
 
   const aggregate = useMemo(() => region ? aggregateRegion(region) : null, [region]);
-  // managerList: тільки ті хто має продаж у поточному періоді (стрічка без 0%-Хамуляків).
+  // managerList: тільки ті хто РЕАЛЬНО працює у періоді (мін. 1% виконання).
   // Fallback на тих з планом, якщо ніхто ще не продав (1-2 числа місяця).
   const managerList = useMemo(() => {
     if (!region) return [];
     const all = aggregateManagers(region);
-    const withFact = all.filter(m => m.totalFact > 0);
+    const withFact = all.filter(m => m.factPercent >= 1);
     return withFact.length > 0 ? withFact : all.filter(m => m.totalPlan > 0);
   }, [region]);
 
