@@ -26,16 +26,31 @@ import { getSession } from '@/lib/session';
 // → 500 Internal Server Error без логу. Pro plan дозволяє до 60с.
 export const maxDuration = 60;
 
-const ALLOWED_CATS = new Set(['active', 'sleeping', 'lost', 'new', 'none']);
 type CatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
 
-const mapCategory = (raw: string | null | undefined): CatKey => {
+// ⚠️ КАТЕГОРІЇ НЕ ПО 1С-полю `category`!
+// Узгоджено з директором продажу (memory: active_vs_inactive_brand_rule.md):
+//   'active'  = клієнт купував ЦЕЙ БРЕНД за останні 3 місяці (по lastPurchaseDate
+//               сегмента з Action 2 purchases[])
+//   'sleeping/lost/none' = купував цей бренд раніше 3 міс — frontend колапсує
+//               у одну «Активізація». Тут різниці нема, кладемо все в 'sleeping'.
+//   'new'    = 1С-категорія `Новый` ВЦІЛОМУ (тобто клієнт вперше з'являється у
+//               системі) — це справді 1С-маркер, а не наша 3-місячна логіка.
+//
+// Раніше тут була `mapCategory` що читала 1С-поле `category` — дивні цифри
+// бо «активний» у 1С означає «купував взагалі», а не «купував саме Vitaran».
+const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
+
+const isRecentBrandPurchase = (dateStr: string | null | undefined, cutoffMs: number): boolean => {
+  if (!dateStr) return false;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return false;
+  return new Date(y, m - 1, d).getTime() >= cutoffMs;
+};
+
+const isNewClient1C = (raw: string | null | undefined): boolean => {
   const c = (raw || '').toLowerCase().trim();
-  if (c === 'активный' || c === 'активний') return 'active';
-  if (c === 'спящий' || c === 'сплячий') return 'sleeping';
-  if (c === 'потерянный' || c === 'втрачений') return 'lost';
-  if (c === 'новый' || c === 'новий') return 'new';
-  return 'none';
+  return c === 'новый' || c === 'новий';
 };
 
 const mapSegmentCode = (code: string): string => {
@@ -129,10 +144,18 @@ async function handlePost(request: NextRequest) {
     return Response.json({ error: 'No allowed logins in scope' }, { status: 403 });
   }
 
-  // Паралельно: для кожного login → Action 2 (clients with category) + Action 3 (sales fact)
+  // Паралельно: для кожного login → Action 2 (clients with purchases) + Action 3 (sales fact)
   // ⚠️ Action 3 формат: { segments: [{ segmentCode, clients: [{ clientId, factAmountUSD }] }] }
   // (НЕ {facts: [...]} і НЕ {amount}). Див. src/lib/onec-types.ts.
-  type Action2Resp = { clients: Array<{ clientId: string; category?: string }> };
+  // Action 2 повертає purchases[] per segment з lastPurchaseDate — потрібно
+  // для нашої 3-місячної класифікації по бренду.
+  type Action2Resp = {
+    clients: Array<{
+      clientId: string;
+      category?: string;
+      purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }>;
+    }>;
+  };
   type Action3Resp = { segments: Array<{ segmentCode: string; clients: Array<{ clientId: string; factAmountUSD: number | string }> }> };
 
   const tasks = safeLogins.map(async (login) => {
@@ -174,26 +197,42 @@ async function handlePost(request: NextRequest) {
     return bySegment[seg];
   };
 
+  // Cutoff для 3-місячного правила. Раз обчислюємо, потім перевіряємо для
+  // кожного buyer per segment.
+  const cutoffMs = Date.now() - THREE_MONTHS_MS;
+  const havePlanInfo = plannedSet.size > 0;
+
   for (const r of results) {
     if (!r.clientsResp || !r.factResp) continue;
     // Захист: 1С іноді повертає payload без clients/segments (порожній менеджер)
     const clients = Array.isArray(r.clientsResp.clients) ? r.clientsResp.clients : [];
     const segments = Array.isArray(r.factResp.segments) ? r.factResp.segments : [];
     if (clients.length === 0 || segments.length === 0) continue;
-    // Map clientId → category для цього менеджера
-    const catBy = new Map<string, CatKey>();
+
+    // Map (clientId, segmentCode) → lastPurchaseDate цього бренду — для
+    // нашого 3-місячного правила «активний по бренду».
+    // І окремо Set "новий клієнт у 1С" — для bucket-у `new`.
+    const lastPurchaseBy = new Map<string, string>();
+    const newClientSet = new Set<string>();
     for (const c of clients) {
-      if (c && c.clientId) catBy.set(c.clientId, mapCategory(c.category));
+      if (!c || !c.clientId) continue;
+      if (isNewClient1C(c.category)) newClientSet.add(c.clientId);
+      const purchases = Array.isArray(c.purchases) ? c.purchases : [];
+      for (const p of purchases) {
+        if (!p || !p.segmentCode || !p.lastPurchaseDate) continue;
+        const segCode = mapSegmentCode(p.segmentCode);
+        lastPurchaseBy.set(`${c.clientId}|${segCode}`, p.lastPurchaseDate);
+      }
     }
+
     // Кожен segment: { segmentCode, clients: [{clientId, factAmountUSD}] }
-    // ⚠️ Логіка категоризації (НЕ exclude!):
-    //   - КОЖЕН buyer ЗАВЖДИ йде у byCategory[1С-категорія] (active/sleeping/...)
-    //   - ТА САМА людина додатково потрапляє у `unplanned` ЯКЩО її ID немає у
-    //     plannedSet. Це "окремий зріз — купив без плану", підмножина від
-    //     загального факту, а не виключення.
-    //   - Сума активні + активізація + нові = totalFact (без unplanned, бо
-    //     unplanned пересікається з ними).
-    const havePlanInfo = plannedSet.size > 0;
+    // ⚠️ Логіка категоризації (узгоджена з директором продажу):
+    //   - 'new'      = клієнт з 1С-категорією 'Новий' (це справжній 1С-маркер)
+    //   - 'active'   = купував ЦЕЙ бренд за останні 3 міс (lastPurchaseDate ≥ today-90д)
+    //   - 'sleeping' = купував цей бренд раніше 3 міс (frontend колапсує
+    //                  sleeping+lost+none у 'Активізація')
+    //   - 'unplanned' = ОКРЕМИЙ ЗРІЗ. Buyer що НЕ у plannedSet. Може
+    //                  пересікатися з усіма попередніми (це підмножина).
     for (const seg of segments) {
       if (!seg || !seg.segmentCode) continue;
       const segCode = mapSegmentCode(seg.segmentCode);
@@ -205,13 +244,22 @@ async function handlePost(request: NextRequest) {
           ? buyer.factAmountUSD
           : parseFloat(String(buyer.factAmountUSD));
         if (!Number.isFinite(amt) || amt === 0) continue;
-        const cat = catBy.get(buyer.clientId) ?? 'none';
-        if (!ALLOWED_CATS.has(cat)) continue;
-        // 1) Завжди — у відповідну 1С-категорію
+
+        // Класифікуємо за нашим бізнес-правилом, не за 1С-полем
+        let cat: CatKey;
+        if (newClientSet.has(buyer.clientId)) {
+          cat = 'new';
+        } else {
+          const lpd = lastPurchaseBy.get(`${buyer.clientId}|${segCode}`);
+          cat = isRecentBrandPurchase(lpd, cutoffMs) ? 'active' : 'sleeping';
+        }
+
+        // 1) Завжди — у відповідну категорію
         sBlock.byCategory[cat].factSum += amt;
         sBlock.byCategory[cat].factCount += 1;
-        // 2) Якщо у нас є інформація про план і клієнта В НЬОМУ НЕМАЄ —
-        //    також додаємо у unplanned (підмножина від попереднього).
+
+        // 2) Якщо плановий список переданий і buyer НЕ у ньому — додаємо у
+        //    unplanned (підмножина, не виключення).
         if (havePlanInfo && !plannedSet.has(buyer.clientId)) {
           sBlock.unplanned.factSum += amt;
           sBlock.unplanned.factCount += 1;
