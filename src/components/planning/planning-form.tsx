@@ -342,7 +342,9 @@ export function PlanningForm({
     setForecasts(activeClients.map(c => ({
       clientId1c: c.clientId,
       clientName: c.clientName,
-      forecastAmount: c.lastPurchaseAmount || 0,
+      // 1С іноді віддає від'ємний lastPurchaseAmount (повернення/refund) —
+      // як стартовий default для прогнозу він не має сенсу. Зводимо до 0.
+      forecastAmount: Math.max(0, c.lastPurchaseAmount || 0),
       stage: '',
       stageComment: '',
       stageDone: false,

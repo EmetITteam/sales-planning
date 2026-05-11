@@ -117,12 +117,13 @@ export async function POST(request: NextRequest) {
     closureCompleted?: boolean;
     trainingId?: string; trainingName?: string; trainingDate?: string;
   };
-  // Number coerce + reject non-finite/negative. Клієнт зазвичай parseFloat-ить,
-  // але belt-and-suspenders на сервері: якщо до нас прилетіло щось не-число —
-  // повертаємо 400 ДО будь-якого write у БД.
+  // Number coerce. Reject non-finite (NaN/Infinity) — це справжній invalid input.
+  // Negative значення допускаємо: 1С іноді віддає від'ємний lastPurchaseAmount
+  // (повернення/refund), і коли auto-populate підставляє його у forecast —
+  // блокувати save через це не варто.
   const toFiniteAmount = (v: unknown, label: string): number | null => {
     const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
-    if (!Number.isFinite(n) || n < 0) {
+    if (!Number.isFinite(n)) {
       errors.push(`Invalid ${label}: ${JSON.stringify(v)}`);
       return null;
     }
