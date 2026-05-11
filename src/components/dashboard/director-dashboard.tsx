@@ -106,6 +106,18 @@ export function DirectorDashboard() {
   }, [asOfDate, py, pm]);
   const periodLabel = getMonthName(py, pm - 1);
 
+  // ⚠️ ВСІ хуки мають бути ВИЩЕ early returns. usePlanningAggregate +
+  // useRegionStats + allCompanyLogins тут — інакше при перемиканні view
+  // (viewRegion / viewManager) кількість хуків змінюється → React error #310.
+  const allCompanyLogins = useMemo(() => adapted?.regions.flatMap(r => r.managers.map(m => m.login)).filter(Boolean) ?? [], [adapted]);
+  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allCompanyLogins.length > 0 ? allCompanyLogins : null);
+  const periodKeyForStats = currentPeriod.month.slice(0, 7);
+  const { data: companyStats, loading: companyStatsLoading } = useRegionStats(
+    allCompanyLogins.length > 0 ? periodKeyForStats : null,
+    asOfIso,
+    allCompanyLogins.length > 0 ? allCompanyLogins : null,
+  );
+
   // === Sub-views ===
   if (view === 'viewRegion') {
     return (
@@ -166,18 +178,9 @@ export function DirectorDashboard() {
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
   // Очікуваний % компанії (Variant B aggregate-endpoint).
-  const allCompanyLogins = useMemo(() => adapted?.regions.flatMap(r => r.managers.map(m => m.login)).filter(Boolean) ?? [], [adapted]);
-  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allCompanyLogins.length > 0 ? allCompanyLogins : null);
   const totalExpectedPct = planAgg && totalPlan > 0
     ? ((totalFact + planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
     : null;
-  // Fact-частина для розкладу по категоріях у BrandRegionGroup expand
-  const periodKeyForStats = currentPeriod.month.slice(0, 7);
-  const { data: companyStats, loading: companyStatsLoading } = useRegionStats(
-    allCompanyLogins.length > 0 ? periodKeyForStats : null,
-    asOfIso,
-    allCompanyLogins.length > 0 ? allCompanyLogins : null,
-  );
   const totalManagers = company?.regionAggregates.reduce((a, r) => a + r.managerCount, 0) ?? 0;
 
   return (
