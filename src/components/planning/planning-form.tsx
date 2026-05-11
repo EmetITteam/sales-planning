@@ -24,7 +24,7 @@ import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions, SalesFactResponse } from '@/lib/types';
 import {
   ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
-  ArrowUpRight, ArrowDownRight, Trash2, Check, Phone, Calendar,
+  ArrowUpRight, ArrowDownRight, Trash2, Check, Phone, Calendar, MessageCircle,
   AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw, Eye, GraduationCap,
   AlertCircle,
 } from 'lucide-react';
@@ -64,6 +64,7 @@ interface PlanningFormProps {
 // Опція "Навчання" розкриває селектор обучень з 1С (плюс поле коментаря).
 const STAGE_OPTIONS = [
   { value: 'Дзвінок', icon: Phone },
+  { value: 'Мессенджер', icon: MessageCircle },
   { value: 'Зустріч', icon: Calendar },
   { value: 'Навчання', icon: GraduationCap },
 ];
@@ -680,7 +681,7 @@ export function PlanningForm({
             </div>
           )}
           {sortedForecasts.map((row) => {
-            const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
+            const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
             return (
               <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
                 {/* === DESKTOP (md+) === */}
@@ -986,7 +987,7 @@ export function PlanningForm({
             <div className="space-y-2">
             {gapClosures.map((row, i) => {
               const hasFact = row.factAmount > 0;
-              const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : Phone;
+              const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
               return (
                 <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
                   {/* === DESKTOP (md+) === */}

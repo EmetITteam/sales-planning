@@ -132,7 +132,7 @@ export interface ForecastRow {
   clientId1c: string;
   clientName: string;
   forecastAmount: number;           // скільки очікує продаж
-  stage: 'Дзвінок' | 'Зустріч' | 'Навчання' | '';   // етап: дзвінок, зустріч або навчання
+  stage: 'Дзвінок' | 'Зустріч' | 'Навчання' | 'Мессенджер' | '';   // етап: дзвінок, зустріч або навчання
   stageComment: string;             // коментар (ціль дзвінка/зустрічі)
   stageDone: boolean;               // чи виконано (перевірка з 1С)
   // 🆕 v2.1: обучення з 1С (опц., якщо stage = "Навчання")
@@ -155,7 +155,7 @@ export interface GapClosureRow {
   category: string;                 // категорія з регістру 1С (сплячий, втрачений, БЗ)
   potentialAmount: number;          // сума яку очікуємо повернути
   // 🆕 v2.1: етап і статус — як у ForecastRow
-  stage: 'Дзвінок' | 'Зустріч' | 'Навчання' | '';
+  stage: 'Дзвінок' | 'Зустріч' | 'Навчання' | 'Мессенджер' | '';
   stageComment: string;
   stageDone: boolean;               // чи виконано (перевірка з 1С)
   completed: boolean;               // факт >= потенціал → зафіксовано
