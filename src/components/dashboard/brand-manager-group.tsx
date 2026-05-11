@@ -40,6 +40,8 @@ interface Props {
   planCategoriesForBrand?: Record<PlanCategoryKey, CategoryStat> | null;
   /** Fact-частина для цього бренду (з /api/onec/region-stats, segment-зріз). */
   factCategoriesForBrand?: Record<RegionStatsCategory, RegionStatsCategoryStat> | null;
+  /** «Незаплановані» для цього бренду (купили без плану). */
+  unplannedForBrand?: { factCount: number; factSum: number } | null;
   /** Loading-стан для CategoryStatsTable. */
   categoriesLoading?: boolean;
 }
@@ -50,7 +52,7 @@ interface Props {
  *
  * Cross-grouping `brand × manager` — дзеркало BrandRegionGroup на РМ-дашборді.
  */
-export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, categoriesLoading }: Props) {
+export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading }: Props) {
   const [expanded, setExpanded] = useState(false);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
 
@@ -75,6 +77,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
             <CategoryStatsTable
               plan={planCategoriesForBrand ?? null}
               fact={factCategoriesForBrand ?? null}
+              unplanned={unplannedForBrand ?? null}
               title={`${brand.segmentName} · ${brand.managers.length} ${brand.managers.length === 1 ? 'менеджер' : 'менеджерів'}`}
               loading={!!categoriesLoading && !factCategoriesForBrand}
             />

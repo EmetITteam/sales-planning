@@ -49,6 +49,8 @@ interface Props {
   planCategoriesForBrand?: Record<PlanCategoryKey, CategoryStat> | null;
   /** Fact-частина для цього бренду (з /api/onec/region-stats, segment-зріз). */
   factCategoriesForBrand?: Record<RegionStatsCategory, RegionStatsCategoryStat> | null;
+  /** «Незаплановані» для цього бренду (купили без плану). */
+  unplannedForBrand?: { factCount: number; factSum: number } | null;
   /** Loading-стан для CategoryStatsTable. */
   categoriesLoading?: boolean;
 }
@@ -61,7 +63,7 @@ interface Props {
  * `region × brand`). Дозволяє Sales Director швидко побачити «Petaran просідає
  * у Києві, але виконує план в Одесі».
  */
-export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, categoriesLoading }: Props) {
+export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
@@ -87,6 +89,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
             <CategoryStatsTable
               plan={planCategoriesForBrand ?? null}
               fact={factCategoriesForBrand ?? null}
+              unplanned={unplannedForBrand ?? null}
               title={`${brand.segmentName} · ${brand.regions.length} ${brand.regions.length === 1 ? 'регіон' : 'регіонів'}`}
               loading={!!categoriesLoading && !factCategoriesForBrand}
             />

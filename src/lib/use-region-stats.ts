@@ -21,10 +21,16 @@ export interface RegionStatsCategoryStat {
 export interface RegionStats {
   bySegment: Record<string, {
     byCategory: Record<RegionStatsCategory, RegionStatsCategoryStat>;
+    unplanned: { factCount: number; factSum: number };
   }>;
 }
 
-export function useRegionStats(period: string | null, asOfDate: string | null, logins: string[] | null): {
+export function useRegionStats(
+  period: string | null,
+  asOfDate: string | null,
+  logins: string[] | null,
+  plannedClientIds: string[] | null = null,
+): {
   data: RegionStats | null;
   loading: boolean;
   error: string | null;
@@ -32,8 +38,13 @@ export function useRegionStats(period: string | null, asOfDate: string | null, l
   const sortedKey = logins && logins.length > 0
     ? [...logins].sort().join(',')
     : null;
+  // Хеш plannedClientIds — короткий (sorted set length + sample). Достатньо
+  // щоб SWR відрізнив зміну плану. Не включаємо весь масив — може бути 700+ ID.
+  const planHash = plannedClientIds && plannedClientIds.length > 0
+    ? `p${plannedClientIds.length}`
+    : 'np';
   const key = period && sortedKey
-    ? `region-stats|${period}|${asOfDate ?? ''}|${sortedKey}`
+    ? `region-stats|${period}|${asOfDate ?? ''}|${sortedKey}|${planHash}`
     : null;
 
   const { data, error, isLoading } = useSWR(
@@ -42,7 +53,7 @@ export function useRegionStats(period: string | null, asOfDate: string | null, l
       const res = await fetch('/api/onec/region-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ period, asOfDate, logins }),
+        body: JSON.stringify({ period, asOfDate, logins, plannedClientIds }),
       });
       if (!res.ok) {
         const err = await res.text().catch(() => '');

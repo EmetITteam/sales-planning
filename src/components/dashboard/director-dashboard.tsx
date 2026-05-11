@@ -117,6 +117,7 @@ export function DirectorDashboard() {
     allCompanyLogins.length > 0 ? periodKeyForStats : null,
     asOfIso,
     allCompanyLogins.length > 0 ? allCompanyLogins : null,
+    planAgg?.plannedClientIds ?? null,
   );
   // Агрегат plan + fact для CategoryStatsTable: сумарно по компанії (всі сегменти разом)
   const aggregatedPlan = useMemo(() => {
@@ -152,6 +153,15 @@ export function DirectorDashboard() {
       }
     }
     return out;
+  }, [companyStats]);
+  const aggregatedUnplanned = useMemo(() => {
+    if (!companyStats) return null;
+    let factCount = 0, factSum = 0;
+    for (const seg of Object.values(companyStats.bySegment)) {
+      factCount += seg.unplanned?.factCount ?? 0;
+      factSum   += seg.unplanned?.factSum   ?? 0;
+    }
+    return { factCount, factSum };
   }, [companyStats]);
 
   // === Sub-views ===
@@ -340,6 +350,7 @@ export function DirectorDashboard() {
           <CategoryStatsTable
             plan={aggregatedPlan}
             fact={aggregatedFact}
+            unplanned={aggregatedUnplanned}
             title={`Компанія · ${totalManagers} менеджерів · ${company.regionAggregates.length} регіонів`}
             loading={companyStatsLoading && !aggregatedFact}
           />
@@ -394,6 +405,7 @@ export function DirectorDashboard() {
                   asOfDate={asOfDate}
                   planCategoriesForBrand={planAgg?.bySegment[brand.segmentCode]?.byCategory ?? null}
                   factCategoriesForBrand={companyStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
+                  unplannedForBrand={companyStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
                   categoriesLoading={companyStatsLoading}
                   onRegionClick={(code) => { setSelectedRegionCode(code); setView('viewRegion'); }}
                   onManagerClick={(login, segCode) => {

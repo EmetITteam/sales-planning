@@ -17,6 +17,12 @@ interface Props {
   plan: Record<PlanCategoryKey, CategoryStat> | null;
   /** Fact-частина (з 1С через /api/onec/region-stats). */
   fact: Record<PlanCategoryKey, RegionStatsCategoryStat> | null;
+  /**
+   * Окремий «Незаплановані» — buyers які купили, але немає у plannedClientIds.
+   * Якщо null — рядок просто покаже 0 (не fallback на totalFact-totalPlanned,
+   * бо це дублює факт коли planned=0).
+   */
+  unplanned?: { factCount: number; factSum: number } | null;
   /** Заголовок-контекст: «Регіон Дніпро» або «Petaran · 8 регіонів». */
   title?: string;
   loading?: boolean;
@@ -60,7 +66,7 @@ const CAT_META: Array<{
   { key: 'new',        label: 'Нові клієнти по ТМ',       icon: UserPlus,    iconClass: 'text-emerald-600', bgClass: 'bg-emerald-50' },
 ];
 
-export function CategoryStatsTable({ plan, fact, title, loading }: Props) {
+export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Props) {
   // Агрегуємо у 4 групи що показуються:
   // active = active
   // new = new
@@ -88,16 +94,15 @@ export function CategoryStatsTable({ plan, fact, title, loading }: Props) {
     rows.activation.factCount += fact.sleeping.factCount + fact.lost.factCount + fact.none.factCount;
     rows.activation.factSum   += fact.sleeping.factSum   + fact.lost.factSum   + fact.none.factSum;
   }
-  // Unplanned: факт − planned. Якщо negative — 0 (плановано більше ніж купили).
-  // На рівні categories: треба факт там де НЕ запланованого. Грубо беремо
-  // загальний факт − плановий факт. Тут просто покажемо різницю по сумах
-  // (точне: «купили без плану»). Це апроксимація — точніше треба у backend.
-  const totalFactCount = rows.active.factCount + rows.new.factCount + rows.activation.factCount;
-  const totalFactSum   = rows.active.factSum   + rows.new.factSum   + rows.activation.factSum;
-  const totalPlannedCount = rows.active.plannedCount + rows.new.plannedCount + rows.activation.plannedCount;
-  const totalPlannedSum   = rows.active.plannedSum   + rows.new.plannedSum   + rows.activation.plannedSum;
-  rows.unplanned.factCount = Math.max(0, totalFactCount - totalPlannedCount);
-  rows.unplanned.factSum   = Math.max(0, totalFactSum   - totalPlannedSum);
+  // Unplanned: ТОЧНІ дані з backend (buyers які купили, але немає у плані).
+  // Раніше була апроксимація totalFact-totalPlanned, але це дублювало факт
+  // коли planned=0 (показувало весь факт як «незаплановані»).
+  if (unplanned) {
+    rows.unplanned.factCount = unplanned.factCount;
+    rows.unplanned.factSum   = unplanned.factSum;
+  }
+  const totalFactSum = rows.active.factSum + rows.new.factSum + rows.activation.factSum + rows.unplanned.factSum;
+  const totalPlannedSum = rows.active.plannedSum + rows.new.plannedSum + rows.activation.plannedSum;
 
   // % факт = виконання плану цієї категорії = factSum / plannedSum × 100
   const pctFact = (r: RowStat) => r.plannedSum > 0 ? Math.round((r.factSum / r.plannedSum) * 1000) / 10 : 0;

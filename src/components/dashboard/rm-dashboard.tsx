@@ -103,12 +103,15 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   // Aggregate planning по всіх менеджерах регіону → для розрахунку «Очікуваного %»
   const allLogins = useMemo(() => region?.managers.map(m => m.login).filter(Boolean) ?? [], [region]);
   const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allLogins.length > 0 ? allLogins : null);
-  // Fact частина — батч Action 2+3 з 1С через серверний proxy
+  // Fact частина — батч Action 2+3 з 1С через серверний proxy.
+  // Передаємо plannedClientIds щоб правильно рахувати «Незаплановані» (купили
+  // без плану) — інакше блок дублює totalFact коли planned=0.
   const periodKeyForStats = currentPeriod.month.slice(0, 7);
   const { data: regionStats, loading: statsLoading } = useRegionStats(
     allLogins.length > 0 ? periodKeyForStats : null,
     asOfIso,
     allLogins.length > 0 ? allLogins : null,
+    planAgg?.plannedClientIds ?? null,
   );
   // Збираємо plan + fact для CategoryStatsTable: сумарно по регіону (всі бренди разом)
   const aggregatedPlan = useMemo(() => {
@@ -144,6 +147,15 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
       }
     }
     return out;
+  }, [regionStats]);
+  const aggregatedUnplanned = useMemo(() => {
+    if (!regionStats) return null;
+    let factCount = 0, factSum = 0;
+    for (const seg of Object.values(regionStats.bySegment)) {
+      factCount += seg.unplanned?.factCount ?? 0;
+      factSum   += seg.unplanned?.factSum   ?? 0;
+    }
+    return { factCount, factSum };
   }, [regionStats]);
 
   // Агрегат клієнтів по регіону — береться з Action 5 (v2.5 clientStats per manager).
@@ -369,6 +381,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           <CategoryStatsTable
             plan={aggregatedPlan}
             fact={aggregatedFact}
+            unplanned={aggregatedUnplanned}
             title={`Регіон ${region.regionName} · ${managerList.length} ${managerList.length === 1 ? 'менеджер' : 'менеджерів'}`}
             loading={statsLoading && !aggregatedFact}
           />
@@ -406,6 +419,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   asOfDate={asOfDate}
                   planCategoriesForBrand={planAgg?.bySegment[brand.segmentCode]?.byCategory ?? null}
                   factCategoriesForBrand={regionStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
+                  unplannedForBrand={regionStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
                   categoriesLoading={statsLoading}
                   onManagerClick={(login, segCode) => {
                     setSelectedManager(login);

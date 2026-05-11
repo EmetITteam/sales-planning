@@ -95,7 +95,7 @@ async function handlePost(request: NextRequest) {
   try { body = await request.json(); }
   catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { period, asOfDate, logins } = body ?? {};
+  const { period, asOfDate, logins, plannedClientIds } = body ?? {};
   if (typeof period !== 'string' || !/^\d{4}-\d{2}$/.test(period)) {
     return Response.json({ error: 'period must be YYYY-MM' }, { status: 400 });
   }
@@ -105,6 +105,14 @@ async function handlePost(request: NextRequest) {
   if (logins.length > 50) {
     return Response.json({ error: 'too many logins (max 50)' }, { status: 400 });
   }
+  // plannedClientIds (опційний) — Set ID-ів клієнтів які реально у плані
+  // менеджерів. Якщо передано — рахуємо «Незапланованих» (купили, але не
+  // у плані). Якщо не передано — Незаплановані = 0 (не можемо порахувати).
+  const plannedSet = new Set<string>(
+    Array.isArray(plannedClientIds)
+      ? plannedClientIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
+      : []
+  );
 
   // Security: scope-перевірка як у /api/onec
   const sessionLogin = session.login.toLowerCase().trim();
@@ -145,8 +153,10 @@ async function handlePost(request: NextRequest) {
   const results = await Promise.all(tasks);
 
   // Агрегація: per segment per category — sum amount + distinct buyer count
+  // Плюс top-level `unplanned` — buyers ID яких НЕ у plannedSet.
   const bySegment: Record<string, {
     byCategory: Record<CatKey, { factCount: number; factSum: number }>;
+    unplanned: { factCount: number; factSum: number };
   }> = {};
   const ensureSeg = (seg: string) => {
     if (!bySegment[seg]) {
@@ -158,6 +168,7 @@ async function handlePost(request: NextRequest) {
           new: { factCount: 0, factSum: 0 },
           none: { factCount: 0, factSum: 0 },
         },
+        unplanned: { factCount: 0, factSum: 0 },
       };
     }
     return bySegment[seg];
@@ -175,6 +186,14 @@ async function handlePost(request: NextRequest) {
       if (c && c.clientId) catBy.set(c.clientId, mapCategory(c.category));
     }
     // Кожен segment: { segmentCode, clients: [{clientId, factAmountUSD}] }
+    // ⚠️ Логіка категоризації:
+    //   - Якщо buyer У plannedSet → додається у відповідну byCategory (active/sleeping/...)
+    //   - Якщо buyer НЕ У plannedSet → додається ТІЛЬКИ у `unplanned`, не у byCategory
+    //   Це усуває подвійний підрахунок (раніше всі buyers йшли і в категорію
+    //   і додатково у Незаплановані = totalFact).
+    //   Якщо plannedSet порожній (не передано plannedClientIds) — все одно
+    //   йде у byCategory (бо інакше дані пропадуть зовсім).
+    const havePlanInfo = plannedSet.size > 0;
     for (const seg of segments) {
       if (!seg || !seg.segmentCode) continue;
       const segCode = mapSegmentCode(seg.segmentCode);
@@ -188,8 +207,14 @@ async function handlePost(request: NextRequest) {
         if (!Number.isFinite(amt) || amt === 0) continue;
         const cat = catBy.get(buyer.clientId) ?? 'none';
         if (!ALLOWED_CATS.has(cat)) continue;
-        sBlock.byCategory[cat].factSum += amt;
-        sBlock.byCategory[cat].factCount += 1;
+        const isPlanned = !havePlanInfo || plannedSet.has(buyer.clientId);
+        if (isPlanned) {
+          sBlock.byCategory[cat].factSum += amt;
+          sBlock.byCategory[cat].factCount += 1;
+        } else {
+          sBlock.unplanned.factSum += amt;
+          sBlock.unplanned.factCount += 1;
+        }
       }
     }
   }

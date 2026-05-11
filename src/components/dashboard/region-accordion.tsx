@@ -62,6 +62,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
     fetchLogins ? periodKeyForStats : null,
     asOfIso,
     fetchLogins,
+    planAgg?.plannedClientIds ?? null,
   );
   const aggregatedPlan = useMemo(() => {
     if (!planAgg) return null;
@@ -96,6 +97,15 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
       }
     }
     return out;
+  }, [regionStatsData]);
+  const aggregatedUnplanned = useMemo(() => {
+    if (!regionStatsData) return null;
+    let factCount = 0, factSum = 0;
+    for (const seg of Object.values(regionStatsData.bySegment)) {
+      factCount += seg.unplanned?.factCount ?? 0;
+      factSum   += seg.unplanned?.factSum   ?? 0;
+    }
+    return { factCount, factSum };
   }, [regionStatsData]);
 
   return (
@@ -271,6 +281,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           <CategoryStatsTable
             plan={aggregatedPlan}
             fact={aggregatedFact}
+            unplanned={aggregatedUnplanned}
             title={`${aggregate.regionName} · ${managersBrief.length} ${managersBrief.length === 1 ? 'менеджер' : 'менеджерів'}`}
             loading={statsLoading && !aggregatedFact}
           />

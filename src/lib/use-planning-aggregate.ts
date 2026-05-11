@@ -27,6 +27,12 @@ export interface PlanningAggregate {
     gapClients: number;
     byCategory: Record<PlanCategoryKey, CategoryStat>;
   }>;
+  /**
+   * Унікальні client_id_1c з усіх forecasts ∪ gap_closures цього scope.
+   * Передається у /api/onec/region-stats для правильного розрахунку
+   * «Незапланованих» (= купили, але немає у цьому Set).
+   */
+  plannedClientIds: string[];
 }
 
 export function usePlanningAggregate(periodId: number | null, logins: string[] | null): {
