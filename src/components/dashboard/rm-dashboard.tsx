@@ -115,14 +115,12 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const totalWD = getWorkingDaysInMonth(py, pm - 1);
   const passedWD = getPassedWorkingDays(py, pm - 1, asOfDate);
   const calcPctValue = getMonthProgressPct(py, pm - 1, asOfDate);
-  // «Норма на ранок» = % робочих днів станом на вчора. Показуємо у обох
-  // режимах (live + filter); скриваємо лише коли збігається з calcPct (1-е число).
+  // «Норма на ранок» = % робочих днів станом на вчора. Показуємо завжди.
   const morningPctValue = useMemo(() => {
     const yest = new Date(asOfDate);
     yest.setDate(yest.getDate() - 1);
-    const v = getMonthProgressPct(py, pm - 1, yest);
-    return Math.abs(v - calcPctValue) < 0.01 ? null : v;
-  }, [asOfDate, py, pm, calcPctValue]);
+    return getMonthProgressPct(py, pm - 1, yest);
+  }, [asOfDate, py, pm]);
   const periodLabel = getMonthName(py, pm - 1);
 
   // === Sub-views ===
@@ -293,9 +291,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               caption={(
                 <div className="space-y-0.5">
                   <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
-                  {morningPctValue !== null && (
-                    <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-                  )}
+                  <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
                   <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                 </div>
               )}

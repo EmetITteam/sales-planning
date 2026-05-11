@@ -95,15 +95,13 @@ export function DirectorDashboard() {
   const passedWD = getPassedWorkingDays(py, pm - 1, asOfDate);
   const calcPctValue = getMonthProgressPct(py, pm - 1, asOfDate);
   // «Норма на ранок» = % робочих днів пройдено станом на вчора (asOfDate − 1).
-  // Дає baseline: «що було на початку дня vs що зараз». Показуємо у обох режимах
-  // (live і filter), бо у filter теж корисно бачити «попередній день» як точку відліку.
-  // Не показуємо коли morningPct == calcPct (наприклад asOfDate = 1-е число місяця).
+  // Дає baseline: «що було на початку дня vs що зараз». Показуємо завжди — навіть
+  // якщо вчора був вихідний (значення збігається з today, що теж інформативно).
   const morningPctValue = useMemo(() => {
     const yest = new Date(asOfDate);
     yest.setDate(yest.getDate() - 1);
-    const v = getMonthProgressPct(py, pm - 1, yest);
-    return Math.abs(v - calcPctValue) < 0.01 ? null : v;
-  }, [asOfDate, py, pm, calcPctValue]);
+    return getMonthProgressPct(py, pm - 1, yest);
+  }, [asOfDate, py, pm]);
   const periodLabel = getMonthName(py, pm - 1);
 
   // === Sub-views ===
@@ -264,9 +262,7 @@ export function DirectorDashboard() {
               caption={(
                 <div className="space-y-0.5">
                   <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
-                  {morningPctValue !== null && (
-                    <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-                  )}
+                  <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
                   <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                 </div>
               )}

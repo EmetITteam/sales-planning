@@ -212,14 +212,12 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
   const totalCalcPct = summaries.length > 0
     ? summaries.reduce((s, t) => s + t.calcPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
     : 0;
-  // «Норма на ранок» = % робочих днів станом на вчора. Показуємо у обох
-  // режимах; скриваємо коли збігається з totalCalcPct (1-е число місяця).
+  // «Норма на ранок» = % робочих днів станом на вчора. Показуємо завжди.
   const morningPctValue = useMemo(() => {
     const yest = new Date(asOfDate);
     yest.setDate(yest.getDate() - 1);
-    const v = getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), yest);
-    return Math.abs(v - totalCalcPct) < 0.01 ? null : v;
-  }, [asOfDate, totalCalcPct]);
+    return getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), yest);
+  }, [asOfDate]);
   const totalForecastPct = summaries.length > 0
     ? summaries.reduce((s, t) => s + t.forecastPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
     : 0;
@@ -370,9 +368,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
           caption={(
             <div className="space-y-0.5">
               <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
-              {morningPctValue !== null && (
-                <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-              )}
+              <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
               <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
             </div>
           )}
