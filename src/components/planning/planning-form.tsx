@@ -695,15 +695,14 @@ export function PlanningForm({
 
                   {/* Етап */}
                   <Select
-                    value={row.stage || '__none__'}
-                    onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v === '__none__' ? '' : v)}
+                    value={row.stage || undefined}
+                    onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v)}
                     disabled={readOnly}
                   >
                     <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
-                      <SelectValue placeholder="Оберіть..." />
+                      <SelectValue placeholder="Обрати" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Обрати</SelectItem>
                       {STAGE_OPTIONS.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.value}
@@ -823,16 +822,15 @@ export function PlanningForm({
                     <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Етап</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Select
-                        value={row.stage || '__none__'}
-                        onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v === '__none__' ? '' : v)}
+                        value={row.stage || undefined}
+                        onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v)}
                         disabled={readOnly}
                       >
                         <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
-                          <SelectValue placeholder="Оберіть..." />
+                          <SelectValue placeholder="Обрати" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">Обрати</SelectItem>
-                          {STAGE_OPTIONS.map(opt => (
+                              {STAGE_OPTIONS.map(opt => (
                             <SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>
                           ))}
                         </SelectContent>
@@ -1011,16 +1009,15 @@ export function PlanningForm({
 
                     {/* Етап */}
                     <Select
-                      value={row.stage || '__none__'}
-                      onValueChange={(v) => updateGap(i, 'stage', v === '__none__' ? '' : v)}
+                      value={row.stage || undefined}
+                      onValueChange={(v) => updateGap(i, 'stage', v)}
                       disabled={readOnly}
                     >
                       <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
-                        <SelectValue placeholder="Оберіть..." />
+                        <SelectValue placeholder="Обрати" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">Обрати</SelectItem>
-                        {STAGE_OPTIONS.map(opt => (
+                          {STAGE_OPTIONS.map(opt => (
                           <SelectItem key={opt.value} value={opt.value}>
                             {opt.value}
                           </SelectItem>
@@ -1145,15 +1142,14 @@ export function PlanningForm({
                     <div>
                       <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Етап</label>
                       <div className="flex items-center gap-2 mt-1">
-                        <Select value={row.stage || '__none__'}
-                          onValueChange={(v) => updateGap(i, 'stage', v === '__none__' ? '' : v)}
+                        <Select value={row.stage || undefined}
+                          onValueChange={(v) => updateGap(i, 'stage', v)}
                           disabled={readOnly}>
                           <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
-                            <SelectValue placeholder="Оберіть..." />
+                            <SelectValue placeholder="Обрати" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">Обрати</SelectItem>
-                            {STAGE_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>))}
+                                  {STAGE_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>))}
                           </SelectContent>
                         </Select>
                         {row.stage && (

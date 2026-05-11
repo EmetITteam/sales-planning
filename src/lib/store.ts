@@ -98,6 +98,21 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         currentPeriod: state.currentPeriod,
       }),
+      // Скидаємо persisted period якщо він застарів (з іншого місяця або
+      // weekEnd у майбутньому). Інакше юзер відкриває систему 11.05 і
+      // бачить «01.05—03.05» бо persisted з попередньої сесії — і думає
+      // що цифри не оновились.
+      onRehydrateStorage: () => (state) => {
+        if (!state?.currentPeriod) return;
+        const def = getDefaultPeriod();
+        const persistedMonth = state.currentPeriod.month?.slice(0, 7);
+        const defaultMonth = def.month.slice(0, 7);
+        const persistedWeekEnd = state.currentPeriod.weekEnd;
+        const today = new Date().toISOString().slice(0, 10);
+        if (persistedMonth !== defaultMonth || persistedWeekEnd > today) {
+          state.currentPeriod = def;
+        }
+      },
     },
   ),
 );
