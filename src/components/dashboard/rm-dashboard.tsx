@@ -404,6 +404,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   brand={brand}
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
+                  planCategoriesForBrand={planAgg?.bySegment[brand.segmentCode]?.byCategory ?? null}
+                  factCategoriesForBrand={regionStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
+                  categoriesLoading={statsLoading}
                   onManagerClick={(login, segCode) => {
                     setSelectedManager(login);
                     setSelectedSegmentForManager(segCode);

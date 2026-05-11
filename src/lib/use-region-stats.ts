@@ -54,6 +54,12 @@ export function useRegionStats(period: string | null, asOfDate: string | null, l
       // Запит важкий (N×2 на 1С) — кешуємо довше.
       dedupingInterval: 120_000,
       revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+      // Одна спроба у разі помилки (без exponential backoff retry-петлі).
+      errorRetryCount: 1,
+      // Поки revalidate — показуємо старі дані щоб не блимав спіннер.
+      keepPreviousData: true,
     },
   );
 

@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { pctOf } from '@/lib/format';
 import { BrandRow } from './brand-row';
+import { CategoryStatsTable } from './category-stats-table';
 import type { ManagerRegionData } from '@/lib/types';
+import type { CategoryStat, PlanCategoryKey } from '@/lib/use-planning-aggregate';
+import type { RegionStatsCategoryStat, RegionStatsCategory } from '@/lib/use-region-stats';
 
 interface BrandWithManagers {
   segmentCode: string;
@@ -33,6 +36,12 @@ interface Props {
    * саме цього бренду для цього менеджера, а не у весь manager dashboard.
    */
   onManagerClick: (login: string, segmentCode: string) => void;
+  /** Plan-частина для цього бренду (з /api/planning/aggregate, segment-зріз). */
+  planCategoriesForBrand?: Record<PlanCategoryKey, CategoryStat> | null;
+  /** Fact-частина для цього бренду (з /api/onec/region-stats, segment-зріз). */
+  factCategoriesForBrand?: Record<RegionStatsCategory, RegionStatsCategoryStat> | null;
+  /** Loading-стан для CategoryStatsTable. */
+  categoriesLoading?: boolean;
 }
 
 /**
@@ -41,7 +50,7 @@ interface Props {
  *
  * Cross-grouping `brand × manager` — дзеркало BrandRegionGroup на РМ-дашборді.
  */
-export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick }: Props) {
+export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, categoriesLoading }: Props) {
   const [expanded, setExpanded] = useState(false);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
 
@@ -60,7 +69,16 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick }: 
         expanded={expanded}
       />
       {expanded && (
-        <div className="px-3 md:px-5 py-3 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-3 md:px-5 py-3 space-y-3 bg-[#fafbfe] border-t border-[#f0f2f8]">
+          {/* Розклад по категоріях клієнтів — перед списком менеджерів */}
+          {(planCategoriesForBrand || factCategoriesForBrand || categoriesLoading) && (
+            <CategoryStatsTable
+              plan={planCategoriesForBrand ?? null}
+              fact={factCategoriesForBrand ?? null}
+              title={`${brand.segmentName} · ${brand.managers.length} ${brand.managers.length === 1 ? 'менеджер' : 'менеджерів'}`}
+              loading={!!categoriesLoading && !factCategoriesForBrand}
+            />
+          )}
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 ml-1">
             <ChevronDown className="inline h-3 w-3 mr-1" />Менеджери
           </p>
