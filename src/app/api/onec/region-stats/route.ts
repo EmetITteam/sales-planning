@@ -122,8 +122,10 @@ async function handlePost(request: NextRequest) {
   }
 
   // Паралельно: для кожного login → Action 2 (clients with category) + Action 3 (sales fact)
+  // ⚠️ Action 3 формат: { segments: [{ segmentCode, clients: [{ clientId, factAmountUSD }] }] }
+  // (НЕ {facts: [...]} і НЕ {amount}). Див. src/lib/onec-types.ts.
   type Action2Resp = { clients: Array<{ clientId: string; category?: string }> };
-  type Action3Resp = { facts: Array<{ segmentCode: string; clients: Array<{ clientId: string; amount: number | string }> }> };
+  type Action3Resp = { segments: Array<{ segmentCode: string; clients: Array<{ clientId: string; factAmountUSD: number | string }> }> };
 
   const tasks = safeLogins.map(async (login) => {
     const [clientsResp, factResp] = await Promise.all([
@@ -163,24 +165,26 @@ async function handlePost(request: NextRequest) {
 
   for (const r of results) {
     if (!r.clientsResp || !r.factResp) continue;
-    // Захист: 1С іноді повертає payload без clients/facts (порожній менеджер)
+    // Захист: 1С іноді повертає payload без clients/segments (порожній менеджер)
     const clients = Array.isArray(r.clientsResp.clients) ? r.clientsResp.clients : [];
-    const facts = Array.isArray(r.factResp.facts) ? r.factResp.facts : [];
-    if (clients.length === 0 || facts.length === 0) continue;
+    const segments = Array.isArray(r.factResp.segments) ? r.factResp.segments : [];
+    if (clients.length === 0 || segments.length === 0) continue;
     // Map clientId → category для цього менеджера
     const catBy = new Map<string, CatKey>();
     for (const c of clients) {
       if (c && c.clientId) catBy.set(c.clientId, mapCategory(c.category));
     }
-    // Кожен fact-рядок: { segmentCode, clients: [{clientId, amount}] }
-    for (const seg of facts) {
+    // Кожен segment: { segmentCode, clients: [{clientId, factAmountUSD}] }
+    for (const seg of segments) {
       if (!seg || !seg.segmentCode) continue;
       const segCode = mapSegmentCode(seg.segmentCode);
       const sBlock = ensureSeg(segCode);
       const buyers = Array.isArray(seg.clients) ? seg.clients : [];
       for (const buyer of buyers) {
         if (!buyer || !buyer.clientId) continue;
-        const amt = typeof buyer.amount === 'number' ? buyer.amount : parseFloat(String(buyer.amount));
+        const amt = typeof buyer.factAmountUSD === 'number'
+          ? buyer.factAmountUSD
+          : parseFloat(String(buyer.factAmountUSD));
         if (!Number.isFinite(amt) || amt === 0) continue;
         const cat = catBy.get(buyer.clientId) ?? 'none';
         if (!ALLOWED_CATS.has(cat)) continue;
