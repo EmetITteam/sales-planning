@@ -191,14 +191,26 @@ async function handlePost(request: NextRequest) {
       failedLogins: results.filter(r => !r.clientsResp || !r.factResp).map(r => r.login),
     });
   }
+  // Лог стат dedup щоб видно було у Vercel function logs.
+  if (aggregated.dedup.skippedCount > 0) {
+    console.warn('[region-stats] dedup', {
+      period,
+      skippedCount: aggregated.dedup.skippedCount,
+      skippedSum: Math.round(aggregated.dedup.skippedSum),
+      uniquePairs: aggregated.dedup.uniquePairs,
+    });
+  }
   return Response.json({
     bySegment: aggregated.bySegment,
     meta: {
       period,
       logins: safeLogins.length,
       successful: successCount,
-      // Якщо partial — frontend може показати warning «не всі менеджери відповіли».
       partial: successCount < safeLogins.length,
+      // Дiагностика dedup — у DevTools Network видно, що саме пропущено.
+      dedupSkippedCount: aggregated.dedup.skippedCount,
+      dedupSkippedSum: aggregated.dedup.skippedSum,
+      uniquePairs: aggregated.dedup.uniquePairs,
     },
   });
 }

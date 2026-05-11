@@ -200,6 +200,25 @@ test('dedup: один client у двох менеджерах одного segme
   );
   assert.equal(result.bySegment.PETARAN.unplanned.factSum, 1000, 'НЕ $2000');
   assert.equal(result.bySegment.PETARAN.unplanned.factCount, 1);
+  // Діагностика: показує що було пропущено
+  assert.equal(result.dedup.skippedCount, 1, '1 повтор пропущено');
+  assert.equal(result.dedup.skippedSum, 1000, '$1000 пропущено');
+  assert.equal(result.dedup.uniquePairs, 1, 'унікальна пара 1');
+});
+
+// === Dedup-діагностика: ідеальний сценарій (немає повторів) ===
+test('dedup stat: 1 клієнт = 1 менеджер → skippedCount=0', () => {
+  const result = aggregateRegionStats(
+    [
+      { clients: [], segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'a', factAmountUSD: 100 }] }] },
+      { clients: [], segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'b', factAmountUSD: 200 }] }] },
+      { clients: [], segments: [{ segmentCode: 'VITARAN', clients: [{ clientId: 'a', factAmountUSD: 50 }] }] }, // 'a' у іншому бренді — НЕ дубль
+    ],
+    { forecastClientIds: [], gapNewClientIds: [], gapActivationClientIds: [] },
+  );
+  assert.equal(result.dedup.skippedCount, 0, 'нема дублів');
+  assert.equal(result.dedup.skippedSum, 0);
+  assert.equal(result.dedup.uniquePairs, 3, '(PETARAN|a)+(PETARAN|b)+(VITARAN|a)');
 });
 
 // === Dedup: той самий клієнт у РІЗНИХ сегментах → рахується В КОЖНОМУ ===

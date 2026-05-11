@@ -47,6 +47,12 @@ export interface SegmentStats {
 
 export interface AggregateResult {
   bySegment: Record<string, SegmentStats>;
+  /** Діагностика dedup: скільки повторних (segment, client) пропущено та на яку суму. */
+  dedup: {
+    skippedCount: number;
+    skippedSum: number;
+    uniquePairs: number;
+  };
 }
 
 export interface PlanBuckets {
@@ -103,14 +109,22 @@ export function aggregateRegionStats(
     return bySegment[seg];
   };
 
-  // ⚠️ Dedup-Set per (segmentCode, clientId): один клієнт може обслуговуватись
-  // кількома менеджерами (рідко але буває в EMET — переходи, тимчасова
-  // підмінка). Action 3 тоді повертає його продажі ОКРЕМО для кожного
-  // менеджера → одна реальна покупка $1000 додасться двічі = $2000.
-  // Action 5 (hero «Факт») групує на стороні 1С і не дублює — звідси
-  // різниця між сумою таблиці і hero (~5%).
-  // Тут рахуємо КОЖНУ пару (segment, client) лише один раз.
-  const counted = new Set<string>();
+  // ⚠️ Dedup per (segment, client) + діагностика.
+  // Підтверджено емпірично 2026-05-11: dedup ЗМЕНШИВ суму $343k → $325k
+  // (різниця ~$18k = 5%). Тобто у проді РЕАЛЬНО зустрічається повторення
+  // (segment, client) між менеджерами, попри теоретичне правило
+  // «1 клієнт = 1 менеджер». Можливі джерела:
+  //   - переходи між менеджерами протягом місяця;
+  //   - тимчасова підмінка (відпустка) — обидва бачать продажі;
+  //   - дані 1С після переключення відповідального ще «теплі» у двох гілках.
+  // Action 5 (hero «Факт») групує на стороні 1С — звідси і має менше.
+  // Тут рахуємо КОЖНУ пару (segment, client) лише раз.
+  // Логуємо стат у meta — щоб видно було скільки $ і скільки пар
+  // спрацювало dedup. Якщо одного дня dedupSkipped = 0 — правило
+  // дотримується ідеально.
+  const seenPairs = new Map<string, number>();
+  let dedupSkippedCount = 0;
+  let dedupSkippedSum = 0;
 
   for (const r of managerResults) {
     const segments = Array.isArray(r.segments) ? r.segments : [];
@@ -128,11 +142,15 @@ export function aggregateRegionStats(
           : parseFloat(String(buyer.factAmountUSD));
         if (!Number.isFinite(amt) || amt === 0) continue;
 
-        // Dedup-ключ: (segment, client) — клієнт у різних брендах рахується
-        // в кожному, але у тому ж бренді кілька менеджерів — лише раз.
-        const dedupKey = `${segCode}|${buyer.clientId}`;
-        if (counted.has(dedupKey)) continue;
-        counted.add(dedupKey);
+        const pairKey = `${segCode}|${buyer.clientId}`;
+        const prevCount = seenPairs.get(pairKey) ?? 0;
+        seenPairs.set(pairKey, prevCount + 1);
+        if (prevCount > 0) {
+          // Дубль (segment, client) між менеджерами — рахуємо стат і скіпаємо.
+          dedupSkippedCount += 1;
+          dedupSkippedSum += amt;
+          continue;
+        }
 
         // Пріоритет: forecast → gapNew → gapAct → unplanned. Кожен buyer
         // у РІВНО одній категорії. Σ = totalFact (без переcікань).
@@ -155,5 +173,12 @@ export function aggregateRegionStats(
     }
   }
 
-  return { bySegment };
+  return {
+    bySegment,
+    dedup: {
+      skippedCount: dedupSkippedCount,
+      skippedSum: dedupSkippedSum,
+      uniquePairs: seenPairs.size,
+    },
+  };
 }
