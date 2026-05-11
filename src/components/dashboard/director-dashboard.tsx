@@ -289,13 +289,13 @@ export function DirectorDashboard() {
             <div className="space-y-3">
               {company.regionAggregates.map((r, idx) => {
                 const region = adapted!.regions[idx];
-                // Показуємо у mini-list тільки тих хто реально працює у поточному
-                // періоді — мін. 1% виконання плану. Менеджери з 0% (типу Хамуляк
-                // у відпустці) псують вигляд рядка. Їх дані все одно у regional
-                // агрегаті. Fallback: якщо ніхто ще не продав на 1-2 числа місяця —
-                // показуємо тих хто хоч має план (щоб блок не був пустий).
+                // Показуємо у mini-list тільки тих хто РЕАЛЬНО продав (totalFact > 0).
+                // Менеджери з планом але БЕЗ факту (типу Хамуляк у відпустці)
+                // вилучаються — їх дані все одно у regional агрегаті.
+                // Fallback: якщо у регіоні ніхто ще не продав (1-2 числа місяця) —
+                // показуємо тих хто має план (щоб блок не був пустий).
                 const allManagers = aggregateManagers(region);
-                const withFact = allManagers.filter(m => m.factPercent >= 1);
+                const withFact = allManagers.filter(m => m.totalFact > 0);
                 const managersBrief = (withFact.length > 0 ? withFact : allManagers.filter(m => m.totalPlan > 0))
                   .map(m => ({
                     name: m.name,
