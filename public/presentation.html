@@ -6,723 +6,801 @@
 <title>Sales Planning — EMET</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Manrope: clean modern sans для UI. Fraunces: contemporary serif для hero accents. -->
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --emet: #066aab;
-    --emet-dark: #054d80;
-    --emet-light: #0880cc;
-    --ink: #0a1628;
-    --ink-2: #1e293b;
-    --muted: #64748b;
-    --line: #e5e9f0;
-    --bg: #ffffff;
-    --bg-soft: #f8fafc;
-    --emerald: #059669;
-    --rose: #e11d48;
-    --amber: #d97706;
+    --bg-1: #0a1f25;
+    --bg-2: #0f3641;
+    --bg-3: #1a5560;
+    --teal: #5BD5BC;
+    --teal-soft: rgba(91,213,188,.15);
+    --line: rgba(255,255,255,.08);
+    --line-2: rgba(255,255,255,.16);
+    --text: #ffffff;
+    --text-muted: rgba(255,255,255,.62);
+    --text-faint: rgba(255,255,255,.4);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; scroll-snap-type: y proximity; }
   body {
     font-family: 'Manrope', -apple-system, system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--ink);
-    line-height: 1.55;
+    background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-1) 100%);
+    color: var(--text);
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
-  .serif { font-family: 'Fraunces', Georgia, serif; }
   .mono { font-family: 'JetBrains Mono', monospace; }
-  .container { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
-  @media (max-width: 720px) { .container { padding: 0 20px; } }
 
-  /* ─── NAV ─── */
-  nav.top {
-    position: sticky; top: 0; z-index: 50;
-    background: rgba(255,255,255,.85);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--line);
-  }
-  nav.top .row {
-    display: flex; align-items: center; justify-content: space-between;
-    height: 64px;
-  }
-  nav.top .brand {
-    display: flex; align-items: center; gap: 12px;
-    font-weight: 700; font-size: 16px;
-  }
-  nav.top .brand img { height: 28px; width: auto; }
-  nav.top .brand-divider { color: var(--line); }
-  nav.top .brand-product { color: var(--ink-2); font-weight: 600; }
-  nav.top .actions { display: flex; gap: 24px; align-items: center; font-size: 14px; }
-  nav.top .actions a { color: var(--muted); text-decoration: none; transition: color .15s; }
-  nav.top .actions a:hover { color: var(--emet); }
-  nav.top .actions .cta {
-    background: var(--ink); color: white;
-    padding: 9px 18px; border-radius: 8px;
-    font-weight: 600;
-  }
-  nav.top .actions .cta:hover { background: var(--emet); color: white; }
-  @media (max-width: 720px) { nav.top .actions a:not(.cta) { display: none; } }
-
-  /* ─── HERO ─── */
-  section.hero {
-    padding: 100px 0 80px;
-    background:
-      radial-gradient(circle at 80% 0%, rgba(6,106,171,.06) 0%, transparent 50%),
-      radial-gradient(circle at 0% 80%, rgba(6,106,171,.04) 0%, transparent 50%);
+  /* === SLIDE BASE === */
+  section.slide {
+    min-height: 100vh;
+    padding: 80px 0;
+    display: flex; flex-direction: column;
+    justify-content: center;
     position: relative;
+    scroll-snap-align: start;
   }
-  .hero-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 80px; align-items: center; }
-  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; gap: 40px; } }
+  section.slide.short { min-height: auto; padding: 100px 0; }
+  .container {
+    max-width: 1180px; margin: 0 auto;
+    padding: 0 48px; width: 100%;
+  }
+  @media (max-width: 720px) {
+    .container { padding: 0 24px; }
+    section.slide { padding: 60px 0; min-height: auto; }
+  }
 
-  .eyebrow {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 12px; font-weight: 600;
-    color: var(--emet); letter-spacing: .5px;
-    text-transform: uppercase;
+  /* Background ambient gradients */
+  .ambient {
+    position: absolute; inset: 0;
+    pointer-events: none; opacity: .8;
+  }
+  .ambient::before, .ambient::after {
+    content: '';
+    position: absolute; border-radius: 50%;
+    filter: blur(120px);
+  }
+  .ambient::before {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(91,213,188,.18), transparent 70%);
+    top: -200px; right: -100px;
+  }
+  .ambient::after {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(8,128,204,.12), transparent 70%);
+    bottom: -100px; left: -150px;
+  }
+
+  /* === SIDE NAV (slide indicators) === */
+  .slide-nav {
+    position: fixed; right: 28px; top: 50%;
+    transform: translateY(-50%); z-index: 40;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  @media (max-width: 900px) { .slide-nav { display: none; } }
+  .slide-nav a {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,.25);
+    transition: all .2s;
+  }
+  .slide-nav a:hover { background: rgba(255,255,255,.7); transform: scale(1.4); }
+  .slide-nav a.active { background: var(--teal); transform: scale(1.4); }
+
+  /* === COVER === */
+  .cover { text-align: center; position: relative; }
+  .cover-logo {
+    height: 56px; width: auto;
+    margin: 0 auto 24px;
+    display: block;
+    filter: brightness(1.2);
+  }
+  .cover .product-name {
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--teal);
     margin-bottom: 24px;
   }
-  .eyebrow .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--emerald); flex-shrink: 0;
-    box-shadow: 0 0 0 4px rgba(5,150,105,.15);
-  }
-
-  .hero h1 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: clamp(40px, 6vw, 72px);
-    font-weight: 600;
-    letter-spacing: -2px;
-    line-height: 1.02;
-    color: var(--ink);
-    margin-bottom: 24px;
-  }
-  .hero h1 em {
-    font-style: italic;
-    font-weight: 400;
-    color: var(--emet);
-  }
-  .hero .lead {
-    font-size: 18px; color: var(--muted);
-    max-width: 560px; line-height: 1.6;
-    margin-bottom: 32px;
-  }
-  .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 13px 22px; border-radius: 10px;
-    font-size: 15px; font-weight: 600;
-    text-decoration: none;
-    transition: all .15s;
-    cursor: pointer;
-  }
-  .btn-primary {
-    background: var(--ink); color: white;
-  }
-  .btn-primary:hover { background: var(--emet); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(6,106,171,.2); }
-  .btn-ghost {
-    background: transparent; color: var(--ink);
-    border: 1px solid var(--line);
-  }
-  .btn-ghost:hover { border-color: var(--ink); }
-  .btn svg { width: 16px; height: 16px; }
-
-  /* Hero visual */
-  .hero-visual {
-    position: relative;
-  }
-  .hero-card {
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 22px;
-    box-shadow: 0 24px 48px -16px rgba(15,23,42,.12), 0 4px 12px rgba(15,23,42,.04);
-  }
-  .hero-card-head {
-    display: flex; align-items: center; justify-content: space-between;
+  .cover h1 {
+    font-size: clamp(48px, 7vw, 96px);
+    font-weight: 200;
+    letter-spacing: -3px;
+    line-height: 1;
     margin-bottom: 16px;
   }
-  .hero-card-head .label {
-    font-size: 11px; font-weight: 700; color: var(--muted);
-    letter-spacing: 1.2px; text-transform: uppercase;
+  .cover h1 .b { font-weight: 700; }
+  .cover .tagline {
+    font-size: 16px; color: var(--text-muted);
+    max-width: 540px; margin: 24px auto 0;
   }
-  .hero-card-head .badge {
-    background: rgba(5,150,105,.1); color: var(--emerald);
-    font-size: 11px; font-weight: 700;
-    padding: 3px 8px; border-radius: 4px;
-    letter-spacing: .5px; text-transform: uppercase;
+  .cover .meta {
+    margin-top: 80px;
+    display: flex; justify-content: center; gap: 48px;
+    font-size: 13px; color: var(--text-faint);
+    letter-spacing: 1px; text-transform: uppercase;
   }
-  .hero-card-value {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 44px; font-weight: 600; letter-spacing: -1.5px;
-    line-height: 1; color: var(--ink); margin-bottom: 4px;
-  }
-  .hero-card-delta {
-    font-size: 13px; color: var(--emerald); font-weight: 600;
-    display: flex; align-items: center; gap: 4px;
-  }
-  .hero-card-delta svg { width: 14px; height: 14px; }
-  .hero-card-bars {
-    margin-top: 18px; padding-top: 16px;
-    border-top: 1px solid var(--line);
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .bar-row { display: flex; align-items: center; gap: 12px; font-size: 13px; }
-  .bar-name { width: 80px; color: var(--ink-2); font-weight: 600; }
-  .bar-track { flex: 1; height: 6px; background: var(--line); border-radius: 3px; position: relative; overflow: hidden; }
-  .bar-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--emet); border-radius: 3px; }
-  .bar-fill.warn { background: var(--rose); }
-  .bar-pct { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); width: 40px; text-align: right; }
+  .cover .meta strong { display: block; color: var(--text); font-size: 22px; font-weight: 200; letter-spacing: -.5px; margin-top: 4px; text-transform: none; }
 
-  .hero-orbit {
-    position: absolute;
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 12px 16px;
-    box-shadow: 0 12px 24px -8px rgba(15,23,42,.1);
+  /* === SLIDE LABEL (top-left) === */
+  .slide-label {
+    position: absolute; top: 32px; left: 48px;
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--teal);
     display: flex; align-items: center; gap: 10px;
   }
-  .hero-orbit.top {
-    top: -16px; right: 40px;
+  .slide-label .num {
+    background: var(--teal-soft);
+    padding: 3px 8px; border-radius: 3px;
+    color: var(--teal);
+    font-family: 'JetBrains Mono', monospace;
   }
-  .hero-orbit.bottom {
-    bottom: -16px; left: -24px;
-  }
-  .hero-orbit svg { width: 18px; height: 18px; color: var(--emet); }
-  .hero-orbit .text { font-size: 13px; font-weight: 600; }
-  .hero-orbit .text small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 1px; }
-  @media (max-width: 900px) { .hero-orbit { display: none; } }
+  @media (max-width: 720px) { .slide-label { left: 24px; top: 20px; } }
 
-  /* ─── METRIC STRIP ─── */
-  .metric-strip {
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    padding: 32px 0;
-    background: var(--bg-soft);
-  }
-  .metric-strip .row {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
-  }
-  @media (max-width: 720px) { .metric-strip .row { grid-template-columns: repeat(2, 1fr); gap: 16px; } }
-  .metric-strip .item .num {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 36px; font-weight: 600; letter-spacing: -1px;
-    line-height: 1;
-  }
-  .metric-strip .item .lbl {
-    font-size: 13px; color: var(--muted);
-    margin-top: 6px;
-  }
-
-  /* ─── SECTION ─── */
-  section.s {
-    padding: 90px 0;
-  }
-  section.s.alt { background: var(--bg-soft); }
-  .section-head { max-width: 720px; margin-bottom: 48px; }
-  .section-head .eyebrow { margin-bottom: 14px; }
+  /* === SLIDE HEADERS === */
+  .slide-head { max-width: 800px; margin-bottom: 56px; }
   h2 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: clamp(32px, 4vw, 44px);
-    font-weight: 600; letter-spacing: -1px;
-    line-height: 1.1; color: var(--ink);
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 200; letter-spacing: -1.5px;
+    line-height: 1.05;
+    margin-bottom: 20px;
+  }
+  h2 .b { font-weight: 700; }
+  h2 .accent { color: var(--teal); }
+  .slide-lead {
+    font-size: 17px; color: var(--text-muted);
+    line-height: 1.5; max-width: 640px;
+  }
+
+  /* === ROLES (3-up) === */
+  .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  @media (max-width: 900px) { .roles { grid-template-columns: 1fr; } }
+  .role {
+    background: rgba(10,31,37,.4);
+    padding: 32px 28px;
+    backdrop-filter: blur(8px);
+  }
+  .role-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text-faint);
+    letter-spacing: 1.5px;
     margin-bottom: 14px;
   }
-  h2 em { font-style: italic; color: var(--emet); font-weight: 500; }
-  .section-head p { font-size: 17px; color: var(--muted); }
-
-  /* ─── ROLES (asymmetric) ─── */
-  .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-  @media (max-width: 900px) { .roles { grid-template-columns: 1fr; } }
-  .role { padding: 36px 32px; border-right: 1px solid var(--line); position: relative; }
-  .role:last-child { border-right: none; }
-  @media (max-width: 900px) { .role { border-right: none; border-bottom: 1px solid var(--line); } .role:last-child { border-bottom: none; } }
-  .role .index {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--muted);
-    letter-spacing: 1px;
-    margin-bottom: 16px;
-  }
   .role h3 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 26px; font-weight: 600; letter-spacing: -.5px;
-    margin-bottom: 6px;
+    font-size: 26px; font-weight: 200; letter-spacing: -.5px;
+    margin-bottom: 4px;
   }
-  .role .sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+  .role h3 .b { font-weight: 700; }
+  .role .role-sub { font-size: 12px; color: var(--text-faint); margin-bottom: 22px; letter-spacing: .5px; text-transform: uppercase; }
   .role ul { list-style: none; }
   .role li {
-    font-size: 14px; padding: 10px 0;
+    font-size: 14px; color: var(--text-muted);
+    padding: 11px 0;
     border-top: 1px solid var(--line);
-    color: var(--ink-2);
-    display: flex; align-items: flex-start; gap: 10px;
+    display: flex; gap: 10px; align-items: flex-start;
   }
-  .role li svg {
-    width: 14px; height: 14px;
-    color: var(--emet);
-    flex-shrink: 0; margin-top: 4px;
+  .role li::before {
+    content: ''; width: 5px; height: 5px;
+    background: var(--teal); border-radius: 50%;
+    flex-shrink: 0; margin-top: 9px;
   }
 
-  /* ─── BLOCKS GRID (numbered) ─── */
-  .blocks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-  @media (max-width: 720px) { .blocks { grid-template-columns: 1fr; } }
-  .block {
-    background: white;
-    padding: 36px 32px;
+  /* === HERO METRIC CARDS PREVIEW === */
+  .preview-frame {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line-2);
+    border-radius: 16px;
+    padding: 24px;
+    backdrop-filter: blur(8px);
   }
-  .block .num {
-    font-family: 'Fraunces', Georgia, serif;
-    font-style: italic;
-    color: var(--emet);
-    font-size: 28px; font-weight: 500;
-    margin-bottom: 8px;
+  .preview-label {
+    font-size: 10px; font-weight: 700; color: var(--teal);
+    letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 16px;
   }
-  .block h4 {
-    font-size: 19px; font-weight: 700;
-    color: var(--ink); margin-bottom: 8px;
-    letter-spacing: -.3px;
+  .metric-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
   }
-  .block p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-  .block .icon {
-    width: 36px; height: 36px;
-    background: var(--bg-soft);
+  @media (max-width: 720px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } }
+  .metric {
+    background: rgba(255,255,255,.06);
     border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 14px;
+  }
+  .metric .lbl {
+    font-size: 10px; font-weight: 600; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 1.2px;
+  }
+  .metric .val {
+    font-size: 24px; font-weight: 300; letter-spacing: -.8px;
+    margin-top: 8px; line-height: 1;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .metric .delta {
+    font-size: 11px; color: var(--teal); font-weight: 600;
+    margin-top: 6px;
+  }
+  .metric.warn .delta { color: #ff7a8a; }
+  .metric .clientStats { font-size: 12px; line-height: 1.6; }
+  .metric .clientStats div { display: flex; justify-content: space-between; }
+  .metric .clientStats div span:last-child { font-family: 'JetBrains Mono', monospace; color: var(--teal); }
+
+  /* === BRAND BARS PREVIEW === */
+  .brand-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }
+  .brand-row {
+    display: grid;
+    grid-template-columns: 14px 110px 80px 60px 1fr 70px;
+    gap: 12px; align-items: center;
+    padding: 12px 14px;
+    background: rgba(255,255,255,.04);
     border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--emet);
-    margin-bottom: 18px;
+    font-size: 13px;
   }
-  .block .icon svg { width: 18px; height: 18px; }
-
-  /* ─── FEATURE LIST (single-col with icons) ─── */
-  .features {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 60px; align-items: start;
+  @media (max-width: 720px) {
+    .brand-row { grid-template-columns: 14px 1fr 60px; gap: 8px; }
+    .brand-row .hide-mobile { display: none; }
   }
-  @media (max-width: 900px) { .features { grid-template-columns: 1fr; gap: 40px; } }
-  .feature-list { list-style: none; }
-  .feature-list li {
-    padding: 22px 0;
-    border-bottom: 1px solid var(--line);
-    display: flex; gap: 16px; align-items: flex-start;
+  .brand-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .brand-dot.ok { background: var(--teal); }
+  .brand-dot.bad { background: #ff7a8a; }
+  .brand-name { font-weight: 600; }
+  .brand-tag {
+    font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px;
+    letter-spacing: .8px; text-transform: uppercase;
+    text-align: center;
   }
-  .feature-list li:last-child { border-bottom: none; }
-  .feature-list .ic {
-    width: 36px; height: 36px;
-    background: white; border: 1px solid var(--line);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--emet); flex-shrink: 0;
-  }
-  .feature-list .ic svg { width: 18px; height: 18px; }
-  .feature-list h5 { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
-  .feature-list p { font-size: 14px; color: var(--muted); line-height: 1.55; }
-
-  /* ─── FAQ ─── */
-  details.faq {
-    border-bottom: 1px solid var(--line);
-    padding: 24px 0;
-  }
-  details.faq[open] { padding-bottom: 28px; }
-  details.faq summary {
-    cursor: pointer;
-    font-size: 17px; font-weight: 600;
-    color: var(--ink);
-    list-style: none;
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 16px;
-  }
-  details.faq summary::-webkit-details-marker { display: none; }
-  details.faq summary::after {
-    content: '';
-    width: 18px; height: 18px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center/contain no-repeat;
-    transition: transform .2s;
-    flex-shrink: 0;
-  }
-  details.faq[open] summary::after { transform: rotate(45deg); }
-  details.faq p {
-    margin-top: 14px; font-size: 15px;
-    color: var(--muted); line-height: 1.6;
-    max-width: 720px;
-  }
-
-  /* ─── CTA ─── */
-  .cta-band {
-    background: var(--ink);
-    color: white;
-    padding: 80px 0;
+  .brand-tag.ok { background: rgba(91,213,188,.15); color: var(--teal); }
+  .brand-tag.bad { background: rgba(255,122,138,.15); color: #ff7a8a; }
+  .brand-pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .brand-track {
+    height: 4px; background: rgba(255,255,255,.08);
+    border-radius: 2px; overflow: hidden;
     position: relative;
+  }
+  .brand-fill {
+    position: absolute; top: 0; left: 0; height: 100%;
+    background: var(--teal); border-radius: 2px;
+  }
+  .brand-fill.bad { background: #ff7a8a; }
+  .brand-amt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text-muted);
+    text-align: right;
+  }
+
+  /* === FORM PREVIEW === */
+  .form-preview {
+    margin-top: 24px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line);
+    border-radius: 12px;
     overflow: hidden;
   }
-  .cta-band::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(circle at 80% 50%, rgba(6,106,171,.4) 0%, transparent 50%),
-      radial-gradient(circle at 20% 80%, rgba(8,128,204,.2) 0%, transparent 50%);
+  .form-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 70px 100px 1fr 50px;
+    gap: 14px; align-items: center;
+    padding: 14px 18px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
   }
-  .cta-band .container { position: relative; }
-  .cta-band h2 { color: white; max-width: 720px; }
-  .cta-band p { color: rgba(255,255,255,.75); font-size: 17px; max-width: 580px; margin: 16px 0 32px; }
-  .cta-band .btn-primary { background: white; color: var(--ink); }
-  .cta-band .btn-primary:hover { background: rgba(255,255,255,.92); }
+  .form-row:first-child { border-top: none; background: rgba(255,255,255,.03); }
+  @media (max-width: 720px) {
+    .form-row { grid-template-columns: 28px 1fr 70px; padding: 10px 14px; }
+    .form-row .hide-mobile { display: none; }
+  }
+  .form-row.head {
+    font-size: 10px; font-weight: 700;
+    color: var(--text-faint);
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .form-icon {
+    width: 24px; height: 24px;
+    background: rgba(91,213,188,.1); color: var(--teal);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .form-icon svg { width: 12px; height: 12px; }
+  .form-client { font-weight: 500; }
+  .form-client small { display: block; font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+  .form-input {
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; font-size: 13px;
+    text-align: center;
+  }
+  .form-stage {
+    background: rgba(91,213,188,.1); color: var(--teal);
+    border: 1px solid rgba(91,213,188,.3);
+    border-radius: 6px; padding: 4px 8px;
+    font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .form-stage svg { width: 11px; height: 11px; }
+  .form-comment { color: var(--text-faint); font-size: 12px; }
 
-  /* ─── FOOTER ─── */
+  /* === BIG NUMBERS STRIP === */
+  .number-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    margin-top: 48px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  @media (max-width: 720px) { .number-strip { grid-template-columns: repeat(2, 1fr); } }
+  .number-strip .item {
+    padding: 28px 24px;
+    border-right: 1px solid var(--line);
+  }
+  .number-strip .item:last-child { border-right: none; }
+  .number-strip .num {
+    font-size: 44px; font-weight: 200; letter-spacing: -2px;
+    line-height: 1;
+  }
+  .number-strip .lbl {
+    font-size: 12px; color: var(--text-muted);
+    margin-top: 8px; letter-spacing: .3px;
+  }
+
+  /* === FUNCTIONALITY LIST === */
+  .func-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+  @media (max-width: 720px) { .func-grid { grid-template-columns: 1fr; } }
+  .func-item {
+    padding: 24px 0;
+    border-top: 1px solid var(--line);
+    display: flex; gap: 18px; align-items: flex-start;
+  }
+  .func-item .ic {
+    width: 36px; height: 36px;
+    background: rgba(91,213,188,.1); color: var(--teal);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .func-item .ic svg { width: 16px; height: 16px; }
+  .func-item h5 {
+    font-size: 16px; font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .func-item p {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.55;
+  }
+
+  /* === CTA === */
+  .cta-slide { text-align: center; }
+  .cta-slide h2 { margin: 0 auto 24px; }
+  .cta-button {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--teal); color: var(--bg-1);
+    padding: 16px 32px; border-radius: 10px;
+    font-size: 15px; font-weight: 700;
+    text-decoration: none;
+    margin-top: 32px;
+    transition: all .2s;
+  }
+  .cta-button:hover { background: white; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(91,213,188,.3); }
+  .cta-button svg { width: 16px; height: 16px; }
+
+  /* === FOOTER === */
   footer {
     padding: 32px 0;
-    background: var(--bg-soft);
     border-top: 1px solid var(--line);
+    text-align: center;
+    font-size: 12px; color: var(--text-faint);
+    letter-spacing: 1px;
   }
-  footer .row {
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 13px; color: var(--muted);
-  }
-  footer a { color: var(--ink-2); text-decoration: none; font-weight: 600; }
-  footer a:hover { color: var(--emet); }
-  @media (max-width: 720px) { footer .row { flex-direction: column; gap: 12px; } }
+  footer a { color: var(--text-muted); text-decoration: none; transition: color .15s; }
+  footer a:hover { color: var(--teal); }
 </style>
 </head>
 <body>
 
-<!-- ─── NAV ─── -->
-<nav class="top">
-  <div class="container row">
-    <div class="brand">
-      <img src="emet-logo.png" alt="EMET">
-      <span class="brand-divider">/</span>
-      <span class="brand-product">Sales Planning</span>
-    </div>
-    <div class="actions">
-      <a href="#roles">Ролі</a>
-      <a href="#blocks">Інтерфейс</a>
-      <a href="#faq">Питання</a>
-      <a href="manual.html">Інструкція</a>
-      <a href="https://sales-planning-lyart.vercel.app/" class="cta">Увійти</a>
-    </div>
-  </div>
+<!-- ─── SIDE NAVIGATION ─── -->
+<nav class="slide-nav">
+  <a href="#cover" title="Cover"></a>
+  <a href="#what" title="Що це"></a>
+  <a href="#roles" title="Ролі"></a>
+  <a href="#metrics" title="Метрики"></a>
+  <a href="#brands" title="Бренди"></a>
+  <a href="#form" title="Форма"></a>
+  <a href="#capabilities" title="Можливості"></a>
+  <a href="#cta" title="Старт"></a>
 </nav>
 
-<!-- ─── HERO ─── -->
-<section class="hero">
+<!-- ─── SLIDE 1: COVER ─── -->
+<section class="slide cover" id="cover">
+  <div class="ambient"></div>
   <div class="container">
-    <div class="hero-grid">
-      <div>
-        <div class="eyebrow">
-          <span class="dot"></span>
-          Запуск — травень 2026
-        </div>
-        <h1>Місячний план<br>у одному місці. <em>Без зошитів.</em></h1>
-        <p class="lead">Sales Planning — внутрішня платформа EMET для планування і контролю продажів. Ваш план, факт з 1С і прогноз — на одному екрані.</p>
-        <div class="hero-cta">
-          <a href="https://sales-planning-lyart.vercel.app/" class="btn btn-primary">
-            Увійти у систему
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-          <a href="manual.html" class="btn btn-ghost">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            Інструкція
-          </a>
-        </div>
+    <img src="emet-logo.png" alt="EMET" class="cover-logo">
+    <div class="product-name">Sales Planning</div>
+    <h1>Місячний план<br><span class="b">в одному місці</span>.</h1>
+    <p class="tagline">Внутрішня платформа EMET для планування і контролю продажів. Ваш план, факт з 1С і прогноз — на одному екрані.</p>
+    <div class="meta">
+      <div>Запуск<strong>Травень 2026</strong></div>
+      <div>Ролі<strong>Менеджер · РМ · Директор</strong></div>
+      <div>Доступ<strong>Браузер · Mobile</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SLIDE 2: WHAT IT IS ─── -->
+<section class="slide" id="what">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">01</span> Що це</div>
+  <div class="container">
+    <div class="slide-head">
+      <h2>Не звітність.<br><span class="b accent">Робочий інструмент</span> на щодень.</h2>
+      <p class="slide-lead">Sales Planning замінює окремі Excel-файли, ручні зведення і очікування звітів від керівника. Менеджер бачить свій план і факт у реальному часі. Керівник — стан команди без додаткових запитів.</p>
+    </div>
+
+    <div class="number-strip">
+      <div class="item">
+        <div class="num">9</div>
+        <div class="lbl">Торгових марок</div>
       </div>
-
-      <div class="hero-visual">
-        <div class="hero-card">
-          <div class="hero-card-head">
-            <span class="label">Ellanse · Травень</span>
-            <span class="badge">У плані</span>
-          </div>
-          <div class="hero-card-value">$6,131</div>
-          <div class="hero-card-delta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>
-            +5.6% vs норма
-          </div>
-          <div class="hero-card-bars">
-            <div class="bar-row">
-              <span class="bar-name">Petaran</span>
-              <span class="bar-track"><span class="bar-fill warn" style="width: 0%"></span></span>
-              <span class="bar-pct">0.0%</span>
-            </div>
-            <div class="bar-row">
-              <span class="bar-name">Ellanse</span>
-              <span class="bar-track"><span class="bar-fill" style="width: 25%"></span></span>
-              <span class="bar-pct">10.4%</span>
-            </div>
-            <div class="bar-row">
-              <span class="bar-name">Vitaran</span>
-              <span class="bar-track"><span class="bar-fill" style="width: 8%"></span></span>
-              <span class="bar-pct">2.1%</span>
-            </div>
-            <div class="bar-row">
-              <span class="bar-name">IUSE</span>
-              <span class="bar-track"><span class="bar-fill" style="width: 9%"></span></span>
-              <span class="bar-pct">2.4%</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="hero-orbit top">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-          <div class="text">
-            Live з 1С
-            <small>оновлюється щоразу</small>
-          </div>
-        </div>
-        <div class="hero-orbit bottom">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <div class="text">
-            +152 клієнти
-            <small>агрегат по бренду</small>
-          </div>
-        </div>
+      <div class="item">
+        <div class="num">8</div>
+        <div class="lbl">Регіонів покриття</div>
+      </div>
+      <div class="item">
+        <div class="num">3</div>
+        <div class="lbl">Ролі доступу</div>
+      </div>
+      <div class="item">
+        <div class="num">1</div>
+        <div class="lbl">Логін як у СРМ Зустрічі</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ─── METRIC STRIP ─── -->
-<div class="metric-strip">
+<!-- ─── SLIDE 3: ROLES ─── -->
+<section class="slide" id="roles">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">02</span> Доступ</div>
   <div class="container">
-    <div class="row">
-      <div class="item">
-        <div class="num">9</div>
-        <div class="lbl">Торгових марок · від Petaran до Інші ТМ</div>
-      </div>
-      <div class="item">
-        <div class="num">8</div>
-        <div class="lbl">Регіонів покриття · Дніпро · Київ · Одеса · …</div>
-      </div>
-      <div class="item">
-        <div class="num">3</div>
-        <div class="lbl">Ролі доступу · Менеджер · РМ · Директор</div>
-      </div>
-      <div class="item">
-        <div class="num">1</div>
-        <div class="lbl">Логін на всю систему · як у СРМ Зустрічі</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ─── ROLES ─── -->
-<section class="s" id="roles">
-  <div class="container">
-    <div class="section-head">
-      <div class="eyebrow"><span class="dot"></span>Доступ</div>
-      <h2>Три ролі. <em>Три рівні</em> огляду.</h2>
-      <p>Що ви бачите — залежить від вашої ролі у компанії. Менеджер працює зі своїм планом, РМ контролює регіон, Директор — компанію. Без перетинів і ручних експортів.</p>
+    <div class="slide-head">
+      <h2>Три ролі.<br><span class="b accent">Три рівні</span> огляду.</h2>
+      <p class="slide-lead">Що ви бачите — залежить від ролі у компанії. Менеджер працює зі своїм планом, РМ контролює регіон, Директор — компанію. Дані ізольовані: колеги один одного не бачать.</p>
     </div>
 
     <div class="roles">
       <div class="role">
-        <div class="index">01 / Менеджер</div>
-        <h3>Свій план</h3>
-        <div class="sub">Робочий екран — щоденно</div>
+        <div class="role-num">01 / Менеджер</div>
+        <h3>Свій <span class="b">план</span></h3>
+        <div class="role-sub">Робочий екран — щоденно</div>
         <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>9 брендів — план, факт, виконання</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Активні клієнти за останні 3 місяці</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Прогноз очікуваних продажів</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Закриття розриву (сплячі/втрачені)</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Запис клієнтів на навчання</li>
+          <li>9 брендів — план, факт, виконання</li>
+          <li>Активні клієнти за 3 місяці — авто</li>
+          <li>Прогноз очікуваних продажів</li>
+          <li>Закриття розриву — сплячі/втрачені</li>
+          <li>Запис клієнтів на навчання</li>
         </ul>
       </div>
       <div class="role">
-        <div class="index">02 / Регіональний керівник</div>
-        <h3>Регіон у фокусі</h3>
-        <div class="sub">Контроль команди + власне планування</div>
+        <div class="role-num">02 / Регіональний керівник</div>
+        <h3>Регіон <span class="b">у фокусі</span></h3>
+        <div class="role-sub">Контроль команди + власне планування</div>
         <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Зведення по своєму регіону</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Менеджери з персональним прогресом</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Drill-down: клік → план менеджера</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Бренд × менеджер у розрізі</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Власне «Моє планування»</li>
+          <li>Зведення по своєму регіону</li>
+          <li>Менеджери з персональним прогресом</li>
+          <li>Drill-down: клік → план менеджера</li>
+          <li>Бренд × менеджер у розрізі</li>
+          <li>«Моє планування» — як менеджер</li>
         </ul>
       </div>
       <div class="role">
-        <div class="index">03 / Директор</div>
-        <h3>Огляд компанії</h3>
-        <div class="sub">Усі регіони. Усі бренди. На одному екрані.</div>
+        <div class="role-num">03 / Директор</div>
+        <h3>Огляд <span class="b">компанії</span></h3>
+        <div class="role-sub">Усі регіони · Усі бренди</div>
         <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>План / факт / виконання компанії</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Динаміка проти минулого місяця</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Усі 8 регіонів зі статусом</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Бренд × регіон у розрізі</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Регіон → менеджер → план</li>
+          <li>План / факт / виконання компанії</li>
+          <li>Динаміка проти минулого місяця</li>
+          <li>Усі 8 регіонів зі статусом</li>
+          <li>Бренд × регіон у розрізі</li>
+          <li>Регіон → менеджер → план</li>
         </ul>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ─── BLOCKS ─── -->
-<section class="s alt" id="blocks">
+<!-- ─── SLIDE 4: HERO METRICS ─── -->
+<section class="slide" id="metrics">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">03</span> Інтерфейс</div>
   <div class="container">
-    <div class="section-head">
-      <div class="eyebrow"><span class="dot"></span>Інтерфейс</div>
-      <h2>Чотири блоки.<br><em>Жодного зайвого кліку.</em></h2>
-      <p>Все підпорядковано одній меті — швидко зрозуміти статус і прийняти рішення. Без меню «Звіти», без експортів у Excel.</p>
+    <div class="slide-head">
+      <h2>Hero-метрики.<br><span class="b accent">Стан</span> за один погляд.</h2>
+      <p class="slide-lead">Перші чотири картки на дашборді — план, факт, виконання, клієнти. Достатньо подивитись 3 секунди і зрозуміти у плані ви чи ні.</p>
     </div>
 
-    <div class="blocks">
-      <div class="block">
-        <div class="icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+    <div class="preview-frame">
+      <div class="preview-label">Дашборд РМ · Регіон Дніпро · Травень 2026</div>
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="lbl">План</div>
+          <div class="val">$54,968</div>
+          <div class="delta" style="color: var(--text-faint)">21 робочий день</div>
         </div>
-        <div class="num">01.</div>
-        <h4>Hero-метрики</h4>
-        <p>План місяця, факт, виконання, картка «Клієнти — факт купівель» з агрегатом по 5 категоріях. Норма виконання рахується з робочих днів пройдено.</p>
-      </div>
-      <div class="block">
-        <div class="icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+        <div class="metric">
+          <div class="lbl">Факт</div>
+          <div class="val">$11,977</div>
+          <div class="delta">▲ +$2,340 vs мин. міс.</div>
         </div>
-        <div class="num">02.</div>
-        <h4>Торгові марки</h4>
-        <p>9 брендів окремими рядками. Статус «В плані» / «Відставання», % виконання, прогноз до кінця місяця. Клік розкриває склад по сегментах клієнтів.</p>
-      </div>
-      <div class="block">
-        <div class="icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div class="metric warn">
+          <div class="lbl">Виконання</div>
+          <div class="val">21.8%</div>
+          <div class="delta">Норма 28% · Прогноз 64%</div>
         </div>
-        <div class="num">03.</div>
-        <h4>Прогноз по активних</h4>
-        <p>Список активних клієнтів за брендом — авто-підставлений. Ви корегуєте суму і обираєте етап: Дзвінок, Зустріч або Навчання з 1С-довідника.</p>
-      </div>
-      <div class="block">
-        <div class="icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.55"/><path d="M21 4l-9 9-3-3"/></svg>
+        <div class="metric">
+          <div class="lbl">Клієнти — факт купівель</div>
+          <div class="clientStats" style="margin-top: 10px;">
+            <div><span>Активні</span><span>45 / 152</span></div>
+            <div><span>Сплячі</span><span>12 / 306</span></div>
+            <div><span>Нові</span><span>0 / 5</span></div>
+          </div>
         </div>
-        <div class="num">04.</div>
-        <h4>Закриття розриву</h4>
-        <p>Якщо план + прогноз не покривають ціль — система рахує розрив і пропонує сплячих/втрачених клієнтів з потенціалом.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ─── FEATURES ─── -->
-<section class="s">
+<!-- ─── SLIDE 5: BRANDS ─── -->
+<section class="slide" id="brands">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">04</span> Інтерфейс</div>
   <div class="container">
-    <div class="section-head">
-      <div class="eyebrow"><span class="dot"></span>Можливості</div>
-      <h2>Зроблено <em>для роботи</em>,<br>не для звітності.</h2>
+    <div class="slide-head">
+      <h2>9 торгових марок —<br><span class="b accent">кожна окремо</span>.</h2>
+      <p class="slide-lead">Petaran, Ellanse, Neuramis, Vitaran, IUSE, Esse, Exoxe, Neuronox, Інші ТМ. По кожному бренду — статус, виконання, прогноз. Клік розкриває склад по сегментах клієнтів.</p>
     </div>
 
-    <div class="features">
-      <ul class="feature-list">
-        <li>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
-          <div>
-            <h5>Live-факт з 1С</h5>
-            <p>Не треба чекати кінця місяця. Факт оновлюється з 1С — бачите зараз скільки зробили і скільки до плану.</p>
-          </div>
-        </li>
-        <li>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 11h-6M20 8v6"/></svg></span>
-          <div>
-            <h5>Авто-список клієнтів</h5>
-            <p>Активні за 3 місяці — підтягнуться самі. Сплячих — система покаже у блоці закриття розриву. Шукаєте конкретного — є пошук по всіх клієнтах 1С.</p>
-          </div>
-        </li>
-        <li>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></span>
-          <div>
-            <h5>Етапи з контролем</h5>
-            <p>Дзвінок, Зустріч, Навчання. Запис на тренінг — з 1С-довідника. Виконав етап — позначка автоматично.</p>
-          </div>
-        </li>
-      </ul>
-
-      <ul class="feature-list">
-        <li>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/></svg></span>
-          <div>
-            <h5>Тільки потрібні цифри</h5>
-            <p>Жодних екселівських таблиць по 30 колонок. Норма, виконання, прогноз — все що треба для рішення.</p>
-          </div>
-        </li>
-        <li>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg></span>
-          <div>
-            <h5>Працює всюди</h5>
-            <p>Ноутбук, планшет, телефон. Однаковий доступ через браузер. Логін той самий, що у СРМ Зустрічі.</p>
-          </div>
-        </li>
-        <li>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-          <div>
-            <h5>Безпечно за замовчуванням</h5>
-            <p>Доступ — лише до своїх даних. РМ і Директор бачать команду read-only. Колеги не бачать вашого плану.</p>
-          </div>
-        </li>
-      </ul>
+    <div class="preview-frame">
+      <div class="preview-label">Торгові марки · фільтр Травень</div>
+      <div class="brand-rows">
+        <div class="brand-row">
+          <span class="brand-dot bad"></span>
+          <span class="brand-name">Petaran</span>
+          <span class="brand-tag bad hide-mobile">Відставання</span>
+          <span class="brand-pct">0.0%</span>
+          <span class="brand-track hide-mobile"><span class="brand-fill bad" style="width: 0%"></span></span>
+          <span class="brand-amt">$4,825</span>
+        </div>
+        <div class="brand-row">
+          <span class="brand-dot ok"></span>
+          <span class="brand-name">Ellanse</span>
+          <span class="brand-tag ok hide-mobile">У плані</span>
+          <span class="brand-pct">10.4%</span>
+          <span class="brand-track hide-mobile"><span class="brand-fill" style="width: 25%"></span></span>
+          <span class="brand-amt">$6,131</span>
+        </div>
+        <div class="brand-row">
+          <span class="brand-dot bad"></span>
+          <span class="brand-name">Neuramis</span>
+          <span class="brand-tag bad hide-mobile">Відставання</span>
+          <span class="brand-pct">0.0%</span>
+          <span class="brand-track hide-mobile"><span class="brand-fill bad" style="width: 0%"></span></span>
+          <span class="brand-amt">$3,873</span>
+        </div>
+        <div class="brand-row">
+          <span class="brand-dot ok"></span>
+          <span class="brand-name">Vitaran</span>
+          <span class="brand-tag ok hide-mobile">У плані</span>
+          <span class="brand-pct">2.1%</span>
+          <span class="brand-track hide-mobile"><span class="brand-fill" style="width: 8%"></span></span>
+          <span class="brand-amt">$24,471</span>
+        </div>
+        <div class="brand-row">
+          <span class="brand-dot ok"></span>
+          <span class="brand-name">IUSE</span>
+          <span class="brand-tag ok hide-mobile">У плані</span>
+          <span class="brand-pct">2.4%</span>
+          <span class="brand-track hide-mobile"><span class="brand-fill" style="width: 9%"></span></span>
+          <span class="brand-amt">$4,803</span>
+        </div>
+        <div class="brand-row">
+          <span class="brand-dot ok"></span>
+          <span class="brand-name">Інші ТМ</span>
+          <span class="brand-tag ok hide-mobile">У плані</span>
+          <span class="brand-pct">9.7%</span>
+          <span class="brand-track hide-mobile"><span class="brand-fill" style="width: 38%"></span></span>
+          <span class="brand-amt">$1,558</span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ─── FAQ ─── -->
-<section class="s alt" id="faq">
+<!-- ─── SLIDE 6: PLANNING FORM ─── -->
+<section class="slide" id="form">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">05</span> Інтерфейс</div>
   <div class="container">
-    <div class="section-head">
-      <div class="eyebrow"><span class="dot"></span>Питання</div>
-      <h2>Що ви <em>напевно</em> запитаєте.</h2>
+    <div class="slide-head">
+      <h2>Форма планування.<br><span class="b accent">Клієнт + етап</span> = прогноз.</h2>
+      <p class="slide-lead">Активні клієнти за 3 місяці — авто-список. Заповнюєте суму, обираєте етап. Для «Навчання» система покаже доступні семінари з 1С — досить вибрати.</p>
     </div>
 
-    <div style="max-width: 820px;">
-      <details class="faq" open>
-        <summary>Чи треба запам'ятати ще один пароль?</summary>
-        <p>Ні. Логін і пароль — той самий, що у СРМ Зустрічі. Якщо змінили у СРМ — нова версія підхопить автоматично.</p>
-      </details>
-      <details class="faq">
-        <summary>А якщо забув заповнити план у строк?</summary>
-        <p>Ви можете заповнити будь-коли. Прогноз — це робочий документ, який ви оновлюєте по ситуації. Чим раніше — тим точніший прогноз і простіше керівнику бачити пілот.</p>
-      </details>
-      <details class="faq">
-        <summary>Хто бачить мій план?</summary>
-        <p>Регіональний керівник і Директор — у режимі read-only. Колеги-менеджери НЕ бачать. Дані захищені на рівні API: запит чужого плану повертає 403.</p>
-      </details>
-      <details class="faq">
-        <summary>А якщо я помилився?</summary>
-        <p>Просто відкрийте, виправте і ще раз натисніть «Зберегти». Зберігається останнє натискання — попередня версія перезаписується.</p>
-      </details>
-      <details class="faq">
-        <summary>Що робити якщо клієнт не у списку?</summary>
-        <p>Натисніть «Додати клієнта» — у пошуку виберіть з усіх ваших клієнтів 1С. Якщо у 1С немає — попросіть 1С-розробника додати, на наступний день з'явиться у системі.</p>
-      </details>
-      <details class="faq">
-        <summary>Чи обов'язково заповнювати все?</summary>
-        <p>Ні. Заповнюйте тих клієнтів, з якими реально плануєте працювати. Решту можна залишити з нулевим прогнозом — це теж дані.</p>
-      </details>
+    <div class="preview-frame">
+      <div class="preview-label">Прогноз по активних · Ellanse · Травень</div>
+      <div class="form-preview">
+        <div class="form-row head">
+          <div></div>
+          <div>Клієнт</div>
+          <div>Прогноз</div>
+          <div class="hide-mobile">Етап</div>
+          <div class="hide-mobile">Коментар</div>
+          <div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="form-client">
+            Андрущук Катерина
+            <small>Ост: 04.05.2026 · $315</small>
+          </div>
+          <div class="form-input">315</div>
+          <div class="form-stage hide-mobile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Дзвінок
+          </div>
+          <div class="form-comment hide-mobile">Уточнити терміни</div>
+          <div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="form-client">
+            Глущенко Ірина
+            <small>Ост: 17.02.2026 · $70</small>
+          </div>
+          <div class="form-input">200</div>
+          <div class="form-stage hide-mobile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            Зустріч
+          </div>
+          <div class="form-comment hide-mobile">Презентація нового</div>
+          <div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="form-client">
+            Стаховська Марина
+            <small>Ост: 22.04.2026 · $70</small>
+          </div>
+          <div class="form-input">450</div>
+          <div class="form-stage hide-mobile" style="background: rgba(217,119,6,.15); color: #f5a96a; border-color: rgba(217,119,6,.3);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            Навчання
+          </div>
+          <div class="form-comment hide-mobile">Семінар 22.05</div>
+          <div></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ─── CTA ─── -->
-<section class="cta-band">
+<!-- ─── SLIDE 7: CAPABILITIES ─── -->
+<section class="slide" id="capabilities">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">06</span> Можливості</div>
   <div class="container">
-    <h2 style="font-family: 'Fraunces', serif;">Перший вхід — <em style="color: var(--emet-light)">за 30 секунд</em>.</h2>
-    <p>Відкрийте посилання у браузері. Введіть логін і пароль як у СРМ Зустрічі. Все.</p>
-    <a href="https://sales-planning-lyart.vercel.app/" class="btn btn-primary">
+    <div class="slide-head">
+      <h2>Що <span class="b accent">дозволяє</span>.</h2>
+      <p class="slide-lead">Шість можливостей які роблять планування реальним інструментом, а не зайвою бюрократією.</p>
+    </div>
+
+    <div class="func-grid">
+      <div class="func-item">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <div>
+          <h5>Live-факт з 1С</h5>
+          <p>Не треба чекати кінця місяця. Факт підтягується з 1С автоматично — бачите зараз скільки зробили і скільки до плану.</p>
+        </div>
+      </div>
+      <div class="func-item">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 11h-6M20 8v6"/></svg>
+        </div>
+        <div>
+          <h5>Авто-список клієнтів</h5>
+          <p>Активні за останні 3 місяці підтягуються самі. Сплячих система покаже у блоці закриття розриву. Шукаєте конкретного — є пошук по всіх клієнтах 1С.</p>
+        </div>
+      </div>
+      <div class="func-item">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div>
+          <h5>Етапи з контролем</h5>
+          <p>Дзвінок, Зустріч, Навчання. Запис на тренінг — з 1С-довідника. Виконав етап — позначка автоматично коли клієнт купив.</p>
+        </div>
+      </div>
+      <div class="func-item">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+        </div>
+        <div>
+          <h5>Авто-розрахунок розриву</h5>
+          <p>Якщо план + поточний прогноз не покривають ціль — система рахує розрив і пропонує сплячих/втрачених клієнтів з потенціалом.</p>
+        </div>
+      </div>
+      <div class="func-item">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+        </div>
+        <div>
+          <h5>Працює всюди</h5>
+          <p>Ноутбук, планшет, телефон. Однаковий доступ через браузер. Логін той самий, що у СРМ Зустрічі.</p>
+        </div>
+      </div>
+      <div class="func-item">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div>
+          <h5>Безпечно за замовчуванням</h5>
+          <p>Доступ — лише до своїх даних. Керівник бачить команду read-only. Колеги один одного не бачать. Дані захищені на рівні API.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SLIDE 8: CTA ─── -->
+<section class="slide cta-slide" id="cta">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">07</span> Старт</div>
+  <div class="container">
+    <h2 style="max-width: 720px;">Перший вхід<br><span class="b accent">за 30 секунд</span>.</h2>
+    <p class="slide-lead" style="margin: 0 auto;">Відкрийте посилання у браузері. Введіть логін і пароль як у СРМ Зустрічі. Все.</p>
+    <a href="https://sales-planning-lyart.vercel.app/" class="cta-button">
       Увійти у Sales Planning
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </a>
   </div>
 </section>
 
 <!-- ─── FOOTER ─── -->
 <footer>
-  <div class="container row">
-    <div>Sales Planning · EMET · 2026</div>
-    <div>
-      <a href="manual.html">Інструкція</a> &nbsp;·&nbsp;
-      Питання — ваш РМ або IT
-    </div>
+  <div class="container">
+    Sales Planning · EMET · 2026
+    &nbsp;·&nbsp;
+    <a href="manual.html">Інструкція користувача</a>
+    &nbsp;·&nbsp;
+    Питання — ваш РМ або IT
   </div>
 </footer>
+
+<script>
+  // Active slide indicator dot navigation
+  const dots = document.querySelectorAll('.slide-nav a');
+  const slides = document.querySelectorAll('section.slide');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        dots.forEach(d => d.classList.toggle('active', d.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { threshold: 0.5 });
+  slides.forEach(s => observer.observe(s));
+</script>
 
 </body>
 </html>
