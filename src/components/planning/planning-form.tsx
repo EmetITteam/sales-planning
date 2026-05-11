@@ -98,11 +98,17 @@ export function PlanningForm({
   const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
   // Підтвердження видалення — заміняє blocking browser `confirm()`. type вказує
   // куди застосовувати: forecast row (по clientId) або gap closure (по index).
+  // bulk-варіанти — для multi-select видалення з чекбоксів.
   const [pendingDelete, setPendingDelete] = useState<
     | { type: 'forecast'; clientId: string; clientName: string }
     | { type: 'gap'; index: number; clientName: string }
+    | { type: 'forecast-bulk'; ids: string[] }
+    | { type: 'gap-bulk'; indices: number[] }
     | null
   >(null);
+  // Multi-select для bulk-видалення. Окремі сети для двох блоків.
+  const [selectedForecasts, setSelectedForecasts] = useState<Set<string>>(new Set());
+  const [selectedGaps, setSelectedGaps] = useState<Set<number>>(new Set());
   // Прапорець: чи закінчилась спроба завантаження з Supabase. Якщо так і даних
   // нема — auto-populate Прогноз з реальних активних клієнтів 1С.
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
@@ -124,6 +130,8 @@ export function PlanningForm({
     setGapActions({ action1: '', action2: '', action3: '' });
     setSupabaseLoaded(false);
     setPersistedClientIds(new Set());
+    setSelectedForecasts(new Set());
+    setSelectedGaps(new Set());
 
     let cancelled = false;
     loadPlanning(effectiveLogin, segmentCode, currentPeriod.id).then(data => {
@@ -440,10 +448,43 @@ export function PlanningForm({
     if (!pendingDelete) return;
     if (pendingDelete.type === 'forecast') {
       setForecasts(prev => prev.filter(f => f.clientId1c !== pendingDelete.clientId));
-    } else {
+    } else if (pendingDelete.type === 'gap') {
       setGapClosures(prev => prev.filter((_, j) => j !== pendingDelete.index));
+    } else if (pendingDelete.type === 'forecast-bulk') {
+      const ids = new Set(pendingDelete.ids);
+      setForecasts(prev => prev.filter(f => !ids.has(f.clientId1c)));
+      setSelectedForecasts(new Set());
+    } else if (pendingDelete.type === 'gap-bulk') {
+      const idxs = new Set(pendingDelete.indices);
+      setGapClosures(prev => prev.filter((_, j) => !idxs.has(j)));
+      setSelectedGaps(new Set());
     }
     setPendingDelete(null);
+  };
+
+  // Bulk-видалення обраних
+  const bulkDeleteForecasts = () => {
+    if (selectedForecasts.size === 0) return;
+    setPendingDelete({ type: 'forecast-bulk', ids: [...selectedForecasts] });
+  };
+  const bulkDeleteGaps = () => {
+    if (selectedGaps.size === 0) return;
+    setPendingDelete({ type: 'gap-bulk', indices: [...selectedGaps] });
+  };
+  // Toggle per row
+  const toggleForecast = (clientId: string) => {
+    setSelectedForecasts(prev => {
+      const next = new Set(prev);
+      if (next.has(clientId)) next.delete(clientId); else next.add(clientId);
+      return next;
+    });
+  };
+  const toggleGap = (i: number) => {
+    setSelectedGaps(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
   };
 
   const addClient = (client: Client1C) => {
@@ -653,8 +694,37 @@ export function PlanningForm({
           )}
         </div>
 
+        {/* Bulk action bar — з'являється коли є вибрані */}
+        {!readOnly && selectedForecasts.size > 0 && (
+          <div className="flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200">
+            <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedForecasts.size}</span>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSelectedForecasts(new Set())}
+                className="text-[12px] font-semibold text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-white/60 transition-colors">
+                Скасувати
+              </button>
+              <button onClick={bulkDeleteForecasts}
+                className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-rose-600 hover:bg-rose-700 px-4 py-1.5 rounded-lg transition-colors">
+                <Trash2 className="h-3.5 w-3.5" /> Видалити обраних
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Заголовок колонок (тільки на md+) */}
-        <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
+        <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
+          {!readOnly && sortedForecasts.length > 0 ? (
+            <input
+              type="checkbox"
+              aria-label="Обрати всіх"
+              className="h-4 w-4 cursor-pointer accent-rose-600"
+              checked={selectedForecasts.size === sortedForecasts.filter(r => !r.completed).length && sortedForecasts.filter(r => !r.completed).length > 0}
+              onChange={(e) => {
+                if (e.target.checked) setSelectedForecasts(new Set(sortedForecasts.filter(r => !r.completed).map(r => r.clientId1c)));
+                else setSelectedForecasts(new Set());
+              }}
+            />
+          ) : <div />}
           <div />
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Прогноз</p>
@@ -685,7 +755,17 @@ export function PlanningForm({
             return (
               <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
                 {/* === DESKTOP (md+) === */}
-                <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
+                <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
+                  {/* Чекбокс multi-select (тільки для незавершених) */}
+                  {!readOnly && !row.completed ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`Обрати ${row.clientName}`}
+                      className="h-4 w-4 cursor-pointer accent-rose-600"
+                      checked={selectedForecasts.has(row.clientId1c)}
+                      onChange={() => toggleForecast(row.clientId1c)}
+                    />
+                  ) : <div />}
                   {/* Іконка статусу */}
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
                     {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
@@ -796,8 +876,17 @@ export function PlanningForm({
 
                 {/* === MOBILE (<md): vertical-stack картка === */}
                 <div className="md:hidden p-4 space-y-3">
-                  {/* Шапка: іконка + ім'я + delete */}
+                  {/* Шапка: чекбокс + іконка + ім'я + delete */}
                   <div className="flex items-start gap-3">
+                    {!readOnly && !row.completed && (
+                      <input
+                        type="checkbox"
+                        aria-label={`Обрати ${row.clientName}`}
+                        className="h-5 w-5 mt-2 cursor-pointer accent-rose-600 shrink-0"
+                        checked={selectedForecasts.has(row.clientId1c)}
+                        onChange={() => toggleForecast(row.clientId1c)}
+                      />
+                    )}
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
                       {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
                     </div>
@@ -968,11 +1057,42 @@ export function PlanningForm({
             <p className="text-[12px] font-medium">Завантажуємо клієнтів з 1С…</p>
           </div>
         )}
+        {/* Bulk action bar для gap-closures */}
+        {!readOnly && selectedGaps.size > 0 && (
+          <div className="flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200">
+            <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedGaps.size}</span>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSelectedGaps(new Set())}
+                className="text-[12px] font-semibold text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-white/60 transition-colors">
+                Скасувати
+              </button>
+              <button onClick={bulkDeleteGaps}
+                className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-rose-600 hover:bg-rose-700 px-4 py-1.5 rounded-lg transition-colors">
+                <Trash2 className="h-3.5 w-3.5" /> Видалити обраних
+              </button>
+            </div>
+          </div>
+        )}
         {(gapClosures.length > 0 || unplannedSplit.gap.length > 0) && (
           <div>
             {/* Заголовки колонок (тільки md+) */}
             {gapClosures.length > 0 && (
-              <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
+              <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
+                {!readOnly ? (
+                  <input
+                    type="checkbox"
+                    aria-label="Обрати всіх"
+                    className="h-4 w-4 cursor-pointer accent-rose-600"
+                    checked={selectedGaps.size === gapClosures.filter(r => !r.completed).length && gapClosures.filter(r => !r.completed).length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        const next = new Set<number>();
+                        gapClosures.forEach((r, i) => { if (!r.completed) next.add(i); });
+                        setSelectedGaps(next);
+                      } else setSelectedGaps(new Set());
+                    }}
+                  />
+                ) : <div />}
                 <div />
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Потенціал</p>
@@ -991,7 +1111,17 @@ export function PlanningForm({
               return (
                 <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
                   {/* === DESKTOP (md+) === */}
-                  <div className="hidden md:grid md:grid-cols-[36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
+                  <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
+                    {/* Чекбокс multi-select */}
+                    {!readOnly && !row.completed ? (
+                      <input
+                        type="checkbox"
+                        aria-label={`Обрати ${row.clientName}`}
+                        className="h-4 w-4 cursor-pointer accent-rose-600"
+                        checked={selectedGaps.has(i)}
+                        onChange={() => toggleGap(i)}
+                      />
+                    ) : <div />}
                     {/* Іконка */}
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
                       {row.completed || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
@@ -1113,6 +1243,15 @@ export function PlanningForm({
                   <div className="md:hidden p-4 space-y-3">
                     {/* Шапка */}
                     <div className="flex items-start gap-3">
+                      {!readOnly && !row.completed && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Обрати ${row.clientName}`}
+                          className="h-5 w-5 mt-2 cursor-pointer accent-rose-600 shrink-0"
+                          checked={selectedGaps.has(i)}
+                          onChange={() => toggleGap(i)}
+                        />
+                      )}
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${row.completed || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
                         {row.completed || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
                       </div>
@@ -1290,10 +1429,20 @@ export function PlanningForm({
       <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[...gapExistingIds, ...existingIds]} clients={allManagerClients} loading={clientsLoading} />
       <ConfirmDialog
         open={pendingDelete !== null}
-        title={`Видалити «${pendingDelete?.clientName}»?`}
-        description={pendingDelete?.type === 'forecast'
-          ? 'Клієнт зникне з блоку «Прогноз по активних». Дія застосується після збереження.'
-          : 'Клієнт зникне з блоку «Закриття розриву». Дія застосується після збереження.'}
+        title={
+          pendingDelete?.type === 'forecast-bulk'
+            ? `Видалити ${pendingDelete.ids.length} клієнтів з прогнозу?`
+            : pendingDelete?.type === 'gap-bulk'
+            ? `Видалити ${pendingDelete.indices.length} клієнтів з закриття розриву?`
+            : pendingDelete?.type === 'forecast' || pendingDelete?.type === 'gap'
+            ? `Видалити «${pendingDelete.clientName}»?`
+            : ''
+        }
+        description={
+          pendingDelete?.type === 'forecast' || pendingDelete?.type === 'forecast-bulk'
+            ? 'Зникнуть з блоку «Прогноз по активних». Дія застосується після збереження.'
+            : 'Зникнуть з блоку «Закриття розриву». Дія застосується після збереження.'
+        }
         confirmLabel="Видалити"
         variant="danger"
         onConfirm={confirmDelete}
