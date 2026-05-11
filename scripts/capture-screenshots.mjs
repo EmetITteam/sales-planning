@@ -35,6 +35,21 @@ if (!LOGIN || !PASSWORD) {
   process.exit(1);
 }
 
+// Чекає поки сторінка завершить завантаження даних з 1С:
+// - спіннер «Завантажуємо…» зникає
+// - конкретний індикатор готовності даних з'являється (callback returns true)
+async function waitForDataReady(page, readyIndicator = null, timeout = 20000) {
+  // Спочатку дочекатися щоб скелетон/спіннер «Завантажуємо ваші дані з 1С» зник
+  try {
+    await page.waitForSelector('text=/Завантажуємо.*1С/i', { state: 'detached', timeout });
+  } catch { /* indicator might not appear at all — that's fine */ }
+  if (readyIndicator) {
+    await page.waitForSelector(readyIndicator, { timeout });
+  }
+  // Невелика страховка щоб React домалював
+  await page.waitForTimeout(500);
+}
+
 // Маскує ідентифікаторну інфу перед скріном:
 // - Вмикає hideAmounts mode (CSS: body[data-hide-amounts="true"] .amount → ***)
 // - Замінює full name користувача на "Менеджер EMET" + ініціали
@@ -116,7 +131,8 @@ try {
   await page.locator('input[type="password"]').fill(PASSWORD);
   await page.getByRole('button', { name: /увійти/i }).click();
   await page.waitForSelector('text=/Регіон|Менеджери|Торгові марки|Огляд по компанії/i', { timeout: 30000 });
-  await page.waitForTimeout(2000); // wait for Action 5 to fill data
+  // Wait until Action 5 actually filled the data (regions / brand rows appear)
+  await waitForDataReady(page, 'text=/Petaran|Ellanse|Neuramis/i');
 
   // ─── 3. RM Dashboard (or Director — depends on QA login) ───
   console.log('3. Top dashboard...');
@@ -144,13 +160,17 @@ try {
   const myPlanningBtn = page.locator('button:has-text("Моє планування")').first();
   if (await myPlanningBtn.count() > 0) {
     await myPlanningBtn.click();
-    await page.waitForTimeout(2000);
+    // Manager dashboard має дочекатись Action 2 + 3 + 4 — це ~3-5 сек.
+    // Чекаємо поки спіннер зникне і brand-рядки заповняться реальними цифрами.
+    await waitForDataReady(page, 'text=/Petaran|Ellanse|Neuramis/i', 25000);
     await shot(page, '06-manager-dashboard');
 
     // Click ELLANSE to open expand
     console.log('6. Clicking ELLANSE...');
     await page.locator('text=/Ellanse/i').first().click();
-    await page.waitForTimeout(1500);
+    // expand-блок з'являє коли planLoading=false (тобто після підгрузки сегмент-плану)
+    await page.waitForSelector('text=/Перейти у форму/', { timeout: 15000 });
+    await page.waitForTimeout(500);
     await shot(page, '07-manager-brand-expand');
 
     // Click "Перейти у форму"
