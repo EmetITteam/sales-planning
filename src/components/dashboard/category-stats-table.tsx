@@ -99,7 +99,11 @@ export function CategoryStatsTable({ plan, fact, title, loading }: Props) {
   rows.unplanned.factCount = Math.max(0, totalFactCount - totalPlannedCount);
   rows.unplanned.factSum   = Math.max(0, totalFactSum   - totalPlannedSum);
 
-  const pct = (r: RowStat) => r.plannedSum > 0 ? Math.round((r.factSum / r.plannedSum) * 1000) / 10 : 0;
+  // % факт = виконання плану цієї категорії = factSum / plannedSum × 100
+  const pctFact = (r: RowStat) => r.plannedSum > 0 ? Math.round((r.factSum / r.plannedSum) * 1000) / 10 : 0;
+  // % план = частка категорії від ЗАГАЛЬНОГО планування (структура плану по категоріях)
+  const totalPlanForShare = totalPlannedSum;
+  const pctPlan = (r: RowStat) => totalPlanForShare > 0 ? Math.round((r.plannedSum / totalPlanForShare) * 1000) / 10 : 0;
 
   if (loading) {
     return (
@@ -127,21 +131,23 @@ export function CategoryStatsTable({ plan, fact, title, loading }: Props) {
           <span className="text-[11px] text-muted-foreground">{title}</span>
         </div>
       )}
-      <div className="hidden md:grid md:grid-cols-[32px_minmax(180px,1.5fr)_repeat(3,1fr)_70px] gap-3 px-5 py-2 border-b border-[#f0f2f8] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="hidden md:grid md:grid-cols-[32px_minmax(160px,1.4fr)_repeat(3,1fr)_60px_60px] gap-3 px-5 py-2 border-b border-[#f0f2f8] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
         <div />
         <div>Категорія</div>
         <div className="text-right">Заплановано</div>
         <div className="text-right">Сума план</div>
         <div className="text-right">Факт</div>
-        <div className="text-right">%</div>
+        <div className="text-right" title="Частка категорії від загальної планової суми">% план</div>
+        <div className="text-right" title="Виконання плану цієї категорії = факт / план">% факт</div>
       </div>
       {CAT_META.map(cat => {
         const Icon = cat.icon;
         const r = rows[cat.key as keyof typeof rows];
-        const pctValue = pct(r);
+        const pPlan = pctPlan(r);
+        const pFact = pctFact(r);
         return (
           <div key={cat.key}
-            className="flex md:grid md:grid-cols-[32px_minmax(180px,1.5fr)_repeat(3,1fr)_70px] flex-wrap gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3 border-t border-[#f0f2f8]">
+            className="flex md:grid md:grid-cols-[32px_minmax(160px,1.4fr)_repeat(3,1fr)_60px_60px] flex-wrap gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3 border-t border-[#f0f2f8]">
             <div className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${cat.bgClass}`}>
               <Icon className={`h-4 w-4 ${cat.iconClass}`} />
             </div>
@@ -160,9 +166,13 @@ export function CategoryStatsTable({ plan, fact, title, loading }: Props) {
               <p className="text-[10px] text-muted-foreground tabular-nums">{r.factCount} кл.</p>
             </div>
             <div className="text-right basis-[60px] md:basis-auto">
-              <p className="text-[10px] text-muted-foreground md:hidden">%</p>
-              <p className={`text-[14px] font-bold ${pctValue >= 100 ? 'text-emerald-600' : pctValue >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
-                {pctValue.toFixed(1)}%
+              <p className="text-[10px] text-muted-foreground md:hidden">% план</p>
+              <p className="text-[13px] font-bold text-muted-foreground tabular-nums">{pPlan.toFixed(1)}%</p>
+            </div>
+            <div className="text-right basis-[60px] md:basis-auto">
+              <p className="text-[10px] text-muted-foreground md:hidden">% факт</p>
+              <p className={`text-[14px] font-bold tabular-nums ${pFact >= 100 ? 'text-emerald-600' : pFact >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
+                {pFact.toFixed(1)}%
               </p>
             </div>
           </div>

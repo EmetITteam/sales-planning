@@ -17,6 +17,7 @@ import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { RegionAccordion } from './region-accordion';
 import { BrandRegionGroup, pivotBrandsByRegion } from './brand-region-group';
+import { CategoryStatsTable } from './category-stats-table';
 import {
   ChevronRight, RefreshCw,
   DollarSign, Target, TrendingUp, TrendingDown, Users,
@@ -117,6 +118,41 @@ export function DirectorDashboard() {
     asOfIso,
     allCompanyLogins.length > 0 ? allCompanyLogins : null,
   );
+  // Агрегат plan + fact для CategoryStatsTable: сумарно по компанії (всі сегменти разом)
+  const aggregatedPlan = useMemo(() => {
+    if (!planAgg) return null;
+    const out = {
+      active: { plannedCount: 0, plannedSum: 0 },
+      sleeping: { plannedCount: 0, plannedSum: 0 },
+      lost: { plannedCount: 0, plannedSum: 0 },
+      new: { plannedCount: 0, plannedSum: 0 },
+      none: { plannedCount: 0, plannedSum: 0 },
+    };
+    for (const seg of Object.values(planAgg.bySegment)) {
+      for (const cat of ['active','sleeping','lost','new','none'] as const) {
+        out[cat].plannedCount += seg.byCategory[cat].plannedCount;
+        out[cat].plannedSum   += seg.byCategory[cat].plannedSum;
+      }
+    }
+    return out;
+  }, [planAgg]);
+  const aggregatedFact = useMemo(() => {
+    if (!companyStats) return null;
+    const out = {
+      active: { factCount: 0, factSum: 0 },
+      sleeping: { factCount: 0, factSum: 0 },
+      lost: { factCount: 0, factSum: 0 },
+      new: { factCount: 0, factSum: 0 },
+      none: { factCount: 0, factSum: 0 },
+    };
+    for (const seg of Object.values(companyStats.bySegment)) {
+      for (const cat of ['active','sleeping','lost','new','none'] as const) {
+        out[cat].factCount += seg.byCategory[cat].factCount;
+        out[cat].factSum   += seg.byCategory[cat].factSum;
+      }
+    }
+    return out;
+  }, [companyStats]);
 
   // === Sub-views ===
   if (view === 'viewRegion') {
@@ -299,6 +335,14 @@ export function DirectorDashboard() {
               loading={clientStatsLoading}
             />
           </div>
+
+          {/* Розклад по категоріях клієнтів — агрегат по всій компанії */}
+          <CategoryStatsTable
+            plan={aggregatedPlan}
+            fact={aggregatedFact}
+            title={`Компанія · ${totalManagers} менеджерів · ${company.regionAggregates.length} регіонів`}
+            loading={companyStatsLoading && !aggregatedFact}
+          />
 
           {/* Регіони — RegionAccordion (тап = expand → 9 BrandRow усередині, drill-down іконка справа) */}
           <div>
