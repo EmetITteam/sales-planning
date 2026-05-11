@@ -11,7 +11,6 @@
   :root {
     --bg-1: #0a1f25;
     --bg-2: #0f3641;
-    --bg-3: #1a5560;
     --teal: #5BD5BC;
     --teal-soft: rgba(91,213,188,.15);
     --line: rgba(255,255,255,.08);
@@ -28,12 +27,10 @@
     color: var(--text);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
     overflow-x: hidden;
   }
   .mono { font-family: 'JetBrains Mono', monospace; }
 
-  /* === SLIDE BASE === */
   section.slide {
     min-height: 100vh;
     padding: 80px 0;
@@ -42,7 +39,6 @@
     position: relative;
     scroll-snap-align: start;
   }
-  section.slide.short { min-height: auto; padding: 100px 0; }
   .container {
     max-width: 1180px; margin: 0 auto;
     padding: 0 48px; width: 100%;
@@ -52,15 +48,9 @@
     section.slide { padding: 60px 0; min-height: auto; }
   }
 
-  /* Background ambient gradients */
-  .ambient {
-    position: absolute; inset: 0;
-    pointer-events: none; opacity: .8;
-  }
+  .ambient { position: absolute; inset: 0; pointer-events: none; opacity: .8; }
   .ambient::before, .ambient::after {
-    content: '';
-    position: absolute; border-radius: 50%;
-    filter: blur(120px);
+    content: ''; position: absolute; border-radius: 50%; filter: blur(120px);
   }
   .ambient::before {
     width: 600px; height: 600px;
@@ -73,7 +63,7 @@
     bottom: -100px; left: -150px;
   }
 
-  /* === SIDE NAV (slide indicators) === */
+  /* === SIDE NAV === */
   .slide-nav {
     position: fixed; right: 28px; top: 50%;
     transform: translateY(-50%); z-index: 40;
@@ -82,37 +72,28 @@
   @media (max-width: 900px) { .slide-nav { display: none; } }
   .slide-nav a {
     width: 8px; height: 8px; border-radius: 50%;
-    background: rgba(255,255,255,.25);
-    transition: all .2s;
+    background: rgba(255,255,255,.25); transition: all .2s;
   }
   .slide-nav a:hover { background: rgba(255,255,255,.7); transform: scale(1.4); }
   .slide-nav a.active { background: var(--teal); transform: scale(1.4); }
 
   /* === COVER === */
-  .cover { text-align: center; position: relative; }
-  .cover-logo {
-    height: 56px; width: auto;
-    margin: 0 auto 24px;
-    display: block;
-    filter: brightness(1.2);
-  }
+  .cover { text-align: center; }
+  .cover-logo { height: 56px; margin: 0 auto 24px; display: block; filter: brightness(1.2); }
   .cover .product-name {
     font-size: 12px; font-weight: 700;
     letter-spacing: 4px; text-transform: uppercase;
-    color: var(--teal);
-    margin-bottom: 24px;
+    color: var(--teal); margin-bottom: 24px;
   }
   .cover h1 {
     font-size: clamp(48px, 7vw, 96px);
-    font-weight: 200;
-    letter-spacing: -3px;
-    line-height: 1;
-    margin-bottom: 16px;
+    font-weight: 200; letter-spacing: -3px;
+    line-height: 1; margin-bottom: 16px;
   }
   .cover h1 .b { font-weight: 700; }
   .cover .tagline {
     font-size: 16px; color: var(--text-muted);
-    max-width: 540px; margin: 24px auto 0;
+    max-width: 580px; margin: 24px auto 0;
   }
   .cover .meta {
     margin-top: 80px;
@@ -120,9 +101,13 @@
     font-size: 13px; color: var(--text-faint);
     letter-spacing: 1px; text-transform: uppercase;
   }
-  .cover .meta strong { display: block; color: var(--text); font-size: 22px; font-weight: 200; letter-spacing: -.5px; margin-top: 4px; text-transform: none; }
+  .cover .meta strong {
+    display: block; color: var(--text); font-size: 22px;
+    font-weight: 200; letter-spacing: -.5px;
+    margin-top: 4px; text-transform: none;
+  }
 
-  /* === SLIDE LABEL (top-left) === */
+  /* === SLIDE LABEL === */
   .slide-label {
     position: absolute; top: 32px; left: 48px;
     font-size: 11px; font-weight: 700; letter-spacing: 2px;
@@ -130,62 +115,26 @@
     display: flex; align-items: center; gap: 10px;
   }
   .slide-label .num {
-    background: var(--teal-soft);
-    padding: 3px 8px; border-radius: 3px;
-    color: var(--teal);
-    font-family: 'JetBrains Mono', monospace;
+    background: var(--teal-soft); padding: 3px 8px; border-radius: 3px;
+    color: var(--teal); font-family: 'JetBrains Mono', monospace;
   }
   @media (max-width: 720px) { .slide-label { left: 24px; top: 20px; } }
 
-  /* === SLIDE HEADERS === */
-  .slide-head { max-width: 800px; margin-bottom: 56px; }
+  /* === HEADERS === */
+  .slide-head { max-width: 880px; margin-bottom: 56px; }
   h2 {
     font-size: clamp(32px, 5vw, 56px);
     font-weight: 200; letter-spacing: -1.5px;
-    line-height: 1.05;
-    margin-bottom: 20px;
+    line-height: 1.05; margin-bottom: 20px;
   }
   h2 .b { font-weight: 700; }
   h2 .accent { color: var(--teal); }
   .slide-lead {
     font-size: 17px; color: var(--text-muted);
-    line-height: 1.5; max-width: 640px;
+    line-height: 1.55; max-width: 720px;
   }
 
-  /* === ROLES (3-up) === */
-  .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-  @media (max-width: 900px) { .roles { grid-template-columns: 1fr; } }
-  .role {
-    background: rgba(10,31,37,.4);
-    padding: 32px 28px;
-    backdrop-filter: blur(8px);
-  }
-  .role-num {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--text-faint);
-    letter-spacing: 1.5px;
-    margin-bottom: 14px;
-  }
-  .role h3 {
-    font-size: 26px; font-weight: 200; letter-spacing: -.5px;
-    margin-bottom: 4px;
-  }
-  .role h3 .b { font-weight: 700; }
-  .role .role-sub { font-size: 12px; color: var(--text-faint); margin-bottom: 22px; letter-spacing: .5px; text-transform: uppercase; }
-  .role ul { list-style: none; }
-  .role li {
-    font-size: 14px; color: var(--text-muted);
-    padding: 11px 0;
-    border-top: 1px solid var(--line);
-    display: flex; gap: 10px; align-items: flex-start;
-  }
-  .role li::before {
-    content: ''; width: 5px; height: 5px;
-    background: var(--teal); border-radius: 50%;
-    flex-shrink: 0; margin-top: 9px;
-  }
-
-  /* === HERO METRIC CARDS PREVIEW === */
+  /* === PREVIEW FRAME === */
   .preview-frame {
     background: rgba(255,255,255,.04);
     border: 1px solid var(--line-2);
@@ -198,9 +147,9 @@
     letter-spacing: 2px; text-transform: uppercase;
     margin-bottom: 16px;
   }
-  .metric-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-  }
+
+  /* === HERO METRICS === */
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
   @media (max-width: 720px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } }
   .metric {
     background: rgba(255,255,255,.06);
@@ -216,17 +165,84 @@
     margin-top: 8px; line-height: 1;
     font-family: 'JetBrains Mono', monospace;
   }
-  .metric .delta {
-    font-size: 11px; color: var(--teal); font-weight: 600;
-    margin-top: 6px;
-  }
+  .metric .delta { font-size: 11px; color: var(--teal); font-weight: 600; margin-top: 6px; }
   .metric.warn .delta { color: #ff7a8a; }
-  .metric .clientStats { font-size: 12px; line-height: 1.6; }
+  .metric .clientStats { font-size: 12px; line-height: 1.6; margin-top: 10px; }
   .metric .clientStats div { display: flex; justify-content: space-between; }
   .metric .clientStats div span:last-child { font-family: 'JetBrains Mono', monospace; color: var(--teal); }
 
-  /* === BRAND BARS PREVIEW === */
-  .brand-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }
+  /* === CLIENT FILTER VISUAL === */
+  .filter-flow {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 24px;
+    align-items: stretch;
+  }
+  @media (max-width: 900px) { .filter-flow { grid-template-columns: 1fr; gap: 16px; } }
+  .filter-source, .filter-target {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .filter-source .head, .filter-target .head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .filter-source .head .ttl, .filter-target .head .ttl {
+    font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .filter-target .head .ttl { color: var(--teal); }
+  .filter-source .head .cnt, .filter-target .head .cnt {
+    font-family: 'JetBrains Mono', monospace; font-size: 28px;
+    font-weight: 300; letter-spacing: -1px;
+  }
+  .filter-source .desc, .filter-target .desc {
+    font-size: 12px; color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .filter-clients { display: flex; flex-direction: column; gap: 6px; }
+  .filter-clients .c {
+    background: rgba(255,255,255,.04);
+    padding: 8px 12px; border-radius: 6px;
+    font-size: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px;
+  }
+  .filter-clients .c .name { color: var(--text); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filter-clients .c .date {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+  .filter-clients .c.match { background: rgba(91,213,188,.08); border-left: 2px solid var(--teal); }
+  .filter-clients .c.miss { opacity: .35; }
+  .filter-arrow {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--teal);
+  }
+  .filter-arrow .pill {
+    background: var(--teal-soft); border: 1px solid rgba(91,213,188,.3);
+    color: var(--teal); padding: 6px 14px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .filter-arrow svg { width: 14px; height: 14px; }
+  @media (max-width: 900px) { .filter-arrow { transform: rotate(90deg); padding: 8px 0; } }
+
+  .filter-rule {
+    margin-top: 24px;
+    padding: 16px 20px;
+    background: rgba(91,213,188,.06);
+    border-left: 3px solid var(--teal);
+    border-radius: 4px;
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .filter-rule strong { color: var(--text); font-weight: 600; }
+  .filter-rule code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  /* === BRAND ROWS === */
+  .brand-rows { display: flex; flex-direction: column; gap: 6px; }
   .brand-row {
     display: grid;
     grid-template-columns: 14px 110px 80px 60px 1fr 70px;
@@ -253,25 +269,13 @@
   .brand-tag.ok { background: rgba(91,213,188,.15); color: var(--teal); }
   .brand-tag.bad { background: rgba(255,122,138,.15); color: #ff7a8a; }
   .brand-pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
-  .brand-track {
-    height: 4px; background: rgba(255,255,255,.08);
-    border-radius: 2px; overflow: hidden;
-    position: relative;
-  }
-  .brand-fill {
-    position: absolute; top: 0; left: 0; height: 100%;
-    background: var(--teal); border-radius: 2px;
-  }
+  .brand-track { height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; position: relative; }
+  .brand-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--teal); border-radius: 2px; }
   .brand-fill.bad { background: #ff7a8a; }
-  .brand-amt {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: var(--text-muted);
-    text-align: right;
-  }
+  .brand-amt { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); text-align: right; }
 
   /* === FORM PREVIEW === */
   .form-preview {
-    margin-top: 24px;
     background: rgba(255,255,255,.04);
     border: 1px solid var(--line);
     border-radius: 12px;
@@ -290,11 +294,7 @@
     .form-row { grid-template-columns: 28px 1fr 70px; padding: 10px 14px; }
     .form-row .hide-mobile { display: none; }
   }
-  .form-row.head {
-    font-size: 10px; font-weight: 700;
-    color: var(--text-faint);
-    letter-spacing: 1.5px; text-transform: uppercase;
-  }
+  .form-row.head { font-size: 10px; font-weight: 700; color: var(--text-faint); letter-spacing: 1.5px; text-transform: uppercase; }
   .form-icon {
     width: 24px; height: 24px;
     background: rgba(91,213,188,.1); color: var(--teal);
@@ -305,10 +305,8 @@
   .form-client { font-weight: 500; }
   .form-client small { display: block; font-size: 10px; color: var(--text-faint); margin-top: 2px; }
   .form-input {
-    background: rgba(255,255,255,.05);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 4px 10px;
+    background: rgba(255,255,255,.05); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 10px;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 600; font-size: 13px;
     text-align: center;
@@ -323,7 +321,7 @@
   .form-stage svg { width: 11px; height: 11px; }
   .form-comment { color: var(--text-faint); font-size: 12px; }
 
-  /* === BIG NUMBERS STRIP === */
+  /* === NUMBER STRIP === */
   .number-strip {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
     margin-top: 48px;
@@ -331,51 +329,43 @@
     border-bottom: 1px solid var(--line);
   }
   @media (max-width: 720px) { .number-strip { grid-template-columns: repeat(2, 1fr); } }
-  .number-strip .item {
-    padding: 28px 24px;
-    border-right: 1px solid var(--line);
-  }
+  .number-strip .item { padding: 28px 24px; border-right: 1px solid var(--line); }
   .number-strip .item:last-child { border-right: none; }
-  .number-strip .num {
-    font-size: 44px; font-weight: 200; letter-spacing: -2px;
-    line-height: 1;
-  }
-  .number-strip .lbl {
-    font-size: 12px; color: var(--text-muted);
-    margin-top: 8px; letter-spacing: .3px;
-  }
+  .number-strip .num { font-size: 44px; font-weight: 200; letter-spacing: -2px; line-height: 1; }
+  .number-strip .lbl { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
 
-  /* === FUNCTIONALITY LIST === */
-  .func-grid {
+  /* === VALUE LIST (concrete what-you-get) === */
+  .value-grid {
     display: grid; grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
   }
-  @media (max-width: 720px) { .func-grid { grid-template-columns: 1fr; } }
-  .func-item {
-    padding: 24px 0;
+  @media (max-width: 720px) { .value-grid { grid-template-columns: 1fr; } }
+  .value-item {
+    padding: 28px 32px;
     border-top: 1px solid var(--line);
-    display: flex; gap: 18px; align-items: flex-start;
+    border-right: 1px solid var(--line);
+    background: rgba(10,31,37,.4);
   }
-  .func-item .ic {
-    width: 36px; height: 36px;
-    background: rgba(91,213,188,.1); color: var(--teal);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+  .value-item:nth-child(-n+2) { border-top: none; }
+  .value-item:nth-child(2n) { border-right: none; }
+  @media (max-width: 720px) {
+    .value-item { border-right: none; }
+    .value-item:nth-child(2) { border-top: 1px solid var(--line); }
   }
-  .func-item .ic svg { width: 16px; height: 16px; }
-  .func-item h5 {
-    font-size: 16px; font-weight: 600;
-    margin-bottom: 4px;
+  .value-item .num {
+    font-family: 'Manrope', sans-serif;
+    font-size: 22px; font-weight: 200; color: var(--teal);
+    letter-spacing: -.5px;
+    margin-bottom: 14px;
   }
-  .func-item p {
-    font-size: 13px; color: var(--text-muted);
-    line-height: 1.55;
-  }
+  .value-item h5 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .value-item p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
 
   /* === CTA === */
   .cta-slide { text-align: center; }
-  .cta-slide h2 { margin: 0 auto 24px; }
   .cta-button {
     display: inline-flex; align-items: center; gap: 10px;
     background: var(--teal); color: var(--bg-1);
@@ -388,7 +378,6 @@
   .cta-button:hover { background: white; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(91,213,188,.3); }
   .cta-button svg { width: 16px; height: 16px; }
 
-  /* === FOOTER === */
   footer {
     padding: 32px 0;
     border-top: 1px solid var(--line);
@@ -404,40 +393,40 @@
 
 <!-- ─── SIDE NAVIGATION ─── -->
 <nav class="slide-nav">
-  <a href="#cover" title="Cover"></a>
-  <a href="#what" title="Що це"></a>
-  <a href="#roles" title="Ролі"></a>
-  <a href="#metrics" title="Метрики"></a>
-  <a href="#brands" title="Бренди"></a>
-  <a href="#form" title="Форма"></a>
-  <a href="#capabilities" title="Можливості"></a>
-  <a href="#cta" title="Старт"></a>
+  <a href="#cover"></a>
+  <a href="#what"></a>
+  <a href="#active"></a>
+  <a href="#gap"></a>
+  <a href="#form"></a>
+  <a href="#status"></a>
+  <a href="#value"></a>
+  <a href="#cta"></a>
 </nav>
 
-<!-- ─── SLIDE 1: COVER ─── -->
+<!-- ─── 1. COVER ─── -->
 <section class="slide cover" id="cover">
   <div class="ambient"></div>
   <div class="container">
     <img src="emet-logo.png" alt="EMET" class="cover-logo">
     <div class="product-name">Sales Planning</div>
-    <h1>Місячний план<br><span class="b">в одному місці</span>.</h1>
-    <p class="tagline">Внутрішня платформа EMET для планування і контролю продажів. Ваш план, факт з 1С і прогноз — на одному екрані.</p>
+    <h1>Поклієнтське планування<br><span class="b">на місяць</span>.</h1>
+    <p class="tagline">Інструмент EMET для планування продажів по конкретних клієнтах. Система сама збирає актуальний пул клієнтів з 1С — ви плануєте, з ким і на скільки.</p>
     <div class="meta">
       <div>Запуск<strong>Травень 2026</strong></div>
-      <div>Ролі<strong>Менеджер · РМ · Директор</strong></div>
       <div>Доступ<strong>Браузер · Mobile</strong></div>
+      <div>Логін<strong>як у СРМ Зустрічі</strong></div>
     </div>
   </div>
 </section>
 
-<!-- ─── SLIDE 2: WHAT IT IS ─── -->
+<!-- ─── 2. WHAT IT IS ─── -->
 <section class="slide" id="what">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">01</span> Що це</div>
+  <div class="slide-label"><span class="num">01</span> Концепція</div>
   <div class="container">
     <div class="slide-head">
-      <h2>Не звітність.<br><span class="b accent">Робочий інструмент</span> на щодень.</h2>
-      <p class="slide-lead">Sales Planning замінює окремі Excel-файли, ручні зведення і очікування звітів від керівника. Менеджер бачить свій план і факт у реальному часі. Керівник — стан команди без додаткових запитів.</p>
+      <h2>Не зведення план/факт.<br><span class="b accent">Інструмент роботи</span> з клієнтською базою.</h2>
+      <p class="slide-lead">Система щоденно перебирає вашу клієнтську базу з 1С і розкладає її на дві групи: <strong style="color:var(--text)">з ким працювати зараз</strong> (активні за останні 3 місяці по бренду) і <strong style="color:var(--text)">кого треба активізувати</strong> (сплячі, втрачені, без закупок). Менеджеру лишається обрати дію — дзвінок, зустріч, семінар.</p>
     </div>
 
     <div class="number-strip">
@@ -446,84 +435,215 @@
         <div class="lbl">Торгових марок</div>
       </div>
       <div class="item">
-        <div class="num">8</div>
-        <div class="lbl">Регіонів покриття</div>
+        <div class="num">3 міс.</div>
+        <div class="lbl">Період активності клієнта</div>
+      </div>
+      <div class="item">
+        <div class="num">5</div>
+        <div class="lbl">Категорій клієнтів з 1С</div>
       </div>
       <div class="item">
         <div class="num">3</div>
-        <div class="lbl">Ролі доступу</div>
-      </div>
-      <div class="item">
-        <div class="num">1</div>
-        <div class="lbl">Логін як у СРМ Зустрічі</div>
+        <div class="lbl">Типи дій: дзвінок · зустріч · семінар</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ─── SLIDE 3: ROLES ─── -->
-<section class="slide" id="roles">
+<!-- ─── 3. ACTIVE CLIENTS — DYNAMIC FILTER ─── -->
+<section class="slide" id="active">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">02</span> Доступ</div>
+  <div class="slide-label"><span class="num">02</span> Прогноз по активних</div>
   <div class="container">
     <div class="slide-head">
-      <h2>Три ролі.<br><span class="b accent">Три рівні</span> огляду.</h2>
-      <p class="slide-lead">Що ви бачите — залежить від ролі у компанії. Менеджер працює зі своїм планом, РМ контролює регіон, Директор — компанію. Дані ізольовані: колеги один одного не бачать.</p>
+      <h2>Хто потрапляє<br>у блок <span class="b accent">«Активні»</span>.</h2>
+      <p class="slide-lead">Не всі клієнти у вашому реєстрі — а конкретно ті, що купували саме <strong style="color:var(--text)">цей бренд за останні 3 місяці</strong>. Решта йдуть у блок «Закриття розриву». Список оновлюється щодня з 1С — ви не складаєте його вручну.</p>
     </div>
 
-    <div class="roles">
-      <div class="role">
-        <div class="role-num">01 / Менеджер</div>
-        <h3>Свій <span class="b">план</span></h3>
-        <div class="role-sub">Робочий екран — щоденно</div>
-        <ul>
-          <li>9 брендів — план, факт, виконання</li>
-          <li>Активні клієнти за 3 місяці — авто</li>
-          <li>Прогноз очікуваних продажів</li>
-          <li>Закриття розриву — сплячі/втрачені</li>
-          <li>Запис клієнтів на навчання</li>
-        </ul>
+    <div class="filter-flow">
+      <div class="filter-source">
+        <div class="head">
+          <div class="ttl">Реєстр менеджера у 1С</div>
+          <div class="cnt">152</div>
+        </div>
+        <div class="desc">Усі клієнти Анни. Деякі купують Ellanse, деякі тільки інші бренди.</div>
+        <div class="filter-clients">
+          <div class="c match"><span class="name">Андрущук Катерина</span><span class="date">04.05.26</span></div>
+          <div class="c match"><span class="name">Стаховська Марина</span><span class="date">22.04.26</span></div>
+          <div class="c match"><span class="name">Глущенко Ірина</span><span class="date">17.02.26</span></div>
+          <div class="c miss"><span class="name">Воронько Катерина</span><span class="date">12.11.25</span></div>
+          <div class="c miss"><span class="name">Андрієнко Олена</span><span class="date">—</span></div>
+          <div class="c miss"><span class="name">Бондаренко Г.</span><span class="date">03.10.25</span></div>
+        </div>
       </div>
-      <div class="role">
-        <div class="role-num">02 / Регіональний керівник</div>
-        <h3>Регіон <span class="b">у фокусі</span></h3>
-        <div class="role-sub">Контроль команди + власне планування</div>
-        <ul>
-          <li>Зведення по своєму регіону</li>
-          <li>Менеджери з персональним прогресом</li>
-          <li>Drill-down: клік → план менеджера</li>
-          <li>Бренд × менеджер у розрізі</li>
-          <li>«Моє планування» — як менеджер</li>
-        </ul>
+
+      <div class="filter-arrow">
+        <div class="pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          Фільтр
+        </div>
       </div>
-      <div class="role">
-        <div class="role-num">03 / Директор</div>
-        <h3>Огляд <span class="b">компанії</span></h3>
-        <div class="role-sub">Усі регіони · Усі бренди</div>
-        <ul>
-          <li>План / факт / виконання компанії</li>
-          <li>Динаміка проти минулого місяця</li>
-          <li>Усі 8 регіонів зі статусом</li>
-          <li>Бренд × регіон у розрізі</li>
-          <li>Регіон → менеджер → план</li>
-        </ul>
+
+      <div class="filter-target">
+        <div class="head">
+          <div class="ttl">Активні · Ellanse</div>
+          <div class="cnt">3</div>
+        </div>
+        <div class="desc">Купували Ellanse за останні 90 днів. Прогноз авто-підставлений = сума останньої покупки.</div>
+        <div class="filter-clients">
+          <div class="c match"><span class="name">Андрущук Катерина</span><span class="date">$315</span></div>
+          <div class="c match"><span class="name">Стаховська Марина</span><span class="date">$70</span></div>
+          <div class="c match"><span class="name">Глущенко Ірина</span><span class="date">$70</span></div>
+        </div>
       </div>
+    </div>
+
+    <div class="filter-rule">
+      <strong>Правило фільтра:</strong> <code>lastPurchaseDate(client, brand) ≥ today − 90 днів</code>. Береться окремо для кожного з 9 брендів — клієнт може бути «активним» по Ellanse і «сплячим» по Petaran одночасно.
     </div>
   </div>
 </section>
 
-<!-- ─── SLIDE 4: HERO METRICS ─── -->
-<section class="slide" id="metrics">
+<!-- ─── 4. GAP CLOSURE — DYNAMIC FILTER ─── -->
+<section class="slide" id="gap">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">03</span> Інтерфейс</div>
+  <div class="slide-label"><span class="num">03</span> Закриття розриву</div>
   <div class="container">
     <div class="slide-head">
-      <h2>Hero-метрики.<br><span class="b accent">Стан</span> за один погляд.</h2>
-      <p class="slide-lead">Перші чотири картки на дашборді — план, факт, виконання, клієнти. Достатньо подивитись 3 секунди і зрозуміти у плані ви чи ні.</p>
+      <h2>Хто потрапляє<br>у блок <span class="b accent">«Закриття розриву»</span>.</h2>
+      <p class="slide-lead">Клієнти з категоріями <strong style="color:var(--text)">Сплячий, Втрачений, Без закупок, Новий</strong> — той пул, з якого можна виторгувати додаткові продажі. Система сама рахує <strong style="color:var(--text)">розрив</strong> (План − Факт − Прогноз) і пропонує цих клієнтів як кандидатів на повернення.</p>
+    </div>
+
+    <div class="filter-flow">
+      <div class="filter-source">
+        <div class="head">
+          <div class="ttl">Категорії з 1С</div>
+          <div class="cnt">5</div>
+        </div>
+        <div class="desc">Регістр «КатегоріїКлієнтів» у 1С. Кожний клієнт має тип — від активного до без закупок.</div>
+        <div class="filter-clients">
+          <div class="c miss"><span class="name">Активний</span><span class="date">→ у Прогноз</span></div>
+          <div class="c match"><span class="name">Сплячий</span><span class="date">→ Розрив</span></div>
+          <div class="c match"><span class="name">Втрачений</span><span class="date">→ Розрив</span></div>
+          <div class="c match"><span class="name">Без закупок</span><span class="date">→ Розрив</span></div>
+          <div class="c match"><span class="name">Новий</span><span class="date">→ Розрив</span></div>
+        </div>
+      </div>
+
+      <div class="filter-arrow">
+        <div class="pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          Розрив
+        </div>
+      </div>
+
+      <div class="filter-target">
+        <div class="head">
+          <div class="ttl">Закриття розриву · Ellanse</div>
+          <div class="cnt">11</div>
+        </div>
+        <div class="desc">Потенціал = сума останньої покупки бренду цим клієнтом. Менеджер обирає кого реактивувати.</div>
+        <div class="filter-clients">
+          <div class="c match"><span class="name">Воронько К. (сплячий)</span><span class="date">$420</span></div>
+          <div class="c match"><span class="name">Бондаренко Г. (сплячий)</span><span class="date">$280</span></div>
+          <div class="c match"><span class="name">Стефанова О. (втрач.)</span><span class="date">$657</span></div>
+          <div class="c match"><span class="name">Плющева К. (втрач.)</span><span class="date">$329</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-rule">
+      <strong>Розрив рахується автоматично:</strong> <code>Розрив = План − Факт − Σ(Прогноз активних)</code>. Якщо &gt; 0 — система підсвічує суму у рожевій плашці і пропонує сплячих клієнтів з потенціалом її закрити. Якщо ≤ 0 — плашка «Покрито», блок інформативний.
+    </div>
+  </div>
+</section>
+
+<!-- ─── 5. FORM — STAGE PICK ─── -->
+<section class="slide" id="form">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">04</span> Форма планування</div>
+  <div class="container">
+    <div class="slide-head">
+      <h2>Що робить менеджер.<br><span class="b accent">Сума</span> + <span class="b accent">етап</span> на клієнта.</h2>
+      <p class="slide-lead">Список вже готовий. Залишається пройтись і вказати: скільки очікую від цього клієнта і як збираюсь з ним працювати — дзвінок, зустріч або запис на семінар. Для семінару — вибір з 1С-довідника майбутніх заходів.</p>
     </div>
 
     <div class="preview-frame">
-      <div class="preview-label">Дашборд РМ · Регіон Дніпро · Травень 2026</div>
+      <div class="preview-label">Прогноз по активних · Ellanse · Травень 2026</div>
+      <div class="form-preview">
+        <div class="form-row head">
+          <div></div>
+          <div>Клієнт</div>
+          <div>Прогноз</div>
+          <div class="hide-mobile">Етап</div>
+          <div class="hide-mobile">Коментар</div>
+          <div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="form-client">
+            Андрущук Катерина
+            <small>Ост: 04.05.2026 · $315</small>
+          </div>
+          <div class="form-input">315</div>
+          <div class="form-stage hide-mobile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Дзвінок
+          </div>
+          <div class="form-comment hide-mobile">Уточнити терміни</div>
+          <div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="form-client">
+            Глущенко Ірина
+            <small>Ост: 17.02.2026 · $70</small>
+          </div>
+          <div class="form-input">200</div>
+          <div class="form-stage hide-mobile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            Зустріч
+          </div>
+          <div class="form-comment hide-mobile">Презентація нового</div>
+          <div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="form-client">
+            Стаховська Марина
+            <small>Ост: 22.04.2026 · $70</small>
+          </div>
+          <div class="form-input">450</div>
+          <div class="form-stage hide-mobile" style="background: rgba(217,119,6,.15); color: #f5a96a; border-color: rgba(217,119,6,.3);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            Семінар 22.05
+          </div>
+          <div class="form-comment hide-mobile">З 1С-довідника</div>
+          <div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 6. STATUS / METRICS ─── -->
+<section class="slide" id="status">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">05</span> Контроль виконання</div>
+  <div class="container">
+    <div class="slide-head">
+      <h2>Бачите статус<br><span class="b accent">по кожній марці</span>.</h2>
+      <p class="slide-lead">Окремо план, факт, виконання, норма на дату, прогноз до кінця місяця. Бренди розкладаються рядками — клік розкриває склад по сегментах клієнтів того бренду.</p>
+    </div>
+
+    <div class="preview-frame" style="margin-bottom: 16px;">
+      <div class="preview-label">Підсумок місяця · Анна Фещенко · Травень</div>
       <div class="metric-grid">
         <div class="metric">
           <div class="lbl">План</div>
@@ -542,7 +662,7 @@
         </div>
         <div class="metric">
           <div class="lbl">Клієнти — факт купівель</div>
-          <div class="clientStats" style="margin-top: 10px;">
+          <div class="clientStats">
             <div><span>Активні</span><span>45 / 152</span></div>
             <div><span>Сплячі</span><span>12 / 306</span></div>
             <div><span>Нові</span><span>0 / 5</span></div>
@@ -550,21 +670,9 @@
         </div>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- ─── SLIDE 5: BRANDS ─── -->
-<section class="slide" id="brands">
-  <div class="ambient"></div>
-  <div class="slide-label"><span class="num">04</span> Інтерфейс</div>
-  <div class="container">
-    <div class="slide-head">
-      <h2>9 торгових марок —<br><span class="b accent">кожна окремо</span>.</h2>
-      <p class="slide-lead">Petaran, Ellanse, Neuramis, Vitaran, IUSE, Esse, Exoxe, Neuronox, Інші ТМ. По кожному бренду — статус, виконання, прогноз. Клік розкриває склад по сегментах клієнтів.</p>
-    </div>
 
     <div class="preview-frame">
-      <div class="preview-label">Торгові марки · фільтр Травень</div>
+      <div class="preview-label">Торгові марки · 6 з 9</div>
       <div class="brand-rows">
         <div class="brand-row">
           <span class="brand-dot bad"></span>
@@ -619,155 +727,57 @@
   </div>
 </section>
 
-<!-- ─── SLIDE 6: PLANNING FORM ─── -->
-<section class="slide" id="form">
+<!-- ─── 7. CONCRETE VALUE ─── -->
+<section class="slide" id="value">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">05</span> Інтерфейс</div>
+  <div class="slide-label"><span class="num">06</span> Що ви предметно отримаєте</div>
   <div class="container">
     <div class="slide-head">
-      <h2>Форма планування.<br><span class="b accent">Клієнт + етап</span> = прогноз.</h2>
-      <p class="slide-lead">Активні клієнти за 3 місяці — авто-список. Заповнюєте суму, обираєте етап. Для «Навчання» система покаже доступні семінари з 1С — досить вибрати.</p>
+      <h2>Що <span class="b accent">конкретно</span> змінюється у роботі.</h2>
+      <p class="slide-lead">Не «новий звіт». Конкретні економії часу і нові можливості, які зараз ви робите вручну або не робите взагалі.</p>
     </div>
 
-    <div class="preview-frame">
-      <div class="preview-label">Прогноз по активних · Ellanse · Травень</div>
-      <div class="form-preview">
-        <div class="form-row head">
-          <div></div>
-          <div>Клієнт</div>
-          <div>Прогноз</div>
-          <div class="hide-mobile">Етап</div>
-          <div class="hide-mobile">Коментар</div>
-          <div></div>
-        </div>
-        <div class="form-row">
-          <div class="form-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <div class="form-client">
-            Андрущук Катерина
-            <small>Ост: 04.05.2026 · $315</small>
-          </div>
-          <div class="form-input">315</div>
-          <div class="form-stage hide-mobile">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-            Дзвінок
-          </div>
-          <div class="form-comment hide-mobile">Уточнити терміни</div>
-          <div></div>
-        </div>
-        <div class="form-row">
-          <div class="form-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <div class="form-client">
-            Глущенко Ірина
-            <small>Ост: 17.02.2026 · $70</small>
-          </div>
-          <div class="form-input">200</div>
-          <div class="form-stage hide-mobile">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            Зустріч
-          </div>
-          <div class="form-comment hide-mobile">Презентація нового</div>
-          <div></div>
-        </div>
-        <div class="form-row">
-          <div class="form-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <div class="form-client">
-            Стаховська Марина
-            <small>Ост: 22.04.2026 · $70</small>
-          </div>
-          <div class="form-input">450</div>
-          <div class="form-stage hide-mobile" style="background: rgba(217,119,6,.15); color: #f5a96a; border-color: rgba(217,119,6,.3);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-            Навчання
-          </div>
-          <div class="form-comment hide-mobile">Семінар 22.05</div>
-          <div></div>
-        </div>
+    <div class="value-grid">
+      <div class="value-item">
+        <div class="num">01.</div>
+        <h5>Готовий список клієнтів місяця</h5>
+        <p>Не сидите з Excel-файлом і реєстром клієнтів. Система сама показує по кожному бренду — хто купував останні 3 місяці, хто давно не купував, хто новий. Тобто пул на кожен бренд готовий.</p>
+      </div>
+      <div class="value-item">
+        <div class="num">02.</div>
+        <h5>Видно сплячих з потенціалом</h5>
+        <p>Колись клієнт купував — може купити знову. Система виводить його у «Закриття розриву» з сумою останньої покупки. Замість «здається треба комусь подзвонити» — конкретний список з цифрами.</p>
+      </div>
+      <div class="value-item">
+        <div class="num">03.</div>
+        <h5>Запис клієнта на семінар у два кліки</h5>
+        <p>Майбутні семінари і навчальні заходи підтягнуті з 1С-довідника. Обираєте клієнта → етап «Семінар» → з випадаючого списку конкретний захід з датою. Дата автоматично у дедлайн.</p>
+      </div>
+      <div class="value-item">
+        <div class="num">04.</div>
+        <h5>Розрив рахується сам</h5>
+        <p>Менеджер не рахує: «у мене план $54k, факт $12k, прогноз $20k, що залишилось». Система показує суму розриву і одразу пропонує клієнтів які можуть його закрити.</p>
+      </div>
+      <div class="value-item">
+        <div class="num">05.</div>
+        <h5>Стан по бренду — миттєво</h5>
+        <p>Підсумок по 9 марках на одному екрані: де у плані, де відстаємо, який прогноз. Раніше це означало звести 3 різних звіти і подивитись по кожному менеджеру.</p>
+      </div>
+      <div class="value-item">
+        <div class="num">06.</div>
+        <h5>Один інструмент замість зошитів</h5>
+        <p>Не дублюєте інформацію у Excel + блокноті + у голові. Усе планування на місяць — у одному вікні, синхронізовано з 1С, доступно з будь-якого пристрою.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ─── SLIDE 7: CAPABILITIES ─── -->
-<section class="slide" id="capabilities">
-  <div class="ambient"></div>
-  <div class="slide-label"><span class="num">06</span> Можливості</div>
-  <div class="container">
-    <div class="slide-head">
-      <h2>Що <span class="b accent">дозволяє</span>.</h2>
-      <p class="slide-lead">Шість можливостей які роблять планування реальним інструментом, а не зайвою бюрократією.</p>
-    </div>
-
-    <div class="func-grid">
-      <div class="func-item">
-        <div class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-        </div>
-        <div>
-          <h5>Live-факт з 1С</h5>
-          <p>Не треба чекати кінця місяця. Факт підтягується з 1С автоматично — бачите зараз скільки зробили і скільки до плану.</p>
-        </div>
-      </div>
-      <div class="func-item">
-        <div class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 11h-6M20 8v6"/></svg>
-        </div>
-        <div>
-          <h5>Авто-список клієнтів</h5>
-          <p>Активні за останні 3 місяці підтягуються самі. Сплячих система покаже у блоці закриття розриву. Шукаєте конкретного — є пошук по всіх клієнтах 1С.</p>
-        </div>
-      </div>
-      <div class="func-item">
-        <div class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        </div>
-        <div>
-          <h5>Етапи з контролем</h5>
-          <p>Дзвінок, Зустріч, Навчання. Запис на тренінг — з 1С-довідника. Виконав етап — позначка автоматично коли клієнт купив.</p>
-        </div>
-      </div>
-      <div class="func-item">
-        <div class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
-        </div>
-        <div>
-          <h5>Авто-розрахунок розриву</h5>
-          <p>Якщо план + поточний прогноз не покривають ціль — система рахує розрив і пропонує сплячих/втрачених клієнтів з потенціалом.</p>
-        </div>
-      </div>
-      <div class="func-item">
-        <div class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
-        </div>
-        <div>
-          <h5>Працює всюди</h5>
-          <p>Ноутбук, планшет, телефон. Однаковий доступ через браузер. Логін той самий, що у СРМ Зустрічі.</p>
-        </div>
-      </div>
-      <div class="func-item">
-        <div class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        </div>
-        <div>
-          <h5>Безпечно за замовчуванням</h5>
-          <p>Доступ — лише до своїх даних. Керівник бачить команду read-only. Колеги один одного не бачать. Дані захищені на рівні API.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ─── SLIDE 8: CTA ─── -->
+<!-- ─── 8. CTA ─── -->
 <section class="slide cta-slide" id="cta">
   <div class="ambient"></div>
   <div class="slide-label"><span class="num">07</span> Старт</div>
   <div class="container">
-    <h2 style="max-width: 720px;">Перший вхід<br><span class="b accent">за 30 секунд</span>.</h2>
+    <h2 style="max-width: 720px; margin: 0 auto 24px;">Перший вхід<br><span class="b accent">за 30 секунд</span>.</h2>
     <p class="slide-lead" style="margin: 0 auto;">Відкрийте посилання у браузері. Введіть логін і пароль як у СРМ Зустрічі. Все.</p>
     <a href="https://sales-planning-lyart.vercel.app/" class="cta-button">
       Увійти у Sales Planning
@@ -776,7 +786,6 @@
   </div>
 </section>
 
-<!-- ─── FOOTER ─── -->
 <footer>
   <div class="container">
     Sales Planning · EMET · 2026
@@ -788,7 +797,6 @@
 </footer>
 
 <script>
-  // Active slide indicator dot navigation
   const dots = document.querySelectorAll('.slide-nav a');
   const slides = document.querySelectorAll('section.slide');
   const observer = new IntersectionObserver((entries) => {
