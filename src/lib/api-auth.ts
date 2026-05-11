@@ -10,13 +10,19 @@ import { NextRequest } from 'next/server';
 
 // У production обовʼязково мати реальний ключ — інакше fallback `dev-secret-key-change-me`
 // дозволив би будь-кому посилати X-API-KEY: dev-secret-key-change-me і обходити auth.
-if (process.env.NODE_ENV === 'production' && !process.env.API_SECRET_KEY) {
-  throw new Error(
-    'API_SECRET_KEY env variable is required in production. ' +
-    'Set it in Vercel → Settings → Environment Variables.'
-  );
+// ⚠️ Перевірка ЛИШЕ при runtime запиту (не на module-load) — інакше Next.js
+// build падає на 'Collecting page data' у preview-environment Vercel де
+// API_SECRET_KEY часто відсутній (лише prod env його має).
+function getApiSecret(): string {
+  const key = process.env.API_SECRET_KEY;
+  if (process.env.NODE_ENV === 'production' && !key) {
+    throw new Error(
+      'API_SECRET_KEY env variable is required in production. ' +
+      'Set it in Vercel → Settings → Environment Variables.'
+    );
+  }
+  return key || 'dev-secret-key-change-me';
 }
-const API_SECRET = process.env.API_SECRET_KEY || 'dev-secret-key-change-me';
 const ALLOWED_ORIGINS = [
   'https://sales-planning-lyart.vercel.app',
   'http://localhost:3000',
@@ -63,7 +69,7 @@ export function validateApiRequest(request: NextRequest): { valid: boolean; erro
 
   // 4) Зовнішній запит → потрібен ключ
   const authHeader = request.headers.get('x-api-key');
-  if (authHeader !== API_SECRET) {
+  if (authHeader !== getApiSecret()) {
     return { valid: false, error: 'Unauthorized: invalid API key' };
   }
 
