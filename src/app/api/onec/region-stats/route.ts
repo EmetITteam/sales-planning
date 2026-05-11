@@ -20,43 +20,16 @@
 import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
+import { aggregateRegionStats } from '@/lib/region-stats-aggregate';
 
 // Vercel: дай функції до 60с — 21 менеджер × 2 виклики 1С (Action 2 + Action 3)
 // з timeout 20с кожен. Без цього Vercel killed function на 10с (Hobby default)
 // → 500 Internal Server Error без логу. Pro plan дозволяє до 60с.
 export const maxDuration = 60;
 
-type CatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
-
-// ⚠️ КАТЕГОРІЇ НЕ ПО 1С-полю `category`!
-// Узгоджено з директором продажу (memory: active_vs_inactive_brand_rule.md):
-//   'active'  = клієнт купував ЦЕЙ БРЕНД за останні 3 місяці (по lastPurchaseDate
-//               сегмента з Action 2 purchases[])
-//   'sleeping/lost/none' = купував цей бренд раніше 3 міс — frontend колапсує
-//               у одну «Активізація». Тут різниці нема, кладемо все в 'sleeping'.
-//   'new'    = 1С-категорія `Новый` ВЦІЛОМУ (тобто клієнт вперше з'являється у
-//               системі) — це справді 1С-маркер, а не наша 3-місячна логіка.
-//
-// Раніше тут була `mapCategory` що читала 1С-поле `category` — дивні цифри
-// бо «активний» у 1С означає «купував взагалі», а не «купував саме Vitaran».
-const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
-
-const isRecentBrandPurchase = (dateStr: string | null | undefined, cutoffMs: number): boolean => {
-  if (!dateStr) return false;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  if (!y || !m || !d) return false;
-  return new Date(y, m - 1, d).getTime() >= cutoffMs;
-};
-
-const isNewClient1C = (raw: string | null | undefined): boolean => {
-  const c = (raw || '').toLowerCase().trim();
-  return c === 'новый' || c === 'новий';
-};
-
-const mapSegmentCode = (code: string): string => {
-  if (code === 'ДРУГИЕТМ') return 'OTHER';
-  return code;
-};
+// Класифікація + агрегація винесена в src/lib/region-stats-aggregate.ts
+// (memory: active_vs_inactive_brand_rule.md — категорії по lastPurchaseDate
+// бренду, НЕ по 1С-полю clients[].category). Pure-функція тестується unit-тестами.
 
 interface OneCResp<T> {
   status: 'success' | 'error';
@@ -120,15 +93,6 @@ async function handlePost(request: NextRequest) {
   if (logins.length > 50) {
     return Response.json({ error: 'too many logins (max 50)' }, { status: 400 });
   }
-  // plannedClientIds (опційний) — Set ID-ів клієнтів які реально у плані
-  // менеджерів. Якщо передано — рахуємо «Незапланованих» (купили, але не
-  // у плані). Якщо не передано — Незаплановані = 0 (не можемо порахувати).
-  const plannedSet = new Set<string>(
-    Array.isArray(plannedClientIds)
-      ? plannedClientIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
-      : []
-  );
-
   // Security: scope-перевірка як у /api/onec
   const sessionLogin = session.login.toLowerCase().trim();
   const allowed = new Set<string>([sessionLogin]);
@@ -175,101 +139,23 @@ async function handlePost(request: NextRequest) {
 
   const results = await Promise.all(tasks);
 
-  // Агрегація: per segment per category — sum amount + distinct buyer count
-  // Плюс top-level `unplanned` — buyers ID яких НЕ у plannedSet.
-  const bySegment: Record<string, {
-    byCategory: Record<CatKey, { factCount: number; factSum: number }>;
-    unplanned: { factCount: number; factSum: number };
-  }> = {};
-  const ensureSeg = (seg: string) => {
-    if (!bySegment[seg]) {
-      bySegment[seg] = {
-        byCategory: {
-          active: { factCount: 0, factSum: 0 },
-          sleeping: { factCount: 0, factSum: 0 },
-          lost: { factCount: 0, factSum: 0 },
-          new: { factCount: 0, factSum: 0 },
-          none: { factCount: 0, factSum: 0 },
-        },
-        unplanned: { factCount: 0, factSum: 0 },
-      };
-    }
-    return bySegment[seg];
-  };
-
-  // Cutoff для 3-місячного правила. Раз обчислюємо, потім перевіряємо для
-  // кожного buyer per segment.
-  const cutoffMs = Date.now() - THREE_MONTHS_MS;
-  const havePlanInfo = plannedSet.size > 0;
-
-  for (const r of results) {
-    if (!r.clientsResp || !r.factResp) continue;
-    // Захист: 1С іноді повертає payload без clients/segments (порожній менеджер)
-    const clients = Array.isArray(r.clientsResp.clients) ? r.clientsResp.clients : [];
-    const segments = Array.isArray(r.factResp.segments) ? r.factResp.segments : [];
-    if (clients.length === 0 || segments.length === 0) continue;
-
-    // Map (clientId, segmentCode) → lastPurchaseDate цього бренду — для
-    // нашого 3-місячного правила «активний по бренду».
-    // І окремо Set "новий клієнт у 1С" — для bucket-у `new`.
-    const lastPurchaseBy = new Map<string, string>();
-    const newClientSet = new Set<string>();
-    for (const c of clients) {
-      if (!c || !c.clientId) continue;
-      if (isNewClient1C(c.category)) newClientSet.add(c.clientId);
-      const purchases = Array.isArray(c.purchases) ? c.purchases : [];
-      for (const p of purchases) {
-        if (!p || !p.segmentCode || !p.lastPurchaseDate) continue;
-        const segCode = mapSegmentCode(p.segmentCode);
-        lastPurchaseBy.set(`${c.clientId}|${segCode}`, p.lastPurchaseDate);
-      }
-    }
-
-    // Кожен segment: { segmentCode, clients: [{clientId, factAmountUSD}] }
-    // ⚠️ Логіка категоризації (узгоджена з директором продажу):
-    //   - 'new'      = клієнт з 1С-категорією 'Новий' (це справжній 1С-маркер)
-    //   - 'active'   = купував ЦЕЙ бренд за останні 3 міс (lastPurchaseDate ≥ today-90д)
-    //   - 'sleeping' = купував цей бренд раніше 3 міс (frontend колапсує
-    //                  sleeping+lost+none у 'Активізація')
-    //   - 'unplanned' = ОКРЕМИЙ ЗРІЗ. Buyer що НЕ у plannedSet. Може
-    //                  пересікатися з усіма попередніми (це підмножина).
-    for (const seg of segments) {
-      if (!seg || !seg.segmentCode) continue;
-      const segCode = mapSegmentCode(seg.segmentCode);
-      const sBlock = ensureSeg(segCode);
-      const buyers = Array.isArray(seg.clients) ? seg.clients : [];
-      for (const buyer of buyers) {
-        if (!buyer || !buyer.clientId) continue;
-        const amt = typeof buyer.factAmountUSD === 'number'
-          ? buyer.factAmountUSD
-          : parseFloat(String(buyer.factAmountUSD));
-        if (!Number.isFinite(amt) || amt === 0) continue;
-
-        // Класифікуємо за нашим бізнес-правилом, не за 1С-полем
-        let cat: CatKey;
-        if (newClientSet.has(buyer.clientId)) {
-          cat = 'new';
-        } else {
-          const lpd = lastPurchaseBy.get(`${buyer.clientId}|${segCode}`);
-          cat = isRecentBrandPurchase(lpd, cutoffMs) ? 'active' : 'sleeping';
-        }
-
-        // 1) Завжди — у відповідну категорію
-        sBlock.byCategory[cat].factSum += amt;
-        sBlock.byCategory[cat].factCount += 1;
-
-        // 2) Якщо плановий список переданий і buyer НЕ у ньому — додаємо у
-        //    unplanned (підмножина, не виключення).
-        if (havePlanInfo && !plannedSet.has(buyer.clientId)) {
-          sBlock.unplanned.factSum += amt;
-          sBlock.unplanned.factCount += 1;
-        }
-      }
-    }
-  }
+  // Агрегація винесена в pure-функцію (src/lib/region-stats-aggregate.ts) —
+  // тестується unit-тестами без HTTP/моків. Endpoint тільки готує дані.
+  const managerInputs = results
+    .filter(r => r.clientsResp && r.factResp)
+    .map(r => ({
+      clients: r.clientsResp!.clients ?? [],
+      segments: r.factResp!.segments ?? [],
+    }));
+  // havePlanInfo трактується pure-функцією як Array.isArray(plannedClientIds)
+  // — тому передаємо як було у body (null/undefined/масив).
+  const aggregated = aggregateRegionStats(
+    managerInputs,
+    Array.isArray(plannedClientIds) ? plannedClientIds : null,
+  );
 
   return Response.json({
-    bySegment,
+    bySegment: aggregated.bySegment,
     meta: {
       period,
       logins: safeLogins.length,
