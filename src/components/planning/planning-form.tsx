@@ -703,7 +703,7 @@ export function PlanningForm({
                       <SelectValue placeholder="Оберіть..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__"><span className="text-muted-foreground">— Без етапу —</span></SelectItem>
+                      <SelectItem value="__none__">Обрати</SelectItem>
                       {STAGE_OPTIONS.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.value}
@@ -831,7 +831,7 @@ export function PlanningForm({
                           <SelectValue placeholder="Оберіть..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__"><span className="text-muted-foreground">— Без етапу —</span></SelectItem>
+                          <SelectItem value="__none__">Обрати</SelectItem>
                           {STAGE_OPTIONS.map(opt => (
                             <SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>
                           ))}
@@ -1019,7 +1019,7 @@ export function PlanningForm({
                         <SelectValue placeholder="Оберіть..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__"><span className="text-muted-foreground">— Без етапу —</span></SelectItem>
+                        <SelectItem value="__none__">Обрати</SelectItem>
                         {STAGE_OPTIONS.map(opt => (
                           <SelectItem key={opt.value} value={opt.value}>
                             {opt.value}
@@ -1152,7 +1152,7 @@ export function PlanningForm({
                             <SelectValue placeholder="Оберіть..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__"><span className="text-muted-foreground">— Без етапу —</span></SelectItem>
+                            <SelectItem value="__none__">Обрати</SelectItem>
                             {STAGE_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>))}
                           </SelectContent>
                         </Select>
