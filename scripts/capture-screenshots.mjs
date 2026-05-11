@@ -197,6 +197,30 @@ try {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(500);
     await shot(page, '11-planning-bottom');
+
+    // === 12. Bulk delete: scroll to forecasts + tick 2-3 checkboxes + capture ===
+    console.log('8. Bulk delete demo...');
+    await page.evaluate(() => window.scrollTo(0, 700));
+    await page.waitForTimeout(500);
+    // Tick first 3 forecast checkboxes (multi-select for bulk delete)
+    const checkboxes = page.locator('input[type="checkbox"][aria-label^="Обрати "]');
+    const cnt = await checkboxes.count();
+    const toTick = Math.min(3, cnt);
+    for (let i = 0; i < toTick; i++) {
+      await checkboxes.nth(i).check({ force: true });
+      await page.waitForTimeout(150);
+    }
+    // Wait for bulk-bar to render
+    await page.waitForSelector('text=/Видалити обраних/', { timeout: 5000 });
+    await page.waitForTimeout(300);
+    // Scroll to top of forecasts so bar is visible at top
+    await page.evaluate(() => {
+      const el = document.querySelector('h3.text-\\[15px\\].font-bold');
+      if (el) el.scrollIntoView({ block: 'start' });
+      else window.scrollTo(0, 600);
+    });
+    await page.waitForTimeout(400);
+    await shot(page, '12-bulk-delete');
   }
 
   console.log(`\nAll screenshots saved to ${OUT_DIR}`);
