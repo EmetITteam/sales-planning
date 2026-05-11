@@ -94,6 +94,14 @@ export function DirectorDashboard() {
   const totalWD = getWorkingDaysInMonth(py, pm - 1);
   const passedWD = getPassedWorkingDays(py, pm - 1, asOfDate);
   const calcPctValue = getMonthProgressPct(py, pm - 1, asOfDate);
+  // У live-режимі додатково рахуємо «норма на ранок» = % робочих днів пройдено
+  // станом на вчора. Дозволяє побачити: «що було на ранок vs що зараз».
+  const morningPctValue = useMemo(() => {
+    if (!liveMode) return null;
+    const yest = new Date(asOfDate);
+    yest.setDate(yest.getDate() - 1);
+    return getMonthProgressPct(py, pm - 1, yest);
+  }, [liveMode, asOfDate, py, pm]);
   const periodLabel = getMonthName(py, pm - 1);
 
   // === Sub-views ===
@@ -254,6 +262,9 @@ export function DirectorDashboard() {
               caption={(
                 <div className="space-y-0.5">
                   <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
+                  {liveMode && morningPctValue !== null && (
+                    <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
+                  )}
                   <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                 </div>
               )}
