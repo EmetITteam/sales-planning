@@ -276,11 +276,15 @@ export function DirectorDashboard() {
             <div className="space-y-3">
               {company.regionAggregates.map((r, idx) => {
                 const region = adapted!.regions[idx];
-                const managersBrief = aggregateManagers(region)
-                  // Показуємо у mini-list тільки тих хто має CURRENT активність.
-                  // Без цього з'являлися «не працюючі» менеджери з лише prev-history
-                  // (Хамуляк А. 0% (-28.6%)). Їх prev-history все одно у regional агрегаті.
-                  .filter(m => m.totalPlan > 0 || m.totalFact > 0)
+                // Показуємо у mini-list тільки тих хто продав хоч щось у поточному
+                // періоді. Менеджери з планом але БЕЗ факту (наприклад Хамуляк
+                // у відпустці) псують вигляд рядка з «0% (-33.3%)». Їх дані все
+                // одно в regional-агрегаті.
+                // Fallback: якщо у регіоні взагалі ніхто ще не продав (1-2 числа
+                // місяця) — показуємо тих хто хоч має план.
+                const allManagers = aggregateManagers(region);
+                const withFact = allManagers.filter(m => m.totalFact > 0);
+                const managersBrief = (withFact.length > 0 ? withFact : allManagers.filter(m => m.totalPlan > 0))
                   .map(m => ({
                     name: m.name,
                     login: m.login,

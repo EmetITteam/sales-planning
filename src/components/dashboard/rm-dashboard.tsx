@@ -64,7 +64,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   }, [adapted, regionCode]);
 
   const aggregate = useMemo(() => region ? aggregateRegion(region) : null, [region]);
-  const managerList = useMemo(() => region ? aggregateManagers(region) : [], [region]);
+  // managerList: тільки ті хто має продаж у поточному періоді (стрічка без 0%-Хамуляків).
+  // Fallback на тих з планом, якщо ніхто ще не продав (1-2 числа місяця).
+  const managerList = useMemo(() => {
+    if (!region) return [];
+    const all = aggregateManagers(region);
+    const withFact = all.filter(m => m.totalFact > 0);
+    return withFact.length > 0 ? withFact : all.filter(m => m.totalPlan > 0);
+  }, [region]);
 
   // Auto-retry: до 3 спроб з backoff (1.2с / 2.5с / 5с) якщо 1С повертає
   // порожньо. На першому запиті після login Action 5 іноді не встигає —
