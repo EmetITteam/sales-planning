@@ -401,15 +401,27 @@ export function PlanningForm({
     })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabaseLoaded, sleepingClients.length]);
-  const activeSum = activeClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
-  const sleepingSum = sleepingClients.reduce((s, c) => s + c.lastPurchaseAmount, 0);
+  // «Дані по клієнтах по ТМ» — РЕАЛЬНИЙ розклад планування менеджера, не
+  // потенціал з 1С. Активні = forecasts (за визначенням 3-month rule). Нові +
+  // Активізація = gap_closures, розділяємо за полем category (з 1С).
+  const isNewCategory = (c?: string | null) => !!c && /(^|\s)нов(ый|ий)/i.test(c);
+  const newGapRows = gapClosures.filter(g => isNewCategory(g.category));
+  const sleepingGapRows = gapClosures.filter(g => !isNewCategory(g.category));
+  const activeForecastSum = forecasts.reduce((s, f) => s + (f.forecastAmount || 0), 0);
+  const activeFactSum = forecasts.reduce((s, f) => s + (f.factAmount || 0), 0);
+  const newPotentialSum = newGapRows.reduce((s, g) => s + (g.potentialAmount || 0), 0);
+  const newFactSum = newGapRows.reduce((s, g) => s + (g.factAmount || 0), 0);
+  const sleepingPotentialSum = sleepingGapRows.reduce((s, g) => s + (g.potentialAmount || 0), 0);
+  const sleepingFactSum = sleepingGapRows.reduce((s, g) => s + (g.factAmount || 0), 0);
+
   const categories: ClientCategorySummary[] = [
-    { category: 'active', label: 'Активні клієнти', clientCount: activeClients.length, expectedAmount: activeSum, planCoveragePercent: pctOf(activeSum, planAmount) },
-    { category: 'new', label: 'Нові клієнти по ТМ', clientCount: 0, expectedAmount: 0, planCoveragePercent: 0 },
-    { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingClients.length, expectedAmount: sleepingSum, planCoveragePercent: pctOf(sleepingSum, planAmount) },
+    { category: 'active', label: 'Активні клієнти', clientCount: forecasts.length, expectedAmount: activeForecastSum, factAmount: activeFactSum, planCoveragePercent: pctOf(activeForecastSum, planAmount) },
+    { category: 'new', label: 'Нові клієнти по ТМ', clientCount: newGapRows.length, expectedAmount: newPotentialSum, factAmount: newFactSum, planCoveragePercent: pctOf(newPotentialSum, planAmount) },
+    { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingGapRows.length, expectedAmount: sleepingPotentialSum, factAmount: sleepingFactSum, planCoveragePercent: pctOf(sleepingPotentialSum, planAmount) },
   ];
   const totalCatClients = categories.reduce((s, c) => s + c.clientCount, 0);
   const totalCatAmount = categories.reduce((s, c) => s + c.expectedAmount, 0);
+  const totalCatFact = categories.reduce((s, c) => s + c.factAmount, 0);
   const totalCatPct = pctOf(totalCatAmount, planAmount);
 
   const CAT_ICONS: Record<string, React.ReactNode> = {
@@ -619,12 +631,13 @@ export function PlanningForm({
         ) : (
         <div className="divide-y divide-[#f0f2f8]">
           {categories.map(cat => (
-            <div key={cat.category} className="flex md:grid md:grid-cols-[32px_1fr_80px_100px_80px] flex-wrap gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3">
+            <div key={cat.category} className="flex md:grid md:grid-cols-[32px_1fr_70px_100px_90px_60px] flex-wrap gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb] shrink-0">{CAT_ICONS[cat.category]}</div>
               <p className="text-[13px] font-medium flex-1 min-w-0">{cat.label}</p>
-              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Кількість</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
+              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Заплан.</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
               <div className="text-right basis-[90px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
-              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Закрив. %</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
+              <div className="text-right basis-[80px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-emerald-700">{formatUSD(cat.factAmount)}</p></div>
+              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
             </div>
           ))}
           {/* Незаплановані — покупці яких немає у плані менеджера, але вони
@@ -642,23 +655,25 @@ export function PlanningForm({
             ];
             return (
               <>
-                <div className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-3 bg-fuchsia-50/40">
+                <div className="grid grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center px-5 py-3 bg-fuchsia-50/40">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fuchsia-100">
                     <AlertCircle className="h-4 w-4 text-fuchsia-600" />
                   </div>
                   <p className="text-[13px] font-semibold">Незаплановані <span className="text-[10px] text-muted-foreground font-normal">(купили без плану)</span></p>
-                  <div className="text-right"><p className="text-[10px] text-muted-foreground">Кількість</p><p className="text-[14px] font-bold">{unplannedAll.length}</p></div>
+                  <div className="text-right"><p className="text-[10px] text-muted-foreground">Купили</p><p className="text-[14px] font-bold">{unplannedAll.length}</p></div>
+                  <div className="text-right"><p className="text-[10px] text-muted-foreground">—</p><p className="text-[14px] font-bold text-muted-foreground/40">—</p></div>
                   <div className="text-right"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-fuchsia-700">{formatUSD(unplannedTotal)}</p></div>
-                  <div className="text-right"><p className="text-[10px] text-muted-foreground">% від плану</p><p className="text-[14px] font-bold text-fuchsia-700">{unplannedPct.toFixed(1)}%</p></div>
+                  <div className="text-right"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-fuchsia-700">{unplannedPct.toFixed(1)}%</p></div>
                 </div>
                 {subRows.filter(([, items]) => items.length > 0).map(([label, items]) => {
                   const sum = items.reduce((s, b) => s + b.factAmount, 0);
                   return (
                     <div key={`unp-${label}`}
-                         className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-2 pl-12 bg-fuchsia-50/20">
+                         className="grid grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center px-5 py-2 pl-12 bg-fuchsia-50/20">
                       <div />
                       <p className="text-[12px] text-muted-foreground">↳ {label}</p>
                       <p className="text-[12px] text-right">{items.length}</p>
+                      <p />
                       <p className="text-[12px] font-mono text-right amount text-muted-foreground">{formatUSD(sum)}</p>
                       <div />
                     </div>
@@ -668,11 +683,12 @@ export function PlanningForm({
             );
           })()}
 
-          <div className="grid grid-cols-[32px_1fr_80px_100px_80px] gap-3 items-center px-5 py-3 bg-[#f4f7fb]">
+          <div className="grid grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center px-5 py-3 bg-[#f4f7fb]">
             <div />
             <p className="text-[13px] font-bold">Всього</p>
             <p className="text-[14px] font-bold text-right">{totalCatClients}</p>
             <p className="text-[14px] font-bold font-mono text-right amount">{formatUSD(totalCatAmount)}</p>
+            <p className="text-[14px] font-bold font-mono text-right amount text-emerald-700">{formatUSD(totalCatFact)}</p>
             <p className="text-[14px] font-bold text-[#066aab] text-right">{totalCatPct.toFixed(1)}%</p>
           </div>
         </div>
