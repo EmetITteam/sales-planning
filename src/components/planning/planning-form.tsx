@@ -105,6 +105,12 @@ export function PlanningForm({
   // Прапорець: чи закінчилась спроба завантаження з Supabase. Якщо так і даних
   // нема — auto-populate Прогноз з реальних активних клієнтів 1С.
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
+  // ID-и клієнтів які РЕАЛЬНО збережені у Supabase (не auto-populated).
+  // Використовуємо тільки для розрахунку «Незаплановані» — щоб блок поводився
+  // консистентно з дашбордом (де теж рахується по Supabase плану).
+  // Інакше: відкрив форму → auto-populate додав клієнтів → unplanned зник
+  // навіть для тих хто реально не у плані.
+  const [persistedClientIds, setPersistedClientIds] = useState<Set<string>>(new Set());
 
   // FEATURE: завантаження збережених даних з Supabase.
   // ⚠️ При зміні (effectiveLogin, segmentCode, currentPeriod) ОЧИЩАЄМО stale state
@@ -116,12 +122,19 @@ export function PlanningForm({
     setGapClosures([]);
     setGapActions({ action1: '', action2: '', action3: '' });
     setSupabaseLoaded(false);
+    setPersistedClientIds(new Set());
 
     let cancelled = false;
     loadPlanning(effectiveLogin, segmentCode, currentPeriod.id).then(data => {
       if (cancelled) return;
       setSupabaseLoaded(true);
       if (!data) return;
+      // Зберігаємо ID-и які РЕАЛЬНО прийшли з Supabase — щоб «Незаплановані»
+      // блок узгоджувався з дашбордом (де теж дивиться лише на saved-план).
+      const persisted = new Set<string>();
+      for (const f of data.forecasts) if (f.client_id_1c) persisted.add(f.client_id_1c);
+      for (const g of data.gapClosures) if (g.client_id_1c) persisted.add(g.client_id_1c);
+      setPersistedClientIds(persisted);
       // ⚠️ Після migration M3: читаємо дедіковані колонки замість unpack JSON.
       // Якщо БД ще має старі JSON-row (не мігровані), вони опрацюються через
       // міграційний UPDATE на стороні Supabase (M3 заповнює нові колонки + чистить
@@ -291,9 +304,12 @@ export function PlanningForm({
     return set;
   }, [forecasts, gapClosures]);
 
+  // Незаплановані рахуємо проти ТОГО ЩО У SUPABASE, а не проти поточного state.
+  // Інакше auto-populate додає клієнтів у forecasts і блок «Незаплановані»
+  // зникає миттєво, навіть якщо вони реально ще не у плані.
   const unplannedAll = useMemo(() => {
-    return getUnplannedBuyersForSegment(allManagerClients, factResponse, segmentCode, plannedClientIds);
-  }, [allManagerClients, factResponse, segmentCode, plannedClientIds]);
+    return getUnplannedBuyersForSegment(allManagerClients, factResponse, segmentCode, persistedClientIds);
+  }, [allManagerClients, factResponse, segmentCode, persistedClientIds]);
 
   const unplannedSplit = useMemo(() => splitUnplannedForPlanning(unplannedAll), [unplannedAll]);
   const unplannedByCategory = useMemo(() => groupUnplannedByCategory(unplannedAll), [unplannedAll]);
