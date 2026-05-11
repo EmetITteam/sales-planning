@@ -219,7 +219,13 @@
   .two-blocks-split {
     display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
   }
-  @media (max-width: 900px) { .two-blocks-split { grid-template-columns: 1fr; } }
+  .three-blocks-split {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  @media (max-width: 900px) {
+    .two-blocks-split { grid-template-columns: 1fr; }
+    .three-blocks-split { grid-template-columns: 1fr; }
+  }
   .block-card {
     background: rgba(255,255,255,.04);
     border: 1px solid var(--line-2);
@@ -454,7 +460,7 @@
 
 <!-- ─── SIDE NAVIGATION ─── -->
 <nav class="slide-nav">
-  <a href="#cover"></a><a href="#two-blocks"></a><a href="#status"></a><a href="#active"></a><a href="#gap"></a><a href="#form"></a><a href="#value"></a><a href="#cta"></a>
+  <a href="#cover"></a><a href="#two-blocks"></a><a href="#status"></a><a href="#planning-intro"></a><a href="#active"></a><a href="#gap"></a><a href="#form"></a><a href="#value"></a><a href="#cta"></a>
 </nav>
 
 <!-- ─── 1. COVER ─── -->
@@ -611,10 +617,57 @@
 </section>
 
 
-<!-- ─── 3. ACTIVE CLIENTS — DYNAMIC FILTER ─── -->
+<!-- ─── 3. PLANNING OVERVIEW ─── -->
+<section class="slide" id="planning-intro">
+  <div class="ambient"></div>
+  <div class="slide-label"><span class="num">03</span> Планування — огляд</div>
+  <div class="container">
+    <div class="slide-head">
+      <h2>Планування —<br>робота <span class="b accent">по бренду</span> на місяць.</h2>
+      <p class="slide-lead">Коли провалюєтесь з дашборду у конкретний бренд (наприклад Ellanse) — потрапляєте у блок планування. Він складається з трьох секцій. Дві з них формуються автоматично з вашої клієнтської бази у 1С — система сама розкладає, з ким працювати і кого активізувати.</p>
+    </div>
+
+    <div class="three-blocks-split">
+      <div class="block-card">
+        <div class="block-num">01</div>
+        <div class="block-name" style="font-size:22px;">Прогноз по активних</div>
+        <div class="block-tagline">Авто-список</div>
+        <ul class="block-feat">
+          <li>Клієнти що купували цей бренд за 90 днів</li>
+          <li>Прогноз = сума останньої покупки</li>
+          <li>Менеджер обирає дію — дзвінок, зустріч, семінар</li>
+        </ul>
+      </div>
+
+      <div class="block-card accent">
+        <div class="block-num">02</div>
+        <div class="block-name" style="font-size:22px;">Закриття розриву</div>
+        <div class="block-tagline">Кандидати на повернення</div>
+        <ul class="block-feat">
+          <li>Сплячі, втрачені, без закупок, нові</li>
+          <li>Розрив рахується автоматично</li>
+          <li>Підсвічуються клієнти які можуть його закрити</li>
+        </ul>
+      </div>
+
+      <div class="block-card">
+        <div class="block-num">03</div>
+        <div class="block-name" style="font-size:22px;">Збереження</div>
+        <div class="block-tagline">Один клік</div>
+        <ul class="block-feat">
+          <li>«Зберегти» внизу форми — вся секція разом</li>
+          <li>Можна повернутись і відкоригувати будь-коли</li>
+          <li>Зберігається лише ваше — РМ і Директор бачать read-only</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 4. ACTIVE CLIENTS — DYNAMIC FILTER ─── -->
 <section class="slide" id="active">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">03</span> Прогноз по активних</div>
+  <div class="slide-label"><span class="num">04</span> Прогноз по активних</div>
   <div class="container">
     <div class="slide-head">
       <h2>Хто потрапляє<br>у блок <span class="b accent">«Активні»</span>.</h2>
@@ -668,7 +721,7 @@
 <!-- ─── 4. GAP CLOSURE — DYNAMIC FILTER ─── -->
 <section class="slide" id="gap">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">04</span> Закриття розриву</div>
+  <div class="slide-label"><span class="num">05</span> Закриття розриву</div>
   <div class="container">
     <div class="slide-head">
       <h2>Хто потрапляє<br>у блок <span class="b accent">«Закриття розриву»</span>.</h2>
@@ -722,7 +775,7 @@
 <!-- ─── 5. FORM — STAGE PICK ─── -->
 <section class="slide" id="form">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">05</span> Форма планування</div>
+  <div class="slide-label"><span class="num">06</span> Форма планування</div>
   <div class="container">
     <div class="slide-head">
       <h2>Що робить менеджер.<br><span class="b accent">Сума</span> + <span class="b accent">етап</span> на клієнта.</h2>
@@ -796,7 +849,7 @@
 <!-- ─── 7. CONCRETE VALUE ─── -->
 <section class="slide" id="value">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">06</span> Що ви предметно отримаєте</div>
+  <div class="slide-label"><span class="num">07</span> Що ви предметно отримаєте</div>
   <div class="container">
     <div class="slide-head">
       <h2>Що <span class="b accent">конкретно</span> змінюється у роботі.</h2>
@@ -807,7 +860,7 @@
       <div class="value-item">
         <div class="num">01.</div>
         <h5>Готовий список клієнтів місяця</h5>
-        <p>Не сидите з Excel-файлом і реєстром клієнтів. Система сама показує по кожному бренду — хто купував останні 3 місяці, хто давно не купував, хто новий. Тобто пул на кожен бренд готовий.</p>
+        <p>Не треба вручну шукати кожного клієнта у 1С і додавати у таблицю. Система сама показує по кожному бренду — хто купував останні 3 місяці, хто давно не купував, хто новий. Тобто пул на кожен бренд готовий.</p>
       </div>
       <div class="value-item">
         <div class="num">02.</div>
@@ -841,7 +894,7 @@
 <!-- ─── 8. CTA ─── -->
 <section class="slide cta-slide" id="cta">
   <div class="ambient"></div>
-  <div class="slide-label"><span class="num">07</span> Старт</div>
+  <div class="slide-label"><span class="num">08</span> Старт</div>
   <div class="container">
     <h2 style="max-width: 720px; margin: 0 auto 24px;">Перший вхід<br><span class="b accent">за 30 секунд</span>.</h2>
     <p class="slide-lead" style="margin: 0 auto;">Відкрийте посилання у браузері. Введіть логін і пароль як у СРМ Зустрічі. Все.</p>
