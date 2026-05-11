@@ -140,12 +140,14 @@ async function handlePost(request: NextRequest) {
   };
   type Action3Resp = { segments: Array<{ segmentCode: string; clients: Array<{ clientId: string; factAmountUSD: number | string }> }> };
 
-  const tasks = safeLogins.map(async (login) => {
-    const [clientsResp, factResp] = await Promise.all([
-      callOneC<Action2Resp>('getClientsForPlanning', { login }),
-      // Action 3 потребує clientIds. Зробимо у 2 кроки: спочатку clients, потім fact з тими ID.
-      Promise.resolve(null as Action3Resp | null), // placeholder — заповнимо нижче
-    ]);
+  // Один менеджер = 1 виклик Action 2 + 1 виклик Action 3 (sequential).
+  // Раніше всі 21 менеджер летіли в 1С паралельно (42 запити одночасно) — 1С
+  // перевантажувався, частина запитів падала з timeout → у відповіді ~30%
+  // менеджерів не було, totalFact зменшувався втричі.
+  // Тепер обмежуємо concurrency до CONCURRENCY_LIMIT менеджерів за раз.
+  const CONCURRENCY_LIMIT = 5;
+  const fetchOneManager = async (login: string) => {
+    const clientsResp = await callOneC<Action2Resp>('getClientsForPlanning', { login });
     if (!clientsResp || !clientsResp.clients) return { login, clientsResp: null, factResp: null };
     const clientIds = clientsResp.clients.map(c => c.clientId);
     if (clientIds.length === 0) return { login, clientsResp, factResp: null };
@@ -153,9 +155,15 @@ async function handlePost(request: NextRequest) {
     if (asOfDate) factPayload.asOfDate = asOfDate;
     const fact = await callOneC<Action3Resp>('getSalesFact', factPayload);
     return { login, clientsResp, factResp: fact };
-  });
+  };
 
-  const results = await Promise.all(tasks);
+  // Простий semaphore: батчимо safeLogins по CONCURRENCY_LIMIT і ждем кожен батч.
+  const results: Array<Awaited<ReturnType<typeof fetchOneManager>>> = [];
+  for (let i = 0; i < safeLogins.length; i += CONCURRENCY_LIMIT) {
+    const batch = safeLogins.slice(i, i + CONCURRENCY_LIMIT);
+    const batchResults = await Promise.all(batch.map(fetchOneManager));
+    results.push(...batchResults);
+  }
 
   // Агрегація винесена в pure-функцію (src/lib/region-stats-aggregate.ts) —
   // тестується unit-тестами без HTTP/моків. Endpoint тільки готує дані.
