@@ -1,96 +1,94 @@
 // Security regression тести для PostgREST filter value escaping.
 //
-// КРИТИЧНО: без правильного escape, client_id_1c з 1С що містить кому/
-// дужки/лапки ламає `in.()` / `notIn.()` фільтр → DELETE захоплює чужі
-// рядки. Це реальний security risk виявлений у code-review 2026-05-12.
+// Дві pure-функції з src/lib/supabase.ts:
+// 1. eq/lt — простий encodeURIComponent (PostgREST приймає decoded)
+// 2. in/notIn — escapeListValue: quoting якщо є кома/дужка/лапка/backslash
 //
-// Логіка escape (з src/lib/supabase.ts):
-//   - Якщо містить [,()"\s.\] → "..." з \"\\ escape
-//   - Інакше → encodeURIComponent
+// Раніше була єдина quoted-функція що ламала GET .eq() для emails з .
+// (PostgREST для quoted eq має інший синтаксис → запит повертав 0 рядків →
+// save переписував дані з нуля → втрачались зміни менеджера).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// Дублюємо логіку з supabase.ts — pure helper. Якщо реалізація розійдеться —
-// тести впадуть і покажуть розходження.
-function escapeFilterValue(v: unknown): string {
+// Дублюємо логіку з supabase.ts — pure helpers.
+function escapeEqValue(v: unknown): string {
+  return encodeURIComponent(String(v));
+}
+
+function escapeListValue(v: unknown): string {
   const s = String(v ?? '');
-  if (/[,()"\s.\\]/.test(s)) {
+  if (/[,()"\\]/.test(s)) {
     return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
   }
   return encodeURIComponent(s);
 }
 
-// === Безпечні значення (URL-encode) ===
+// === eq/lt: простий URL-encode ===
 
-test('простий ASCII login: encodeURIComponent', () => {
-  assert.equal(escapeFilterValue('manager1'), 'manager1');
+test('eq: простий ASCII', () => {
+  assert.equal(escapeEqValue('manager1'), 'manager1');
 });
 
-test('email з @ і дефісом: encodeURIComponent', () => {
-  assert.equal(escapeFilterValue('sm.dnepr3@emet.in.ua'), '"sm.dnepr3@emet.in.ua"');
-  // ⚠️ . тут спецсимвол PostgREST → quoting
+test('eq: email з @ і крапкою (РАНІШЕ ЛАМАЛОСЯ)', () => {
+  // КРИТИЧНО: цей формат МАЄ працювати, бо всі user_id у БД — emails.
+  // Якщо escape оборачує у "..." → PostgREST не знаходить → save регресія.
+  assert.equal(escapeEqValue('rm.zp@emet.in.ua'), 'rm.zp%40emet.in.ua');
 });
 
-test('число у вигляді рядка', () => {
-  assert.equal(escapeFilterValue('20260531'), '20260531');
+test('eq: число → string', () => {
+  assert.equal(escapeEqValue(42), '42');
 });
 
-test('UUID без спецсимволів', () => {
-  assert.equal(escapeFilterValue('abc123def456'), 'abc123def456');
+test('eq: ID з YYYYMMDD форматом', () => {
+  assert.equal(escapeEqValue('20260531'), '20260531');
 });
 
-// === Спецсимволи PostgREST → quoting ===
-
-test('🐛 client_id з комою — security regression', () => {
-  // Без escape: in.(00012,00034,evil) → DELETE захопить evil
-  // З escape: in.("00012,00034",evil) → коректно
-  assert.equal(escapeFilterValue('00012,00034'), '"00012,00034"');
+test('eq: bool', () => {
+  assert.equal(escapeEqValue(true), 'true');
 });
 
-test('🐛 client_id з дужкою', () => {
-  assert.equal(escapeFilterValue('client)id'), '"client)id"');
+// === escapeListValue (in/notIn) ===
+
+test('in: простий ASCII — без quoting', () => {
+  assert.equal(escapeListValue('manager1'), 'manager1');
 });
 
-test('🐛 client_id з лапками — escape \\"', () => {
-  assert.equal(escapeFilterValue('client"name'), '"client\\"name"');
+test('in: email з @ і крапкою — БЕЗ quoting (тільки url-encode)', () => {
+  // У list контексті крапка не розділювач — quoting НЕ потрібен.
+  assert.equal(escapeListValue('rm.zp@emet.in.ua'), 'rm.zp%40emet.in.ua');
 });
 
-test('🐛 client_id з backslash — escape \\\\', () => {
-  assert.equal(escapeFilterValue('client\\name'), '"client\\\\name"');
+test('🐛 in: client_id з комою — quoting (security regression)', () => {
+  // Без quoting: in.(00012,00034,evil) → DELETE захопить evil
+  // З quoting: in.("00012,00034",evil) → коректно
+  assert.equal(escapeListValue('00012,00034'), '"00012,00034"');
 });
 
-test('значення з пробілом — quoting', () => {
-  assert.equal(escapeFilterValue('Іван Петренко'), '"Іван Петренко"');
+test('🐛 in: client_id з дужкою — quoting', () => {
+  assert.equal(escapeListValue('client)id'), '"client)id"');
 });
 
-test('значення з крапкою — quoting (PostgREST реcтриктивний)', () => {
-  assert.equal(escapeFilterValue('client.id'), '"client.id"');
+test('🐛 in: client_id з лапками — escape \\"', () => {
+  assert.equal(escapeListValue('client"name'), '"client\\"name"');
 });
 
-// === Edge cases ===
-
-test('null → пустий рядок', () => {
-  assert.equal(escapeFilterValue(null), '');
+test('🐛 in: client_id з backslash — escape \\\\', () => {
+  assert.equal(escapeListValue('client\\name'), '"client\\\\name"');
 });
 
-test('undefined → пустий рядок', () => {
-  assert.equal(escapeFilterValue(undefined), '');
+test('in: число у list', () => {
+  assert.equal(escapeListValue(42), '42');
 });
 
-test('число → string + encodeURIComponent', () => {
-  assert.equal(escapeFilterValue(42), '42');
+test('in: null/undefined → пустий рядок', () => {
+  assert.equal(escapeListValue(null), '');
+  assert.equal(escapeListValue(undefined), '');
 });
 
-test('empty string', () => {
-  assert.equal(escapeFilterValue(''), '');
-});
-
-test('🐛 SQL injection attempt', () => {
-  // Якщо хтось напише client_id типу `1)+OR+1=1+(` — quoting нейтралізує
+test('🐛 SQL injection attempt — нейтралізується quoting', () => {
   const evil = "1)';DROP TABLE--";
-  const result = escapeFilterValue(evil);
+  const result = escapeListValue(evil);
   assert.ok(result.startsWith('"'), 'обернуто у лапки');
   assert.ok(result.endsWith('"'), 'обернуто у лапки');
-  // backslash перед лапкою — exists для інших symbols, тут лише ' нема escape
 });

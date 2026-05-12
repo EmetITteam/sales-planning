@@ -32,45 +32,49 @@ class SupabaseTable {
     return this;
   }
 
-  // PostgREST escape для значень у фільтрах:
-  //  - кома, дужки, лапки, NUL, точка, пробіл — мають бути у "..." з \"-escaped лапками
-  //  - все інше — URL-encode
-  // ⚠️ Без цього `client_id_1c` що містить кому з 1С зламає `in.()` фільтр і
-  // DELETE notIn захопить чужі рядки. Реальний security risk.
-  private escapeFilterValue(v: unknown): string {
+  // ⚠️ ДВА різні шляхи escape для PostgREST:
+  // 1. eq/lt: scalar value → просто encodeURIComponent. Підтримує @ . тощо
+  //    у URL. PostgREST парсить decoded значення.
+  // 2. in/notIn: list of values, розділених комами → ЯКЩО значення містить
+  //    кому або ) або лапку — обернути у "..." з escape \", \\.
+  //    Інакше PostgREST вважає кому всередині значення розділювачем →
+  //    `in.(00012,00034,evil)` замість `in.("00012,00034",evil)` →
+  //    DELETE notIn захопить чужі рядки. Security risk.
+  // Раніше була єдина функція що обertala у "..." при крапці — це ламало
+  // GET /forecasts?user_id=eq."rm.zp@emet.in.ua" (PostgREST для quoted у
+  // eq хоче інший синтаксис). LoadPlanning повертав 0 → save переписував
+  // дані з нуля → втрачались зміни менеджера.
+  private escapeListValue(v: unknown): string {
     const s = String(v ?? '');
-    // Якщо містить спецсимволи PostgREST — обернути у подвійні лапки і escape \"
-    if (/[,()"\s.\\]/.test(s)) {
+    // У списку (in.()) кома — РОЗДІЛЮВАЧ. Якщо value її має — quoted.
+    if (/[,()"\\]/.test(s)) {
       return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
     }
     return encodeURIComponent(s);
   }
 
   eq(column: string, value: string | number | boolean): this {
-    this.queryParts.push(`${column}=eq.${this.escapeFilterValue(value)}`);
+    this.queryParts.push(`${column}=eq.${encodeURIComponent(String(value))}`);
     return this;
   }
   lt(column: string, value: string): this {
-    this.queryParts.push(`${column}=lt.${this.escapeFilterValue(value)}`);
+    this.queryParts.push(`${column}=lt.${encodeURIComponent(String(value))}`);
     return this;
   }
   in(column: string, values: unknown[]): this {
     if (values.length === 0) {
-      // Пустий in = жодного рядку. PostgREST `in.()` валідний — повертає [].
       this.queryParts.push(`${column}=in.()`);
       return this;
     }
-    const escaped = values.map(v => this.escapeFilterValue(v)).join(',');
+    const escaped = values.map(v => this.escapeListValue(v)).join(',');
     this.queryParts.push(`${column}=in.(${escaped})`);
     return this;
   }
   notIn(column: string, values: unknown[]): this {
     if (values.length === 0) {
-      // Пустий not.in = всі рядки → еквівалент відсутності фільтра.
-      // Для DELETE це означає видалити всі (що ми і хочемо коли список новий пустий).
       return this;
     }
-    const escaped = values.map(v => this.escapeFilterValue(v)).join(',');
+    const escaped = values.map(v => this.escapeListValue(v)).join(',');
     this.queryParts.push(`${column}=not.in.(${escaped})`);
     return this;
   }
