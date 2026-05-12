@@ -366,6 +366,53 @@ export function PlanningForm({
   const activeClients = segmentClients.filter(c => isRecentBrandPurchase(c.lastPurchaseDate));
   const sleepingClients = segmentClients.filter(c => !isRecentBrandPurchase(c.lastPurchaseDate));
 
+  // Snapshot: фіксуємо первинний список клієнтів у БД ОДИН РАЗ на (manager
+  // × segment × period). Backend INSERT з ON CONFLICT DO NOTHING — повторні
+  // виклики безпечні, snapshot не оновлюється.
+  // Робимо це ЗАВЖДИ як 1С повернула segmentClients — навіть якщо менеджер
+  // вже зберігав форму. Це дає аудит "хто був на початку" незалежно від
+  // того видаляв він далі чи ні.
+  useEffect(() => {
+    if (segmentClients.length === 0) return;
+    const cat1cToText = (cat: Client1C['category']): string | null => {
+      switch (cat) {
+        case 'active': return 'Активный';
+        case 'sleeping': return 'Спящий';
+        case 'lost': return 'Потерянный';
+        case 'new': return 'Новый';
+        case 'none': return 'Без закупок';
+        default: return null;
+      }
+    };
+    const buildClient = (c: Client1C) => ({
+      clientId1c: c.clientId,
+      clientName: c.clientName,
+      category1c: cat1cToText(c.category),
+      lastPurchaseDate: c.lastPurchaseDate || null,
+      lastPurchaseAmount: c.lastPurchaseAmount,
+    });
+    const payload = {
+      periodId: currentPeriod.id,
+      period: {
+        weekStart: currentPeriod.weekStart,
+        weekEnd: currentPeriod.weekEnd,
+        month: currentPeriod.month,
+      },
+      segmentCode,
+      targetLogin: targetUserLogin || undefined,
+      userMeta: targetUserLogin ? { fullName: targetUserLogin } : undefined,
+      forecasts: activeClients.map(buildClient),
+      gapClosures: sleepingClients.map(buildClient),
+      source: 'auto-populate',
+    };
+    fetch('/api/planning/init-snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(err => console.warn('[init-snapshot] failed', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segmentCode, currentPeriod.id, effectiveLogin, segmentClients.length]);
+
   // Auto-populate Прогноз з активних клієнтів 1С — якщо Supabase нічого
   // не повернув. Початковий forecastAmount = lastPurchaseAmount (остання
   // покупка) щоб менеджер мав логічний default замість 0 — і сума у рядках

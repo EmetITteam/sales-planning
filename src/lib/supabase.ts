@@ -64,12 +64,19 @@ class SupabaseTable {
     return this;
   }
 
-  upsert(row: Record<string, unknown> | Record<string, unknown>[], opts?: { onConflict?: string }): this {
+  upsert(
+    row: Record<string, unknown> | Record<string, unknown>[],
+    opts?: { onConflict?: string; ignoreDuplicates?: boolean },
+  ): this {
     this._method = 'POST';
     // PostgREST приймає масив для batch upsert. Один запит замість N — критично
     // для save planning з 25-40 рядками (інакше save = 4с замість ~200мс).
     this._body = Array.isArray(row) ? row : [row];
-    this._extraHeaders['Prefer'] = 'resolution=merge-duplicates';
+    // ignoreDuplicates:true → ON CONFLICT DO NOTHING (для snapshot fix-once семантики).
+    // За замовчуванням — merge-duplicates (UPDATE on conflict).
+    this._extraHeaders['Prefer'] = opts?.ignoreDuplicates
+      ? 'resolution=ignore-duplicates'
+      : 'resolution=merge-duplicates';
     if (opts?.onConflict) this.queryParts.push(`on_conflict=${opts.onConflict}`);
     return this;
   }
