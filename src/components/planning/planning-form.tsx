@@ -361,19 +361,22 @@ export function PlanningForm({
   // з 1С Action 2. Без цього у формі рядки показували «Ост: — · $0» бо при load
   // з Supabase ставили null/0 (lastPurchase у forecasts table НЕ зберігається).
   // segmentClients може прийти ПІСЛЯ Supabase load — тому окремий useEffect.
+  //
+  // Правила:
+  //   - Enrich ТІЛЬКИ зі segmentClients (брендозалежні дані). НЕ використовуємо
+  //     allManagerClients — інакше клієнт що ніколи не купляв цей бренд отримає
+  //     дату/суму з ІНШОГО бренду (плутає менеджера: "звідки $318 з 12.05?").
+  //   - НЕ enrich-имо рядки з manually_added=true — менеджер сама вирішила
+  //     додати клієнта вручну, поважаємо її введення (порожні або власні суми).
   useEffect(() => {
     if (!supabaseLoaded) return;
-    if (segmentClients.length === 0 && allManagerClients.length === 0) return;
+    if (segmentClients.length === 0) return;
     const byId = new Map<string, { date: string | null; amount: number }>();
-    // segmentClients має lastPurchase саме по поточному segmentCode — пріоритет
     for (const c of segmentClients) byId.set(c.clientId, { date: c.lastPurchaseDate, amount: c.lastPurchaseAmount });
-    // allManagerClients — fallback (загальна остання покупка по всіх брендах)
-    for (const c of allManagerClients) {
-      if (!byId.has(c.clientId)) byId.set(c.clientId, { date: c.lastPurchaseDate, amount: c.lastPurchaseAmount });
-    }
     setForecasts(prev => {
       let changed = false;
       const next = prev.map(f => {
+        if (f.manuallyAdded) return f;
         const enrich = byId.get(f.clientId1c);
         if (!enrich) return f;
         if (f.lastPurchaseDate === enrich.date && f.lastPurchaseAmount === enrich.amount) return f;
@@ -385,6 +388,7 @@ export function PlanningForm({
     setGapClosures(prev => {
       let changed = false;
       const next = prev.map(g => {
+        if (g.manuallyAdded) return g;
         const enrich = byId.get(g.clientId1c);
         if (!enrich) return g;
         if (g.lastPurchaseDate === enrich.date && g.lastPurchaseAmount === enrich.amount) return g;
@@ -393,7 +397,7 @@ export function PlanningForm({
       });
       return changed ? next : prev;
     });
-  }, [supabaseLoaded, segmentClients, allManagerClients]);
+  }, [supabaseLoaded, segmentClients]);
 
   // Тренінги для блоку «Закриття розриву» — Action 6 з 1С.
   // regionCode беремо з user.regionCode; для невідомих/демо — порожній список.
@@ -755,13 +759,20 @@ export function PlanningForm({
     });
   };
 
+  // ⚠️ ВРУЧНУ додано через «+Додати» з пошуку — НЕ auto-fill сумою/датою.
+  // Для gap-modal модаль показує всіх клієнтів менеджера (включно з тими що
+  // ніколи не купляли цей бренд) — їх last_purchase може бути з ІНШОГО
+  // бренду і плутати. Менеджер сама впише потенціал і дедлайн.
+  // Для forecast-модалі дані брендозалежні, але уніфіковуємо UX: «доданий
+  // вручну = заповни сам, щоб не плутатись».
   const addClient = (client: Client1C) => {
     setForecasts(prev => [...prev, {
       clientId1c: client.clientId, clientName: client.clientName,
-      forecastAmount: client.lastPurchaseAmount || 0,
+      forecastAmount: 0,
       stage: '', stageComment: '', stageDone: false,
-      factAmount: 0, lastPurchaseDate: client.lastPurchaseDate,
-      lastPurchaseAmount: client.lastPurchaseAmount,
+      factAmount: 0,
+      lastPurchaseDate: null,
+      lastPurchaseAmount: 0,
       completed: false, manuallyAdded: true,
     }]);
   };
@@ -772,12 +783,12 @@ export function PlanningForm({
       clientName: client.clientName,
       // Для `none` зберігаємо порожньо щоб chip не показувався «Без закупок» у gap-картці.
       category: client.category === 'none' ? '' : categoryLabel(client.category),
-      potentialAmount: client.lastPurchaseAmount || 0,
+      potentialAmount: 0,
       stage: '', stageComment: '', stageDone: false,
       completed: false, deadline: '', factAmount: 0,
-      lastPurchaseDate: client.lastPurchaseDate,
-      lastPurchaseAmount: client.lastPurchaseAmount,
-      manuallyAdded: false,
+      lastPurchaseDate: null,
+      lastPurchaseAmount: 0,
+      manuallyAdded: true,
     }]);
   };
 
