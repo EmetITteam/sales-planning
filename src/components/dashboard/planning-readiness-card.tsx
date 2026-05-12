@@ -56,17 +56,18 @@ interface RegionStat {
 }
 
 /**
- * Status color рахується по менеджерах + 9/9 повноті:
- *  - GREEN: усі менеджери заповнили ПОВНІСТЮ (9/9 брендів)
- *  - AMBER: хоч хтось почав планувати (≥1 бренд)
- *  - ROSE:  жоден менеджер не заповнив нічого
+ * Status color — за РЕАЛЬНИМ покриттям бренд-клітинок (а не за «менеджер
+ * торкнувся системи»). Бо інакше Житомир з 1 менеджером 6/9 brands давав
+ * 100% зеленим — нечесно, 3 бренди не заповнені.
  *
- * Це уникає брехні «1/1=100%» зеленого коли менеджер ще не дозаповнив.
+ *  GREEN — усі бренд-клітинки заповнені (всі менеджери 9/9)
+ *  ROSE  — 0 заповнено
+ *  AMBER — частково
  */
-function statusColor(fullyFilled: number, filled: number, total: number): 'green' | 'amber' | 'rose' {
-  if (total === 0) return 'rose';
-  if (fullyFilled === total) return 'green';
-  if (filled === 0) return 'rose';
+function statusColor(filledCells: number, totalCells: number): 'green' | 'amber' | 'rose' {
+  if (totalCells === 0) return 'rose';
+  if (filledCells === totalCells) return 'green';
+  if (filledCells === 0) return 'rose';
   return 'amber';
 }
 
@@ -172,11 +173,10 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
   }
 
   // Часткова готовність — повний блок з drill-down.
-  // Метрика — менеджери (не бренд-клітинки). Hero бар і % — частка менеджерів
-  // які почали планувати. Status color враховує fullyFilled (щоб 1/1=100%
-  // не світилось зеленим коли менеджер має 6/9 брендів).
-  const filledPct = Math.round((total.totalFilled / total.totalManagers) * 100);
-  const overallStatus = statusColor(total.totalFullyFilled, total.totalFilled, total.totalManagers);
+  // %/колір — за реальним покриттям бренд-клітинок. Якщо хоч 1 бренд десь
+  // не заповнений → не 100%. Text count «X/Y менеджерів» окремо.
+  const filledPct = total.totalCells === 0 ? 0 : Math.round((total.totalFilledCells / total.totalCells) * 100);
+  const overallStatus = statusColor(total.totalFilledCells, total.totalCells);
   const overallLabel = overallStatus === 'green' ? 'ГОТОВО' : overallStatus === 'amber' ? 'ЧАСТКОВО' : 'ВІДСТАВАННЯ';
 
   return (
@@ -196,10 +196,10 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           </div>
         </div>
 
-        {/* Mini-list регіонів у 2 колонки — dot + назва + count заповнених менеджерів */}
+        {/* Mini-list регіонів — dot колір за реальним покриттям бренд-клітинок */}
         <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
           {stats.map(r => {
-            const s = statusColor(r.filledCount, r.totalCount);
+            const s = statusColor(r.filledCells, r.totalCells);
             return (
               <span key={r.regionName} className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass[s]}`} />
@@ -242,9 +242,11 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
       {expanded && (
         <div className="px-5 pb-4 pt-3 space-y-2 bg-[#fafbfe] border-t border-[#f0f2f8]">
           {stats.map(r => {
-            const s = statusColor(r.filledCount, r.totalCount);
+            const s = statusColor(r.filledCells, r.totalCells);
             const isRegionExpanded = expandedRegions.has(r.regionName);
-            const pct = r.totalCount === 0 ? 0 : Math.round((r.filledCount / r.totalCount) * 100);
+            // % за реальним покриттям брендів (не «1/1 менеджер = 100%»):
+            // Житомир з 1 менеджером 6/9 → 67%, не 100%.
+            const pct = r.totalCells === 0 ? 0 : Math.round((r.filledCells / r.totalCells) * 100);
             return (
               <div key={r.regionName} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                 <button
@@ -260,7 +262,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                 >
                   <span className={`w-2.5 h-2.5 rounded-full shadow-sm ${dotClass[s]}`} />
                   <span className="text-[14px] font-bold">{r.regionName}</span>
-                  <span className="text-[11px] text-muted-foreground text-right font-mono">{r.filledCount}/{r.totalCount} заповнили</span>
+                  <span className="text-[11px] text-muted-foreground text-right font-mono">{r.filledCount}/{r.totalCount} менеджерів</span>
                   <div className="flex flex-col items-center gap-1">
                     <div className="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
                       <div className={`h-full rounded-full ${barClass[s]}`} style={{ width: `${pct}%` }} />
