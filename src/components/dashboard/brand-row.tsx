@@ -132,16 +132,16 @@ export function BrandRow({
               <div
                 className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-[#066aab] rounded-full"
                 style={{ left: `calc(${Math.min(computedExpectedPct, 100)}% - 1px)` }}
-                title={`Очікуваний (план менеджера): ${formatPct(computedExpectedPct)}`}
+                title={`Запланований (план менеджера): ${formatPct(computedExpectedPct)}`}
               />
             )}
           </div>
           <p className="text-[10px] mt-1 truncate flex items-center gap-2">
-            <span><span className="text-amber-600">●</span> Прогноз: <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
+            <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
             {hasManagerPlan && (
               <>
                 <span className="text-muted-foreground/40">·</span>
-                <span><span className="text-[#066aab]">●</span> Очік.: <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
+                <span><span className="text-[#066aab]">●</span> Запл.: <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
               </>
             )}
           </p>
@@ -236,9 +236,9 @@ export function BrandRow({
 
         {/* Mobile низ: проценти + суми + динаміка */}
         <div className="flex items-center gap-3 text-[11px] flex-wrap">
-          <span><span className="text-amber-600">●</span> Прогноз <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
+          <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
           {hasManagerPlan && (
-            <span><span className="text-[#066aab]">●</span> Очік. <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
+            <span><span className="text-[#066aab]">●</span> Запл. <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
           )}
           <span className="text-muted-foreground">|</span>
           <span>План <span className="font-bold amount">{formatUSD(planAmount)}</span></span>

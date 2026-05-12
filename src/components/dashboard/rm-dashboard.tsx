@@ -39,13 +39,31 @@ type RMView = 'dashboard' | 'myPlanning' | 'viewManager';
  *  - Кнопки: «Моє планування» (РМ як менеджер) + drill-down у конкретного менеджера
  */
 export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
-  const [view, setView] = useState<RMView>('dashboard');
-  const [selectedManager, setSelectedManager] = useState<string>('');
-  // Якщо клік був на конкретному бренді (з ManagerAccordion expand) — одразу
-  // відкриваємо планування за тим брендом у нащадковій ManagerDashboard.
-  const [selectedSegmentForManager, setSelectedSegmentForManager] = useState<string>('');
+  // Initial з nav store — щоб refresh повертав на drill-down (Manager/PlanForm).
+  // Не для Director-внутрішнього RM (regionCode prop) — там drill-down nav
+  // керується Director-ом.
+  const persistedNav = useAppStore.getState().nav;
+  const startManager = !regionCode ? (persistedNav.managerLogin || '') : '';
+  const [view, setView] = useState<RMView>(startManager ? 'viewManager' : 'dashboard');
+  const [selectedManager, setSelectedManager] = useState<string>(startManager);
+  const [selectedSegmentForManager, setSelectedSegmentForManager] = useState<string>(
+    !regionCode ? (persistedNav.segmentCode || '') : '',
+  );
 
-  const { user, currentPeriod, liveMode } = useAppStore();
+  const { user, currentPeriod, liveMode, setNav } = useAppStore();
+  // Wrappers для setView/setSelected — синхронізують nav store
+  const goToManager = (login: string, segCode?: string) => {
+    setSelectedManager(login);
+    setSelectedSegmentForManager(segCode || '');
+    setView('viewManager');
+    setNav({ managerLogin: login, segmentCode: segCode });
+  };
+  const goToDashboard = () => {
+    setView('dashboard');
+    setSelectedManager('');
+    setSelectedSegmentForManager('');
+    setNav({ managerLogin: undefined, segmentCode: undefined });
+  };
   const periodKey = currentPeriod.month.slice(0, 7); // YYYY-MM
   // ⚠️ asOfIso ЗАВЖДИ передаємо: live → today, інакше → дата з фільтра
   // (currentPeriod.weekEnd). Якщо не передавати — 1С повертає весь місяць,
@@ -195,7 +213,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   if (view === 'myPlanning') {
     return (
       <div className="space-y-4">
-        <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        <button onClick={goToDashboard} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до регіону
         </button>
         <ManagerDashboard />
@@ -206,7 +224,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     const target = managerList.find(m => m.login === selectedManager);
     return (
       <div className="space-y-4">
-        <button onClick={() => { setView('dashboard'); setSelectedSegmentForManager(''); }} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        <button onClick={goToDashboard} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до регіону
         </button>
         <ManagerDashboard
@@ -367,7 +385,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
                   <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                   {totalExpectedPct !== null && (
-                    <p className="text-muted-foreground">Очікуваний: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+                    <p className="text-muted-foreground">Запланований: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
                   )}
                 </div>
               )}
@@ -403,12 +421,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   manager={m}
                   calcPct={calcPctValue}
                   asOfDate={asOfDate}
-                  onDrillDown={() => { setSelectedManager(m.login); setView('viewManager'); }}
-                  onPlanBrand={(segCode) => {
-                    setSelectedManager(m.login);
-                    setSelectedSegmentForManager(segCode);
-                    setView('viewManager');
-                  }}
+                  onDrillDown={() => goToManager(m.login)}
+                  onPlanBrand={(segCode) => goToManager(m.login, segCode)}
                 />
               ))}
             </div>
@@ -428,11 +442,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   factCategoriesForBrand={regionStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
                   unplannedForBrand={regionStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
                   categoriesLoading={statsLoading}
-                  onManagerClick={(login, segCode) => {
-                    setSelectedManager(login);
-                    setSelectedSegmentForManager(segCode);
-                    setView('viewManager');
-                  }}
+                  onManagerClick={(login, segCode) => goToManager(login, segCode)}
                 />
               ))}
             </div>

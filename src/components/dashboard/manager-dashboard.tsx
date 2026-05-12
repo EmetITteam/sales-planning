@@ -411,7 +411,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
             <div className="space-y-0.5">
               <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
               <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-              <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Очік.: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+              <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Запланований: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
             </div>
           )}
         />

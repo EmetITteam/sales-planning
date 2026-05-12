@@ -37,14 +37,39 @@ type DirView = 'dashboard' | 'viewRegion' | 'viewManager';
  * вона дивиться зведення по всій компанії і drill-down у регіонах.
  */
 export function DirectorDashboard() {
-  const [view, setView] = useState<DirView>('dashboard');
-  const [selectedRegionCode, setSelectedRegionCode] = useState<string>('');
-  const [selectedManagerLogin, setSelectedManagerLogin] = useState<string>('');
-  // Якщо клік був на конкретному бренді у контексті менеджера (BrandRegionGroup
-  // expand → manager) — одразу відкриваємо планування brand×manager.
-  const [selectedSegmentForManager, setSelectedSegmentForManager] = useState<string>('');
+  // Initial з nav store — refresh повертає на drill-down (Region/Manager/Plan).
+  const persistedNav = useAppStore.getState().nav;
+  // Visual ієрархія: regionCode → viewRegion; managerLogin (без regionCode) → viewManager.
+  const startView: DirView = persistedNav.regionCode
+    ? 'viewRegion'
+    : persistedNav.managerLogin
+      ? 'viewManager'
+      : 'dashboard';
+  const [view, setView] = useState<DirView>(startView);
+  const [selectedRegionCode, setSelectedRegionCode] = useState<string>(persistedNav.regionCode || '');
+  const [selectedManagerLogin, setSelectedManagerLogin] = useState<string>(persistedNav.managerLogin || '');
+  const [selectedSegmentForManager, setSelectedSegmentForManager] = useState<string>(persistedNav.segmentCode || '');
 
-  const { user, currentPeriod, liveMode } = useAppStore();
+  const { user, currentPeriod, liveMode, setNav } = useAppStore();
+  // Wrappers — синхронізують локальний state + persistent nav store.
+  const goToRegion = (code: string) => {
+    setSelectedRegionCode(code);
+    setView('viewRegion');
+    setNav({ regionCode: code, managerLogin: undefined, segmentCode: undefined });
+  };
+  const goToManager = (login: string, segCode?: string) => {
+    setSelectedManagerLogin(login);
+    setSelectedSegmentForManager(segCode || '');
+    setView('viewManager');
+    setNav({ regionCode: undefined, managerLogin: login, segmentCode: segCode });
+  };
+  const goToDashboard = () => {
+    setView('dashboard');
+    setSelectedRegionCode('');
+    setSelectedManagerLogin('');
+    setSelectedSegmentForManager('');
+    setNav({ regionCode: undefined, managerLogin: undefined, segmentCode: undefined });
+  };
   const periodKey = currentPeriod.month.slice(0, 7);
   // ⚠️ asOfIso ЗАВЖДИ передаємо щоб 1С повертала факт по обраному діапазону
   const asOfIso = liveMode
@@ -179,7 +204,7 @@ export function DirectorDashboard() {
   if (view === 'viewRegion') {
     return (
       <div className="space-y-4">
-        <button onClick={() => setView('dashboard')} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        <button onClick={goToDashboard} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до огляду
         </button>
         <RMDashboard regionCode={selectedRegionCode} />
@@ -198,7 +223,7 @@ export function DirectorDashboard() {
     }
     return (
       <div className="space-y-4">
-        <button onClick={() => { setView('dashboard'); setSelectedSegmentForManager(''); }} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        <button onClick={goToDashboard} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ChevronRight className="h-4 w-4 rotate-180" /> Повернутись до огляду
         </button>
         <ManagerDashboard
@@ -338,9 +363,9 @@ export function DirectorDashboard() {
                 <div className="space-y-0.5">
                   <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
                   <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-                  <p className="text-muted-foreground">Прогноз: <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
+                  <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                   {totalExpectedPct !== null && (
-                    <p className="text-muted-foreground">Очікуваний: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+                    <p className="text-muted-foreground">Запланований: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
                   )}
                 </div>
               )}
@@ -396,8 +421,8 @@ export function DirectorDashboard() {
                     calcPct={calcPctValue}
                     asOfDate={asOfDate}
                     regionLogins={regionLogins}
-                    onDrillDown={() => { setSelectedRegionCode(r.regionCode); setView('viewRegion'); }}
-                    onManagerClick={(login) => { setSelectedManagerLogin(login); setView('viewManager'); }}
+                    onDrillDown={() => goToRegion(r.regionCode)}
+                    onManagerClick={(login) => goToManager(login)}
                   />
                 );
               })}
@@ -418,12 +443,8 @@ export function DirectorDashboard() {
                   factCategoriesForBrand={companyStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
                   unplannedForBrand={companyStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
                   categoriesLoading={companyStatsLoading}
-                  onRegionClick={(code) => { setSelectedRegionCode(code); setView('viewRegion'); }}
-                  onManagerClick={(login, segCode) => {
-                    setSelectedManagerLogin(login);
-                    setSelectedSegmentForManager(segCode);
-                    setView('viewManager');
-                  }}
+                  onRegionClick={(code) => goToRegion(code)}
+                  onManagerClick={(login, segCode) => goToManager(login, segCode)}
                 />
               ))}
             </div>
