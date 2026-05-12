@@ -4,493 +4,339 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Готовність планування — preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --emet-blue: #066aab;
-    --emet-blue-light: #e8f4fc;
-    --bg: #f4f7fb;
-    --border: #e2e7ef;
-    --border-soft: #f0f2f8;
-    --bg-soft: #fafbfe;
-    --muted: #64748b;
-    --muted-light: #94a3b8;
-    --shadow-card: 0 1px 3px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.03);
+    --background: #f4f7fb;
+    --foreground: #1c2434;
+    --muted-foreground: #7c879a;
   }
-  * { box-sizing: border-box; }
   body {
-    margin: 0;
-    padding: 32px;
-    background: var(--bg);
     font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-    color: #0f172a;
-    font-size: 14px;
-    line-height: 1.5;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    background: var(--background);
+    color: var(--foreground);
   }
-  .amount, .mono, .tabular-nums { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
-  .container { max-width: 720px; margin: 0 auto; }
-  .header { margin-bottom: 24px; }
-  .header h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
-  .header p { color: var(--muted); font-size: 13px; margin: 0; }
-
-  /* Card base — як metric-card */
-  .card {
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: var(--shadow-card);
-    overflow: hidden;
-  }
-
-  /* HERO CARD (compact, single) */
-  .hero {
-    padding: 20px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero-watermark {
-    position: absolute;
-    right: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0.08;
-    pointer-events: none;
-    color: var(--emet-blue);
-  }
-  .hero-watermark svg { width: 120px; height: 120px; }
-  .hero-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--muted);
-    font-weight: 600;
-    margin-bottom: 10px;
-    position: relative;
-  }
-  .hero-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 16px;
-    margin-bottom: 12px;
-    position: relative;
-  }
-  .hero-big {
-    font-size: 28px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    line-height: 1;
-  }
-  .hero-big-suffix {
-    font-size: 14px;
-    color: var(--muted);
-    font-weight: 600;
-    margin-left: 4px;
-  }
-  .hero-pct {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--emet-blue);
-    background: var(--emet-blue-light);
-    padding: 3px 10px;
-    border-radius: 999px;
-    margin-left: auto;
-  }
-  .hero-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-soft);
-    position: relative;
-  }
-  .hero-stat {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-  }
-  .hero-stat .dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .hero-stat .dot.green { background: #10b981; }
-  .hero-stat .dot.yellow { background: #f59e0b; }
-  .hero-stat .dot.red { background: #ef4444; }
-  .hero-stat .num { font-weight: 700; }
-  .hero-stat .lbl { color: var(--muted); }
-
-  /* Toggle button */
-  .toggle-btn {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 10px 20px;
-    background: var(--bg-soft);
-    border: none;
-    border-top: 1px solid var(--border-soft);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--muted);
-    transition: background 150ms;
-  }
-  .toggle-btn:hover { background: #f1f5f9; color: var(--emet-blue); }
-  .toggle-btn .chev {
-    transition: transform 200ms;
-  }
-  .toggle-btn.open .chev {
-    transform: rotate(180deg);
-  }
-
-  /* Expanded region rows */
-  .regions-list {
-    border-top: 1px solid var(--border-soft);
-  }
-  .region-block {
-    border-bottom: 1px solid var(--border-soft);
-  }
-  .region-block:last-child { border-bottom: none; }
-  .region-row {
-    display: grid;
-    grid-template-columns: 18px 1fr 80px 70px;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 20px;
-    cursor: pointer;
-    background: #fff;
-    border: none;
-    width: 100%;
-    text-align: left;
-    font-family: inherit;
-    transition: background 100ms;
-  }
-  .region-row:hover { background: var(--bg-soft); }
-  .region-row .chev-region {
-    color: var(--muted-light);
-    transition: transform 200ms;
-  }
-  .region-block.open .region-row .chev-region {
-    transform: rotate(90deg);
-  }
-  .region-name {
-    font-size: 13px;
-    font-weight: 600;
-  }
-  .region-count {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-    text-align: right;
-  }
-  .region-progress {
-    height: 4px;
-    border-radius: 2px;
-    background: var(--border-soft);
-    overflow: hidden;
-    position: relative;
-  }
-  .region-progress .fill {
-    position: absolute;
-    inset: 0;
-    border-radius: 2px;
-  }
-  .region-progress .fill.green { background: #10b981; }
-  .region-progress .fill.yellow { background: #f59e0b; }
-  .region-progress .fill.red { background: #ef4444; }
-
-  /* Manager rows (inside region expand) */
-  .managers-list {
-    padding: 4px 20px 10px 38px;
-    background: var(--bg-soft);
-  }
-  .manager-row {
-    display: grid;
-    grid-template-columns: 14px 1fr 50px;
-    align-items: center;
-    gap: 10px;
-    padding: 5px 0;
-    font-size: 12px;
-  }
-  .manager-row .status-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-  }
-  .manager-row .status-dot.green { background: #10b981; }
-  .manager-row .status-dot.yellow { background: #f59e0b; }
-  .manager-row .status-dot.red { background: #ef4444; }
-  .manager-row .name {
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .manager-row .name.empty { color: #991b1b; }
-  .manager-row .count {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    text-align: right;
-    color: var(--muted);
-  }
-  .manager-missed {
-    grid-column: 2 / -1;
-    padding: 2px 0 4px 0;
-    font-size: 10.5px;
-    color: var(--muted-light);
-    line-height: 1.4;
-  }
-  .manager-missed .chip {
-    display: inline-block;
-    padding: 1px 6px;
-    background: #fff;
-    border: 1px solid var(--border-soft);
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9.5px;
-    margin: 1px 2px 1px 0;
-    color: var(--muted);
-  }
-
-  /* Note */
-  .note {
-    text-align: center;
-    margin-top: 16px;
-    color: var(--muted);
-    font-size: 12px;
-  }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .text-muted-foreground { color: var(--muted-foreground); }
 </style>
 </head>
-<body>
+<body class="bg-[#f4f7fb] p-8">
 
-<div class="container">
-  <div class="header">
-    <h1>Готовність планування — оновлений preview</h1>
-    <p>Одна карточка у стилі EMET. Клік → drill-down по регіонах і менеджерах.</p>
-  </div>
+<div class="max-w-[1100px] mx-auto">
+  <h1 class="text-[18px] font-bold mb-1">Готовність планування — preview</h1>
+  <p class="text-[12px] text-muted-foreground mb-6">Стиль повторює RegionAccordion + MetricCard. Травень 2026, реальні дані.</p>
 
-  <!-- ═══════════ HERO CARD ═══════════ -->
-  <div class="card">
-    <div class="hero">
-      <div class="hero-watermark">
-        <!-- ClipboardCheck icon (Lucide-style) -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="16" y1="2" x2="16" y2="6"></line>
-          <line x1="8" y1="2" x2="8" y2="6"></line>
-          <line x1="3" y1="10" x2="21" y2="10"></line>
-          <path d="m9 16 2 2 4-4"></path>
-        </svg>
+  <!-- ═══════════ ОДНА КАРТКА ═══════════ -->
+  <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+
+    <!-- DESKTOP ROW — формат як RegionAccordion -->
+    <div onclick="toggleMain()" id="main-row" class="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors">
+      <!-- Icon block — w-10 h-10 rounded-xl bg-[#e8f4fc] -->
+      <div class="flex items-center gap-3 min-w-0 shrink-0">
+        <div class="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
+          <!-- ClipboardCheck (Lucide) -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#066aab" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <path d="m9 14 2 2 4-4"></path>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <p class="text-[14px] font-bold truncate">Готовність планування</p>
+          <p class="text-[11px] text-muted-foreground">Травень 2026 · 24 менеджерів</p>
+        </div>
       </div>
 
-      <div class="hero-label">Готовність планування · Травень 2026</div>
+      <!-- Mini-list регіонів — 2 columns (як менеджери у RegionAccordion) -->
+      <div class="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap" title="Київ: 4/6 заповнили">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
+          <span class="font-semibold text-foreground/80 truncate">Київ</span>
+          <span class="font-bold shrink-0 text-amber-600">67%</span>
+          <span class="text-[10px] shrink-0 text-muted-foreground mono">4/6</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap" title="Дніпро: 2/5 заповнили">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-rose-500"></span>
+          <span class="font-semibold text-foreground/80 truncate">Дніпро</span>
+          <span class="font-bold shrink-0 text-rose-600">40%</span>
+          <span class="text-[10px] shrink-0 text-muted-foreground mono">2/5</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
+          <span class="font-semibold text-foreground/80 truncate">Запоріжжя</span>
+          <span class="font-bold shrink-0 text-amber-600">100%</span>
+          <span class="text-[10px] shrink-0 text-muted-foreground mono">2/2</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
+          <span class="font-semibold text-foreground/80 truncate">Миколаїв</span>
+          <span class="font-bold shrink-0 text-amber-600">67%</span>
+          <span class="text-[10px] shrink-0 text-muted-foreground mono">2/3</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-rose-500"></span>
+          <span class="font-semibold text-foreground/80 truncate">Одеса</span>
+          <span class="font-bold shrink-0 text-rose-600">33%</span>
+          <span class="text-[10px] shrink-0 text-muted-foreground mono">1/3</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
+          <span class="font-semibold text-foreground/80 truncate">Харків</span>
+          <span class="font-bold shrink-0 text-amber-600">100%</span>
+          <span class="text-[10px] shrink-0 text-muted-foreground mono">2/2</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
+          <span class="font-semibold text-foreground/80 truncate">Житомир</span>
+          <span class="font-bold shrink-0 text-amber-600">44%</span>
+          <span class="text-[10px] shrink-0 text-muted-foreground mono">1/1</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-rose-500"></span>
+          <span class="font-semibold text-foreground/80 truncate">Вінниця</span>
+          <span class="font-bold shrink-0 text-rose-600">0%</span>
+          <span class="text-[10px] shrink-0 text-muted-foreground mono">0/1</span>
+        </span>
+      </div>
 
-      <div class="hero-row">
+      <!-- Right cluster — як у RegionAccordion правий блок -->
+      <div class="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
+        <div class="text-right min-w-[140px]">
+          <p class="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Заповнили</p>
+          <p class="text-[14px] font-bold mono leading-none mt-1.5 whitespace-nowrap">
+            14<span class="text-muted-foreground/50 font-normal"> / </span><span class="text-muted-foreground/70">24</span>
+          </p>
+          <p class="text-[10px] text-muted-foreground leading-none mt-1">3 ✓ повністю · 11 ◐ частково</p>
+        </div>
+        <div class="flex flex-col items-center gap-1 w-14">
+          <div class="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]" style="width: 58%"></div>
+          </div>
+          <span class="text-[11px] font-bold leading-none text-[#066aab]">58%</span>
+        </div>
+        <div class="w-[100px]">
+          <div class="h-[12px] leading-none mb-1.5"></div>
+          <span class="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-amber-50 text-amber-700">ЧАСТКОВО</span>
+        </div>
         <div>
-          <span class="hero-big">14</span><span class="hero-big-suffix">/ 24 менеджерів</span>
-        </div>
-        <div class="hero-pct">58%</div>
-      </div>
-
-      <div class="hero-stats">
-        <div class="hero-stat">
-          <span class="dot green"></span>
-          <span><span class="num">3</span> <span class="lbl">повністю</span></span>
-        </div>
-        <div class="hero-stat">
-          <span class="dot yellow"></span>
-          <span><span class="num">11</span> <span class="lbl">частково</span></span>
-        </div>
-        <div class="hero-stat">
-          <span class="dot red"></span>
-          <span><span class="num">10</span> <span class="lbl">не заповнили</span></span>
+          <div class="h-[12px] leading-none mb-1.5"></div>
+          <svg id="chev-main" class="h-4 w-4 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
       </div>
     </div>
 
-    <button class="toggle-btn open" onclick="toggleExpand()">
-      <span>Розгорнути по регіонах</span>
-      <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 12 15 18 9"></polyline>
-      </svg>
-    </button>
+    <!-- EXPANDED — як bg-[#fafbfe] border-t -->
+    <div id="expanded" class="px-5 pb-4 pt-3 space-y-2 bg-[#fafbfe] border-t border-[#f0f2f8]">
 
-    <div class="regions-list" id="regions">
-      <!-- Київ -->
-      <div class="region-block open">
-        <button class="region-row" onclick="toggleRegion(this)">
-          <svg class="chev-region" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          <span class="region-name">Київ</span>
-          <div class="region-progress"><div class="fill yellow" style="width: 67%"></div></div>
-          <span class="region-count">4 / 6</span>
+      <!-- Region: Київ (expanded by default for demo) -->
+      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
+          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+          <span class="text-[13px] font-bold truncate flex-1">Київ</span>
+          <span class="text-[11px] text-muted-foreground mono">4/6 заповнили</span>
+          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+          </div>
+          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">67%</span>
+          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="managers-list">
-          <div class="manager-row">
-            <span class="status-dot red"></span>
-            <span class="name empty">Кравченко Катерина</span>
-            <span class="count">0/9</span>
+        <div class="px-4 pb-2 pt-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 border-t border-[#f0f2f8] bg-[#fafbfe]">
+          <div class="flex items-center gap-2 py-1 text-[11px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            <span class="font-semibold text-rose-700 truncate flex-1">Кравченко Катерина</span>
+            <span class="text-muted-foreground mono">0/9</span>
           </div>
-          <div class="manager-row">
-            <span class="status-dot red"></span>
-            <span class="name empty">Некова Катерина</span>
-            <span class="count">0/9</span>
+          <div class="flex items-center gap-2 py-1 text-[11px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            <span class="font-semibold text-rose-700 truncate flex-1">Некова Катерина</span>
+            <span class="text-muted-foreground mono">0/9</span>
           </div>
-          <div class="manager-row">
-            <span class="status-dot yellow"></span>
-            <span class="name">Свідзинська Юлія</span>
-            <span class="count">3/9</span>
+          <div>
+            <div class="flex items-center gap-2 py-1 text-[11px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              <span class="font-semibold truncate flex-1">Свідзинська Юлія</span>
+              <span class="font-bold text-amber-600 mono">3/9</span>
+            </div>
+            <div class="pl-3.5 -mt-0.5 mb-1 text-[10px] text-muted-foreground/80">
+              пропустила:
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">ESSE</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">IUSE</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">NEURAMIS</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">NEURONOX</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">OTHER</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">VITARAN</span>
+            </div>
           </div>
-          <div class="manager-missed">
-            <span class="chip">ESSE</span><span class="chip">IUSE</span><span class="chip">NEURAMIS</span><span class="chip">NEURONOX</span><span class="chip">OTHER</span><span class="chip">VITARAN</span>
+          <div>
+            <div class="flex items-center gap-2 py-1 text-[11px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              <span class="font-semibold truncate flex-1">Мігашко Анна</span>
+              <span class="font-bold text-amber-600 mono">6/9</span>
+            </div>
+            <div class="pl-3.5 -mt-0.5 mb-1 text-[10px] text-muted-foreground/80">
+              пропустила:
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">NEURONOX</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">OTHER</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">VITARAN</span>
+            </div>
           </div>
-          <div class="manager-row">
-            <span class="status-dot yellow"></span>
-            <span class="name">Мігашко Анна</span>
-            <span class="count">6/9</span>
+          <div>
+            <div class="flex items-center gap-2 py-1 text-[11px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              <span class="font-semibold truncate flex-1">Бойко Ольга</span>
+              <span class="font-bold text-amber-600 mono">6/9</span>
+            </div>
+            <div class="pl-3.5 -mt-0.5 mb-1 text-[10px] text-muted-foreground/80">
+              пропустила:
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">NEURONOX</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">OTHER</span>
+              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">VITARAN</span>
+            </div>
           </div>
-          <div class="manager-missed">
-            <span class="chip">NEURONOX</span><span class="chip">OTHER</span><span class="chip">VITARAN</span>
-          </div>
-          <div class="manager-row">
-            <span class="status-dot yellow"></span>
-            <span class="name">Бойко Ольга</span>
-            <span class="count">6/9</span>
-          </div>
-          <div class="manager-missed">
-            <span class="chip">NEURONOX</span><span class="chip">OTHER</span><span class="chip">VITARAN</span>
-          </div>
-          <div class="manager-row">
-            <span class="status-dot green"></span>
-            <span class="name">Селіванова Вікторія</span>
-            <span class="count">9/9</span>
+          <div class="flex items-center gap-2 py-1 text-[11px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span class="font-semibold truncate flex-1">Селіванова Вікторія</span>
+            <span class="font-bold text-emerald-600 mono">9/9</span>
           </div>
         </div>
       </div>
 
-      <!-- Дніпро -->
-      <div class="region-block">
-        <button class="region-row" onclick="toggleRegion(this)">
-          <svg class="chev-region" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          <span class="region-name">Дніпро</span>
-          <div class="region-progress"><div class="fill red" style="width: 40%"></div></div>
-          <span class="region-count">2 / 5</span>
+      <!-- Region: Дніпро (collapsed) -->
+      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
+          <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+          <span class="text-[13px] font-bold truncate flex-1">Дніпро</span>
+          <span class="text-[11px] text-muted-foreground mono">2/5 заповнили</span>
+          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-rose-500" style="width: 40%"></div>
+          </div>
+          <span class="text-[11px] font-bold text-rose-600 mono w-10 text-right">40%</span>
+          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="managers-list" style="display: none;">
-          <div class="manager-row"><span class="status-dot red"></span><span class="name empty">Фещенко Олена</span><span class="count">0/9</span></div>
-          <div class="manager-row"><span class="status-dot red"></span><span class="name empty">Сірик Наталія</span><span class="count">0/9</span></div>
-          <div class="manager-row"><span class="status-dot red"></span><span class="name empty">Іванова Марина</span><span class="count">0/9</span></div>
-          <div class="manager-row"><span class="status-dot yellow"></span><span class="name">Фещенко Анна</span><span class="count">1/9</span></div>
-          <div class="manager-row"><span class="status-dot yellow"></span><span class="name">Сірик Людмила</span><span class="count">6/9</span></div>
+        <div class="hidden px-4 pb-2 pt-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 border-t border-[#f0f2f8] bg-[#fafbfe]">
+          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span class="font-semibold text-rose-700 truncate flex-1">Фещенко Олена</span><span class="text-muted-foreground mono">0/9</span></div>
+          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span class="font-semibold text-rose-700 truncate flex-1">Сірик Наталія</span><span class="text-muted-foreground mono">0/9</span></div>
+          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span class="font-semibold text-rose-700 truncate flex-1">Іванова Марина</span><span class="text-muted-foreground mono">0/9</span></div>
+          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-semibold truncate flex-1">Фещенко Анна</span><span class="font-bold text-amber-600 mono">1/9</span></div>
+          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-semibold truncate flex-1">Сірик Людмила</span><span class="font-bold text-amber-600 mono">6/9</span></div>
         </div>
       </div>
 
-      <!-- Запоріжжя -->
-      <div class="region-block">
-        <button class="region-row" onclick="toggleRegion(this)">
-          <svg class="chev-region" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          <span class="region-name">Запоріжжя</span>
-          <div class="region-progress"><div class="fill yellow" style="width: 83%"></div></div>
-          <span class="region-count">2 / 2</span>
+      <!-- Region: Запоріжжя -->
+      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
+          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+          <span class="text-[13px] font-bold truncate flex-1">Запоріжжя</span>
+          <span class="text-[11px] text-muted-foreground mono">2/2 заповнили</span>
+          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-amber-500" style="width: 83%"></div>
+          </div>
+          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">83%</span>
+          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="managers-list" style="display: none;">
-          <div class="manager-row"><span class="status-dot yellow"></span><span class="name">Андрющенко Юлія</span><span class="count">7/9</span></div>
-          <div class="manager-missed"><span class="chip">EXOXE</span><span class="chip">IUSE</span></div>
-          <div class="manager-row"><span class="status-dot yellow"></span><span class="name">Бакумова Аліна</span><span class="count">8/9</span></div>
-          <div class="manager-missed"><span class="chip">NEURONOX</span></div>
-        </div>
+        <div class="hidden px-4 pb-2 pt-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 border-t border-[#f0f2f8] bg-[#fafbfe]"></div>
       </div>
 
-      <!-- Миколаїв -->
-      <div class="region-block">
-        <button class="region-row" onclick="toggleRegion(this)">
-          <svg class="chev-region" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          <span class="region-name">Миколаїв</span>
-          <div class="region-progress"><div class="fill yellow" style="width: 67%"></div></div>
-          <span class="region-count">2 / 3</span>
+      <!-- Region: Миколаїв -->
+      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
+          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+          <span class="text-[13px] font-bold truncate flex-1">Миколаїв</span>
+          <span class="text-[11px] text-muted-foreground mono">2/3 заповнили</span>
+          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+          </div>
+          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">67%</span>
+          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="managers-list" style="display: none;">
-          <div class="manager-row"><span class="status-dot red"></span><span class="name empty">Пашковская Юлия</span><span class="count">0/9</span></div>
-          <div class="manager-row"><span class="status-dot green"></span><span class="name">Лопушанська Светлана</span><span class="count">9/9</span></div>
-          <div class="manager-row"><span class="status-dot green"></span><span class="name">Клименко Марина</span><span class="count">9/9</span></div>
-        </div>
+        <div class="hidden"></div>
       </div>
 
-      <!-- Одеса -->
-      <div class="region-block">
-        <button class="region-row" onclick="toggleRegion(this)">
-          <svg class="chev-region" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          <span class="region-name">Одеса</span>
-          <div class="region-progress"><div class="fill red" style="width: 33%"></div></div>
-          <span class="region-count">1 / 3</span>
+      <!-- Region: Одеса -->
+      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
+          <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+          <span class="text-[13px] font-bold truncate flex-1">Одеса</span>
+          <span class="text-[11px] text-muted-foreground mono">1/3 заповнили</span>
+          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-rose-500" style="width: 33%"></div>
+          </div>
+          <span class="text-[11px] font-bold text-rose-600 mono w-10 text-right">33%</span>
+          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="managers-list" style="display: none;">
-          <div class="manager-row"><span class="status-dot red"></span><span class="name empty">Пушкарская Виктория</span><span class="count">0/9</span></div>
-          <div class="manager-row"><span class="status-dot red"></span><span class="name empty">Крижня Карина</span><span class="count">0/9</span></div>
-          <div class="manager-row"><span class="status-dot yellow"></span><span class="name">Каратєєва Олена</span><span class="count">1/9</span></div>
-        </div>
+        <div class="hidden"></div>
       </div>
 
-      <!-- Харків -->
-      <div class="region-block">
-        <button class="region-row" onclick="toggleRegion(this)">
-          <svg class="chev-region" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          <span class="region-name">Харків</span>
-          <div class="region-progress"><div class="fill yellow" style="width: 67%"></div></div>
-          <span class="region-count">2 / 2</span>
+      <!-- Region: Харків -->
+      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
+          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+          <span class="text-[13px] font-bold truncate flex-1">Харків</span>
+          <span class="text-[11px] text-muted-foreground mono">2/2 заповнили</span>
+          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+          </div>
+          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">67%</span>
+          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="managers-list" style="display: none;">
-          <div class="manager-row"><span class="status-dot yellow"></span><span class="name">Тесленко Марія</span><span class="count">5/9</span></div>
-          <div class="manager-row"><span class="status-dot yellow"></span><span class="name">Золотченко Олена</span><span class="count">7/9</span></div>
-        </div>
+        <div class="hidden"></div>
       </div>
 
-      <!-- Житомир -->
-      <div class="region-block">
-        <button class="region-row" onclick="toggleRegion(this)">
-          <svg class="chev-region" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          <span class="region-name">Житомир</span>
-          <div class="region-progress"><div class="fill yellow" style="width: 44%"></div></div>
-          <span class="region-count">1 / 1</span>
+      <!-- Region: Житомир -->
+      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
+          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+          <span class="text-[13px] font-bold truncate flex-1">Житомир</span>
+          <span class="text-[11px] text-muted-foreground mono">1/1 заповнили</span>
+          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-amber-500" style="width: 44%"></div>
+          </div>
+          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">44%</span>
+          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="managers-list" style="display: none;">
-          <div class="manager-row"><span class="status-dot yellow"></span><span class="name">Войналович Олена</span><span class="count">4/9</span></div>
-        </div>
+        <div class="hidden"></div>
       </div>
 
-      <!-- Вінниця -->
-      <div class="region-block">
-        <button class="region-row" onclick="toggleRegion(this)">
-          <svg class="chev-region" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          <span class="region-name">Вінниця</span>
-          <div class="region-progress"><div class="fill red" style="width: 0%"></div></div>
-          <span class="region-count">0 / 1</span>
+      <!-- Region: Вінниця -->
+      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
+          <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+          <span class="text-[13px] font-bold truncate flex-1">Вінниця</span>
+          <span class="text-[11px] text-muted-foreground mono">0/1 заповнили</span>
+          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
+            <div class="h-full rounded-full bg-rose-500" style="width: 0%"></div>
+          </div>
+          <span class="text-[11px] font-bold text-rose-600 mono w-10 text-right">0%</span>
+          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <div class="managers-list" style="display: none;">
-          <div class="manager-row"><span class="status-dot red"></span><span class="name empty">Фиголь Илона</span><span class="count">0/9</span></div>
-        </div>
+        <div class="hidden"></div>
       </div>
+
     </div>
   </div>
 
-  <p class="note">
-    Розташування: одразу під hero-картками на Director дашборді.<br>
-    Клік на регіоні → expand менеджерів. Клік на менеджері → ManagerDashboard (існуючий drill-down).
+  <p class="text-[11px] text-muted-foreground text-center mt-4">
+    Збігається з RegionAccordion: card · rounded-2xl · soft shadow · міні-лист регіонів у заголовку · expand → таблиця регіонів з тонким прогрес-баром · подвійне expand → менеджери з міткою пропущених брендів.
   </p>
 </div>
 
 <script>
-  function toggleExpand() {
-    const btn = event.currentTarget;
-    const list = document.getElementById('regions');
-    btn.classList.toggle('open');
-    list.style.display = btn.classList.contains('open') ? '' : 'none';
+  function toggleMain() {
+    const exp = document.getElementById('expanded');
+    const chev = document.getElementById('chev-main');
+    exp.classList.toggle('hidden');
+    chev.classList.toggle('rotate-180');
   }
   function toggleRegion(btn) {
-    const block = btn.parentElement;
-    const list = btn.nextElementSibling;
-    block.classList.toggle('open');
-    list.style.display = block.classList.contains('open') ? '' : 'none';
+    const body = btn.nextElementSibling;
+    const chev = btn.querySelector('.chev-region');
+    body.classList.toggle('hidden');
+    chev.classList.toggle('rotate-90');
   }
 </script>
 
