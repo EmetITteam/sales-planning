@@ -123,7 +123,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     const flat = region?.managers.map(m => m.login).filter(Boolean) ?? [];
     return Array.from(new Set(flat)); // dedup на випадок 1С Action 5 повторення
   }, [region]);
-  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allLogins.length > 0 ? allLogins : null);
+  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allLogins.length > 0 ? allLogins : null, currentPeriod.month);
   // Fact частина — батч Action 2+3 з 1С через серверний proxy.
   // Передаємо plannedClientIds щоб правильно рахувати «Незаплановані» (купили
   // без плану) — інакше блок дублює totalFact коли planned=0.

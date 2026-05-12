@@ -44,6 +44,32 @@ export function monthlyPidFromMonth(month: string): number {
 }
 
 /**
+ * Pure-фолбек для серверних роутів коли клієнт не передав `month` hint.
+ * Будь-який period_id, створений нашим кодом — у форматі YYYYMMDD
+ * (weekEndToId). Витягуємо рік+місяць з самого id, без SELECT у periods.
+ *
+ * Це закриває дірку: після міграції M7 ми видалили weekly-period рядки
+ * (20260503/10/17/24), і lookup `SELECT periods.month WHERE id=20260510`
+ * повертає null → fallback тримав rawPid → запит forecasts отримував 0.
+ * Тепер похідну month рахуємо чисто з пиду.
+ *
+ *   20260510 → '2026-05' → monthlyPidFromMonth → 20260531
+ *   20260430 → '2026-04' → 20260430 (already monthly)
+ *   42 (legacy / unknown) → 42 (no transformation)
+ */
+export function monthlyPidFromAnyPid(rawPid: number): number {
+  if (!Number.isInteger(rawPid) || rawPid <= 0) return rawPid;
+  const year = Math.floor(rawPid / 10000);
+  const month = Math.floor((rawPid % 10000) / 100);
+  const day = rawPid % 100;
+  // Sanity: рік 2020-2100, місяць 1-12, день 1-31. Інакше pid — не YYYYMMDD.
+  if (year < 2020 || year > 2100) return rawPid;
+  if (month < 1 || month > 12) return rawPid;
+  if (day < 1 || day > 31) return rawPid;
+  return monthlyPidFromMonth(`${year}-${String(month).padStart(2, '0')}`);
+}
+
+/**
  * Метадані канонічного monthly-періоду — для UPSERT у periods table при save.
  */
 export function monthlyPeriodMeta(month: string): { id: number; weekStart: string; weekEnd: string; month: string } {

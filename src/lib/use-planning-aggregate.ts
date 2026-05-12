@@ -41,7 +41,11 @@ export interface PlanningAggregate {
   gapActivationClientIds: string[];
 }
 
-export function usePlanningAggregate(periodId: number | null, logins: string[] | null): {
+export function usePlanningAggregate(
+  periodId: number | null,
+  logins: string[] | null,
+  month?: string | null,
+): {
   data: PlanningAggregate | null;
   loading: boolean;
   error: string | null;
@@ -49,8 +53,11 @@ export function usePlanningAggregate(periodId: number | null, logins: string[] |
   const sortedKey = logins && logins.length > 0
     ? [...logins].sort().join(',')
     : null;
+  // month у key — щоб SWR не reused кеш між різними місяцями (тиждень фільтр
+  // того ж місяця має той самий agg-результат бо canonical pid однаковий).
+  const monthKey = month ? month.slice(0, 7) : '';
   const key = periodId !== null && sortedKey
-    ? `agg|${periodId}|${sortedKey}`
+    ? `agg|${periodId}|${monthKey}|${sortedKey}`
     : null;
 
   const { data, error, isLoading } = useSWR(
@@ -59,7 +66,7 @@ export function usePlanningAggregate(periodId: number | null, logins: string[] |
       const res = await fetch('/api/planning/aggregate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ periodId, logins }),
+        body: JSON.stringify({ periodId, logins, month: month ?? undefined }),
       });
       if (!res.ok) {
         const err = await res.text().catch(() => '');

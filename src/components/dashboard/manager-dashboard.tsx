@@ -211,6 +211,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
   const { data: planAgg } = usePlanningAggregate(
     currentPeriod.id,
     !isDemo && effectiveLogin !== 'anonymous' ? [effectiveLogin] : null,
+    currentPeriod.month,
   );
 
   // Будуємо summaries з реальних даних 1С — без mock fallback.

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
-import { monthlyPidFromMonth, monthlyPeriodMeta } from '@/lib/periods';
+import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta } from '@/lib/periods';
 import { NextRequest } from 'next/server';
 
 /**
@@ -18,10 +18,19 @@ async function resolveMonthlyPid(
   if (knownMonth && /^\d{4}-\d{2}/.test(knownMonth)) {
     return { pid: monthlyPidFromMonth(knownMonth), month: knownMonth };
   }
-  // Повільний шлях — лук-апимо month з periods table за rawPid.
+  // Pure-фолбек: weekly pid 20260510 → '2026-05' → 20260531 (без DB hop).
+  // Після міграції M7 у periods table нема weekly-рядків — SELECT повертає
+  // null і ми ламали запити. Тепер компʼют чистий, БД не потрібна.
+  const purePid = monthlyPidFromAnyPid(rawPid);
+  if (purePid !== rawPid) {
+    const year = Math.floor(rawPid / 10000);
+    const monthIdx = Math.floor((rawPid % 10000) / 100);
+    return { pid: purePid, month: `${year}-${String(monthIdx).padStart(2, '0')}-01` };
+  }
+  // Якщо purePid===rawPid — або вже monthly, або не-YYYYMMDD legacy id.
+  // Для legacy лук-апимо month з periods table за rawPid (старі sequential id).
   const { data, error } = await supabase.from('periods').select('month').eq('id', rawPid).single();
   if (error || !data?.month) {
-    // Не знайшли period — повертаємо rawPid як fallback (новий місяць буде створено upsert-ом).
     return { pid: rawPid, month: null, error: error?.message };
   }
   const month = String(data.month);

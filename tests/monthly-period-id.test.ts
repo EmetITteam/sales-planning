@@ -9,7 +9,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyPidFromMonth, monthlyPeriodMeta, weekEndToId } from '../src/lib/periods';
+import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta, weekEndToId } from '../src/lib/periods';
 
 test('monthlyPidFromMonth: травень 2026 → 20260531', () => {
   assert.equal(monthlyPidFromMonth('2026-05-01'), 20260531);
@@ -69,6 +69,41 @@ test('monthlyPeriodMeta: id збігається з weekEndToId(weekEnd)', () =>
     const m = monthlyPeriodMeta(month);
     assert.equal(m.id, weekEndToId(m.weekEnd), `mismatch for ${month}`);
   }
+});
+
+test('monthlyPidFromAnyPid: weekly pid 20260510 → monthly 20260531 (pure)', () => {
+  // Це і є фікс після M7: SELECT periods.month WHERE id=20260510 повертав
+  // null (запис видалено), і fallback тримав rawPid → запит forecasts ходив
+  // у неіснуючий pid → дашборд показував всі плани = 0.
+  assert.equal(monthlyPidFromAnyPid(20260510), 20260531);
+  assert.equal(monthlyPidFromAnyPid(20260503), 20260531);
+  assert.equal(monthlyPidFromAnyPid(20260517), 20260531);
+  assert.equal(monthlyPidFromAnyPid(20260524), 20260531);
+  assert.equal(monthlyPidFromAnyPid(20260531), 20260531); // already monthly
+});
+
+test('monthlyPidFromAnyPid: квітень → 20260430 (30 днів)', () => {
+  assert.equal(monthlyPidFromAnyPid(20260415), 20260430);
+  assert.equal(monthlyPidFromAnyPid(20260430), 20260430);
+});
+
+test('monthlyPidFromAnyPid: лютий невисокосний → 20260228', () => {
+  assert.equal(monthlyPidFromAnyPid(20260214), 20260228);
+});
+
+test('monthlyPidFromAnyPid: лютий високосний 2024 → 20240229', () => {
+  assert.equal(monthlyPidFromAnyPid(20240214), 20240229);
+});
+
+test('monthlyPidFromAnyPid: legacy / non-YYYYMMDD pid → повертає як є', () => {
+  // Старі sequential id (1,2,3,...,42) не мають формату YYYYMMDD.
+  // Не транслюємо — повертаємо як є, щоб caller міг fallback на SELECT periods.
+  assert.equal(monthlyPidFromAnyPid(42), 42);
+  assert.equal(monthlyPidFromAnyPid(0), 0);
+  assert.equal(monthlyPidFromAnyPid(-5), -5);
+  assert.equal(monthlyPidFromAnyPid(19990101), 19990101); // before 2020
+  assert.equal(monthlyPidFromAnyPid(20261301), 20261301); // bad month
+  assert.equal(monthlyPidFromAnyPid(20260132), 20260132); // bad day
 });
 
 test('🐛 РЕГРЕСІЯ: фільтр тиждень↔місяць НЕ повинен міняти monthly pid', () => {

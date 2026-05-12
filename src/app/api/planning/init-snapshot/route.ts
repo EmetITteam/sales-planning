@@ -32,7 +32,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
-import { monthlyPidFromMonth, monthlyPeriodMeta } from '@/lib/periods';
+import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta } from '@/lib/periods';
 
 interface SnapshotClient {
   clientId1c: string;
@@ -57,13 +57,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'segmentCode + periodId required' }, { status: 400 });
   }
   // ⚠️ ARCH (2026-05-12): snapshots зберігаємо у monthly pid (як forecasts/gap_closures).
-  // Якщо клієнт прислав тижневий — ремаппимо через period.month або через SELECT periods.
+  // Pure-фолбек через YYYYMMDD формат periodId — без SELECT periods.
   let monthlyPid = periodId;
   if (period?.month && /^\d{4}-\d{2}/.test(String(period.month))) {
     monthlyPid = monthlyPidFromMonth(String(period.month));
   } else {
-    const { data: pRow } = await supabase.from('periods').select('month').eq('id', periodId).single();
-    if (pRow?.month) monthlyPid = monthlyPidFromMonth(String(pRow.month));
+    monthlyPid = monthlyPidFromAnyPid(periodId);
   }
   const allowedSources = new Set(['auto-populate', 'backfill', 'manual']);
   const safeSource = allowedSources.has(source) ? source : 'auto-populate';

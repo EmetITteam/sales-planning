@@ -57,7 +57,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   const periodKeyForStats = currentPeriod.month.slice(0, 7);
   const asOfIso = liveMode ? new Date().toISOString().slice(0, 10) : currentPeriod.weekEnd;
   const fetchLogins = expanded && regionLogins.length > 0 ? regionLogins : null;
-  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, fetchLogins);
+  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, fetchLogins, currentPeriod.month);
   const { data: regionStatsData, loading: statsLoading } = useRegionStats(
     fetchLogins ? periodKeyForStats : null,
     asOfIso,

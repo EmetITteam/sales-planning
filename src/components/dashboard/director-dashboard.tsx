@@ -143,7 +143,7 @@ export function DirectorDashboard() {
     const flat = adapted?.regions.flatMap(r => r.managers.map(m => m.login)).filter(Boolean) ?? [];
     return Array.from(new Set(flat));
   }, [adapted]);
-  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allCompanyLogins.length > 0 ? allCompanyLogins : null);
+  const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allCompanyLogins.length > 0 ? allCompanyLogins : null, currentPeriod.month);
   const periodKeyForStats = currentPeriod.month.slice(0, 7);
   const { data: companyStats, loading: companyStatsLoading } = useRegionStats(
     allCompanyLogins.length > 0 ? periodKeyForStats : null,

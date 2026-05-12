@@ -44,6 +44,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
   const { data: planAgg } = usePlanningAggregate(
     currentPeriod.id,
     expanded && manager.login ? [manager.login] : null,
+    currentPeriod.month,
   );
   const totalPlan = manager.segments.reduce((a, s) => a + s.planAmount, 0);
   const totalFact = manager.segments.reduce((a, s) => a + s.factAmount, 0);
