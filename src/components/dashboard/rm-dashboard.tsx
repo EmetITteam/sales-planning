@@ -101,7 +101,10 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const handleManualRetry = () => { setAutoRetryAttempt(0); refetch(); };
 
   // Aggregate planning по всіх менеджерах регіону → для розрахунку «Очікуваного %»
-  const allLogins = useMemo(() => region?.managers.map(m => m.login).filter(Boolean) ?? [], [region]);
+  const allLogins = useMemo(() => {
+    const flat = region?.managers.map(m => m.login).filter(Boolean) ?? [];
+    return Array.from(new Set(flat)); // dedup на випадок 1С Action 5 повторення
+  }, [region]);
   const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allLogins.length > 0 ? allLogins : null);
   // Fact частина — батч Action 2+3 з 1С через серверний proxy.
   // Передаємо plannedClientIds щоб правильно рахувати «Незаплановані» (купили

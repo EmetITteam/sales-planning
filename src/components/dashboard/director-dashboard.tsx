@@ -110,7 +110,14 @@ export function DirectorDashboard() {
   // ⚠️ ВСІ хуки мають бути ВИЩЕ early returns. usePlanningAggregate +
   // useRegionStats + allCompanyLogins тут — інакше при перемиканні view
   // (viewRegion / viewManager) кількість хуків змінюється → React error #310.
-  const allCompanyLogins = useMemo(() => adapted?.regions.flatMap(r => r.managers.map(m => m.login)).filter(Boolean) ?? [], [adapted]);
+  // Dedup логінів — 1С Action 5 іноді повертає одного менеджера у двох
+  // регіонах (підтверджено 2026-05-12: 1 дубль на 21 → $17,970 повторного
+  // факту в aggregate). Без Set-у backend викликає 1С двічі для того ж
+  // менеджера і отримує buyers дублі.
+  const allCompanyLogins = useMemo(() => {
+    const flat = adapted?.regions.flatMap(r => r.managers.map(m => m.login)).filter(Boolean) ?? [];
+    return Array.from(new Set(flat));
+  }, [adapted]);
   const { data: planAgg } = usePlanningAggregate(currentPeriod.id, allCompanyLogins.length > 0 ? allCompanyLogins : null);
   const periodKeyForStats = currentPeriod.month.slice(0, 7);
   const { data: companyStats, loading: companyStatsLoading } = useRegionStats(
@@ -380,7 +387,7 @@ export function DirectorDashboard() {
                     dev: m.factPercent - calcPctValue,
                     onPlan: m.factPercent >= calcPctValue,
                   }));
-                const regionLogins = region.managers.map(m => m.login).filter(Boolean);
+                const regionLogins = Array.from(new Set(region.managers.map(m => m.login).filter(Boolean)));
                 return (
                   <RegionAccordion
                     key={r.regionCode || r.regionName}

@@ -122,14 +122,23 @@ async function handlePost(request: NextRequest) {
   const safeLoginsRaw = (logins as unknown[])
     .map(l => String(l).toLowerCase().trim())
     .filter(l => allowed.has(l));
-  // ⚠️ Dedup логінів ПЕРЕД 1С-викликами. Якщо frontend (Director) передав
-  // одного менеджера двічі (наприклад 1С Action 5 повертає його у двох регіонах
-  // або у нас є нормалізаційна помилка) — без dedup ми дзвонимо в 1С двічі
-  // і отримуємо ті самі buyers ДВА рази → дублі (segment, client) у aggregate.
-  // Це джерело $17,970 дублів, не "1С повертає чужих клієнтів".
+  // ⚠️ Dedup логінів ПЕРЕД 1С-викликами. ПІДТВЕРДЖЕНО ЕМПІРИЧНО 2026-05-12:
+  // Director передавав 21 логін, з них 1 дубль → 1С викликалось двічі для
+  // того самого менеджера → buyers дублювались у aggregate ($17,970).
+  // Імовірно 1С Action 5 повертає того самого менеджера у двох регіонах
+  // (рідкісний edge case, можливо менеджер працює на 2 регіони).
   const safeLoginsSet = new Set(safeLoginsRaw);
   const safeLogins = Array.from(safeLoginsSet);
   const duplicateLoginsInRequest = safeLoginsRaw.length - safeLogins.length;
+  // Список саме тих логінів які дублювались — для діагностики
+  const duplicatedLoginsList: string[] = [];
+  if (duplicateLoginsInRequest > 0) {
+    const seen = new Set<string>();
+    for (const l of safeLoginsRaw) {
+      if (seen.has(l) && !duplicatedLoginsList.includes(l)) duplicatedLoginsList.push(l);
+      seen.add(l);
+    }
+  }
   if (safeLogins.length === 0) {
     return Response.json({ error: 'No allowed logins in scope' }, { status: 403 });
   }
@@ -228,6 +237,7 @@ async function handlePost(request: NextRequest) {
       loginsRawCount: safeLoginsRaw.length,
       loginsDedupCount: safeLogins.length,
       duplicateLoginsInRequest,
+      duplicatedLoginsList, // [] якщо немає; інакше список ПОВТОРЮВАНИХ логінів
     },
   });
 }
