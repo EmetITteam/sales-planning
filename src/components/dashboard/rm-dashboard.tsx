@@ -443,6 +443,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   factCategoriesForBrand={regionStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
                   unplannedForBrand={regionStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
                   categoriesLoading={statsLoading}
+                  planByLogin={planAgg?.byLogin ?? null}
                   onManagerClick={(login, segCode) => goToManager(login, segCode)}
                 />
               ))}

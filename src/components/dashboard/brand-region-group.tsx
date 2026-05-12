@@ -53,6 +53,11 @@ interface Props {
   unplannedForBrand?: { factCount: number; factSum: number } | null;
   /** Loading-стан для CategoryStatsTable. */
   categoriesLoading?: boolean;
+  /**
+   * Per-manager × segment breakdown від /api/planning/aggregate.
+   * Використовуємо щоб рахувати real «Запл. %» per (region, brand) sum-over-managers.
+   */
+  planByLogin?: Record<string, Record<string, { forecast: number; gap: number }>> | null;
 }
 
 /**
@@ -63,10 +68,20 @@ interface Props {
  * `region × brand`). Дозволяє Sales Director швидко побачити «Petaran просідає
  * у Києві, але виконує план в Одесі».
  */
-export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading }: Props) {
+export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading, planByLogin }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
+
+  // «Запл. %» для бренду в цілому: Σ planSum / brand.totalPlan.
+  const brandExpectedPct = planCategoriesForBrand && brand.totalPlan > 0
+    ? ((planCategoriesForBrand.active.plannedSum
+        + planCategoriesForBrand.sleeping.plannedSum
+        + planCategoriesForBrand.lost.plannedSum
+        + planCategoriesForBrand.none.plannedSum
+        + planCategoriesForBrand.new.plannedSum) / brand.totalPlan) * 100
+    : undefined;
+  const hasBrandPlan = planCategoriesForBrand !== undefined && planCategoriesForBrand !== null;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -78,6 +93,8 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
         asOfDate={asOfDate}
         prevMonthFactAmount={brand.totalPrevMonthFact}
         prevMonthFactPercent={totalPrevPct}
+        expectedPercent={brandExpectedPct}
+        hasManagerPlan={hasBrandPlan}
         onClick={() => setExpanded(!expanded)}
         expandable
         expanded={expanded}
@@ -99,6 +116,22 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
           </p>
           {brand.regions.map(r => {
             const isRegionExpanded = expandedRegion === r.regionCode;
+            // Per-region «Запл. %» = Σ всі менеджери цього регіону (forecast+gap)
+            // для цього сегменту / r.plan.
+            let regionForecastPlusGap = 0;
+            let anyMgrHasPlan = false;
+            if (planByLogin) {
+              for (const m of r.managers) {
+                const mp = planByLogin[m.login]?.[brand.segmentCode];
+                if (mp) {
+                  regionForecastPlusGap += mp.forecast + mp.gap;
+                  anyMgrHasPlan = true;
+                }
+              }
+            }
+            const regionExpectedPct = anyMgrHasPlan && r.plan > 0
+              ? (regionForecastPlusGap / r.plan) * 100
+              : undefined;
             return (
               <div key={r.regionCode}>
                 <div className="flex items-center gap-1">
@@ -111,6 +144,8 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                       asOfDate={asOfDate}
                       prevMonthFactAmount={r.prevFact}
                       prevMonthFactPercent={pctOf(r.prevFact, r.prevPlan)}
+                      expectedPercent={regionExpectedPct}
+                      hasManagerPlan={anyMgrHasPlan}
                       onClick={() => onRegionClick(r.regionCode)}
                     />
                   </div>

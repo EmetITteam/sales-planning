@@ -44,6 +44,12 @@ interface Props {
   unplannedForBrand?: { factCount: number; factSum: number } | null;
   /** Loading-стан для CategoryStatsTable. */
   categoriesLoading?: boolean;
+  /**
+   * Per-manager × segment breakdown від /api/planning/aggregate.
+   * Використовуємо щоб рахувати real «Запл. %» per (manager, brand) замість
+   * mock-формули у brand-row.
+   */
+  planByLogin?: Record<string, Record<string, { forecast: number; gap: number }>> | null;
 }
 
 /**
@@ -52,9 +58,22 @@ interface Props {
  *
  * Cross-grouping `brand × manager` — дзеркало BrandRegionGroup на РМ-дашборді.
  */
-export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading }: Props) {
+export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading, planByLogin }: Props) {
   const [expanded, setExpanded] = useState(false);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
+
+  // «Запл. %» для бренду в цілому = Σ planSum (всі категорії plan) / brand.totalPlan.
+  // Якщо planCategoriesForBrand не прийшло — лишаємо undefined → brand-row
+  // приховає індикатор замість mock-формули.
+  const brandExpectedPct = planCategoriesForBrand && brand.totalPlan > 0
+    ? ((planCategoriesForBrand.active.plannedSum
+        + planCategoriesForBrand.sleeping.plannedSum
+        + planCategoriesForBrand.lost.plannedSum
+        + planCategoriesForBrand.none.plannedSum
+        + planCategoriesForBrand.new.plannedSum) / brand.totalPlan) * 100
+    : undefined;
+  // Чи є взагалі дані плану — щоб приховати mock у brand-row.
+  const hasBrandPlan = planCategoriesForBrand !== undefined && planCategoriesForBrand !== null;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -66,6 +85,8 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
         asOfDate={asOfDate}
         prevMonthFactAmount={brand.totalPrevMonthFact}
         prevMonthFactPercent={totalPrevPct}
+        expectedPercent={brandExpectedPct}
+        hasManagerPlan={hasBrandPlan}
         onClick={() => setExpanded(!expanded)}
         expandable
         expanded={expanded}
@@ -85,19 +106,30 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 ml-1">
             <ChevronDown className="inline h-3 w-3 mr-1" />Менеджери
           </p>
-          {brand.managers.map(m => (
-            <BrandRow
-              key={m.login}
-              segmentName={m.name || m.login}
-              planAmount={m.plan}
-              factAmount={m.fact}
-              calcPct={calcPct}
-              asOfDate={asOfDate}
-              prevMonthFactAmount={m.prevFact}
-              prevMonthFactPercent={pctOf(m.prevFact, m.prevPlan)}
-              onClick={() => onManagerClick(m.login, brand.segmentCode)}
-            />
-          ))}
+          {brand.managers.map(m => {
+            // Per-manager «Запл. %» з byLogin (forecast+gap)/plan для цього бренду.
+            // Без planByLogin → undefined → brand-row приховає індикатор.
+            const mgrPlan = planByLogin?.[m.login]?.[brand.segmentCode];
+            const mgrExpectedPct = mgrPlan && m.plan > 0
+              ? ((mgrPlan.forecast + mgrPlan.gap) / m.plan) * 100
+              : undefined;
+            const hasMgrPlan = mgrPlan !== undefined;
+            return (
+              <BrandRow
+                key={m.login}
+                segmentName={m.name || m.login}
+                planAmount={m.plan}
+                factAmount={m.fact}
+                calcPct={calcPct}
+                asOfDate={asOfDate}
+                prevMonthFactAmount={m.prevFact}
+                prevMonthFactPercent={pctOf(m.prevFact, m.prevPlan)}
+                expectedPercent={mgrExpectedPct}
+                hasManagerPlan={hasMgrPlan}
+                onClick={() => onManagerClick(m.login, brand.segmentCode)}
+              />
+            );
+          })}
         </div>
       )}
     </div>

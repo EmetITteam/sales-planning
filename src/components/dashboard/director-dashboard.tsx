@@ -444,6 +444,7 @@ export function DirectorDashboard() {
                   factCategoriesForBrand={companyStats?.bySegment[brand.segmentCode]?.byCategory ?? null}
                   unplannedForBrand={companyStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
                   categoriesLoading={companyStatsLoading}
+                  planByLogin={planAgg?.byLogin ?? null}
                   onRegionClick={(code) => goToRegion(code)}
                   onManagerClick={(login, segCode) => goToManager(login, segCode)}
                 />

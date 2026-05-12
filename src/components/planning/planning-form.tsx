@@ -169,6 +169,9 @@ export function PlanningForm({
           trainingDate: f.training_date || undefined,
           stageDone: f.stage_done,
           factAmount: 0,
+          // lastPurchaseDate/Amount довантажуються окремим useEffect-ом нижче
+          // після того як segmentClients (1С Action 2) прийде. Зберігати їх у
+          // forecasts table немає сенсу — це довідкова інфа з 1С яка змінюється.
           lastPurchaseDate: null,
           lastPurchaseAmount: 0,
           completed: f.completed,
@@ -353,6 +356,44 @@ export function PlanningForm({
   const allManagerClients: Client1C[] = useMemo(() => {
     return clientsResponse ? adaptClientsForPlanning(clientsResponse) : [];
   }, [clientsResponse]);
+
+  // ⚠️ Збагачуємо завантажені forecasts/gapClosures даними lastPurchaseDate/Amount
+  // з 1С Action 2. Без цього у формі рядки показували «Ост: — · $0» бо при load
+  // з Supabase ставили null/0 (lastPurchase у forecasts table НЕ зберігається).
+  // segmentClients може прийти ПІСЛЯ Supabase load — тому окремий useEffect.
+  useEffect(() => {
+    if (!supabaseLoaded) return;
+    if (segmentClients.length === 0 && allManagerClients.length === 0) return;
+    const byId = new Map<string, { date: string | null; amount: number }>();
+    // segmentClients має lastPurchase саме по поточному segmentCode — пріоритет
+    for (const c of segmentClients) byId.set(c.clientId, { date: c.lastPurchaseDate, amount: c.lastPurchaseAmount });
+    // allManagerClients — fallback (загальна остання покупка по всіх брендах)
+    for (const c of allManagerClients) {
+      if (!byId.has(c.clientId)) byId.set(c.clientId, { date: c.lastPurchaseDate, amount: c.lastPurchaseAmount });
+    }
+    setForecasts(prev => {
+      let changed = false;
+      const next = prev.map(f => {
+        const enrich = byId.get(f.clientId1c);
+        if (!enrich) return f;
+        if (f.lastPurchaseDate === enrich.date && f.lastPurchaseAmount === enrich.amount) return f;
+        changed = true;
+        return { ...f, lastPurchaseDate: enrich.date, lastPurchaseAmount: enrich.amount };
+      });
+      return changed ? next : prev;
+    });
+    setGapClosures(prev => {
+      let changed = false;
+      const next = prev.map(g => {
+        const enrich = byId.get(g.clientId1c);
+        if (!enrich) return g;
+        if (g.lastPurchaseDate === enrich.date && g.lastPurchaseAmount === enrich.amount) return g;
+        changed = true;
+        return { ...g, lastPurchaseDate: enrich.date, lastPurchaseAmount: enrich.amount };
+      });
+      return changed ? next : prev;
+    });
+  }, [supabaseLoaded, segmentClients, allManagerClients]);
 
   // Тренінги для блоку «Закриття розриву» — Action 6 з 1С.
   // regionCode беремо з user.regionCode; для невідомих/демо — порожній список.

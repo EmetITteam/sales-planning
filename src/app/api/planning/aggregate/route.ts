@@ -138,6 +138,16 @@ export async function POST(request: NextRequest) {
     gapClients: number;
     byCategory: SegCategoryBlock;
   }> = {};
+  // byLogin × segment — для розрахунку «Запл. %» per (manager, brand)
+  // на дашборді РМ/Director (BrandManagerGroup / RegionAccordion).
+  // Без цього brand-row падав на mock-формулу `факт + 60% розриву` (66%),
+  // тоді як форма менеджера показувала реальні 92%.
+  const byLogin: Record<string, Record<string, { forecast: number; gap: number }>> = {};
+  const addToLogin = (login: string, segment: string, kind: 'forecast' | 'gap', amt: number) => {
+    if (!byLogin[login]) byLogin[login] = {};
+    if (!byLogin[login][segment]) byLogin[login][segment] = { forecast: 0, gap: 0 };
+    byLogin[login][segment][kind] += amt;
+  };
 
   const seenForecastClients = new Map<string, Set<string>>();
   const seenGapClients = new Map<string, Set<string>>();
@@ -173,6 +183,7 @@ export async function POST(request: NextRequest) {
       forecastClientIds.add(`${f.segment_code}|${f.client_id_1c}`);
       plannedClientIds.add(f.client_id_1c);
     }
+    addToLogin(f.user_id, f.segment_code, 'forecast', amount);
   }
   for (const g of gaps) {
     const amount = Number(g.potential_amount) || 0;
@@ -190,6 +201,7 @@ export async function POST(request: NextRequest) {
       else gapActivationClientIds.add(planKey);
       plannedClientIds.add(g.client_id_1c);
     }
+    addToLogin(g.user_id, g.segment_code, 'gap', amount);
   }
   // Заповнюємо distinct counts
   for (const [seg, set] of seenForecastClients) bySegment[seg].forecastClients = set.size;
@@ -199,6 +211,7 @@ export async function POST(request: NextRequest) {
     totalForecast,
     totalGapPotential,
     bySegment,
+    byLogin,
     plannedClientIds: Array.from(plannedClientIds),
     forecastClientIds: Array.from(forecastClientIds),
     gapNewClientIds: Array.from(gapNewClientIds),

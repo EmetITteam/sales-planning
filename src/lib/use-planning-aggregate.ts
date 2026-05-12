@@ -28,6 +28,12 @@ export interface PlanningAggregate {
     byCategory: Record<PlanCategoryKey, CategoryStat>;
   }>;
   /**
+   * Per-manager × segment breakdown — для розрахунку «Запл. %» per
+   * (manager, brand) пара на дашборді РМ/Director. Без цього brand-row
+   * падав на mock-формулу (`факт + 60% розриву`).
+   */
+  byLogin: Record<string, Record<string, { forecast: number; gap: number }>>;
+  /**
    * Унікальні client_id_1c з усіх forecasts ∪ gap_closures цього scope.
    * (Зберігаємо для зворотньої сумісності, але новий код використовує
    * три окремі масиви нижче — для класифікації факту по плану.)
