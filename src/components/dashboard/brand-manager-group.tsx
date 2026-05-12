@@ -63,17 +63,16 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
 
   // «Запл. %» для бренду в цілому = Σ planSum (всі категорії plan) / brand.totalPlan.
-  // Якщо planCategoriesForBrand не прийшло — лишаємо undefined → brand-row
-  // приховає індикатор замість mock-формули.
-  const brandExpectedPct = planCategoriesForBrand && brand.totalPlan > 0
+  // Показуємо ЗАВЖДИ коли бренд має target ($brand.totalPlan>0). Якщо менеджери
+  // не планували — Запл.: 0%. Це чітко: «нема плану», а не сховано.
+  const brandExpectedPct = brand.totalPlan > 0 && planCategoriesForBrand
     ? ((planCategoriesForBrand.active.plannedSum
         + planCategoriesForBrand.sleeping.plannedSum
         + planCategoriesForBrand.lost.plannedSum
         + planCategoriesForBrand.none.plannedSum
         + planCategoriesForBrand.new.plannedSum) / brand.totalPlan) * 100
-    : undefined;
-  // Чи є взагалі дані плану — щоб приховати mock у brand-row.
-  const hasBrandPlan = planCategoriesForBrand !== undefined && planCategoriesForBrand !== null;
+    : 0;
+  const hasBrandPlan = brand.totalPlan > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -107,13 +106,15 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
             <ChevronDown className="inline h-3 w-3 mr-1" />Менеджери
           </p>
           {brand.managers.map(m => {
-            // Per-manager «Запл. %» з byLogin (forecast+gap)/plan для цього бренду.
-            // Без planByLogin → undefined → brand-row приховає індикатор.
+            // Per-manager «Запл. %» — завжди показуємо коли менеджер має target
+            // ($m.plan>0). Якщо нема плану від нього — 0% (не ховаємо).
             const mgrPlan = planByLogin?.[m.login]?.[brand.segmentCode];
-            const mgrExpectedPct = mgrPlan && m.plan > 0
-              ? ((mgrPlan.forecast + mgrPlan.gap) / m.plan) * 100
-              : undefined;
-            const hasMgrPlan = mgrPlan !== undefined;
+            const mgrForecast = mgrPlan?.forecast ?? 0;
+            const mgrGap = mgrPlan?.gap ?? 0;
+            const mgrExpectedPct = m.plan > 0
+              ? ((mgrForecast + mgrGap) / m.plan) * 100
+              : 0;
+            const hasMgrPlan = m.plan > 0;
             return (
               <BrandRow
                 key={m.login}

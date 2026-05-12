@@ -13,8 +13,10 @@ export interface BrandRowProps {
   /** Дата зрізу для run-rate (forecast) */
   asOfDate: Date;
   /**
-   * Очікуваний % (план менеджера) — якщо не передано, рахується як mock:
-   * факт + 60% від розриву (для РМ/директора, де реальних обіцянок немає).
+   * Очікуваний % (план менеджера) — `(forecast+gap)/plan*100`. Обов'язково
+   * передавати з реальних даних `/api/planning/aggregate`. Якщо undefined —
+   * показуємо 0% (раніше був mock fallback `факт+60%×розрив` що давав
+   * брехливі 67% на дашборді який мав показувати 95%).
    */
   expectedPercent?: number;
   /** Чи є реальний план менеджера (для бейджу 'план не заповнено') */
@@ -63,10 +65,9 @@ export function BrandRow({
   const passedWD = getPassedWorkingDays(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
   const forecastPct = calcForecastPercent(factAmount, planAmount, passedWD, totalWD);
 
-  // Очікуваний (план менеджера). Якщо не переданий — mock (факт + 60% від розриву).
-  const computedExpectedPct = expectedPercent ?? (
-    planAmount > 0 ? Math.min(factPercent + 0.6 * Math.max(0, 100 - factPercent), 100) : 0
-  );
+  // Очікуваний (план менеджера). Якщо undefined — 0% (раніше fall-back на
+  // mock factPct+60% давав брехливі ~67% коли реальний план міг бути 95%).
+  const computedExpectedPct = expectedPercent ?? 0;
 
   // Динаміка vs минулий місяць (повний факт)
   const prev = prevMonthFactAmount ?? 0;

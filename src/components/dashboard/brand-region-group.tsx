@@ -74,14 +74,15 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
 
   // «Запл. %» для бренду в цілому: Σ planSum / brand.totalPlan.
-  const brandExpectedPct = planCategoriesForBrand && brand.totalPlan > 0
+  // Завжди показуємо коли бренд має target — 0% значить «нема плану».
+  const brandExpectedPct = brand.totalPlan > 0 && planCategoriesForBrand
     ? ((planCategoriesForBrand.active.plannedSum
         + planCategoriesForBrand.sleeping.plannedSum
         + planCategoriesForBrand.lost.plannedSum
         + planCategoriesForBrand.none.plannedSum
         + planCategoriesForBrand.new.plannedSum) / brand.totalPlan) * 100
-    : undefined;
-  const hasBrandPlan = planCategoriesForBrand !== undefined && planCategoriesForBrand !== null;
+    : 0;
+  const hasBrandPlan = brand.totalPlan > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -116,22 +117,19 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
           </p>
           {brand.regions.map(r => {
             const isRegionExpanded = expandedRegion === r.regionCode;
-            // Per-region «Запл. %» = Σ всі менеджери цього регіону (forecast+gap)
-            // для цього сегменту / r.plan.
+            // Per-region «Запл. %» = Σ менеджерів регіону (forecast+gap) / r.plan.
+            // Завжди показуємо коли регіон має target — 0% якщо ніхто не планував.
             let regionForecastPlusGap = 0;
-            let anyMgrHasPlan = false;
             if (planByLogin) {
               for (const m of r.managers) {
                 const mp = planByLogin[m.login]?.[brand.segmentCode];
-                if (mp) {
-                  regionForecastPlusGap += mp.forecast + mp.gap;
-                  anyMgrHasPlan = true;
-                }
+                if (mp) regionForecastPlusGap += mp.forecast + mp.gap;
               }
             }
-            const regionExpectedPct = anyMgrHasPlan && r.plan > 0
+            const regionExpectedPct = r.plan > 0
               ? (regionForecastPlusGap / r.plan) * 100
-              : undefined;
+              : 0;
+            const hasRegionPlan = r.plan > 0;
             return (
               <div key={r.regionCode}>
                 <div className="flex items-center gap-1">
@@ -145,7 +143,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                       prevMonthFactAmount={r.prevFact}
                       prevMonthFactPercent={pctOf(r.prevFact, r.prevPlan)}
                       expectedPercent={regionExpectedPct}
-                      hasManagerPlan={anyMgrHasPlan}
+                      hasManagerPlan={hasRegionPlan}
                       onClick={() => onRegionClick(r.regionCode)}
                     />
                   </div>
