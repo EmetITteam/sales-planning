@@ -220,6 +220,19 @@ export function PlanningForm({
     }
     setSaving(true);
     setSaveResult(null);
+    // ⚠️ clearAll flag — для свідомого видалення ВСІХ рядків.
+    // Backend safety: при пустому списку без clearAll — DELETE skip-ається
+    // (захист від race з порожнім state до завантаження).
+    // Передаємо clearAll=true коли:
+    //   - обидва списки порожні І
+    //   - форма раніше редагувалась (formEverEdited) АБО раніше був хоч один
+    //     persistedClient у БД (тобто реально треба видалити, не "перший save
+    //     з пустим станом бо нічого не було").
+    // Інакше (перший save взагалі з пустим — backend безпечно skip DELETE).
+    const isExplicitClearAll =
+      forecasts.length === 0 &&
+      gapClosures.length === 0 &&
+      (formEverEdited || persistedClientIds.size > 0);
     const result = await savePlanning({
       segmentCode,
       periodId: currentPeriod.id,
@@ -237,6 +250,7 @@ export function PlanningForm({
       forecasts,
       gapClosures,
       gapActions,
+      clearAll: isExplicitClearAll,
     });
     setSaving(false);
     if (result.success) {
