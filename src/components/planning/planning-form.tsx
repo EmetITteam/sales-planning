@@ -288,13 +288,32 @@ export function PlanningForm({
   const factPct = pctOf(factAmount, planAmount);
   const deviation = factPct - expectedPct;
 
-  // Сортовані прогнози: невиконані зверху, виконані знизу
+  // Сортовані прогнози: невиконані зверху, виконані знизу. У межах однієї
+  // групи — алфавіт по clientName. Без вторинного сортування auto-populate
+  // показує клієнтів у порядку як 1С повернула (рандом), а після першого
+  // save+reload — в алфавіті (бо Supabase order). User бачить як
+  // 'збивається сортування'.
   const sortedForecasts = useMemo(() => {
     return [...forecasts].sort((a, b) => {
-      if (a.completed === b.completed) return 0;
-      return a.completed ? 1 : -1;
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return (a.clientName || '').localeCompare(b.clientName || '', 'uk');
     });
   }, [forecasts]);
+
+  // Аналогічно для Закриття розриву — сортуємо за алфавітом, completed вниз.
+  // Раніше gapClosures рендерився як є (порядок auto-populate / load).
+  const sortedGapClosures = useMemo(() => {
+    // Тримаємо оригінальний index — потрібен для updateGap/removeGapClosure
+    // (selectedGaps теж по index, але sync через sortedGapClosures.findIndex
+    // ламає логіку). Тому сортування лише ВІЗУАЛЬНЕ — повертаємо пари
+    // {row, originalIndex}.
+    return gapClosures
+      .map((row, originalIndex) => ({ row, originalIndex }))
+      .sort((a, b) => {
+        if (a.row.completed !== b.row.completed) return a.row.completed ? 1 : -1;
+        return (a.row.clientName || '').localeCompare(b.row.clientName || '', 'uk');
+      });
+  }, [gapClosures]);
 
   const forecastTotal = forecasts.reduce((s, f) => s + f.forecastAmount, 0);
   const forecastFactTotal = forecasts.reduce((s, f) => s + f.factAmount, 0);
@@ -1307,11 +1326,11 @@ export function PlanningForm({
             )}
 
             <div className="space-y-2">
-            {gapClosures.map((row, i) => {
+            {sortedGapClosures.map(({ row, originalIndex: i }) => {
               const hasFact = row.factAmount > 0;
               const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
               return (
-                <div key={i} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
+                <div key={row.clientId1c || `idx-${i}`} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
                   {/* === DESKTOP (md+) === */}
                   <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                     {/* Чекбокс multi-select */}
