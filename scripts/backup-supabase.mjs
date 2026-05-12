@@ -25,7 +25,8 @@ if (!URL || !KEY) {
   process.exit(1);
 }
 
-const TABLES = ['users', 'periods', 'forecasts', 'gap_closures', 'period_summaries'];
+// ⚠️ Додавати сюди КОЖНУ нову таблицю при створенні. Інакше backup її пропустить.
+const TABLES = ['users', 'periods', 'forecasts', 'gap_closures', 'period_summaries', 'planning_snapshots'];
 const PAGE = 1000;
 
 async function dumpTable(table) {
@@ -40,6 +41,10 @@ async function dumpTable(table) {
         Prefer: 'count=exact',
       },
     });
+    if (r.status === 404) {
+      // Таблиця ще не створена (migration не виконана) — skip без помилки.
+      return { rows: [], total: 0, skipped: true };
+    }
     if (!r.ok) throw new Error(`${table}: ${r.status} ${await r.text()}`);
     const rows = await r.json();
     out.push(...rows);
@@ -57,7 +62,12 @@ mkdirSync(dir, { recursive: true });
 const manifest = { date, takenAt: new Date().toISOString(), tables: {} };
 for (const t of TABLES) {
   process.stdout.write(`${t}... `);
-  const { rows, total } = await dumpTable(t);
+  const { rows, total, skipped } = await dumpTable(t);
+  if (skipped) {
+    manifest.tables[t] = { skipped: true, reason: 'table not found (migration not applied?)' };
+    console.log('skipped (404)');
+    continue;
+  }
   writeFileSync(join(dir, `${t}.json`), JSON.stringify(rows, null, 2));
   manifest.tables[t] = { rows: rows.length, totalReported: total };
   console.log(`${rows.length} rows`);
