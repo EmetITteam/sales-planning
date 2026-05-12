@@ -2,14 +2,22 @@
  * Pure-функція агрегації region-stats. Винесена з API route щоб тестувалась
  * без HTTP / сесій / 1С-моків.
  *
- * Класифікація buyer-ів — ПО ПЛАНУ МЕНЕДЖЕРА (не по 1С-категорії клієнта,
- * не по lastPurchaseDate бренду — ці спроби давали неузгоджені цифри).
+ * Класифікація buyer-ів — ПО ПЛАНУ МЕНЕДЖЕРА per (segment, clientId).
+ * НЕ просто по clientId — менеджер може запланувати клієнта по Vitaran
+ * але не по IUSE; коли той купує IUSE, це «Незаплановані для IUSE», а
+ * не «Активний» (баг-репорт 2026-05-12: Запоріжжя $1,178 IUSE-факту
+ * показувалось як активні бо клієнти були в forecast по Vitaran).
+ *
+ * Ключі у `forecastClientIds`/`gapNewClientIds`/`gapActivationClientIds` —
+ * рядки виду `${SEGMENT_CODE}|${clientId}` (формат UI-сегмента, не 1С —
+ * 'OTHER' а не 'ДРУГИЕТМ').
  *
  * Кожен buyer потрапляє рівно в ОДНУ з 4 категорій (без дублювання):
- *   - 'active'    = клієнт у forecasts менеджера (Прогноз)
- *   - 'new'       = клієнт у gap_closures з category=Новий
- *   - 'activation' = клієнт у gap_closures з іншою категорією (Сплячий/Втрачений/БЗ)
- *   - 'unplanned' = купив але НЕ ні в forecasts, ні в gap_closures
+ *   - 'active'    = (segment, client) у forecasts менеджера
+ *   - 'new'       = (segment, client) у gap_closures з category=Новий
+ *   - 'activation' = (segment, client) у gap_closures з іншою категорією
+ *   - 'unplanned' = купив у цьому бренді, АЛЕ ця (segment, client) пара
+ *                   НЕ в жодному плановому списку
  *
  * Σ (active + activation + new + unplanned) = totalFact (без переcікань).
  */
@@ -183,14 +191,17 @@ export function aggregateRegionStats(
 
         // Пріоритет: forecast → gapNew → gapAct → unplanned. Кожен buyer
         // у РІВНО одній категорії. Σ = totalFact (без переcікань).
-        const id = buyer.clientId;
-        if (forecastSet.has(id)) {
+        // Ключ КЛАСИФІКАЦІЇ — `${segment}|${clientId}` (не лише clientId),
+        // інакше client запланований у бренді A і купує у бренді B
+        // фейково потрапляє у «Активні» по бренду B.
+        const planKey = `${segCode}|${buyer.clientId}`;
+        if (forecastSet.has(planKey)) {
           sBlock.byCategory.active.factSum += amt;
           sBlock.byCategory.active.factCount += 1;
-        } else if (gapNewSet.has(id)) {
+        } else if (gapNewSet.has(planKey)) {
           sBlock.byCategory.new.factSum += amt;
           sBlock.byCategory.new.factCount += 1;
-        } else if (gapActSet.has(id)) {
+        } else if (gapActSet.has(planKey)) {
           // 'sleeping' — frontend колапсує sleeping+lost+none у «Активізація»
           sBlock.byCategory.sleeping.factSum += amt;
           sBlock.byCategory.sleeping.factCount += 1;

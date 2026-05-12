@@ -9,6 +9,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aggregateRegionStats } from '../src/lib/region-stats-aggregate.ts';
 
+// Helper для тестів: формуємо ключ як це робить /api/planning/aggregate
+const k = (seg: string, id: string) => `${seg}|${id}`;
+
 // === 1. Порожній план → ВСІ buyers потрапляють у unplanned ===
 test('порожній план → всі buyers у unplanned (категорії = 0)', () => {
   const result = aggregateRegionStats(
@@ -44,7 +47,7 @@ test('buyer у forecastClientIds → active, НЕ unplanned (без дублю)'
         ],
       }],
     }],
-    { forecastClientIds: ['c1'], gapNewClientIds: [], gapActivationClientIds: [] },
+    { forecastClientIds: [k('PETARAN', 'c1')], gapNewClientIds: [], gapActivationClientIds: [] },
   );
   assert.equal(result.bySegment.PETARAN.byCategory.active.factSum, 1000);
   assert.equal(result.bySegment.PETARAN.byCategory.active.factCount, 1);
@@ -64,7 +67,7 @@ test('buyer у gapNewClientIds → new', () => {
       clients: [],
       segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'newc', factAmountUSD: 333 }] }],
     }],
-    { forecastClientIds: [], gapNewClientIds: ['newc'], gapActivationClientIds: [] },
+    { forecastClientIds: [], gapNewClientIds: [k('PETARAN', 'newc')], gapActivationClientIds: [] },
   );
   assert.equal(result.bySegment.PETARAN.byCategory.new.factSum, 333);
   assert.equal(result.bySegment.PETARAN.unplanned.factSum, 0);
@@ -77,7 +80,7 @@ test('buyer у gapActivationClientIds → sleeping bucket', () => {
       clients: [],
       segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'sleep1', factAmountUSD: 222 }] }],
     }],
-    { forecastClientIds: [], gapNewClientIds: [], gapActivationClientIds: ['sleep1'] },
+    { forecastClientIds: [], gapNewClientIds: [], gapActivationClientIds: [k('PETARAN', 'sleep1')] },
   );
   assert.equal(result.bySegment.PETARAN.byCategory.sleeping.factSum, 222);
   assert.equal(result.bySegment.PETARAN.unplanned.factSum, 0);
@@ -94,9 +97,9 @@ test('пріоритет forecast > gapNew > gapAct (без подвійного
       ]}],
     }],
     {
-      forecastClientIds: ['a'],
-      gapNewClientIds: ['a', 'b'],
-      gapActivationClientIds: ['b'],
+      forecastClientIds: [k('PETARAN', 'a')],
+      gapNewClientIds: [k('PETARAN', 'a'), k('PETARAN', 'b')],
+      gapActivationClientIds: [k('PETARAN', 'b')],
     },
   );
   assert.equal(result.bySegment.PETARAN.byCategory.active.factSum, 100);
@@ -117,9 +120,9 @@ test('сума всіх 4 buckets = totalFact (інваріант)', () => {
       ]}],
     }],
     {
-      forecastClientIds: ['a'],
-      gapNewClientIds: ['b'],
-      gapActivationClientIds: ['c'],
+      forecastClientIds: [k('PETARAN', 'a')],
+      gapNewClientIds: [k('PETARAN', 'b')],
+      gapActivationClientIds: [k('PETARAN', 'c')],
     },
   );
   const s = result.bySegment.PETARAN;
@@ -153,7 +156,7 @@ test('factAmountUSD рядок парситься', () => {
       clients: [],
       segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'c1', factAmountUSD: '123.45' }] }],
     }],
-    { forecastClientIds: ['c1'], gapNewClientIds: [], gapActivationClientIds: [] },
+    { forecastClientIds: [k('PETARAN', 'c1')], gapNewClientIds: [], gapActivationClientIds: [] },
   );
   assert.equal(result.bySegment.PETARAN.byCategory.active.factSum, 123.45);
 });
@@ -165,7 +168,7 @@ test('агрегат по кількох менеджерах', () => {
       { clients: [], segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'a1', factAmountUSD: 100 }] }] },
       { clients: [], segments: [{ segmentCode: 'PETARAN', clients: [{ clientId: 'b1', factAmountUSD: 200 }] }] },
     ],
-    { forecastClientIds: ['a1', 'b1'], gapNewClientIds: [], gapActivationClientIds: [] },
+    { forecastClientIds: [k('PETARAN', 'a1'), k('PETARAN', 'b1')], gapNewClientIds: [], gapActivationClientIds: [] },
   );
   assert.equal(result.bySegment.PETARAN.byCategory.active.factSum, 300);
   assert.equal(result.bySegment.PETARAN.byCategory.active.factCount, 2);
@@ -181,7 +184,7 @@ test('buyer з factAmountUSD=0 не рахується', () => {
         { clientId: 'c2', factAmountUSD: 100 },
       ]}],
     }],
-    { forecastClientIds: ['c1', 'c2'], gapNewClientIds: [], gapActivationClientIds: [] },
+    { forecastClientIds: [k('PETARAN', 'c1'), k('PETARAN', 'c2')], gapNewClientIds: [], gapActivationClientIds: [] },
   );
   assert.equal(result.bySegment.PETARAN.byCategory.active.factSum, 100);
   assert.equal(result.bySegment.PETARAN.byCategory.active.factCount, 1);
@@ -237,6 +240,70 @@ test('dedup: один client у різних брендах → рахуєтьс
   assert.equal(result.bySegment.VITARAN.unplanned.factSum, 200);
 });
 
+// === 🐛 РЕГРЕСІЯ 2026-05-12: per-segment класифікація ===
+// Запоріжжя: менеджер запланувала клієнта по Vitaran. Той самий клієнт
+// купив IUSE (де плану на нього не було) — повинно піти в «Незаплановані»
+// для IUSE, а НЕ в «Активні» бо clientId є у forecast по Vitaran.
+test('🐛 client planned in brand A, buys brand B → unplanned для B (не active)', () => {
+  const result = aggregateRegionStats(
+    [{
+      clients: [],
+      segments: [
+        // Купив у Vitaran (запланований) — $500
+        { segmentCode: 'VITARAN', clients: [{ clientId: 'pugach', factAmountUSD: 500 }] },
+        // Купив у IUSE (НЕ запланований) — $90. Має бути unplanned.
+        { segmentCode: 'IUSE',    clients: [{ clientId: 'pugach', factAmountUSD: 90 }] },
+      ],
+    }],
+    {
+      forecastClientIds: [k('VITARAN', 'pugach')], // у плані лише по Vitaran
+      gapNewClientIds: [],
+      gapActivationClientIds: [],
+    },
+  );
+  // Vitaran — active (правильно)
+  assert.equal(result.bySegment.VITARAN.byCategory.active.factSum, 500);
+  assert.equal(result.bySegment.VITARAN.unplanned.factSum, 0);
+  // IUSE — unplanned (БУЛО $90 неправомірно у active до фіксу)
+  assert.equal(result.bySegment.IUSE.byCategory.active.factSum, 0, 'IUSE НЕ active бо немає плану');
+  assert.equal(result.bySegment.IUSE.unplanned.factSum, 90, 'IUSE → unplanned');
+  assert.equal(result.bySegment.IUSE.unplanned.factCount, 1);
+});
+
+test('🐛 Запоріжжя case: 8 IUSE-buyers без плану → ВСІ у unplanned IUSE', () => {
+  // Сценарій з реального скріншоту 12.05.2026: Андрющенко запланувала
+  // клієнтів по Vitaran/Neuramis, але не по IUSE. 8 з них купили IUSE.
+  // Очікуємо: 8 buyers у unplanned IUSE на ~$1,178.
+  const iuseBuyers = [
+    { id: 'oks',  amount: 438 },
+    { id: 'kvak', amount: 174 },
+    { id: 'band', amount: 116 },
+    { id: 'pug',  amount: 90 },
+    { id: 'gor',  amount: 90 },
+    { id: 'gur',  amount: 90 },
+    { id: 'ant',  amount: 90 },
+    { id: 'push', amount: 90 },
+  ];
+  const result = aggregateRegionStats(
+    [{
+      clients: [],
+      segments: [{
+        segmentCode: 'IUSE',
+        clients: iuseBuyers.map(b => ({ clientId: b.id, factAmountUSD: b.amount })),
+      }],
+    }],
+    {
+      // ВСІ ці клієнти заплановані по Vitaran, але НЕ по IUSE
+      forecastClientIds: iuseBuyers.map(b => k('VITARAN', b.id)),
+      gapNewClientIds: [],
+      gapActivationClientIds: [],
+    },
+  );
+  assert.equal(result.bySegment.IUSE.byCategory.active.factSum, 0, 'жоден не active');
+  assert.equal(result.bySegment.IUSE.unplanned.factCount, 8);
+  assert.equal(result.bySegment.IUSE.unplanned.factSum, 1178);
+});
+
 // === 11. Сценарій Вінниця: 78 buyers, план пустий → ВСІ unplanned ===
 test('Вінниця: план пустий, 78 buyers → unplanned 78 / ≈$34,279', () => {
   const buyers = Array.from({ length: 78 }, (_, i) => ({
@@ -247,6 +314,8 @@ test('Вінниця: план пустий, 78 buyers → unplanned 78 / ≈$34
     [{ clients: [], segments: [{ segmentCode: 'PETARAN', clients: buyers }] }],
     { forecastClientIds: [], gapNewClientIds: [], gapActivationClientIds: [] },
   );
+  // unused k import warning — ce no-op call
+  void k;
   assert.equal(result.bySegment.PETARAN.unplanned.factCount, 78);
   assert.ok(Math.abs(result.bySegment.PETARAN.unplanned.factSum - 34279) < 1);
   assert.equal(result.bySegment.PETARAN.byCategory.active.factSum, 0);

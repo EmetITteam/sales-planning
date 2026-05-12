@@ -141,13 +141,18 @@ export async function POST(request: NextRequest) {
 
   const seenForecastClients = new Map<string, Set<string>>();
   const seenGapClients = new Map<string, Set<string>>();
-  // Три окремі Set-и: у яких блоках плану лежить кожен client_id_1c.
-  // Використовуємо у /api/onec/region-stats щоб класифікувати buyer факту:
-  //   buyer in forecastClientIds       → active
-  //   buyer in gapNewClientIds         → new
-  //   buyer in gapActivationClientIds  → activation
-  //   buyer ні в чому                  → unplanned
-  // Σ всіх 4 = totalFact, без дублювання (раніше unplanned пересікався з категоріями).
+  // Три окремі Set-и ключів `${segment_code}|${client_id_1c}` — у яких блоках
+  // плану лежить КОНКРЕТНА пара (сегмент × клієнт). Використовуємо у
+  // /api/onec/region-stats щоб класифікувати buyer факту по бренду+клієнту:
+  //   (seg, client) in forecastClientIds       → active
+  //   (seg, client) in gapNewClientIds         → new
+  //   (seg, client) in gapActivationClientIds  → activation
+  //   (seg, client) ні в чому                  → unplanned
+  // Σ всіх 4 = totalFact, без дублювання.
+  // ⚠️ 2026-05-12: раніше ключ був тільки clientId — клієнт запланований
+  // у бренді A і купує у бренді B неправомірно потрапляв у «Активні»
+  // по бренду B (Запоріжжя $1,178 IUSE-факт показувався як активні
+  // бо клієнти були у forecast по Vitaran).
   const forecastClientIds = new Set<string>();
   const gapNewClientIds = new Set<string>();
   const gapActivationClientIds = new Set<string>();
@@ -164,7 +169,8 @@ export async function POST(request: NextRequest) {
     if (!seenForecastClients.has(f.segment_code)) seenForecastClients.set(f.segment_code, new Set());
     seenForecastClients.get(f.segment_code)!.add(`${f.user_id}|${f.client_id_1c}`);
     if (f.client_id_1c) {
-      forecastClientIds.add(f.client_id_1c);
+      // Композитний ключ — щоб клієнт у Vitaran не «крав» fact-у IUSE.
+      forecastClientIds.add(`${f.segment_code}|${f.client_id_1c}`);
       plannedClientIds.add(f.client_id_1c);
     }
   }
@@ -179,8 +185,9 @@ export async function POST(request: NextRequest) {
     if (!seenGapClients.has(g.segment_code)) seenGapClients.set(g.segment_code, new Set());
     seenGapClients.get(g.segment_code)!.add(`${g.user_id}|${g.client_id_1c}`);
     if (g.client_id_1c) {
-      if (cat === 'new') gapNewClientIds.add(g.client_id_1c);
-      else gapActivationClientIds.add(g.client_id_1c);
+      const planKey = `${g.segment_code}|${g.client_id_1c}`;
+      if (cat === 'new') gapNewClientIds.add(planKey);
+      else gapActivationClientIds.add(planKey);
       plannedClientIds.add(g.client_id_1c);
     }
   }
