@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -450,9 +450,22 @@ export function PlanningForm({
 
   // Авто-set stageDone=true коли 1С підтвердив завершений Дзвінок/Зустріч.
   // ONE-WAY sync: ніколи не скидаємо stageDone=true → false (поважаємо
-  // ручне підтвердження менеджера). Якщо менеджер видалила і додала
-  // рядок — stage_done скинеться сам через інше місце (manuallyAdded
-  // initial false). А тут лише підтверджуємо.
+  // ручне підтвердження менеджера).
+  //
+  // Auto-persist: одразу після set у state — fire-and-forget POST до
+  // `/api/planning/confirm-activities` що оновлює `stage_done=true` тільки
+  // для цих конкретних рядків. Це безпечно (не зачипає інші поля state)
+  // і дозволяє наступному відкриттю форми відразу показати «Виконано»
+  // без чекання на 1С response.
+  //
+  // confirmedRef — пам'ятаємо що вже відправили щоб не дзвонити повторно
+  // на кожному ререндері.
+  const confirmedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    // Якщо змінився effectiveLogin/segment/period — скидаємо memo
+    confirmedRef.current = new Set();
+  }, [segmentCode, currentPeriod.id, effectiveLogin]);
+
   useEffect(() => {
     if (activitiesByClient.size === 0) return;
     const matches = (row: { clientId1c: string; stage: string; stageDone: boolean }): boolean => {
@@ -463,16 +476,56 @@ export function PlanningForm({
       if (row.stage === 'Зустріч' && act.hasMeeting) return true;
       return false;
     };
+    // Збираємо confirmations що потрібно persist-нути (тільки нові, які
+    // ще не дзвонили цією сесією).
+    const toPersist: Array<{ block: 'forecast' | 'gap'; clientId1c: string }> = [];
+
     setForecasts(prev => {
       let changed = false;
-      const next = prev.map(f => matches(f) ? (changed = true, { ...f, stageDone: true }) : f);
+      const next = prev.map(f => {
+        if (!matches(f)) return f;
+        changed = true;
+        const memoKey = `forecast|${f.clientId1c}`;
+        if (!confirmedRef.current.has(memoKey)) {
+          confirmedRef.current.add(memoKey);
+          toPersist.push({ block: 'forecast', clientId1c: f.clientId1c });
+        }
+        return { ...f, stageDone: true };
+      });
       return changed ? next : prev;
     });
     setGapClosures(prev => {
       let changed = false;
-      const next = prev.map(g => matches(g) ? (changed = true, { ...g, stageDone: true }) : g);
+      const next = prev.map(g => {
+        if (!matches(g)) return g;
+        changed = true;
+        const memoKey = `gap|${g.clientId1c}`;
+        if (!confirmedRef.current.has(memoKey)) {
+          confirmedRef.current.add(memoKey);
+          toPersist.push({ block: 'gap', clientId1c: g.clientId1c });
+        }
+        return { ...g, stageDone: true };
+      });
       return changed ? next : prev;
     });
+
+    // Fire-and-forget auto-persist. Помилки логуємо у консоль — стейт уже
+    // оновлено локально, тож менеджер бачить «Виконано» все одно. При
+    // наступному save-у форми звичайним flow stage_done теж потрапить у БД.
+    if (toPersist.length > 0) {
+      fetch('/api/planning/confirm-activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          periodId: currentPeriod.id,
+          period: { month: currentPeriod.month },
+          segmentCode,
+          targetLogin: targetUserLogin || undefined,
+          confirmations: toPersist,
+        }),
+      }).catch(err => console.warn('[confirm-activities] failed', err));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activitiesByClient]);
 
   // === Незаплановані покупці по сегменту (з 1С) ===
