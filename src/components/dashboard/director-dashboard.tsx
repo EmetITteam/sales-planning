@@ -260,8 +260,9 @@ export function DirectorDashboard() {
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
   // Очікуваний % компанії (Variant B aggregate-endpoint).
+  // «Запланований %» = чисто план менеджерів / план місяця, БЕЗ факту.
   const totalExpectedPct = planAgg && totalPlan > 0
-    ? ((totalFact + planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
+    ? ((planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
     : null;
   const totalManagers = company?.regionAggregates.reduce((a, r) => a + r.managerCount, 0) ?? 0;
 

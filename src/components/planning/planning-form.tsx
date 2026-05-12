@@ -509,11 +509,11 @@ export function PlanningForm({
   const totalCatClients = categories.reduce((s, c) => s + c.clientCount, 0);
   const totalCatAmount = categories.reduce((s, c) => s + c.expectedAmount, 0);
   const totalCatFact = categories.reduce((s, c) => s + c.factAmount, 0);
-  // ⚠️ Семантика «Запланований %» — те ж що на дашборді (manager-accordion):
-  //   (загальний факт сегменту + Σ план менеджера) / planAmount × 100
-  // Тобто «якщо менеджер виконає всі обіцянки, він зробить X% плану».
-  // Без факту цифра була б МЕНША й не співпадала з дашбордом → плутанина.
-  const totalCatPct = pctOf(totalCatAmount + factAmount, planAmount);
+  // «Запланований %» = СКІЛЬКИ МЕНЕДЖЕР ЗАПЛАНУВАВ від плану місяця, БЕЗ факту.
+  // Семантика: «менеджер обіцяє покрити X% плану своєю активністю». Якщо разом
+  // з фактом він буде > 100% — це окрема метрика «передбачуване виконання»,
+  // тут не показуємо.
+  const totalCatPct = pctOf(totalCatAmount, planAmount);
 
   const CAT_ICONS: Record<string, React.ReactNode> = {
     active: <Users className="h-4 w-4 text-[#066aab]" />,

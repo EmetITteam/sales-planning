@@ -267,8 +267,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
   // Очікуваний % = (факт + Σ прогноз менеджерів + Σ потенціал закриття розриву) / план
   // Дані з aggregate-endpoint (Variant B). Якщо ще не догружено — null.
+  // «Запланований %» = чисто план менеджерів / план місяця, БЕЗ факту.
   const totalExpectedPct = planAgg && totalPlan > 0
-    ? ((totalFact + planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
+    ? ((planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
     : null;
 
   return (

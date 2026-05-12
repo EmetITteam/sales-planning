@@ -186,8 +186,9 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             const managerForecast = segPlan?.forecast ?? 0;
             const managerGap = segPlan?.gap ?? 0;
             const hasManagerPlan = (managerForecast + managerGap) > 0;
+            // «Запланований %» = чисто план менеджера / план місяця, БЕЗ факту.
             const expectedPercent = seg.planAmount > 0
-              ? ((seg.factAmount + managerForecast + managerGap) / seg.planAmount) * 100
+              ? ((managerForecast + managerGap) / seg.planAmount) * 100
               : 0;
             return (
               <BrandRow

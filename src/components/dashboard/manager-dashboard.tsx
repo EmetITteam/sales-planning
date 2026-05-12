@@ -238,9 +238,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
       const managerForecast = segPlan?.forecast ?? 0;
       const managerGap = segPlan?.gap ?? 0;
       const hasManagerPlan = (managerForecast + managerGap) > 0;
-      // expected = (факт + прогноз + потенціал розриву) / план × 100
+      // «Запланований %» = скільки МЕНЕДЖЕР запланував / план місяця.
+      // БЕЗ факту — показує саме його обіцянки, не «передбачуване виконання».
       const expectedPct = planAmount > 0
-        ? ((factAmount + managerForecast + managerGap) / planAmount) * 100
+        ? ((managerForecast + managerGap) / planAmount) * 100
         : 0;
 
       return {
