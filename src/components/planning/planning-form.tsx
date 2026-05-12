@@ -378,6 +378,53 @@ export function PlanningForm({
   const activeClients = segmentClients.filter(c => isRecentBrandPurchase(c.lastPurchaseDate));
   const sleepingClients = segmentClients.filter(c => !isRecentBrandPurchase(c.lastPurchaseDate));
 
+  // Map clientId → factAmount з 1С Action 3 для ПОТОЧНОГО сегмента.
+  // Потрібно щоб у колонці ФАКТ кожного рядка показалась справжня сума
+  // продажу. Без цього поле 0 (default з loadPlanning/auto-populate),
+  // навіть коли клієнт реально купив цього місяця.
+  const factByClientId = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!factResponse) return map;
+    const segFact = factResponse.facts.find(f => f.segmentCode === segmentCode);
+    if (!segFact) return map;
+    for (const c of segFact.clients) {
+      if (c.clientId) map.set(c.clientId, c.amount);
+    }
+    return map;
+  }, [factResponse, segmentCode]);
+
+  // Sync per-row factAmount у forecasts/gapClosures коли factResponse оновився.
+  // Інакше «Факт» у рядку показує 0 хоча у заголовку (hero) видно реальну
+  // суму. Менеджер думає що 1С «не визначила продажу».
+  useEffect(() => {
+    if (factByClientId.size === 0) return;
+    setForecasts(prev => {
+      let changed = false;
+      const next = prev.map(f => {
+        const realFact = factByClientId.get(f.clientId1c) ?? 0;
+        if (realFact !== f.factAmount) {
+          changed = true;
+          // completed = факт >= прогноз (та сама логіка що в updateForecast)
+          return { ...f, factAmount: realFact, completed: realFact >= f.forecastAmount };
+        }
+        return f;
+      });
+      return changed ? next : prev;
+    });
+    setGapClosures(prev => {
+      let changed = false;
+      const next = prev.map(g => {
+        const realFact = factByClientId.get(g.clientId1c) ?? 0;
+        if (realFact !== g.factAmount) {
+          changed = true;
+          return { ...g, factAmount: realFact, completed: realFact >= g.potentialAmount };
+        }
+        return g;
+      });
+      return changed ? next : prev;
+    });
+  }, [factByClientId]);
+
   // Snapshot: фіксуємо первинний список клієнтів у БД ОДИН РАЗ на (manager
   // × segment × period). Backend INSERT з ON CONFLICT DO NOTHING — повторні
   // виклики безпечні, snapshot не оновлюється.
