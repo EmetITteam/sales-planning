@@ -207,6 +207,31 @@ export interface GetRegionDataResponse {
   regions: OneCRegion[];
 }
 
+// === Action 7: checkActivities (v2.6 — підтвердження дзвінків / зустрічей) ===
+export interface CheckActivitiesRequest {
+  /** Логін менеджера — фільтр CRM-документів (Дзвінок / Зустріч) по полю Менеджер */
+  login: string;
+  /** Місяць YYYY-MM — діапазон [1-й; last day] */
+  period: string;
+  /** Масив кодів контрагентів (1-200). Для кожного повернеться запис у activities[]. */
+  clientIds: string[];
+}
+
+export interface OneCActivity {
+  clientId: string;
+  /** Чи був хоча б 1 завершений дзвінок цього менеджера до цього клієнта у періоді */
+  hasCall: boolean;
+  /** Чи була хоча б 1 завершена зустріч */
+  hasMeeting: boolean;
+  /** YYYY-MM-DD дата останнього дзвінка (для tooltip) або null */
+  lastCallDate: string | null;
+  lastMeetingDate: string | null;
+}
+
+export interface CheckActivitiesResponse {
+  activities: OneCActivity[];
+}
+
 // === Action 6: getTrainings (новий у v2.1) ===
 export interface GetTrainingsRequest {
   /** Регіон менеджера */
@@ -240,6 +265,7 @@ export interface OneCActionMap {
   getRegistryPlans: { request: GetRegistryPlansRequest; response: GetRegistryPlansResponse };
   getRegionData: { request: GetRegionDataRequest; response: GetRegionDataResponse };
   getTrainings: { request: GetTrainingsRequest; response: GetTrainingsResponse };
+  checkActivities: { request: CheckActivitiesRequest; response: CheckActivitiesResponse };
 }
 
 export type OneCAction = keyof OneCActionMap;

@@ -410,6 +410,71 @@ export function PlanningForm({
     return trainingsResponse ? adaptTrainings(trainingsResponse) : [];
   }, [trainingsResponse]);
 
+  // === Action 7: checkActivities — автоматичне підтвердження stageDone ===
+  // 1С перевіряє чи був завершений Дзвінок/Зустріч менеджера з клієнтом
+  // у поточному місяці. Якщо так — у формі ставимо бейдж «Виконано»
+  // (зелений) замість «Очікується» (жовтий). Менеджеру НЕ треба клікати.
+  //
+  // Викликається тільки для клієнтів з stage ∈ {Дзвінок, Зустріч} (інші
+  // етапи — Навчання, Мессенджер — не автоматизуються бо у 1С не фіксуються).
+  const periodYM = currentPeriod.month.slice(0, 7);
+  const activityClientIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const f of forecasts) {
+      if (!f.clientId1c) continue;
+      if (f.stage === 'Дзвінок' || f.stage === 'Зустріч') ids.add(f.clientId1c);
+    }
+    for (const g of gapClosures) {
+      if (!g.clientId1c) continue;
+      if (g.stage === 'Дзвінок' || g.stage === 'Зустріч') ids.add(g.clientId1c);
+    }
+    return Array.from(ids).sort();
+  }, [forecasts, gapClosures]);
+
+  const { data: activitiesResponse } = useOneCData(
+    'checkActivities',
+    activityClientIds.length > 0
+      ? { login: effectiveLogin, period: periodYM, clientIds: activityClientIds }
+      : null,
+  );
+
+  // Map<clientId, {hasCall, hasMeeting}> для швидкого lookup
+  const activitiesByClient = useMemo(() => {
+    const map = new Map<string, { hasCall: boolean; hasMeeting: boolean }>();
+    if (!activitiesResponse?.activities) return map;
+    for (const a of activitiesResponse.activities) {
+      map.set(a.clientId, { hasCall: a.hasCall, hasMeeting: a.hasMeeting });
+    }
+    return map;
+  }, [activitiesResponse]);
+
+  // Авто-set stageDone=true коли 1С підтвердив завершений Дзвінок/Зустріч.
+  // ONE-WAY sync: ніколи не скидаємо stageDone=true → false (поважаємо
+  // ручне підтвердження менеджера). Якщо менеджер видалила і додала
+  // рядок — stage_done скинеться сам через інше місце (manuallyAdded
+  // initial false). А тут лише підтверджуємо.
+  useEffect(() => {
+    if (activitiesByClient.size === 0) return;
+    const matches = (row: { clientId1c: string; stage: string; stageDone: boolean }): boolean => {
+      if (row.stageDone) return false; // вже виконано, не чіпати
+      const act = activitiesByClient.get(row.clientId1c);
+      if (!act) return false;
+      if (row.stage === 'Дзвінок' && act.hasCall) return true;
+      if (row.stage === 'Зустріч' && act.hasMeeting) return true;
+      return false;
+    };
+    setForecasts(prev => {
+      let changed = false;
+      const next = prev.map(f => matches(f) ? (changed = true, { ...f, stageDone: true }) : f);
+      return changed ? next : prev;
+    });
+    setGapClosures(prev => {
+      let changed = false;
+      const next = prev.map(g => matches(g) ? (changed = true, { ...g, stageDone: true }) : g);
+      return changed ? next : prev;
+    });
+  }, [activitiesByClient]);
+
   // === Незаплановані покупці по сегменту (з 1С) ===
   // Крос-референс Action 2 (категорії) + Action 3 (хто купував) − план менеджера
   // (forecasts ∪ gapClosures). Активні незаплановані → блок «Прогноз»,

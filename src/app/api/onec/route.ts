@@ -31,6 +31,7 @@ const ALLOWED_ACTIONS = new Set([
   'getRegistryPlans',
   'getRegionData',
   'getTrainings',
+  'checkActivities',
 ]);
 
 // Action → яке поле у payload.login треба ОВЕРРАЙДНУТИ з сесії.
@@ -39,6 +40,7 @@ const LOGIN_BOUND_ACTIONS = new Set([
   'getClientsForPlanning',
   'getSalesFact',
   'getRegionData',
+  'checkActivities',
 ]);
 
 export async function POST(request: NextRequest) {
