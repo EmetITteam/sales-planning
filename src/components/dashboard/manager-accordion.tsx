@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatUSD, getTrafficLight, pctOf } from '@/lib/format';
 import { BrandRow } from './brand-row';
+import { useAppStore } from '@/lib/store';
+import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import type { ManagerRegionData } from '@/lib/types';
 
 interface Props {
@@ -36,6 +38,13 @@ function initials(fullName: string, login: string): string {
  */
 export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPlanBrand }: Props) {
   const [expanded, setExpanded] = useState(false);
+  // Lazy: тільки коли expanded — тягнемо план цього менеджера з Supabase.
+  // Потрібно для синьої насічки «Запланований» на progress bar кожного бренду.
+  const { currentPeriod } = useAppStore();
+  const { data: planAgg } = usePlanningAggregate(
+    currentPeriod.id,
+    expanded && manager.login ? [manager.login] : null,
+  );
   const totalPlan = manager.segments.reduce((a, s) => a + s.planAmount, 0);
   const totalFact = manager.segments.reduce((a, s) => a + s.factAmount, 0);
   const totalPrevFact = manager.totalPrevMonthFact ?? 0;
@@ -172,21 +181,31 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
       {/* Розгорнутий список 9 BrandRow — клік на бренд → планування manager × brand */}
       {expanded && (
         <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
-          {manager.segments.map(seg => (
-            <BrandRow
-              key={seg.segmentCode}
-              segmentName={seg.segmentName}
-              planAmount={seg.planAmount}
-              factAmount={seg.factAmount}
-              calcPct={calcPct}
-              asOfDate={asOfDate}
-              hasManagerPlan={false}
-              prevMonthFactAmount={seg.prevMonthFactAmount}
-              prevMonthFactPercent={pctOf(seg.prevMonthFactAmount ?? 0, seg.prevMonthPlanAmount ?? 0)}
-              onClick={onPlanBrand ? () => onPlanBrand(seg.segmentCode) : undefined}
-              readOnly={!onPlanBrand}
-            />
-          ))}
+          {manager.segments.map(seg => {
+            const segPlan = planAgg?.bySegment[seg.segmentCode];
+            const managerForecast = segPlan?.forecast ?? 0;
+            const managerGap = segPlan?.gap ?? 0;
+            const hasManagerPlan = (managerForecast + managerGap) > 0;
+            const expectedPercent = seg.planAmount > 0
+              ? ((seg.factAmount + managerForecast + managerGap) / seg.planAmount) * 100
+              : 0;
+            return (
+              <BrandRow
+                key={seg.segmentCode}
+                segmentName={seg.segmentName}
+                planAmount={seg.planAmount}
+                factAmount={seg.factAmount}
+                calcPct={calcPct}
+                asOfDate={asOfDate}
+                hasManagerPlan={hasManagerPlan}
+                expectedPercent={expectedPercent}
+                prevMonthFactAmount={seg.prevMonthFactAmount}
+                prevMonthFactPercent={pctOf(seg.prevMonthFactAmount ?? 0, seg.prevMonthPlanAmount ?? 0)}
+                onClick={onPlanBrand ? () => onPlanBrand(seg.segmentCode) : undefined}
+                readOnly={!onPlanBrand}
+              />
+            );
+          })}
         </div>
       )}
     </div>
