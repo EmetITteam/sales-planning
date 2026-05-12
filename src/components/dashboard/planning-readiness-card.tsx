@@ -49,12 +49,16 @@ interface RegionStat {
   filledCount: number; // менеджерів які мають ≥1 бренд
   totalCount: number;
   fullyFilledCount: number; // менеджерів які заповнили ВСІ бренди
+  /** Сума заповнених брендів усіх менеджерів регіону (для true % покриття). */
+  filledCells: number;
+  /** totalCount × 9 — очікувана к-сть бренд-клітинок. */
+  totalCells: number;
 }
 
-function statusColor(filledCount: number, totalCount: number): 'green' | 'amber' | 'rose' {
-  if (totalCount === 0) return 'rose';
-  if (filledCount === totalCount) return 'green';
-  if (filledCount === 0) return 'rose';
+function statusColor(filledCells: number, totalCells: number): 'green' | 'amber' | 'rose' {
+  if (totalCells === 0) return 'rose';
+  if (filledCells === totalCells) return 'green';
+  if (filledCells === 0) return 'rose';
   return 'amber';
 }
 
@@ -93,19 +97,23 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
         });
         const filledCount = managers.filter(m => m.filled.length > 0).length;
         const fullyFilledCount = managers.filter(m => m.filled.length === totalBrands).length;
+        const filledCells = managers.reduce((s, m) => s + m.filled.length, 0);
+        const totalCells = managers.length * totalBrands;
         return {
           regionName: r.regionName,
           managers,
           filledCount,
           totalCount: managers.length,
           fullyFilledCount,
+          filledCells,
+          totalCells,
         };
       })
       .filter(r => r.totalCount > 0)
-      // Сортуємо: проблемні регіони зверху (мало заповнених)
+      // Сортуємо: проблемні регіони зверху (за % бренд-клітинок)
       .sort((a, b) => {
-        const aPct = a.totalCount === 0 ? 1 : a.filledCount / a.totalCount;
-        const bPct = b.totalCount === 0 ? 1 : b.filledCount / b.totalCount;
+        const aPct = a.totalCells === 0 ? 1 : a.filledCells / a.totalCells;
+        const bPct = b.totalCells === 0 ? 1 : b.filledCells / b.totalCells;
         return aPct - bPct;
       });
   }, [regions, planByLogin, totalBrands]);
@@ -114,12 +122,16 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
     let totalManagers = 0;
     let totalFilled = 0;
     let totalFullyFilled = 0;
+    let totalFilledCells = 0;
+    let totalCells = 0;
     for (const r of stats) {
       totalManagers += r.totalCount;
       totalFilled += r.filledCount;
       totalFullyFilled += r.fullyFilledCount;
+      totalFilledCells += r.filledCells;
+      totalCells += r.totalCells;
     }
-    return { totalManagers, totalFilled, totalFullyFilled };
+    return { totalManagers, totalFilled, totalFullyFilled, totalFilledCells, totalCells };
   }, [stats]);
 
   // Loading state (planAgg ще не догрузився)
@@ -146,9 +158,11 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
     );
   }
 
-  // Часткова готовність — повний блок з drill-down
-  const filledPct = Math.round((total.totalFilled / total.totalManagers) * 100);
-  const overallStatus = statusColor(total.totalFilled, total.totalManagers);
+  // Часткова готовність — повний блок з drill-down.
+  // % рахуємо як «заповнено бренд-клітинок / очікувано» — true progress.
+  // Раніше було managers_filled/total = 100% коли 1 менеджер мав хоч 1 бренд.
+  const filledPct = Math.round((total.totalFilledCells / total.totalCells) * 100);
+  const overallStatus = statusColor(total.totalFilledCells, total.totalCells);
   const overallLabel = overallStatus === 'green' ? 'ГОТОВО' : overallStatus === 'amber' ? 'ЧАСТКОВО' : 'ВІДСТАВАННЯ';
 
   return (
@@ -171,12 +185,12 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
         {/* Mini-list регіонів у 2 колонки — БЕЗ % (тільки dot + назва + count) */}
         <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
           {stats.map(r => {
-            const s = statusColor(r.filledCount, r.totalCount);
+            const s = statusColor(r.filledCells, r.totalCells);
             return (
               <span key={r.regionName} className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass[s]}`} />
                 <span className="font-semibold text-foreground/80 truncate">{r.regionName}</span>
-                <span className="text-muted-foreground/60 ml-auto shrink-0 font-mono">{r.filledCount}/{r.totalCount}</span>
+                <span className="text-muted-foreground/60 ml-auto shrink-0 font-mono">{r.filledCells}/{r.totalCells}</span>
               </span>
             );
           })}
@@ -185,12 +199,13 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
         {/* Right cluster — як у RegionAccordion */}
         <div className="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
           <div className="text-right min-w-[140px]">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Заповнили</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Заповнено</p>
             <p className="text-[14px] font-bold font-mono leading-none mt-1.5 whitespace-nowrap">
-              {total.totalFilled}<span className="text-muted-foreground/50 font-normal"> / </span><span className="text-muted-foreground/70">{total.totalManagers}</span>
+              {total.totalFilledCells}<span className="text-muted-foreground/50 font-normal"> / </span><span className="text-muted-foreground/70">{total.totalCells}</span>
+              <span className="text-[10px] text-muted-foreground font-normal ml-1">брендів</span>
             </p>
             <p className="text-[10px] text-muted-foreground leading-none mt-1">
-              {total.totalFullyFilled} повністю · {total.totalFilled - total.totalFullyFilled} частково
+              {total.totalFullyFilled} повністю · {total.totalFilled - total.totalFullyFilled} частково · {total.totalManagers - total.totalFilled} не заповнили
             </p>
           </div>
           <div className="flex flex-col items-center gap-1 w-14">
@@ -214,9 +229,9 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
       {expanded && (
         <div className="px-5 pb-4 pt-3 space-y-2 bg-[#fafbfe] border-t border-[#f0f2f8]">
           {stats.map(r => {
-            const s = statusColor(r.filledCount, r.totalCount);
+            const s = statusColor(r.filledCells, r.totalCells);
             const isRegionExpanded = expandedRegions.has(r.regionName);
-            const pct = r.totalCount === 0 ? 0 : Math.round((r.filledCount / r.totalCount) * 100);
+            const pct = r.totalCells === 0 ? 0 : Math.round((r.filledCells / r.totalCells) * 100);
             return (
               <div key={r.regionName} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                 <button
@@ -232,7 +247,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                 >
                   <span className={`w-2.5 h-2.5 rounded-full shadow-sm ${dotClass[s]}`} />
                   <span className="text-[14px] font-bold">{r.regionName}</span>
-                  <span className="text-[11px] text-muted-foreground text-right font-mono">{r.filledCount}/{r.totalCount} заповнили</span>
+                  <span className="text-[11px] text-muted-foreground text-right font-mono">{r.filledCells}/{r.totalCells} брендів</span>
                   <div className="flex flex-col items-center gap-1">
                     <div className="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
                       <div className={`h-full rounded-full ${barClass[s]}`} style={{ width: `${pct}%` }} />
