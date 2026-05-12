@@ -281,6 +281,10 @@ export async function POST(request: NextRequest) {
   // post-нути порожньо до того як завантажились дані з Supabase. Повний wipe
   // має бути свідомим (UI клавіша «Очистити весь сегмент» → clearAll=true).
   // notIn з пустим списком + clearAll=true = no filter → DELETE усіх (запланована поведінка).
+  // ⚠️ M8: DELETE тільки АКТИВНІ рядки (`archived_at IS NULL`). Архівні
+  // (soft-deleted) лишаються у БД для audit. Без цього фільтра наступний
+  // save менеджера hard-видалив би усі archived рядки M8, втрачаючи
+  // можливість відкату.
   if (!errors.length) {
     const keepClientIds = forecastRows.map(r => r.client_id_1c);
     if (keepClientIds.length === 0 && !clearAll) {
@@ -288,6 +292,7 @@ export async function POST(request: NextRequest) {
     } else {
       const { error: e } = await supabase.from('forecasts').delete()
         .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
+        .is('archived_at', null)
         .notIn('client_id_1c', keepClientIds);
       if (e) { errors.push(`Delete stale forecasts: ${e.message}`); console.error('[planning.POST] delete forecasts error:', { ...ctx, error: e.message }); }
     }
@@ -299,6 +304,7 @@ export async function POST(request: NextRequest) {
     } else {
       const { error: e } = await supabase.from('gap_closures').delete()
         .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
+        .is('archived_at', null)
         .notIn('client_id_1c', keepClientIds);
       if (e) { errors.push(`Delete stale gap_closures: ${e.message}`); console.error('[planning.POST] delete gaps error:', { ...ctx, error: e.message }); }
     }

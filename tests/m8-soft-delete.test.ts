@@ -243,6 +243,145 @@ test('🎯 E2E Селіванова NEURAMIS: всі 15+5=20 рядків з ETA
   assert.equal(preserved.length, 20, '20 preserved');
 });
 
+// ═══ Тести #4: повний save flow (UPSERT + DELETE notIn з archived фільтром) ═══
+
+interface StoredRow extends Row {
+  segment_code: string;
+  user_id: string;
+}
+
+function simulateSaveFlow(
+  existing: StoredRow[],
+  upsertRows: StoredRow[],
+  ctx: { userId: string; segment: string },
+  clearAll: boolean,
+): StoredRow[] {
+  // Step 1: UPSERT — UPDATE existing or INSERT new (archived_at: null від ре-save)
+  let result = [...existing];
+  const keepIds = new Set(upsertRows.map(r => r.client_id_1c));
+  for (const u of upsertRows) {
+    const idx = result.findIndex(r =>
+      r.client_id_1c === u.client_id_1c &&
+      r.segment_code === ctx.segment &&
+      r.user_id === ctx.userId
+    );
+    if (idx >= 0) result[idx] = { ...result[idx], ...u };
+    else result.push(u);
+  }
+  // Step 2: DELETE WHERE archived_at IS NULL AND client_id NOT IN keep (для цього (user, segment))
+  // SAFETY: empty keep list без clearAll → skip DELETE
+  if (keepIds.size === 0 && !clearAll) return result;
+  result = result.filter(r => {
+    const inScope = r.segment_code === ctx.segment && r.user_id === ctx.userId;
+    if (!inScope) return true; // різний (user, segment) — не чіпаємо
+    if (r.archived_at !== null) return true; // archived — НЕ чіпаємо (M8 audit)
+    return keepIds.has(r.client_id_1c); // active — keep тільки якщо у списку
+  });
+  return result;
+}
+
+test('save flow: UPSERT нового + DELETE прибраних — archived НЕ чіпається', () => {
+  const initial: StoredRow[] = [
+    { client_id_1c: 'a', forecast_amount: 100, archived_at: null,    segment_code: 'PETARAN', user_id: 'boyko' }, // активний
+    { client_id_1c: 'b', forecast_amount: 200, archived_at: null,    segment_code: 'PETARAN', user_id: 'boyko' }, // активний
+    { client_id_1c: 'c', forecast_amount: 50,  archived_at: '2026-05-12T15:43Z', segment_code: 'PETARAN', user_id: 'boyko' }, // M8 archived
+    { client_id_1c: 'd', forecast_amount: 75,  archived_at: '2026-05-12T15:43Z', segment_code: 'PETARAN', user_id: 'boyko' }, // M8 archived
+  ];
+  // Менеджер змінила «a», прибрала «b», додала «e»
+  const newSave: StoredRow[] = [
+    { client_id_1c: 'a', forecast_amount: 150, archived_at: null, segment_code: 'PETARAN', user_id: 'boyko' },
+    { client_id_1c: 'e', forecast_amount: 300, archived_at: null, segment_code: 'PETARAN', user_id: 'boyko' },
+  ];
+  const result = simulateSaveFlow(initial, newSave, { userId: 'boyko', segment: 'PETARAN' }, true);
+  // a: оновлено $150
+  // b: ВИДАЛЕНО (active, не у keep)
+  // c, d: ЛИШИЛИСЯ (archived)
+  // e: INSERTED
+  assert.equal(result.length, 4, '4 рядки: a, c, d, e');
+  assert.equal(result.find(r => r.client_id_1c === 'a')?.forecast_amount, 150, 'a updated');
+  assert.equal(result.find(r => r.client_id_1c === 'b'), undefined, 'b deleted (active не у keep)');
+  assert.ok(result.find(r => r.client_id_1c === 'c'), 'c kept (archived)');
+  assert.ok(result.find(r => r.client_id_1c === 'd'), 'd kept (archived)');
+  assert.equal(result.find(r => r.client_id_1c === 'e')?.forecast_amount, 300, 'e inserted');
+});
+
+test('save flow: re-save archived client → revive (archived_at: null)', () => {
+  const initial: StoredRow[] = [
+    { client_id_1c: 'c', forecast_amount: 50, archived_at: '2026-05-12T15:43Z', segment_code: 'PETARAN', user_id: 'boyko' },
+  ];
+  // Менеджер через пошук додала клієнта «c» (раніше archived) → форма ре-save
+  const newSave: StoredRow[] = [
+    { client_id_1c: 'c', forecast_amount: 80, archived_at: null, segment_code: 'PETARAN', user_id: 'boyko' },
+  ];
+  const result = simulateSaveFlow(initial, newSave, { userId: 'boyko', segment: 'PETARAN' }, true);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].archived_at, null, 'archived_at скинуто на null');
+  assert.equal(result[0].forecast_amount, 80, 'нова сума');
+});
+
+test('save flow: empty state + clearAll=false → SKIP DELETE (safety)', () => {
+  const initial: StoredRow[] = [
+    { client_id_1c: 'a', forecast_amount: 100, archived_at: null, segment_code: 'PETARAN', user_id: 'boyko' },
+  ];
+  const result = simulateSaveFlow(initial, [], { userId: 'boyko', segment: 'PETARAN' }, false);
+  // SAFETY: без clearAll=true і empty state — нічого НЕ видаляємо
+  assert.equal(result.length, 1, 'safety: active рядок лишився');
+});
+
+test('save flow: empty state + clearAll=true → DELETE усіх АКТИВНИХ (але archived лишається)', () => {
+  const initial: StoredRow[] = [
+    { client_id_1c: 'a', forecast_amount: 100, archived_at: null, segment_code: 'PETARAN', user_id: 'boyko' },
+    { client_id_1c: 'c', forecast_amount: 50,  archived_at: '2026-05-12T15:43Z', segment_code: 'PETARAN', user_id: 'boyko' },
+  ];
+  const result = simulateSaveFlow(initial, [], { userId: 'boyko', segment: 'PETARAN' }, true);
+  // Активний 'a' видалено. Archived 'c' лишився.
+  assert.equal(result.length, 1);
+  assert.equal(result[0].client_id_1c, 'c');
+  assert.equal(result[0].archived_at, '2026-05-12T15:43Z');
+});
+
+test('save flow: НЕ чіпає рядки з іншого segment або іншого user', () => {
+  const initial: StoredRow[] = [
+    { client_id_1c: 'a', forecast_amount: 100, archived_at: null, segment_code: 'PETARAN', user_id: 'boyko' },
+    { client_id_1c: 'a', forecast_amount: 200, archived_at: null, segment_code: 'NEURAMIS', user_id: 'boyko' }, // інший segment
+    { client_id_1c: 'a', forecast_amount: 300, archived_at: null, segment_code: 'PETARAN', user_id: 'other' },  // інший user
+  ];
+  // Save Бойко PETARAN з порожнім state + clearAll → видалити лише активний 'a' у її PETARAN
+  const result = simulateSaveFlow(initial, [], { userId: 'boyko', segment: 'PETARAN' }, true);
+  assert.equal(result.length, 2);
+  assert.ok(result.find(r => r.segment_code === 'NEURAMIS'), 'NEURAMIS rows untouched');
+  assert.ok(result.find(r => r.user_id === 'other'), 'інший user untouched');
+});
+
+test('🎯 E2E Бойко sценарій: 17 active + 38 archived → save 18 → archived лишається', () => {
+  // Поточний стан після M8: 17 active + 38 archived
+  const initial: StoredRow[] = [];
+  for (let i = 0; i < 17; i++) initial.push({
+    client_id_1c: `active_${i}`, forecast_amount: 400, archived_at: null,
+    segment_code: 'PETARAN', user_id: 'boyko',
+  });
+  for (let i = 0; i < 38; i++) initial.push({
+    client_id_1c: `arch_${i}`, forecast_amount: 300, archived_at: '2026-05-12T15:43Z',
+    segment_code: 'PETARAN', user_id: 'boyko',
+  });
+  // Бойко додала 1 нового клієнта → save 18 active
+  const newSave: StoredRow[] = [];
+  for (let i = 0; i < 17; i++) newSave.push({
+    client_id_1c: `active_${i}`, forecast_amount: 400, archived_at: null,
+    segment_code: 'PETARAN', user_id: 'boyko',
+  });
+  newSave.push({
+    client_id_1c: 'newly_added', forecast_amount: 500, archived_at: null,
+    segment_code: 'PETARAN', user_id: 'boyko',
+  });
+  const result = simulateSaveFlow(initial, newSave, { userId: 'boyko', segment: 'PETARAN' }, true);
+  const active = result.filter(r => r.archived_at === null);
+  const archived = result.filter(r => r.archived_at !== null);
+  assert.equal(active.length, 18, '17 + 1 newly_added');
+  assert.equal(archived.length, 38, '38 archived M8 лишаються');
+  assert.equal(result.length, 56);
+});
+
 test('🎯 E2E Лопушанська IUSE: 4 manually_added + 2 з ETAP → 0 archived', () => {
   const olderRows = [
     { stage: 'Зустріч',  manually_added: true,  client_id_1c: 'minska',   forecast_amount: 220 },
