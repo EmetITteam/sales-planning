@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Pre-push gate: tests + typecheck + arch check.
+# Якщо хоч один впав — push блокується.
+# Bypass у винятковій ситуації: git push --no-verify (не зловживати).
+
+echo "🧪 Running pre-push checks: tests + typecheck + arch..."
+npm run prepush || {
+  echo ""
+  echo "❌ Pre-push checks failed. Push заблоковано."
+  echo "   Виправ помилки і спробуй знов."
+  echo "   Bypass: git push --no-verify (тільки якщо точно знаєш що робиш)"
+  exit 1
+}
+echo "✅ All checks passed. Pushing..."

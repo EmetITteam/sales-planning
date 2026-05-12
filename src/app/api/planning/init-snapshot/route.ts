@@ -82,17 +82,22 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: `period: ${e.message}` }, { status: 500 });
     }
   }
+  // ⚠️ Upsert user — обережно з NOT NULL constraints. Якщо це Director дивиться
+  // чужого менеджера, userMeta.role може бути undefined → null → constraint
+  // violation. Використовуємо ignoreDuplicates щоб НЕ перезаписувати existing
+  // record. Snapshot — read-mostly, профіль user-а тут оновлювати НЕ потрібно.
+  // Якщо record не існує — потрібен role (manager як дефолт для targetLogin).
   const profile = effectiveLogin === session.login
     ? { full_name: session.fullName, role: session.role, region: session.region, region_code: session.regionCode }
     : {
         full_name: userMeta?.fullName || effectiveLogin,
-        role: userMeta?.role || null,
+        role: userMeta?.role || 'manager', // default — менеджер (Director дивиться чужого)
         region: userMeta?.region || null,
         region_code: userMeta?.regionCode || null,
       };
   const { error: ue } = await supabase.from('users').upsert({
     id: uid, login: effectiveLogin, ...profile,
-  }, { onConflict: 'id' });
+  }, { onConflict: 'id', ignoreDuplicates: true });
   if (ue) {
     console.error('[init-snapshot] user upsert error:', { ...ctx, error: ue.message });
     return Response.json({ error: `user: ${ue.message}` }, { status: 500 });

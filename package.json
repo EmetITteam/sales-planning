@@ -11,7 +11,9 @@
     "qa:headless": "cross-env HEADLESS=1 node scripts/qa-review.mjs",
     "check:arch": "node scripts/architecture-check.mjs",
     "test": "tsx --test tests/**/*.test.ts",
-    "snapshot:backfill": "node scripts/snapshot-backfill.mjs"
+    "snapshot:backfill": "node scripts/snapshot-backfill.mjs",
+    "prepush": "tsx --test tests/**/*.test.ts && tsc --noEmit && node scripts/architecture-check.mjs",
+    "prepare": "husky"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -40,6 +42,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "husky": "^9.1.7",
     "pg": "^8.20.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
