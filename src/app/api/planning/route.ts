@@ -12,10 +12,13 @@ export async function GET(request: NextRequest) {
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = request.nextUrl;
-  // login query-параметр приймаємо тільки для drill-down (РМ → менеджер).
-  // Перевіряємо: якщо передано НЕ свій логін — мусить бути у managedUsers.
+  // login query-параметр приймаємо для drill-down (РМ → менеджер; Director → будь-кого).
+  // Director може бачити план будь-якого менеджера компанії (через CompanyDashboard
+  // drill-down). RM/Manager — тільки свій + managedUsers.
   const requestedLogin = searchParams.get('login') || session.login;
-  if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin)) {
+  if (requestedLogin !== session.login
+      && session.role !== 'director'
+      && !session.managedUsers.includes(requestedLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
   const segmentCode = searchParams.get('segmentCode');
@@ -88,11 +91,13 @@ export async function POST(request: NextRequest) {
 
   // SECURITY: login беремо ТІЛЬКИ з підписаної сесії (cookie). body.userMeta
   // використовуємо лише для метаданих профілю (fullName/region) при upsert у users.
-  // Drill-down: якщо `targetLogin` переданий — мусить бути у session.managedUsers.
+  // Drill-down: targetLogin → перевіряємо scope (Director: будь-хто; RM/Manager: managedUsers).
   const effectiveLogin = targetLogin && targetLogin !== session.login
     ? targetLogin
     : session.login;
-  if (effectiveLogin !== session.login && !session.managedUsers.includes(effectiveLogin)) {
+  if (effectiveLogin !== session.login
+      && session.role !== 'director'
+      && !session.managedUsers.includes(effectiveLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
   // M5: user_id = login (раніше було hash через loginToUserId)
