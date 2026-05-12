@@ -15,6 +15,7 @@ import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from
 import { useOneCData } from '@/lib/use-onec-data';
 import { useClientsForPlanning } from '@/lib/use-clients-for-planning';
 import { useRegistryPlans } from '@/lib/use-registry-plans';
+import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import {
   adaptSalesFact, adaptRegistryPlans, adaptClientsForPlanning,
@@ -203,6 +204,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
     };
   }, [isDemo, clientsResponse]);
 
+  // План менеджера з нашого Supabase (forecasts + gap_closures) per segment.
+  // Використовуємо для:
+  //   - hasManagerPlan: true → синя насічка «Запланований» на progress bar
+  //   - expectedPercent: (факт + Σ forecast + Σ gap potential) / план × 100%
+  const { data: planAgg } = usePlanningAggregate(
+    currentPeriod.id,
+    !isDemo && effectiveLogin !== 'anonymous' ? [effectiveLogin] : null,
+  );
+
   // Будуємо summaries з реальних даних 1С — без mock fallback.
   // Action 4 → план, Action 3 → факт + кількість покупців.
   // PrevMonth поля = 0 поки не готовий Action 5 (UI це коректно обробляє).
@@ -223,6 +233,16 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
       const factPct = pctOf(factAmount, planAmount);
       const forecastPct = calcForecastPercent(factAmount, planAmount, passedWD, totalWD);
 
+      // План менеджера для цього сегменту з planAgg
+      const segPlan = planAgg?.bySegment[seg.code];
+      const managerForecast = segPlan?.forecast ?? 0;
+      const managerGap = segPlan?.gap ?? 0;
+      const hasManagerPlan = (managerForecast + managerGap) > 0;
+      // expected = (факт + прогноз + потенціал розриву) / план × 100
+      const expectedPct = planAmount > 0
+        ? ((factAmount + managerForecast + managerGap) / planAmount) * 100
+        : 0;
+
       return {
         segmentCode: seg.code,
         segmentName: seg.name,
@@ -231,8 +251,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
         factPercent: Math.round(factPct * 100) / 100,
         calcPercent: Math.round(calcPctValue * 100) / 100,
         forecastPercent: Math.round(forecastPct * 100) / 100,
-        expectedPercent: Math.round(factPct * 100) / 100, // = factPct поки нема managerPlan
-        hasManagerPlan: false, // буде true коли підключимо саб-агрегацію Supabase forecasts
+        expectedPercent: Math.round(expectedPct * 100) / 100,
+        hasManagerPlan,
         deviationPercent: Math.round((forecastPct - calcPctValue) * 100) / 100,
         prevMonthFactAmount: 0, // Action 5 — то todo
         prevMonthPlanAmount: 0,
@@ -242,7 +262,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
         status: 'draft',
       } satisfies TMSummaryCard;
     });
-  }, [isDemo, asOfDate, factResponse, myPlansBySegment]);
+  }, [isDemo, asOfDate, factResponse, myPlansBySegment, planAgg]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = pctOf(totalFact, totalPlan);
