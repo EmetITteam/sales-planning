@@ -240,8 +240,51 @@ POST `/api/planning/route.ts` зберігає **CURRENT STATE** форми:
 
 ---
 
-## 11. Версія документу
+## 11. Action 7 — checkActivities + auto-persist (v2, 2026-05-12)
+
+1С Action 7 повертає `{ hasCall, hasMeeting, lastCallDate, lastMeetingDate }` per клієнт. Frontend автоматично ставить `stageDone=true` у формі планування для рядків зі stage='Дзвінок' AND hasCall=true (АБО stage='Зустріч' AND hasMeeting=true).
+
+**ONE-WAY sync rules:**
+- stageDone=true НІКОЛИ не скидається з 1С (поважаємо ручну позначку менеджера)
+- Cross-channel: Дзвінок підтверджується ТІЛЬКИ hasCall, Зустріч ТІЛЬКИ hasMeeting
+
+**Auto-persist у БД:**
+- Окремий endpoint `POST /api/planning/confirm-activities`
+- PATCH-ить ТІЛЬКИ `stage_done=true` для конкретних (block, clientId)
+- НЕ зачипає інші поля state (не перетирає незбережені правки)
+- `useRef confirmedRef` запобігає повторним викликам
+
+**ЯКЩО ДОДАЄШ авто-confirm з API:** не використовуй основний save endpoint (буде UPSERT + DELETE notIn → перетре state). Зроби мінімальний PATCH-ендпоінт що оновлює тільки одне поле.
+
+Тести: `tests/action7-check-activities.test.ts` (11 unit) + `scripts/qa-action7.mjs` (live integration).
+
+---
+
+## 12. PlanningReadinessCard на Director дашборді (v2, 2026-05-12)
+
+**Призначення:** показати скільки менеджерів і брендів заповнили план за поточний місяць. Інша метрика ніж «Запланований %» (там сума $) — тут факт роботи у системі.
+
+**Гібридна метрика:**
+- **Text count** = менеджери (`X/Y менеджерів`) — admin oversight «кого нагнати»
+- **% і колір** = brand-cells `(Σ filled / (managers × 9))` — true progress
+- Не змішувати: 1 менеджер з 6/9 брендів = 100% by-manager but 67% by-cells. Показуємо обидва (text + %).
+
+**Status colors:**
+- GREEN: усі бренд-клітинки (всі менеджери 9/9)
+- ROSE: 0
+- AMBER: частково
+
+**Feature flag:** `src/lib/feature-flags.ts` → `FEATURES.PLANNING_READINESS`. Швидке вимкнення через commit (1 рядок).
+
+**Дані з planAgg.byLogin:** не потрібен окремий endpoint. byLogin[login][segment] === undefined → бренд НЕ заповнений. Якщо існує (forecast > 0 OR gap > 0 OR обидва 0) → заповнений.
+
+**ЯКЩО ДОДАЄШ нові overview-блоки на Director:** використовуй цей паттерн (feature flag + hybrid metric + drill-down).
+
+---
+
+## 13. Версія документу
 
 - **2026-05-08** — створено після Day 9. Покриває стан після відновлення архітектури 0767809→ec81eed.
-- **2026-05-12** — додано секції 6-10 (M7 monthly pid, M8 archived_at, per-segment classification, BrandRow contract, save flow). Git tag еталона: `etalon-2026-05-12`.
+- **2026-05-12** — додано секції 6-10 (M7 monthly pid, M8 archived_at, per-segment classification, BrandRow contract, save flow). Git tag: `etalon-2026-05-12`.
+- **2026-05-12 v2** — додано секції 11-12 (Action 7 + PlanningReadinessCard). Git tag: `etalon-2026-05-12-v2`.
 - Оновлювати при суттєвих змінах архітектури (нові ролі, нові дашборди, нові accordion-патерни, нові migrations).

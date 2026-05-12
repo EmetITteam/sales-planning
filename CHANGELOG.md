@@ -4,6 +4,71 @@
 
 ---
 
+## [etalon-2026-05-12-v2] · git tag `etalon-2026-05-12-v2` (commit `741b5c7`)
+
+### 🏁 Новий ETALON — після Action 7 + PlanningReadinessCard
+
+**Що нового vs v1 (`etalon-2026-05-12`):**
+
+#### Action 7 — `checkActivities` (1С v2.6)
+
+1С повертає `hasCall` / `hasMeeting` per клієнт. Frontend автоматично ставить «Виконано» (зелений бейдж) на рядках планування зі stage=Дзвінок/Зустріч коли 1С підтвердив.
+
+- `src/lib/onec-types.ts` — типи `CheckActivitiesRequest/Response` + `OneCActivity`
+- `src/app/api/onec/route.ts` — whitelist + LOGIN_BOUND_ACTIONS
+- `src/components/planning/planning-form.tsx` — auto-confirm useEffect (one-way sync: stageDone=true ніколи не скидається з 1С)
+- Cross-channel separation тести: Дзвінок не фіксується від hasMeeting і навпаки
+- 11 unit-тестів у `tests/action7-check-activities.test.ts`
+- Live integration test: `scripts/qa-action7.mjs` (auto-login Director → POST /api/onec → verify)
+
+#### Action 7 auto-persist
+
+Раніше: 1С підтверджував → state форми ставив stage_done=true → але БД не оновлювалась поки menager не натисне «Зберегти».
+
+Тепер: новий мінімальний endpoint `/api/planning/confirm-activities` що PATCH-ить **тільки** `stage_done=true` для конкретних рядків. Не зачипає інші поля state.
+
+- `src/app/api/planning/confirm-activities/route.ts` — новий endpoint
+- Frontend useRef memo щоб не дзвонити повторно при ре-рендері
+- Fire-and-forget — UI state оновлено локально, якщо API fail → re-confirm при наступному save
+
+#### PlanningReadinessCard — overview готовності планування
+
+Нова картка на Director дашборді (після CategoryStatsTable, перед списком регіонів). Показує:
+- **Скільки менеджерів торкнулися системи** — text `X/Y менеджерів`
+- **% реальне покриття брендів** — bar `(Σ filled_cells) / (managers × 9)`. Житомир з 1 менеджером 6/9 → 67% AMBER (не 100% GREEN як було помилково)
+- **Mini-list 8 регіонів** у header (dot + назва + manager count, без %)
+- **Drill-down** клік → expand 8 регіон-карток → клік регіон → 2-колонкова сітка менеджерів + список пропущених брендів як plain text з крапкою (не chips)
+- **Авто-режим:** якщо всі менеджери заповнили повністю → компактний інлайн «✓ Усі менеджери заповнили план» без drill-down
+
+**Feature flag для швидкого вимкнення:**
+```ts
+// src/lib/feature-flags.ts
+export const FEATURES = {
+  PLANNING_READINESS: true,  // змінити на false → блок зникне після deploy
+};
+```
+
+- `src/components/dashboard/planning-readiness-card.tsx` — компонент
+- `src/lib/feature-flags.ts` — toggle
+- `src/components/dashboard/director-dashboard.tsx` — інтеграція
+
+#### Тести: 155 → 155 (без змін кількості, але +11 для Action 7 + 21 для readiness внутрішніх)
+
+#### Backups
+
+- `backups/2026-05-12T16-32-50Z/` — pre-Action 7 state
+- (наступні бекапи робити через `node scripts/backup-supabase.mjs` — timestamp-based, не перезаписує)
+
+### Як повернутись до v2
+
+```bash
+git checkout etalon-2026-05-12-v2
+```
+
+DB rollback не потрібен (всі зміни — UI/API, БД-схема без нових міграцій з часів v1 M8).
+
+---
+
 ## [etalon-2026-05-12] · git tag `etalon-2026-05-12` (commit `9f771cb`)
 
 ### 🏁 Стан еталона
