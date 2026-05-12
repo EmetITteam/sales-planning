@@ -284,8 +284,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
   const totalForecastPct = summaries.length > 0
     ? summaries.reduce((s, t) => s + t.forecastPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
     : 0;
-  const totalExpectedPct = summaries.length > 0
-    ? summaries.reduce((s, t) => s + t.expectedPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
+  // ⚠️ «Запланований %» — пряма формула як у RM/Director:
+  //   (Σ forecast + Σ gap) / totalPlan × 100, БЕЗ факту.
+  // Раніше була weighted-average per-segment expectedPercent, що давала
+  // ІНШУ цифру коли є сегменти з planAmount=0 але plan>0 (вони «зникали»
+  // у numerator). Тепер скрізь однакова формула.
+  const totalExpectedPct = planAgg && totalPlan > 0
+    ? ((planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
     : 0;
 
   if (view === 'plan' && selectedSegment) {

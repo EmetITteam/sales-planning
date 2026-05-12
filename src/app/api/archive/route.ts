@@ -1,11 +1,20 @@
 import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
+import { getSession } from '@/lib/session';
 import { NextRequest } from 'next/server';
 
-// POST — архівація: переміщення в archive_* таблиці + видалення оригіналів
+// POST — архівація: переміщення в archive_* таблиці + видалення оригіналів.
+//
+// SECURITY: ТІЛЬКИ Director може запускати. Це destructive action на ВСЮ
+// компанію, не може бути доступна навіть РМ.
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
+  const session = await getSession();
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'director') {
+    return Response.json({ error: 'Forbidden: only director can run archive' }, { status: 403 });
+  }
 
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -45,14 +54,30 @@ export async function POST(request: NextRequest) {
     if (error) errors.push(`Archive summaries: ${error.message}`);
   }
 
-  // 2. Видаляємо оригінали тільки якщо копіювання успішне
-  if (errors.length === 0) {
-    await supabase.from('forecasts').delete().in('period_id', ids);
-    await supabase.from('gap_closures').delete().in('period_id', ids);
-    await supabase.from('period_summaries').delete().in('period_id', ids);
-    await supabase.from('periods').delete().in('id', ids);
-  } else {
+  // 2. Якщо архівація провалилась — НЕ видаляємо оригінали (ще можна повторити)
+  if (errors.length > 0) {
+    console.error('[archive.POST] copy phase failed:', errors);
     return Response.json({ error: `Архівація не завершена: ${errors.join('; ')}` }, { status: 500 });
+  }
+
+  // 3. Видалення оригіналів — кожен крок з error-check. Якщо хоч один впав —
+  // повертаємо 500 з переліком де bd могла лишитись у inconsistent state.
+  // (Архівні таблиці уже мають копію, тому повторний запуск безпечний.)
+  const delErrors: string[] = [];
+  const { error: e1 } = await supabase.from('forecasts').delete().in('period_id', ids);
+  if (e1) delErrors.push(`Delete forecasts: ${e1.message}`);
+  const { error: e2 } = await supabase.from('gap_closures').delete().in('period_id', ids);
+  if (e2) delErrors.push(`Delete gaps: ${e2.message}`);
+  const { error: e3 } = await supabase.from('period_summaries').delete().in('period_id', ids);
+  if (e3) delErrors.push(`Delete summaries: ${e3.message}`);
+  const { error: e4 } = await supabase.from('periods').delete().in('id', ids);
+  if (e4) delErrors.push(`Delete periods: ${e4.message}`);
+
+  if (delErrors.length > 0) {
+    console.error('[archive.POST] delete phase failed (data в неузгодженому стані):', delErrors);
+    return Response.json({
+      error: `Архів створено, але видалення оригіналів частково провалилось: ${delErrors.join('; ')}. Запустіть архівацію повторно.`,
+    }, { status: 500 });
   }
 
   return Response.json({
@@ -62,10 +87,15 @@ export async function POST(request: NextRequest) {
   });
 }
 
-// GET — превʼю архівації
+// GET — превʼю архівації. Director-only теж — не показуємо statistics стороннім.
 export async function GET(request: NextRequest) {
   const auth = validateApiRequest(request);
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
+  const session = await getSession();
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'director') {
+    return Response.json({ error: 'Forbidden: only director' }, { status: 403 });
+  }
 
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);

@@ -139,6 +139,7 @@ export function PlanningForm({
     setSelectedForecasts(new Set());
     setSelectedGaps(new Set());
     setFormEverEdited(false);
+    setManuallyEditedFactRows(new Set());
 
     let cancelled = false;
     loadPlanning(effectiveLogin, segmentCode, currentPeriod.id).then(data => {
@@ -393,14 +394,20 @@ export function PlanningForm({
     return map;
   }, [factResponse, segmentCode]);
 
-  // Sync per-row factAmount у forecasts/gapClosures коли factResponse оновився.
-  // Інакше «Факт» у рядку показує 0 хоча у заголовку (hero) видно реальну
-  // суму. Менеджер думає що 1С «не визначила продажу».
+  // ⚠️ Sync per-row factAmount з 1С (Action 3) — ТІЛЬКИ якщо рядок не був
+  // вручну змінений менеджером. Інакше SWR revalidation (focus/reconnect)
+  // перетирала ручний ввод. Менеджер ввів свій факт → focus tab → факт
+  // повернувся до 1С-значення.
+  //
+  // manuallyEditedFactRows тримає clientId1c рядків де менеджер сам
+  // редагував поле «Факт» через updateForecast/updateGap.
+  const [manuallyEditedFactRows, setManuallyEditedFactRows] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (factByClientId.size === 0) return;
     setForecasts(prev => {
       let changed = false;
       const next = prev.map(f => {
+        if (manuallyEditedFactRows.has(f.clientId1c)) return f; // skip manual edit
         const realFact = factByClientId.get(f.clientId1c) ?? 0;
         if (realFact !== f.factAmount) {
           changed = true;
@@ -414,6 +421,7 @@ export function PlanningForm({
     setGapClosures(prev => {
       let changed = false;
       const next = prev.map(g => {
+        if (manuallyEditedFactRows.has(g.clientId1c)) return g; // skip manual edit
         const realFact = factByClientId.get(g.clientId1c) ?? 0;
         if (realFact !== g.factAmount) {
           changed = true;
@@ -423,7 +431,7 @@ export function PlanningForm({
       });
       return changed ? next : prev;
     });
-  }, [factByClientId]);
+  }, [factByClientId, manuallyEditedFactRows]);
 
   // Snapshot: фіксуємо первинний список клієнтів у БД ОДИН РАЗ на (manager
   // × segment × period). Backend INSERT з ON CONFLICT DO NOTHING — повторні
@@ -569,10 +577,19 @@ export function PlanningForm({
   };
 
   const updateForecast = (clientId: string, field: keyof ForecastRow, value: string | number | boolean | null | undefined) => {
+    // Якщо менеджер редагує factAmount вручну — позначаємо рядок щоб
+    // auto-sync з 1С НЕ перетирав цю зміну при наступному revalidate.
+    if (field === 'factAmount') {
+      setManuallyEditedFactRows(prev => {
+        if (prev.has(clientId)) return prev;
+        const next = new Set(prev);
+        next.add(clientId);
+        return next;
+      });
+    }
     setForecasts(prev => prev.map(f => {
       if (f.clientId1c !== clientId) return f;
       const updated = { ...f, [field]: value };
-      // Автовиконання: факт >= прогноз
       if (field === 'factAmount' && typeof value === 'number') {
         updated.completed = value >= updated.forecastAmount;
       }
@@ -581,7 +598,27 @@ export function PlanningForm({
   };
 
   const updateGap = (i: number, field: keyof GapClosureRow, value: string | number | boolean | null | undefined) => {
-    setGapClosures(prev => { const n = [...prev]; n[i] = { ...n[i], [field]: value }; return n; });
+    if (field === 'factAmount') {
+      const id = gapClosures[i]?.clientId1c;
+      if (id) {
+        setManuallyEditedFactRows(prev => {
+          if (prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.add(id);
+          return next;
+        });
+      }
+    }
+    setGapClosures(prev => {
+      const n = [...prev];
+      const updated = { ...n[i], [field]: value };
+      // Симетрично з updateForecast: автовиконання при ручному введенні факту
+      if (field === 'factAmount' && typeof value === 'number') {
+        updated.completed = value >= updated.potentialAmount;
+      }
+      n[i] = updated;
+      return n;
+    });
   };
 
   const removeForecast = (clientId: string) => {

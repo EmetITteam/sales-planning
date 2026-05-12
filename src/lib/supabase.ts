@@ -32,16 +32,47 @@ class SupabaseTable {
     return this;
   }
 
-  eq(column: string, value: string | number | boolean): this { this.queryParts.push(`${column}=eq.${value}`); return this; }
-  lt(column: string, value: string): this { this.queryParts.push(`${column}=lt.${value}`); return this; }
-  in(column: string, values: unknown[]): this { this.queryParts.push(`${column}=in.(${values.join(',')})`); return this; }
+  // PostgREST escape для значень у фільтрах:
+  //  - кома, дужки, лапки, NUL, точка, пробіл — мають бути у "..." з \"-escaped лапками
+  //  - все інше — URL-encode
+  // ⚠️ Без цього `client_id_1c` що містить кому з 1С зламає `in.()` фільтр і
+  // DELETE notIn захопить чужі рядки. Реальний security risk.
+  private escapeFilterValue(v: unknown): string {
+    const s = String(v ?? '');
+    // Якщо містить спецсимволи PostgREST — обернути у подвійні лапки і escape \"
+    if (/[,()"\s.\\]/.test(s)) {
+      return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    }
+    return encodeURIComponent(s);
+  }
+
+  eq(column: string, value: string | number | boolean): this {
+    this.queryParts.push(`${column}=eq.${this.escapeFilterValue(value)}`);
+    return this;
+  }
+  lt(column: string, value: string): this {
+    this.queryParts.push(`${column}=lt.${this.escapeFilterValue(value)}`);
+    return this;
+  }
+  in(column: string, values: unknown[]): this {
+    if (values.length === 0) {
+      // Пустий in = жодного рядку. PostgREST `in.()` валідний — повертає [].
+      this.queryParts.push(`${column}=in.()`);
+      return this;
+    }
+    const escaped = values.map(v => this.escapeFilterValue(v)).join(',');
+    this.queryParts.push(`${column}=in.(${escaped})`);
+    return this;
+  }
   notIn(column: string, values: unknown[]): this {
     if (values.length === 0) {
       // Пустий not.in = всі рядки → еквівалент відсутності фільтра.
       // Для DELETE це означає видалити всі (що ми і хочемо коли список новий пустий).
       return this;
     }
-    this.queryParts.push(`${column}=not.in.(${values.join(',')})`); return this;
+    const escaped = values.map(v => this.escapeFilterValue(v)).join(',');
+    this.queryParts.push(`${column}=not.in.(${escaped})`);
+    return this;
   }
 
   order(column: string, opts?: { ascending?: boolean }): this {
