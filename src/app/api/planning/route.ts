@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta } from '@/lib/periods';
+import { safeRole } from '@/lib/types';
 import { NextRequest } from 'next/server';
 
 /**
@@ -251,7 +252,9 @@ export async function POST(request: NextRequest) {
       ? { full_name: session.fullName, role: session.role, region: session.region, region_code: session.regionCode }
       : {
           full_name: userMeta?.fullName || effectiveLogin,
-          role: userMeta?.role || null,
+          // ⚠️ safeRole — ENUM validation. Без цього Director міг через
+          // userMeta.role='superadmin' записати чужому менеджеру довільну роль.
+          role: safeRole(userMeta?.role, 'manager'),
           region: userMeta?.region || null,
           region_code: userMeta?.regionCode || null,
         };

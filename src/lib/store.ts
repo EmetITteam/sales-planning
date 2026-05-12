@@ -124,20 +124,32 @@ export const useAppStore = create<AppState>()(
         currentPeriod: state.currentPeriod,
         nav: state.nav,
       }),
-      // Скидаємо persisted period якщо він застарів (з іншого місяця або
-      // weekEnd у майбутньому). Інакше юзер відкриває систему 11.05 і
-      // бачить «01.05—03.05» бо persisted з попередньої сесії — і думає
-      // що цифри не оновились.
-      onRehydrateStorage: () => (state) => {
-        if (!state?.currentPeriod) return;
+      // ⚠️ merge замість onRehydrateStorage. У zustand v5 `set()` спрацьовує
+      // ДО `onRehydrateStorage` callback — мутація state у callback не
+      // тригерила re-render → user бачив застарілий persisted period
+      // (наприклад «Весь травень» вибраний вчора з'являвся сьогодні замість
+      // «01.05—10.05» default). merge() виконується ДО set → return value
+      // стає initial state, subscribers отримують свіже значення.
+      merge: (persisted, current) => {
+        const p = persisted as Partial<AppState> | null | undefined;
+        if (!p) return current;
+        const merged = { ...current, ...p };
+        if (!p.currentPeriod) return merged;
         const def = getDefaultPeriod();
-        const persistedMonth = state.currentPeriod.month?.slice(0, 7);
+        const persistedMonth = p.currentPeriod.month?.slice(0, 7);
         const defaultMonth = def.month.slice(0, 7);
-        const persistedWeekEnd = state.currentPeriod.weekEnd;
+        const persistedWeekEnd = p.currentPeriod.weekEnd;
         const today = new Date().toISOString().slice(0, 10);
-        if (persistedMonth !== defaultMonth || persistedWeekEnd > today) {
-          state.currentPeriod = def;
-        }
+        // Stale якщо інший місяць АБО weekEnd у майбутньому АБО «весь місяць»
+        // (weekEnd === last day of month, тобто свідомо обраний monthly view —
+        // не persist-имо між сесіями, дефолт = поточний тиждень).
+        const lastDayOfPersistedMonth = persistedMonth
+          ? new Date(parseInt(persistedMonth.slice(0, 4), 10), parseInt(persistedMonth.slice(5, 7), 10), 0)
+              .toISOString().slice(0, 10)
+          : '';
+        const isWholeMonth = persistedWeekEnd === lastDayOfPersistedMonth;
+        const stale = persistedMonth !== defaultMonth || persistedWeekEnd > today || isWholeMonth;
+        return stale ? { ...merged, currentPeriod: def } : merged;
       },
     },
   ),

@@ -1,6 +1,26 @@
 // === Ролі ===
 export type UserRole = 'manager' | 'rm' | 'director';
 
+// Перелік дозволених значень для runtime-валідації payload від клієнта.
+// users.role NOT NULL, тому fallback завжди потрібен.
+const VALID_ROLES: readonly UserRole[] = ['manager', 'rm', 'director'];
+
+/**
+ * Безпечно парсить значення з тіла запиту як UserRole. Якщо payload
+ * містить будь-який інший рядок (включно з ескалацією прав типу
+ * 'superadmin', 'admin', 'owner') — повертається fallback (default 'manager').
+ *
+ * Use case: Director через drill-down save planning для чужого менеджера,
+ * у body.userMeta.role випадково / зловмисно приходить інший рядок.
+ * Без цієї перевірки `upsert({ role: userMeta.role || null })` записав би
+ * 'superadmin' у users.role.
+ */
+export function safeRole(raw: unknown, fallback: UserRole = 'manager'): UserRole {
+  return typeof raw === 'string' && VALID_ROLES.includes(raw as UserRole)
+    ? (raw as UserRole)
+    : fallback;
+}
+
 // === Дані користувача (з 1С при логіні) ===
 export interface UserSession {
   login: string;

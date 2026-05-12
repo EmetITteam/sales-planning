@@ -41,13 +41,20 @@ export function validateApiRequest(request: NextRequest): { valid: boolean; erro
   // 1) Sec-Fetch-Site — найнадійніший спосіб для сучасних браузерів (з 2020).
   // Браузер ВЖЕ позначив звідки запит, JS не може підмінити цей header.
   //   - 'same-origin' / 'same-site' — наш фронт → OK
-  //   - 'none' — користувач набрав URL у адресному рядку, відкрив закладку,
-  //     прийшов з PWA standalone — теж OK
+  //   - 'none' — користувач набрав URL у адресному рядку, закладка, PWA →
+  //     OK ТІЛЬКИ для GET/HEAD. Для write-методів (POST/PATCH/PUT/DELETE)
+  //     'none' = ризик CSRF: phishing-сторінка може зробити redirect/form
+  //     POST з cookie. Тому write з 'none' йдуть на fallback Origin allow-list.
   //   - 'cross-site' — стороній сайт → треба ключ
   // Чому НЕ Origin: для same-origin GET браузери часто НЕ шлють Origin header,
   // тоді fall-through на API key → 401 на наших же сторінках.
   const sfSite = request.headers.get('sec-fetch-site');
-  if (sfSite === 'same-origin' || sfSite === 'same-site' || sfSite === 'none') {
+  const method = request.method.toUpperCase();
+  const isWrite = method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE';
+  if (sfSite === 'same-origin' || sfSite === 'same-site') {
+    return { valid: true };
+  }
+  if (sfSite === 'none' && !isWrite) {
     return { valid: true };
   }
 
