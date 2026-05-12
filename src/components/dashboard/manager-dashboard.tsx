@@ -42,13 +42,31 @@ interface ManagerDashboardProps {
 }
 
 export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegmentCode }: ManagerDashboardProps = {}) {
-  const [view, setView] = useState<'dashboard' | 'plan' | 'control'>(initialSegmentCode ? 'plan' : 'dashboard');
-  const [selectedSegment, setSelectedSegment] = useState(initialSegmentCode ?? '');
+  // Initial state читається з nav store (зберігається в sessionStorage),
+  // щоб refresh повертав на ту ж форму а не на список брендів. Пріоритет:
+  //   1. initialSegmentCode (drill-down з parent dashboard) — явне завдання
+  //   2. nav.segmentCode (persisted з минулої сесії того ж tab)
+  //   3. порожньо → dashboard view
+  const persistedSegment = useAppStore.getState().nav.segmentCode;
+  const startSegment = initialSegmentCode ?? (persistedSegment || '');
+  const [view, setView] = useState<'dashboard' | 'plan' | 'control'>(startSegment ? 'plan' : 'dashboard');
+  const [selectedSegment, setSelectedSegment] = useState(startSegment);
   // Variant A (Sasha 2026-05-06): chevron на BrandRow розкриває деталі по сегменту.
   // Один сегмент за раз — інакше дашборд перетворюється на «гармошку».
   const [expandedSegment, setExpandedSegment] = useState<string | null>(null);
 
-  const { currentPeriod, liveMode, user } = useAppStore();
+  const { currentPeriod, liveMode, user, setNav } = useAppStore();
+  // Wrapped setters: оновлюють локальний state + persisted nav.segmentCode.
+  const goToPlan = (seg: string) => {
+    setSelectedSegment(seg);
+    setView('plan');
+    setNav({ segmentCode: seg });
+  };
+  const goToDashboard = () => {
+    setView('dashboard');
+    setSelectedSegment('');
+    setNav({ segmentCode: undefined });
+  };
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
   // isViewing = «я дивлюсь чужий профіль» (не свій).
   // Якщо РМ клікнув СЕБЕ у списку менеджерів регіону — це його ж план,
@@ -255,7 +273,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
     return (
       <PlanningForm
         segmentCode={selectedSegment}
-        onBack={() => setView('dashboard')}
+        onBack={goToDashboard}
         readOnly={isViewing}
         targetUserLogin={targetUserLogin}
         clientsResponse={clientsResponse ?? null}
@@ -447,7 +465,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
                     periodId={currentPeriod.id}
                     clientsResponse={clientsResponse ?? null}
                     factResponse={adaptedFact}
-                    onPlan={() => { setSelectedSegment(tm.segmentCode); setView('plan'); }}
+                    onPlan={() => goToPlan(tm.segmentCode)}
                   />
                 )}
               </div>

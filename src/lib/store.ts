@@ -46,6 +46,24 @@ function getDefaultPeriod(): PeriodInfo {
   };
 }
 
+/**
+ * Стан навігації — куди зайшов користувач у дашборд-tree. Зберігається у
+ * sessionStorage щоб refresh повертав на ту саму сторінку (а не на root).
+ *
+ * Структура tree (max 4 рівні):
+ *   Director → Region (regionCode) → Manager (managerLogin) → Plan (segmentCode)
+ *   RM → Manager (managerLogin) → Plan (segmentCode)
+ *   Manager → Plan (segmentCode)
+ */
+export interface NavState {
+  /** RegionCode для drill-down Director → Region. */
+  regionCode?: string;
+  /** Логін менеджера для drill-down → ManagerDashboard. */
+  managerLogin?: string;
+  /** Сегмент бренду для drill-down → PlanningForm. */
+  segmentCode?: string;
+}
+
 interface AppState {
   user: UserSession | null;
   /**
@@ -62,11 +80,15 @@ interface AppState {
    * У live-режимі drill-down у форму планування — read-only.
    */
   liveMode: boolean;
+  /** Куди зайшов user у дашборд (для відновлення після refresh). */
+  nav: NavState;
   setUser: (user: UserSession | null) => void;
   setBootstrapped: (b: boolean) => void;
   setCurrentPeriod: (period: PeriodInfo) => void;
   setDesignVariant: (variant: 'cards' | 'table') => void;
   setLiveMode: (live: boolean) => void;
+  setNav: (nav: Partial<NavState>) => void;
+  clearNav: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -77,18 +99,21 @@ export const useAppStore = create<AppState>()(
       currentPeriod: getDefaultPeriod(),
       designVariant: 'cards',
       liveMode: false,
-      // Скидаємо liveMode при logout. SWR cache очиститься окремо у app-header.tsx
-      // через mutate(() => true, undefined, { revalidate: false }).
+      nav: {},
+      // Скидаємо liveMode + nav при logout. SWR cache очиститься окремо у
+      // app-header.tsx через mutate(() => true, undefined, { revalidate: false }).
       // ⚠️ user тут — лише UI-кеш. Джерело істини = HttpOnly cookie на сервері
       // (читаємо через /api/auth/me у SessionBootstrap). При reload store починає
       // з null, потім /me populate-ить.
       setUser: (user) => set(user === null
-        ? { user: null, liveMode: false }
+        ? { user: null, liveMode: false, nav: {} }
         : { user }),
       setBootstrapped: (b) => set({ bootstrapped: b }),
       setCurrentPeriod: (period) => set({ currentPeriod: period }),
       setDesignVariant: (variant) => set({ designVariant: variant }),
       setLiveMode: (live) => set({ liveMode: live }),
+      setNav: (patch) => set((s) => ({ nav: { ...s.nav, ...patch } })),
+      clearNav: () => set({ nav: {} }),
     }),
     {
       name: 'emet-sales-planning',
@@ -97,6 +122,7 @@ export const useAppStore = create<AppState>()(
       // не з sessionStorage — щоб не довіряти стороні клієнта.
       partialize: (state) => ({
         currentPeriod: state.currentPeriod,
+        nav: state.nav,
       }),
       // Скидаємо persisted period якщо він застарів (з іншого місяця або
       // weekEnd у майбутньому). Інакше юзер відкриває систему 11.05 і
