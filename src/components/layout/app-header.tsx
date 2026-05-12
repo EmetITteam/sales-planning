@@ -25,9 +25,10 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 // Login-based override для конкретних осіб з рівнем доступу директора, але
-// іншим формальним підписом (асистент, аудитор тощо).
+// іншим формальним підписом (асистент, аудитор, власник тощо).
 const LOGIN_LABEL_OVERRIDES: Record<string, string> = {
   'assistant.sdu@emet.in.ua': 'Асистент директора з продажу',
+  'owner@emet.in.ua': 'Власник компанії',
 };
 
 function getRoleLabel(login: string, role: string): string {
