@@ -151,7 +151,97 @@ grep -l "export function BrandManagerGroup" src/components/dashboard/brand-manag
 
 ---
 
-## 6. Версія документу
+## 6. Monthly period_id arch (M7, 2026-05-12)
+
+**ВСІ planning-дані** (forecasts/gap_closures/period_summaries/planning_snapshots) **живуть на ОДНОМУ monthly period_id** per (user, segment, month). Формат: `YYYYMMDD` останнього дня місяця (травень → `20260531`).
+
+**Інваріант:** клієнт у `period_id != monthly canonical` для будь-якої таблиці planning — це БАГ. Має бути конвертовано через one з:
+- `monthlyPidFromMonth('YYYY-MM')` — fast path (клієнт прислав `period.month`)
+- `monthlyPidFromAnyPid(rawPid)` — pure-fallback (з YYYYMMDD парсингу)
+- SELECT periods.month WHERE id=rawPid — legacy/non-YYYYMMDD pid
+
+**3 роути** мусять ремаппати:
+1. `src/app/api/planning/route.ts` GET + POST → `resolveMonthlyPid()`
+2. `src/app/api/planning/aggregate/route.ts` POST → ремап до query
+3. `src/app/api/planning/init-snapshot/route.ts` POST → ремап до insert
+
+**ЯКЩО ДОДАЄШ НОВИЙ ENDPOINT що пише/читає forecasts/gap_closures/snapshots/period_summaries:**
+- Read: `.eq('period_id', monthlyPid)` де monthlyPid = monthly canonical
+- Write: payload `period_id: monthlyPid`
+- Якщо `periodId` приходить з body — РЕМАППИТИ перш ніж використати
+
+Тести: `tests/monthly-period-id.test.ts` (16 тестів).
+
+---
+
+## 7. Soft-delete archived_at (M8, 2026-05-12)
+
+**Семантика:**
+- `forecasts.archived_at` / `gap_closures.archived_at` — TIMESTAMPTZ. NULL = active. Set = soft-deleted (M8 cleanup для baгaжу M7 union, або потенційно для майбутніх case-ів).
+- Active рядки (`archived_at IS NULL`) — користувач їх бачить
+- Archived рядки існують у БД для audit і можливого revival
+
+**ЯКЩО ДОДАЄШ НОВИЙ READ-ЗАПИТ до forecasts/gap_closures:**
+- ОБОВ'ЯЗКОВО `.is('archived_at', null)` (партіальний індекс на цей предикат)
+- Інакше показуватимуться archived рядки → користувач бачить baгaж
+
+**ЯКЩО ДОДАЄШ НОВИЙ WRITE-ЗАПИТ:**
+- UPSERT payload явно `archived_at: null` → ре-save oживить archived клієнта
+- DELETE notIn — `.is('archived_at', null)` додатково — щоб НЕ hard-видалити archived (audit lost)
+
+Тести: `tests/m8-soft-delete.test.ts` (27 тестів).
+
+---
+
+## 8. Per-segment classification (composite key)
+
+Класифікація buyer-ів у `aggregateRegionStats` робиться по парі `(segment, clientId)`, не лише по `clientId`. Інакше клієнт у плані бренду A автоматично стає «Активним» у бренді B де фактично купив, але плану нема.
+
+**Формат key:** `${segmentCode}|${clientId}` (UI segment code, не 1С — наприклад `'OTHER'` а не `'ДРУГИЕТМ'`)
+
+**Місця які мусять використовувати композитні ключі:**
+- `src/app/api/planning/aggregate/route.ts` — emit `forecastClientIds`/`gapNewClientIds`/`gapActivationClientIds` як composite
+- `src/lib/region-stats-aggregate.ts` — lookup composite (`planKey`)
+
+Тести: `tests/region-stats-aggregate.test.ts` (~17 тестів з композитними ключами).
+
+---
+
+## 9. «Запл.» індикатор у BrandRow
+
+**Інваріант:**
+- `hasManagerPlan = !!planAgg && planAmount > 0` — показуємо ЗАВЖДИ коли бренд має target з 1С І planAgg завантажився (через `usePlanningAggregate`).
+- Якщо менеджер не заповнив план → «Запл.: 0%» (не сховано).
+- Поки planAgg=null (loading) → сховано (без blink 0% → real %).
+
+**Mock-fallback видалений** — раніше brand-row мав `factPct + 60% × розриву` якщо expectedPercent undefined. Тепер `computedExpectedPct = expectedPercent ?? 0`. Якщо забути передати з callsite — буде 0%, не брехливі 67%.
+
+**Місця які передають expectedPercent:**
+- `manager-dashboard.tsx`, `manager-accordion.tsx`, `region-accordion.tsx` — per-segment з `planAgg.bySegment[code]`
+- `brand-manager-group.tsx` — header через `planCategoriesForBrand`, per-manager через `planByLogin[login][segment]`
+- `brand-region-group.tsx` — header через `planCategoriesForBrand`, per-region через сумування `planByLogin[m.login][segment]` для менеджерів регіону
+
+**ЯКЩО ДОДАЄШ НОВИЙ ВИКЛИК `<BrandRow>`:**
+- Обов'язково передай `expectedPercent` ОБЧИСЛЕНЕ з real planAgg даних
+- І `hasManagerPlan` що враховує both planAgg loaded + planAmount > 0
+
+---
+
+## 10. Save flow contract
+
+POST `/api/planning/route.ts` зберігає **CURRENT STATE** форми:
+1. **UPSERT** усіх рядків state (forecasts + gap_closures). Payload включає явно `archived_at: null` → revive archived клієнтів при ре-save.
+2. **DELETE WHERE period_id=pid AND user_id=uid AND segment_code=seg AND archived_at IS NULL AND client_id_1c NOT IN (keepIds)** — видаляє ACTIVE рядки які менеджер прибрала зі state. Archived лишаються.
+3. **SAFETY:** якщо keepClientIds порожній І !clearAll → SKIP DELETE (захист від race / state-bug де state ще не догрузився).
+
+**Auto-populate НЕ оживляється при formEverEdited=true** — менеджер уже редагувала, не повертаємо видалених через формальну логіку.
+
+**«+Додати» через пошук** → `manuallyAdded: true`, порожні lastPurchase/amount. Enrichment useEffect пропускає manuallyAdded=true рядки.
+
+---
+
+## 11. Версія документу
 
 - **2026-05-08** — створено після Day 9. Покриває стан після відновлення архітектури 0767809→ec81eed.
-- Оновлювати при суттєвих змінах архітектури (нові ролі, нові дашборди, нові accordion-патерни).
+- **2026-05-12** — додано секції 6-10 (M7 monthly pid, M8 archived_at, per-segment classification, BrandRow contract, save flow). Git tag еталона: `etalon-2026-05-12`.
+- Оновлювати при суттєвих змінах архітектури (нові ролі, нові дашборди, нові accordion-патерни, нові migrations).
