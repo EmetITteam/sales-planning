@@ -17,6 +17,8 @@ import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { RegionAccordion } from './region-accordion';
 import { BrandRegionGroup, pivotBrandsByRegion } from './brand-region-group';
+import { PlanningReadinessCard } from './planning-readiness-card';
+import { FEATURES } from '@/lib/feature-flags';
 import { CategoryStatsTable } from './category-stats-table';
 import {
   ChevronRight, RefreshCw,
@@ -391,6 +393,15 @@ export function DirectorDashboard() {
             title={`Компанія · ${totalManagers} менеджерів · ${company.regionAggregates.length} регіонів`}
             loading={companyStatsLoading && !aggregatedFact}
           />
+
+          {/* Готовність планування — overview скільки менеджерів заповнили план.
+              Вимкнути → FEATURES.PLANNING_READINESS=false у src/lib/feature-flags.ts */}
+          {FEATURES.PLANNING_READINESS && adapted?.regions && (
+            <PlanningReadinessCard
+              regions={adapted.regions}
+              planByLogin={planAgg?.byLogin ?? null}
+            />
+          )}
 
           {/* Регіони — RegionAccordion (тап = expand → 9 BrandRow усередині, drill-down іконка справа) */}
           <div>
