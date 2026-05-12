@@ -547,6 +547,11 @@ export function PlanningForm({
 
   const confirmDelete = () => {
     if (!pendingDelete) return;
+    // ⚠️ ВАЖЛИВО: ставимо formEverEdited=true при будь-якому видаленні.
+    // Інакше після видалення ВСІХ рядків auto-populate useEffect одразу
+    // повертає клієнтів назад (бо forecasts/gap.length=0 і formEverEdited
+    // ще false якщо менеджер ще ні разу не save-ив).
+    setFormEverEdited(true);
     if (pendingDelete.type === 'forecast') {
       const removedId = pendingDelete.clientId;
       setForecasts(prev => prev.filter(f => f.clientId1c !== removedId));
