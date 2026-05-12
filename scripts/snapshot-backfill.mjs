@@ -38,6 +38,9 @@ if (existsSync(envPath)) {
 const BASE_URL = process.env.BACKFILL_BASE_URL || 'https://sales-planning-lyart.vercel.app';
 const LOGIN = process.env.BACKFILL_LOGIN;
 const PASSWORD = process.env.BACKFILL_PASSWORD;
+// Server-to-server виклики потребують x-api-key (validateApiRequest fall-through
+// на key check бо Origin/Sec-Fetch-Site нема у Node fetch).
+const API_KEY = process.env.API_SECRET_KEY;
 const PERIOD_ID = parseInt(process.env.BACKFILL_PERIOD_ID || '0', 10);
 const PERIOD_MONTH = process.env.BACKFILL_PERIOD_MONTH; // YYYY-MM-01
 const PERIOD_WEEK_START = process.env.BACKFILL_PERIOD_WEEK_START; // YYYY-MM-DD
@@ -73,7 +76,7 @@ const cat1cToText = (c) => {
 async function login() {
   const res = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
     body: JSON.stringify({ login: LOGIN, password: PASSWORD }),
     redirect: 'manual',
   });
@@ -83,9 +86,9 @@ async function login() {
   }
   const setCookie = res.headers.get('set-cookie');
   if (!setCookie) throw new Error('No set-cookie from login');
-  // Витягуємо session-cookie name=value
-  const match = setCookie.match(/(session=[^;]+)/);
-  if (!match) throw new Error('No session cookie');
+  // Cookie називається sp_session (не session). Витягуємо name=value.
+  const match = setCookie.match(/(sp_session=[^;]+)/);
+  if (!match) throw new Error('No sp_session cookie in: ' + setCookie.slice(0, 200));
   return match[1];
 }
 
@@ -94,7 +97,7 @@ async function getAllManagers(cookie) {
   const periodKey = PERIOD_MONTH.slice(0, 7); // YYYY-MM
   const res = await fetch(`${BASE_URL}/api/onec`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie },
+    headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL, cookie },
     body: JSON.stringify({ action: 'getRegionData', payload: { period: periodKey } }),
   });
   const json = await res.json();
@@ -125,7 +128,7 @@ async function getAllManagers(cookie) {
 async function getClientsForManager(cookie, login) {
   const res = await fetch(`${BASE_URL}/api/onec`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie },
+    headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL, cookie },
     body: JSON.stringify({ action: 'getClientsForPlanning', payload: { login } }),
   });
   const json = await res.json();
@@ -165,7 +168,7 @@ function buildSegmentBuckets(clients) {
 async function postSnapshot(cookie, manager, segCode, active, sleeping) {
   const res = await fetch(`${BASE_URL}/api/planning/init-snapshot`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie },
+    headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL, cookie },
     body: JSON.stringify({
       periodId: PERIOD_ID,
       period: { weekStart: PERIOD_WEEK_START, weekEnd: PERIOD_WEEK_END, month: PERIOD_MONTH },
