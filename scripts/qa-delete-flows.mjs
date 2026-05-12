@@ -57,40 +57,62 @@ const shot = async (page, name) => {
   catch {}
 };
 
+async function waitFor1CLoad(page) {
+  // Чекаємо поки індикатор «Завантажуємо ваші дані з 1С...» зникне.
+  // Якщо його немає — пропускаємо.
+  try {
+    await page.waitForSelector('text=/Завантажу[ев]мо.*1С/i', { state: 'visible', timeout: 3000 });
+    await page.waitForSelector('text=/Завантажу[ев]мо.*1С/i', { state: 'hidden', timeout: 60000 });
+  } catch { /* індикатор не з'явився — все вже є */ }
+  await page.waitForTimeout(1000);
+}
+
 async function login(page) {
   await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 30000 });
   await page.locator('input[type="email"], input[placeholder*="mail" i]').first().fill(LOGIN);
   await page.locator('input[type="password"]').first().fill(PASSWORD);
   await page.getByRole('button', { name: /увійти|login/i }).first().click();
-  // Чекаємо РЕАЛЬНУ ознаку залогіненого state — name у app-header АБО brand row
-  // АБО myPlanning button. Чекаємо до 30с (1С getRegionData повільне).
-  try {
-    await page.waitForSelector(
-      'text=/Моє планування|Petaran|Ellanse|Vitaran|Дашборд|Менеджер|Регіон/i',
-      { timeout: 45000 },
-    );
-  } catch {
-    throw new Error('Login не пройшов або dashboard не завантажився за 45с');
-  }
-  await page.waitForTimeout(2000);
-  // Якщо РМ/Director — натискаємо "Моє планування" (бо їх root = регіон/компанія)
+  await page.waitForSelector(
+    'text=/Моє планування|Petaran|Ellanse|Vitaran|Дашборд|Менеджер|Регіон/i',
+    { timeout: 45000 },
+  );
+  await waitFor1CLoad(page);
+  // Якщо РМ/Director — натискаємо "Моє планування"
   const myBtn = page.locator('button:has-text("Моє планування")').first();
   if (await myBtn.count() > 0) {
     await myBtn.click();
-    await page.waitForTimeout(3000);
+    await waitFor1CLoad(page);
   }
 }
 
-/** Для menager dashboard — лічимо рядки клієнтів у обох блоках з footer-у. */
+/** Лічимо рядки через DOM пошук footer-блоків (<span>Прогноз/Потенціал</span>...). */
 async function readCounts(page) {
-  // Footer Прогноз: "Клієнтів N (M ✓)"; Footer Gap: "Клієнтів N"
-  const text = await page.locator('body').innerText();
-  const matches = [...text.matchAll(/Кл[іи][єе]нт[іи]?в?\s+(\d+)/gi)];
-  // У форму попадає кілька footer-ів: hero "Клієнти" і двох блоків.
-  // Беремо ОСТАННІ ДВА — це footers blocks.
-  const nums = matches.map(m => parseInt(m[1], 10));
-  if (nums.length < 2) return { forecast: 0, gap: 0 };
-  return { forecast: nums[nums.length - 2], gap: nums[nums.length - 1] };
+  // Footer forecast має "Прогноз" як label, footer gap має "Потенціал".
+  // У сусідньому блоці є "<span>Клієнтів</span><p>N</p>".
+  // Через page.evaluate шукаємо footer-и за contains-text.
+  const counts = await page.evaluate(() => {
+    const result = { forecast: 0, gap: 0 };
+    // Знаходимо ВСІ елементи з текстом "Клієнтів" як прямий вміст span
+    const spans = Array.from(document.querySelectorAll('span'));
+    const clientSpans = spans.filter(s => s.textContent?.trim() === 'Клієнтів');
+    for (const s of clientSpans) {
+      // <span>Клієнтів</span><p>N (M ✓)</p> або <p>N</p>
+      const p = s.parentElement?.querySelector('p');
+      if (!p) continue;
+      const txt = p.textContent?.trim() || '';
+      const num = parseInt(txt, 10);
+      if (!Number.isFinite(num)) continue;
+      // Знаходимо найближчий "header" блоку — пошук label перших спанів парента-секції
+      // Найпростіше: дивимось "Прогноз" або "Потенціал" в найближчих span-ах того ж parent-div-у footer-у
+      const footer = s.closest('div')?.parentElement;
+      if (!footer) continue;
+      const footerText = footer.textContent || '';
+      if (footerText.includes('Прогноз') && footerText.includes('Незавершено')) result.forecast = num;
+      else if (footerText.includes('Потенціал')) result.gap = num;
+    }
+    return result;
+  });
+  return counts;
 }
 
 async function backToDashboard(page) {
@@ -122,31 +144,39 @@ async function backToDashboard(page) {
 
 async function openForm(page, segmentName) {
   await backToDashboard(page);
-  // Шукаємо BrandRow з brand-name. Не точне співпадіння — у рядку може бути
-  // ще цифри (% / суми). h3-стиль або data-attribute відсутні, beremо просто
-  // text-locator.
+  await waitFor1CLoad(page);
+  await shot(page, `dashboard-before-${segmentName}`);
+  log.note(`  пошук brand-row "${segmentName}"`);
   const brandRow = page.locator(`text=/${segmentName}/i`).first();
   try {
     await brandRow.waitFor({ state: 'visible', timeout: 8000 });
   } catch {
+    log.note(`  ❌ brand-row "${segmentName}" не знайдено на сторінці`);
+    await shot(page, `${segmentName}-no-brand-row`);
     return false;
   }
   await brandRow.click();
-  await page.waitForTimeout(1000);
-  // Variant A: BrandRow expand → CTA "Перейти у форму"
+  await page.waitForTimeout(1500);
+  await shot(page, `${segmentName}-after-brand-click`);
   const goToForm = page.locator('text=/Перейти у форму/').first();
   try {
-    await goToForm.waitFor({ state: 'visible', timeout: 5000 });
+    await goToForm.waitFor({ state: 'visible', timeout: 8000 });
     await goToForm.click();
-  } catch { /* можливо одразу у формі */ }
-  // Чекаємо markers форми
+    log.note('  CTA "Перейти у форму" натиснуто');
+  } catch {
+    log.note('  CTA "Перейти у форму" не з\'явилось — можливо вже у формі');
+  }
+  await page.waitForTimeout(1500);
   try {
     await page.waitForSelector('text=/Прогноз по активних|Закриття розриву/i', { timeout: 15000 });
   } catch {
+    log.note('  ❌ Маркер форми не знайдено');
+    await shot(page, `${segmentName}-no-form-marker`);
     return false;
   }
-  // Чекаємо поки auto-populate додасть рядки — даємо 1С відповісти
-  await page.waitForTimeout(5000);
+  await waitFor1CLoad(page);
+  await page.waitForTimeout(3000);
+  await shot(page, `${segmentName}-form-ready`);
   return true;
 }
 
