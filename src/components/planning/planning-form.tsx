@@ -8,6 +8,7 @@ import { ClientSearchModal } from './client-search-modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
 import { savePlanning, loadPlanning } from '@/lib/api';
+import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
@@ -486,9 +487,15 @@ export function PlanningForm({
   const confirmDelete = () => {
     if (!pendingDelete) return;
     if (pendingDelete.type === 'forecast') {
-      setForecasts(prev => prev.filter(f => f.clientId1c !== pendingDelete.clientId));
+      const removedId = pendingDelete.clientId;
+      setForecasts(prev => prev.filter(f => f.clientId1c !== removedId));
+      setSelectedForecasts(prev => syncIdsAfterRemove(prev, removedId));
     } else if (pendingDelete.type === 'gap') {
-      setGapClosures(prev => prev.filter((_, j) => j !== pendingDelete.index));
+      // ⚠️ selectedGaps — Set<number> по index. Sync щоб наступний bulk-delete
+      // не потрапив у не тих рядків після зсуву індексів.
+      const removedIdx = pendingDelete.index;
+      setGapClosures(prev => prev.filter((_, j) => j !== removedIdx));
+      setSelectedGaps(prev => syncIndicesAfterRemove(prev, removedIdx));
     } else if (pendingDelete.type === 'forecast-bulk') {
       const ids = new Set(pendingDelete.ids);
       setForecasts(prev => prev.filter(f => !ids.has(f.clientId1c)));
