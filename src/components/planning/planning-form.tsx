@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
 import { savePlanning, loadPlanning } from '@/lib/api';
 import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
+import { mutate as swrMutate } from 'swr';
 import { useAppStore } from '@/lib/store';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
@@ -261,6 +262,15 @@ export function PlanningForm({
       for (const f of forecasts) if (f.clientId1c) justSaved.add(f.clientId1c);
       for (const g of gapClosures) if (g.clientId1c) justSaved.add(g.clientId1c);
       setPersistedClientIds(justSaved);
+      // ⚠️ Invalidate SWR cache для planAgg + regionStats — інакше dashboard
+      // hero/brand-row 60 сек тримають старі цифри (SWR dedupingInterval).
+      // Менеджер save-нув → відкрив дашборд → видно старі % → плутає.
+      // Mutate ВСІХ ключів agg|*|*|* і region-stats|*|*|*|*.
+      swrMutate(
+        (key) => typeof key === 'string' && (key.startsWith('agg|') || key.startsWith('region-stats|')),
+        undefined,
+        { revalidate: true },
+      );
     }
     setSaveResult(result.success
       ? { ok: true, msg: 'Збережено!' }
