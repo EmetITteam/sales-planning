@@ -119,9 +119,17 @@ async function handlePost(request: NextRequest) {
   } else {
     for (const l of session.managedUsers ?? []) allowed.add(l.toLowerCase().trim());
   }
-  const safeLogins = (logins as unknown[])
+  const safeLoginsRaw = (logins as unknown[])
     .map(l => String(l).toLowerCase().trim())
     .filter(l => allowed.has(l));
+  // ⚠️ Dedup логінів ПЕРЕД 1С-викликами. Якщо frontend (Director) передав
+  // одного менеджера двічі (наприклад 1С Action 5 повертає його у двох регіонах
+  // або у нас є нормалізаційна помилка) — без dedup ми дзвонимо в 1С двічі
+  // і отримуємо ті самі buyers ДВА рази → дублі (segment, client) у aggregate.
+  // Це джерело $17,970 дублів, не "1С повертає чужих клієнтів".
+  const safeLoginsSet = new Set(safeLoginsRaw);
+  const safeLogins = Array.from(safeLoginsSet);
+  const duplicateLoginsInRequest = safeLoginsRaw.length - safeLogins.length;
   if (safeLogins.length === 0) {
     return Response.json({ error: 'No allowed logins in scope' }, { status: 403 });
   }
@@ -215,6 +223,11 @@ async function handlePost(request: NextRequest) {
       // Топ-30 конкретних дублів для діагностики:
       // [{ segmentCode, clientId, clientName, occurrences: [{login, factAmountUSD}] }]
       duplicates: aggregated.dedup.duplicates.slice(0, 30),
+      // 🔍 Діагностика логінів: якщо frontend надіслав дублі логінів —
+      // duplicateLoginsInRequest > 0 і це і є джерело pair-дублів.
+      loginsRawCount: safeLoginsRaw.length,
+      loginsDedupCount: safeLogins.length,
+      duplicateLoginsInRequest,
     },
   });
 }
