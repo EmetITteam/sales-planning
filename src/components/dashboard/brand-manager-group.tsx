@@ -63,8 +63,8 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
 
   // «Запл. %» для бренду в цілому = Σ planSum (всі категорії plan) / brand.totalPlan.
-  // Показуємо ЗАВЖДИ коли бренд має target ($brand.totalPlan>0). Якщо менеджери
-  // не планували — Запл.: 0%. Це чітко: «нема плану», а не сховано.
+  // hasBrandPlan тільки коли planCategoriesForBrand уже догрузився (без blink
+  // 0% → real коли SWR fetch-ить).
   const brandExpectedPct = brand.totalPlan > 0 && planCategoriesForBrand
     ? ((planCategoriesForBrand.active.plannedSum
         + planCategoriesForBrand.sleeping.plannedSum
@@ -72,7 +72,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
         + planCategoriesForBrand.none.plannedSum
         + planCategoriesForBrand.new.plannedSum) / brand.totalPlan) * 100
     : 0;
-  const hasBrandPlan = brand.totalPlan > 0;
+  const hasBrandPlan = !!planCategoriesForBrand && brand.totalPlan > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -106,15 +106,14 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
             <ChevronDown className="inline h-3 w-3 mr-1" />Менеджери
           </p>
           {brand.managers.map(m => {
-            // Per-manager «Запл. %» — завжди показуємо коли менеджер має target
-            // ($m.plan>0). Якщо нема плану від нього — 0% (не ховаємо).
+            // Per-manager «Запл. %» — тільки коли planByLogin догрузився.
             const mgrPlan = planByLogin?.[m.login]?.[brand.segmentCode];
             const mgrForecast = mgrPlan?.forecast ?? 0;
             const mgrGap = mgrPlan?.gap ?? 0;
             const mgrExpectedPct = m.plan > 0
               ? ((mgrForecast + mgrGap) / m.plan) * 100
               : 0;
-            const hasMgrPlan = m.plan > 0;
+            const hasMgrPlan = !!planByLogin && m.plan > 0;
             return (
               <BrandRow
                 key={m.login}

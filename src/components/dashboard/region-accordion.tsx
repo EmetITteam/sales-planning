@@ -291,12 +291,11 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           />
           <div className="space-y-1.5">
             {aggregate.segments.map(seg => {
-              // Показуємо «Запл.: X%» ЗАВЖДИ коли бренд має target з 1С.
-              // Якщо менеджери регіону не планували — Запл.: 0% (а не сховано).
+              // hasManagerPlan тільки коли planAgg догрузилось (без blink).
               const segPlan = planAgg?.bySegment[seg.segmentCode];
               const managerForecast = segPlan?.forecast ?? 0;
               const managerGap = segPlan?.gap ?? 0;
-              const hasManagerPlan = seg.planAmount > 0;
+              const hasManagerPlan = !!planAgg && seg.planAmount > 0;
               const expectedPercent = seg.planAmount > 0
                 ? ((managerForecast + managerGap) / seg.planAmount) * 100
                 : 0;

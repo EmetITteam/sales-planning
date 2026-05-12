@@ -58,12 +58,22 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'segmentCode + periodId required' }, { status: 400 });
   }
   // ⚠️ ARCH (2026-05-12): snapshots зберігаємо у monthly pid (як forecasts/gap_closures).
-  // Pure-фолбек через YYYYMMDD формат periodId — без SELECT periods.
+  // Trier:
+  //   1. period.month hint від клієнта (fast path)
+  //   2. pure-fallback з YYYYMMDD формату periodId (новий код завжди такий)
+  //   3. SELECT periods.month — для legacy non-YYYYMMDD id (паритет з planning route)
   let monthlyPid = periodId;
   if (period?.month && /^\d{4}-\d{2}/.test(String(period.month))) {
     monthlyPid = monthlyPidFromMonth(String(period.month));
   } else {
-    monthlyPid = monthlyPidFromAnyPid(periodId);
+    const purePid = monthlyPidFromAnyPid(periodId);
+    if (purePid !== periodId) {
+      monthlyPid = purePid;
+    } else {
+      // Legacy/non-YYYYMMDD pid — лук-апимо month у periods.
+      const { data: pRow } = await supabase.from('periods').select('month').eq('id', periodId).single();
+      if (pRow?.month) monthlyPid = monthlyPidFromMonth(String(pRow.month));
+    }
   }
   const allowedSources = new Set(['auto-populate', 'backfill', 'manual']);
   const safeSource = allowedSources.has(source) ? source : 'auto-populate';

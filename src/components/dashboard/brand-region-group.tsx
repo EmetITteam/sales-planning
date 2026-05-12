@@ -74,7 +74,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
 
   // «Запл. %» для бренду в цілому: Σ planSum / brand.totalPlan.
-  // Завжди показуємо коли бренд має target — 0% значить «нема плану».
+  // hasBrandPlan тільки після того як planCategoriesForBrand догрузився.
   const brandExpectedPct = brand.totalPlan > 0 && planCategoriesForBrand
     ? ((planCategoriesForBrand.active.plannedSum
         + planCategoriesForBrand.sleeping.plannedSum
@@ -82,7 +82,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
         + planCategoriesForBrand.none.plannedSum
         + planCategoriesForBrand.new.plannedSum) / brand.totalPlan) * 100
     : 0;
-  const hasBrandPlan = brand.totalPlan > 0;
+  const hasBrandPlan = !!planCategoriesForBrand && brand.totalPlan > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -118,7 +118,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
           {brand.regions.map(r => {
             const isRegionExpanded = expandedRegion === r.regionCode;
             // Per-region «Запл. %» = Σ менеджерів регіону (forecast+gap) / r.plan.
-            // Завжди показуємо коли регіон має target — 0% якщо ніхто не планував.
+            // hasRegionPlan тільки коли planByLogin догрузився (без blink).
             let regionForecastPlusGap = 0;
             if (planByLogin) {
               for (const m of r.managers) {
@@ -129,7 +129,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
             const regionExpectedPct = r.plan > 0
               ? (regionForecastPlusGap / r.plan) * 100
               : 0;
-            const hasRegionPlan = r.plan > 0;
+            const hasRegionPlan = !!planByLogin && r.plan > 0;
             return (
               <div key={r.regionCode}>
                 <div className="flex items-center gap-1">

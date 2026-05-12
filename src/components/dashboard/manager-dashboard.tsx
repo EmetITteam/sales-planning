@@ -238,10 +238,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
       const segPlan = planAgg?.bySegment[seg.code];
       const managerForecast = segPlan?.forecast ?? 0;
       const managerGap = segPlan?.gap ?? 0;
-      // Показуємо «Запл.: X%» ЗАВЖДИ коли бренд має target з 1С. Якщо
-      // менеджер не заповнив план → Запл.: 0% (не ховаємо). Узгоджено з
-      // manager-accordion/region-accordion/brand-row логікою.
-      const hasManagerPlan = planAmount > 0;
+      // Показуємо «Запл.: X%» коли (1) planAgg уже догрузився, і (2) бренд
+      // має target. Без guard на planAgg був blink: 0% → реальний %
+      // через ~500ms коли SWR закінчував fetch.
+      const hasManagerPlan = !!planAgg && planAmount > 0;
       const expectedPct = planAmount > 0
         ? ((managerForecast + managerGap) / planAmount) * 100
         : 0;

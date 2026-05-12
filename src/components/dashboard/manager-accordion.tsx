@@ -186,11 +186,9 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             const segPlan = planAgg?.bySegment[seg.segmentCode];
             const managerForecast = segPlan?.forecast ?? 0;
             const managerGap = segPlan?.gap ?? 0;
-            // Показуємо «Запл.: X%» ЗАВЖДИ коли бренд має target з 1С.
-            // Раніше ховали при forecast+gap=0 — менеджер який не запланував
-            // бачив бренд БЕЗ підпису і думав що щось зламано.
-            // Тепер показуємо «Запл.: 0%» — це чітко: «плану нема».
-            const hasManagerPlan = seg.planAmount > 0;
+            // hasManagerPlan тільки після того як planAgg догрузилось.
+            // Уникає blink «Запл.: 0%» → реальний % коли SWR fetch-ить.
+            const hasManagerPlan = !!planAgg && seg.planAmount > 0;
             const expectedPercent = seg.planAmount > 0
               ? ((managerForecast + managerGap) / seg.planAmount) * 100
               : 0;

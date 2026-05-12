@@ -27,11 +27,21 @@ function getSecret(): Uint8Array {
   const raw = process.env.SESSION_SECRET;
   // Перевірка на runtime (не на module-level) — інакше `next build`
   // на CI/Vercel падає бо env збираються після phase build.
-  if (process.env.NODE_ENV === 'production' && !raw) {
-    throw new Error(
-      'SESSION_SECRET env variable is required in production. ' +
-      'Generate one: `openssl rand -hex 32`. Set in Vercel → Environment Variables.'
-    );
+  if (process.env.NODE_ENV === 'production') {
+    if (!raw) {
+      throw new Error(
+        'SESSION_SECRET env variable is required in production. ' +
+        'Generate one: `openssl rand -hex 32`. Set in Vercel → Environment Variables.'
+      );
+    }
+    // HS256 рекомендує ключ ≥ 32 байти (256 біт). Менший — brute-force-able.
+    // Захист від випадкового короткого secret який пройшов би все інше.
+    if (raw.length < 32) {
+      throw new Error(
+        `SESSION_SECRET too short (${raw.length} chars). Must be ≥ 32 chars for HS256 security. ` +
+        'Generate proper one: `openssl rand -hex 32`'
+      );
+    }
   }
   return new TextEncoder().encode(raw || 'dev-only-secret-change-in-production-32b');
 }
