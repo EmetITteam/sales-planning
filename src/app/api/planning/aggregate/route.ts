@@ -82,14 +82,17 @@ export async function POST(request: NextRequest) {
   // Завантажуємо дві таблиці паралельно. Тільки потрібні поля.
   // У gap_closures добавляємо category — потрібно для розкладу по категоріях
   // (Сплячі / Втрачені / Нові / БЗ → агрегуємо у блок «Активізація» + «Нові» окремо).
+  // ⚠️ M8: фільтр archived_at IS NULL — приховує soft-deleted рядки baгaжу.
   const [forecastsRes, gapsRes] = await Promise.all([
     supabase.from('forecasts')
       .select('user_id,segment_code,client_id_1c,forecast_amount')
       .eq('period_id', pid)
+      .is('archived_at', null)
       .in('user_id', safeLogins),
     supabase.from('gap_closures')
       .select('user_id,segment_code,client_id_1c,potential_amount,category')
       .eq('period_id', pid)
+      .is('archived_at', null)
       .in('user_id', safeLogins),
   ]);
 

@@ -75,12 +75,17 @@ export async function GET(request: NextRequest) {
   const resolved = await resolveMonthlyPid(rawPid, monthQuery);
   const pid = resolved.pid;
 
+  // ⚠️ M8 (2026-05-12): фільтр `archived_at IS NULL` — приховує soft-deleted
+  // рядки baгaжу від M7 union'у weekly-pid саwes. Hard-DELETE через форму
+  // (POST з clearAll=true) і далі видаляє з БД повністю.
   const [forecasts, gapClosures, summary] = await Promise.all([
     supabase.from('forecasts').select('*')
       .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
+      .is('archived_at', null)
       .order('completed', { ascending: true }).order('client_name', { ascending: true }),
     supabase.from('gap_closures').select('*')
       .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
+      .is('archived_at', null)
       .order('client_name', { ascending: true }),
     supabase.from('period_summaries').select('*')
       .eq('period_id', pid).eq('user_id', uid).eq('segment_code', segmentCode)
@@ -192,6 +197,9 @@ export async function POST(request: NextRequest) {
       training_name: f.trainingName || null,
       training_date: f.trainingDate || null,
       stage_done: f.stageDone || false,
+      // M8: явно скидаємо archived_at при ре-save — якщо менеджер заново
+      // додає колись archived клієнта через форму, він стає активним.
+      archived_at: null,
     };
   }).filter((r): r is NonNullable<typeof r> => r !== null);
   const gapRows = (gapClosures as GRow[] | undefined ?? []).map(g => {
@@ -210,6 +218,8 @@ export async function POST(request: NextRequest) {
       training_id: g.trainingId || null,
       training_name: g.trainingName || null,
       training_date: g.trainingDate || null,
+      // M8: revive on re-save (див. forecastRows вище)
+      archived_at: null,
     };
   }).filter((r): r is NonNullable<typeof r> => r !== null);
 

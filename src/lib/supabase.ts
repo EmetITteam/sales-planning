@@ -57,6 +57,12 @@ class SupabaseTable {
     this.queryParts.push(`${column}=eq.${encodeURIComponent(String(value))}`);
     return this;
   }
+  // is — для null / true / false порівнянь (PostgREST `is.null` / `is.true`)
+  is(column: string, value: null | true | false): this {
+    const v = value === null ? 'null' : value ? 'true' : 'false';
+    this.queryParts.push(`${column}=is.${v}`);
+    return this;
+  }
   lt(column: string, value: string): this {
     this.queryParts.push(`${column}=lt.${encodeURIComponent(String(value))}`);
     return this;
