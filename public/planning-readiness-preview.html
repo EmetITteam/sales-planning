@@ -9,37 +9,31 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --background: #f4f7fb;
-    --foreground: #1c2434;
-    --muted-foreground: #7c879a;
-  }
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
-    background: var(--background);
-    color: var(--foreground);
+    background: #f4f7fb;
+    color: #1c2434;
   }
-  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
-  .text-muted-foreground { color: var(--muted-foreground); }
+  .amount, .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .text-muted-foreground { color: #7c879a; }
+  .text-muted-50 { color: rgba(124, 135, 154, 0.5); }
+  .text-muted-40 { color: rgba(124, 135, 154, 0.4); }
 </style>
 </head>
-<body class="bg-[#f4f7fb] p-8">
+<body class="p-8">
 
 <div class="max-w-[1100px] mx-auto">
-  <h1 class="text-[18px] font-bold mb-1">Готовність планування — preview</h1>
-  <p class="text-[12px] text-muted-foreground mb-6">Стиль повторює RegionAccordion + MetricCard. Травень 2026, реальні дані.</p>
 
-  <!-- ═══════════ ОДНА КАРТКА ═══════════ -->
+  <!-- Картка готовності — повторює структуру RegionAccordion -->
   <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
 
-    <!-- DESKTOP ROW — формат як RegionAccordion -->
-    <div onclick="toggleMain()" id="main-row" class="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors">
-      <!-- Icon block — w-10 h-10 rounded-xl bg-[#e8f4fc] -->
+    <!-- HEADER ROW -->
+    <div onclick="toggleMain()" class="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors">
+      <!-- Icon block — як у region-accordion w-10 h-10 bg-[#e8f4fc] -->
       <div class="flex items-center gap-3 min-w-0 shrink-0">
         <div class="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
-          <!-- ClipboardCheck (Lucide) -->
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#066aab" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
@@ -52,66 +46,66 @@
         </div>
       </div>
 
-      <!-- Mini-list регіонів — 2 columns (як менеджери у RegionAccordion) -->
+      <!-- Mini-list регіонів — точно як міні-list менеджерів у RegionAccordion -->
       <div class="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
-        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap" title="Київ: 4/6 заповнили">
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
           <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
           <span class="font-semibold text-foreground/80 truncate">Київ</span>
           <span class="font-bold shrink-0 text-amber-600">67%</span>
-          <span class="text-[10px] shrink-0 text-muted-foreground mono">4/6</span>
+          <span class="text-[10px] shrink-0 text-muted-50">4/6</span>
         </span>
-        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap" title="Дніпро: 2/5 заповнили">
+        <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
           <span class="w-2 h-2 rounded-full shrink-0 bg-rose-500"></span>
           <span class="font-semibold text-foreground/80 truncate">Дніпро</span>
           <span class="font-bold shrink-0 text-rose-600">40%</span>
-          <span class="text-[10px] shrink-0 text-muted-foreground mono">2/5</span>
+          <span class="text-[10px] shrink-0 text-muted-50">2/5</span>
         </span>
         <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
           <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
           <span class="font-semibold text-foreground/80 truncate">Запоріжжя</span>
-          <span class="font-bold shrink-0 text-amber-600">100%</span>
-          <span class="text-[10px] shrink-0 text-muted-foreground mono">2/2</span>
+          <span class="font-bold shrink-0 text-amber-600">83%</span>
+          <span class="text-[10px] shrink-0 text-muted-50">2/2</span>
         </span>
         <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
           <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
           <span class="font-semibold text-foreground/80 truncate">Миколаїв</span>
           <span class="font-bold shrink-0 text-amber-600">67%</span>
-          <span class="text-[10px] shrink-0 text-muted-foreground mono">2/3</span>
+          <span class="text-[10px] shrink-0 text-muted-50">2/3</span>
         </span>
         <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
           <span class="w-2 h-2 rounded-full shrink-0 bg-rose-500"></span>
           <span class="font-semibold text-foreground/80 truncate">Одеса</span>
           <span class="font-bold shrink-0 text-rose-600">33%</span>
-          <span class="text-[10px] shrink-0 text-muted-foreground mono">1/3</span>
+          <span class="text-[10px] shrink-0 text-muted-50">1/3</span>
         </span>
         <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
           <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
           <span class="font-semibold text-foreground/80 truncate">Харків</span>
           <span class="font-bold shrink-0 text-amber-600">100%</span>
-          <span class="text-[10px] shrink-0 text-muted-foreground mono">2/2</span>
+          <span class="text-[10px] shrink-0 text-muted-50">2/2</span>
         </span>
         <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
           <span class="w-2 h-2 rounded-full shrink-0 bg-amber-500"></span>
           <span class="font-semibold text-foreground/80 truncate">Житомир</span>
           <span class="font-bold shrink-0 text-amber-600">44%</span>
-          <span class="text-[10px] shrink-0 text-muted-foreground mono">1/1</span>
+          <span class="text-[10px] shrink-0 text-muted-50">1/1</span>
         </span>
         <span class="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
           <span class="w-2 h-2 rounded-full shrink-0 bg-rose-500"></span>
           <span class="font-semibold text-foreground/80 truncate">Вінниця</span>
           <span class="font-bold shrink-0 text-rose-600">0%</span>
-          <span class="text-[10px] shrink-0 text-muted-foreground mono">0/1</span>
+          <span class="text-[10px] shrink-0 text-muted-50">0/1</span>
         </span>
       </div>
 
-      <!-- Right cluster — як у RegionAccordion правий блок -->
+      <!-- Right cluster — як у RegionAccordion -->
       <div class="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
         <div class="text-right min-w-[140px]">
           <p class="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Заповнили</p>
           <p class="text-[14px] font-bold mono leading-none mt-1.5 whitespace-nowrap">
-            14<span class="text-muted-foreground/50 font-normal"> / </span><span class="text-muted-foreground/70">24</span>
+            14<span class="text-muted-50 font-normal"> / </span><span class="text-muted-50">24</span>
           </p>
-          <p class="text-[10px] text-muted-foreground leading-none mt-1">3 ✓ повністю · 11 ◐ частково</p>
+          <p class="text-[10px] text-muted-foreground leading-none mt-1">3 повністю · 11 частково</p>
         </div>
         <div class="flex flex-col items-center gap-1 w-14">
           <div class="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
@@ -125,203 +119,222 @@
         </div>
         <div>
           <div class="h-[12px] leading-none mb-1.5"></div>
-          <svg id="chev-main" class="h-4 w-4 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <svg id="chev-main" class="h-4 w-4 text-muted-40 transition-transform rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
       </div>
     </div>
 
-    <!-- EXPANDED — як bg-[#fafbfe] border-t -->
+    <!-- EXPANDED — як у RegionAccordion bg-[#fafbfe] border-t -->
     <div id="expanded" class="px-5 pb-4 pt-3 space-y-2 bg-[#fafbfe] border-t border-[#f0f2f8]">
 
-      <!-- Region: Київ (expanded by default for demo) -->
-      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
-        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
-          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="text-[13px] font-bold truncate flex-1">Київ</span>
-          <span class="text-[11px] text-muted-foreground mono">4/6 заповнили</span>
-          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
-            <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+      <!-- Регіон-рядок: точно як BrandRow стиль -->
+      <!-- KYIV -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full grid grid-cols-[20px_1fr_120px_60px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></span>
+          <span class="text-[14px] font-bold">Київ</span>
+          <span class="text-[11px] text-muted-foreground text-right mono">4/6 заповнили</span>
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+            </div>
+            <span class="text-[11px] font-bold leading-none text-amber-600">67%</span>
           </div>
-          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">67%</span>
-          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg class="chev-region h-4 w-4 text-muted-40 transition-transform rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="px-4 pb-2 pt-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 border-t border-[#f0f2f8] bg-[#fafbfe]">
-          <div class="flex items-center gap-2 py-1 text-[11px]">
-            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-            <span class="font-semibold text-rose-700 truncate flex-1">Кравченко Катерина</span>
-            <span class="text-muted-foreground mono">0/9</span>
-          </div>
-          <div class="flex items-center gap-2 py-1 text-[11px]">
-            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-            <span class="font-semibold text-rose-700 truncate flex-1">Некова Катерина</span>
-            <span class="text-muted-foreground mono">0/9</span>
-          </div>
-          <div>
-            <div class="flex items-center gap-2 py-1 text-[11px]">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              <span class="font-semibold truncate flex-1">Свідзинська Юлія</span>
-              <span class="font-bold text-amber-600 mono">3/9</span>
+        <div class="region-body px-4 pb-3 pt-2 border-t border-[#f0f2f8] bg-[#fafbfe] grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+          <!-- Manager rows -->
+          <div class="flex flex-col gap-0.5">
+            <div class="flex items-center gap-2 text-[12px]">
+              <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span class="font-semibold text-rose-700 flex-1 truncate">Кравченко Катерина</span>
+              <span class="text-[11px] text-rose-600 font-bold mono">0/9</span>
             </div>
-            <div class="pl-3.5 -mt-0.5 mb-1 text-[10px] text-muted-foreground/80">
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <div class="flex items-center gap-2 text-[12px]">
+              <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span class="font-semibold text-rose-700 flex-1 truncate">Некова Катерина</span>
+              <span class="text-[11px] text-rose-600 font-bold mono">0/9</span>
+            </div>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <div class="flex items-center gap-2 text-[12px]">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span class="font-semibold flex-1 truncate">Свідзинська Юлія</span>
+              <span class="text-[11px] text-amber-600 font-bold mono">3/9</span>
+            </div>
+            <p class="text-[10.5px] text-muted-foreground pl-4 leading-tight">
               пропустила:
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">ESSE</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">IUSE</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">NEURAMIS</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">NEURONOX</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">OTHER</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">VITARAN</span>
-            </div>
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">ESSE</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">IUSE</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">Neuramis</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">Neuronox</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">OTHER</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">Vitaran</span>
+            </p>
           </div>
-          <div>
-            <div class="flex items-center gap-2 py-1 text-[11px]">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              <span class="font-semibold truncate flex-1">Мігашко Анна</span>
-              <span class="font-bold text-amber-600 mono">6/9</span>
+          <div class="flex flex-col gap-0.5">
+            <div class="flex items-center gap-2 text-[12px]">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span class="font-semibold flex-1 truncate">Мігашко Анна</span>
+              <span class="text-[11px] text-amber-600 font-bold mono">6/9</span>
             </div>
-            <div class="pl-3.5 -mt-0.5 mb-1 text-[10px] text-muted-foreground/80">
+            <p class="text-[10.5px] text-muted-foreground pl-4 leading-tight">
               пропустила:
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">NEURONOX</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">OTHER</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">VITARAN</span>
-            </div>
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">Neuronox</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">OTHER</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">Vitaran</span>
+            </p>
           </div>
-          <div>
-            <div class="flex items-center gap-2 py-1 text-[11px]">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              <span class="font-semibold truncate flex-1">Бойко Ольга</span>
-              <span class="font-bold text-amber-600 mono">6/9</span>
+          <div class="flex flex-col gap-0.5">
+            <div class="flex items-center gap-2 text-[12px]">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span class="font-semibold flex-1 truncate">Бойко Ольга</span>
+              <span class="text-[11px] text-amber-600 font-bold mono">6/9</span>
             </div>
-            <div class="pl-3.5 -mt-0.5 mb-1 text-[10px] text-muted-foreground/80">
+            <p class="text-[10.5px] text-muted-foreground pl-4 leading-tight">
               пропустила:
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">NEURONOX</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">OTHER</span>
-              <span class="inline-block px-1 py-px ml-0.5 bg-white border border-[#e2e7ef] rounded mono text-[9.5px]">VITARAN</span>
-            </div>
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">Neuronox</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">OTHER</span>,
+              <span class="font-semibold text-rose-600">●</span> <span class="font-medium">Vitaran</span>
+            </p>
           </div>
-          <div class="flex items-center gap-2 py-1 text-[11px]">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span class="font-semibold truncate flex-1">Селіванова Вікторія</span>
-            <span class="font-bold text-emerald-600 mono">9/9</span>
+          <div class="flex flex-col gap-0.5">
+            <div class="flex items-center gap-2 text-[12px]">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span class="font-semibold flex-1 truncate">Селіванова Вікторія</span>
+              <span class="text-[11px] text-emerald-600 font-bold mono">9/9</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Region: Дніпро (collapsed) -->
-      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
-        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
-          <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
-          <span class="text-[13px] font-bold truncate flex-1">Дніпро</span>
-          <span class="text-[11px] text-muted-foreground mono">2/5 заповнили</span>
-          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
-            <div class="h-full rounded-full bg-rose-500" style="width: 40%"></div>
+      <!-- DNIPRO -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full grid grid-cols-[20px_1fr_120px_60px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left">
+          <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></span>
+          <span class="text-[14px] font-bold">Дніпро</span>
+          <span class="text-[11px] text-muted-foreground text-right mono">2/5 заповнили</span>
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div class="h-full rounded-full bg-rose-500" style="width: 40%"></div>
+            </div>
+            <span class="text-[11px] font-bold leading-none text-rose-600">40%</span>
           </div>
-          <span class="text-[11px] font-bold text-rose-600 mono w-10 text-right">40%</span>
-          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg class="chev-region h-4 w-4 text-muted-40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="hidden px-4 pb-2 pt-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 border-t border-[#f0f2f8] bg-[#fafbfe]">
-          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span class="font-semibold text-rose-700 truncate flex-1">Фещенко Олена</span><span class="text-muted-foreground mono">0/9</span></div>
-          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span class="font-semibold text-rose-700 truncate flex-1">Сірик Наталія</span><span class="text-muted-foreground mono">0/9</span></div>
-          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span class="font-semibold text-rose-700 truncate flex-1">Іванова Марина</span><span class="text-muted-foreground mono">0/9</span></div>
-          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-semibold truncate flex-1">Фещенко Анна</span><span class="font-bold text-amber-600 mono">1/9</span></div>
-          <div class="flex items-center gap-2 py-1 text-[11px]"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-semibold truncate flex-1">Сірик Людмила</span><span class="font-bold text-amber-600 mono">6/9</span></div>
-        </div>
+        <div class="region-body hidden px-4 pb-3 pt-2 border-t border-[#f0f2f8] bg-[#fafbfe] grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2"></div>
       </div>
 
-      <!-- Region: Запоріжжя -->
-      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
-        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
-          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="text-[13px] font-bold truncate flex-1">Запоріжжя</span>
-          <span class="text-[11px] text-muted-foreground mono">2/2 заповнили</span>
-          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
-            <div class="h-full rounded-full bg-amber-500" style="width: 83%"></div>
+      <!-- ZAPORIZHZHYA -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full grid grid-cols-[20px_1fr_120px_60px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></span>
+          <span class="text-[14px] font-bold">Запоріжжя</span>
+          <span class="text-[11px] text-muted-foreground text-right mono">2/2 заповнили</span>
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div class="h-full rounded-full bg-amber-500" style="width: 83%"></div>
+            </div>
+            <span class="text-[11px] font-bold leading-none text-amber-600">83%</span>
           </div>
-          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">83%</span>
-          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg class="chev-region h-4 w-4 text-muted-40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="hidden px-4 pb-2 pt-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 border-t border-[#f0f2f8] bg-[#fafbfe]"></div>
+        <div class="region-body hidden px-4 pb-3 pt-2 border-t border-[#f0f2f8] bg-[#fafbfe]"></div>
       </div>
 
-      <!-- Region: Миколаїв -->
-      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
-        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
-          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="text-[13px] font-bold truncate flex-1">Миколаїв</span>
-          <span class="text-[11px] text-muted-foreground mono">2/3 заповнили</span>
-          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
-            <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+      <!-- MYKOLAIV -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full grid grid-cols-[20px_1fr_120px_60px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></span>
+          <span class="text-[14px] font-bold">Миколаїв</span>
+          <span class="text-[11px] text-muted-foreground text-right mono">2/3 заповнили</span>
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+            </div>
+            <span class="text-[11px] font-bold leading-none text-amber-600">67%</span>
           </div>
-          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">67%</span>
-          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg class="chev-region h-4 w-4 text-muted-40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="hidden"></div>
+        <div class="region-body hidden px-4 pb-3 pt-2 border-t border-[#f0f2f8] bg-[#fafbfe]"></div>
       </div>
 
-      <!-- Region: Одеса -->
-      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
-        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
-          <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
-          <span class="text-[13px] font-bold truncate flex-1">Одеса</span>
-          <span class="text-[11px] text-muted-foreground mono">1/3 заповнили</span>
-          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
-            <div class="h-full rounded-full bg-rose-500" style="width: 33%"></div>
+      <!-- ODESA -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full grid grid-cols-[20px_1fr_120px_60px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left">
+          <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></span>
+          <span class="text-[14px] font-bold">Одеса</span>
+          <span class="text-[11px] text-muted-foreground text-right mono">1/3 заповнили</span>
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div class="h-full rounded-full bg-rose-500" style="width: 33%"></div>
+            </div>
+            <span class="text-[11px] font-bold leading-none text-rose-600">33%</span>
           </div>
-          <span class="text-[11px] font-bold text-rose-600 mono w-10 text-right">33%</span>
-          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg class="chev-region h-4 w-4 text-muted-40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="hidden"></div>
+        <div class="region-body hidden px-4 pb-3 pt-2 border-t border-[#f0f2f8] bg-[#fafbfe]"></div>
       </div>
 
-      <!-- Region: Харків -->
-      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
-        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
-          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="text-[13px] font-bold truncate flex-1">Харків</span>
-          <span class="text-[11px] text-muted-foreground mono">2/2 заповнили</span>
-          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
-            <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+      <!-- KHARKIV -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full grid grid-cols-[20px_1fr_120px_60px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></span>
+          <span class="text-[14px] font-bold">Харків</span>
+          <span class="text-[11px] text-muted-foreground text-right mono">2/2 заповнили</span>
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div class="h-full rounded-full bg-amber-500" style="width: 67%"></div>
+            </div>
+            <span class="text-[11px] font-bold leading-none text-amber-600">67%</span>
           </div>
-          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">67%</span>
-          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg class="chev-region h-4 w-4 text-muted-40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="hidden"></div>
+        <div class="region-body hidden px-4 pb-3 pt-2 border-t border-[#f0f2f8] bg-[#fafbfe]"></div>
       </div>
 
-      <!-- Region: Житомир -->
-      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
-        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
-          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-          <span class="text-[13px] font-bold truncate flex-1">Житомир</span>
-          <span class="text-[11px] text-muted-foreground mono">1/1 заповнили</span>
-          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
-            <div class="h-full rounded-full bg-amber-500" style="width: 44%"></div>
+      <!-- ZHYTOMYR -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full grid grid-cols-[20px_1fr_120px_60px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></span>
+          <span class="text-[14px] font-bold">Житомир</span>
+          <span class="text-[11px] text-muted-foreground text-right mono">1/1 заповнили</span>
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div class="h-full rounded-full bg-amber-500" style="width: 44%"></div>
+            </div>
+            <span class="text-[11px] font-bold leading-none text-amber-600">44%</span>
           </div>
-          <span class="text-[11px] font-bold text-amber-600 mono w-10 text-right">44%</span>
-          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg class="chev-region h-4 w-4 text-muted-40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="hidden"></div>
+        <div class="region-body hidden px-4 pb-3 pt-2 border-t border-[#f0f2f8] bg-[#fafbfe]"></div>
       </div>
 
-      <!-- Region: Вінниця -->
-      <div class="bg-white rounded-xl border border-[#f0f2f8] overflow-hidden">
-        <button onclick="toggleRegion(this)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbfe] text-left">
-          <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
-          <span class="text-[13px] font-bold truncate flex-1">Вінниця</span>
-          <span class="text-[11px] text-muted-foreground mono">0/1 заповнили</span>
-          <div class="w-20 h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden">
-            <div class="h-full rounded-full bg-rose-500" style="width: 0%"></div>
+      <!-- VINNYTSIA -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <button onclick="toggleRegion(this)" class="w-full grid grid-cols-[20px_1fr_120px_60px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left">
+          <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></span>
+          <span class="text-[14px] font-bold">Вінниця</span>
+          <span class="text-[11px] text-muted-foreground text-right mono">0/1 заповнили</span>
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+              <div class="h-full rounded-full bg-rose-500" style="width: 0%"></div>
+            </div>
+            <span class="text-[11px] font-bold leading-none text-rose-600">0%</span>
           </div>
-          <span class="text-[11px] font-bold text-rose-600 mono w-10 text-right">0%</span>
-          <svg class="chev-region h-3.5 w-3.5 text-muted-foreground/40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg class="chev-region h-4 w-4 text-muted-40 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="hidden"></div>
+        <div class="region-body hidden px-4 pb-3 pt-2 border-t border-[#f0f2f8] bg-[#fafbfe]"></div>
       </div>
 
     </div>
   </div>
 
-  <p class="text-[11px] text-muted-foreground text-center mt-4">
-    Збігається з RegionAccordion: card · rounded-2xl · soft shadow · міні-лист регіонів у заголовку · expand → таблиця регіонів з тонким прогрес-баром · подвійне expand → менеджери з міткою пропущених брендів.
+  <p class="text-[11px] text-muted-foreground text-center mt-4 max-w-[700px] mx-auto">
+    Регіон-рядок = BrandRow стиль (rounded-2xl card, dot + назва, progress bar, %, chevron).
+    Бренди — текст з крапкою як у вашому brand-row: <span class="text-rose-600">●</span> Neuramis. Без chips.
   </p>
 </div>
 
@@ -336,7 +349,7 @@
     const body = btn.nextElementSibling;
     const chev = btn.querySelector('.chev-region');
     body.classList.toggle('hidden');
-    chev.classList.toggle('rotate-90');
+    chev.classList.toggle('rotate-180');
   }
 </script>
 
