@@ -27,6 +27,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
+import { monthlyPidFromMonth } from '@/lib/periods';
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -38,9 +39,17 @@ export async function POST(request: NextRequest) {
   try { body = await request.json(); }
   catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { periodId, logins } = body ?? {};
-  const pid = parseInt(String(periodId), 10);
-  if (isNaN(pid)) return Response.json({ error: 'periodId must be number' }, { status: 400 });
+  const { periodId, logins, month: monthHint } = body ?? {};
+  const rawPid = parseInt(String(periodId), 10);
+  if (isNaN(rawPid)) return Response.json({ error: 'periodId must be number' }, { status: 400 });
+  // Ремап на monthly pid (як у /api/planning save/load).
+  let pid = rawPid;
+  if (typeof monthHint === 'string' && /^\d{4}-\d{2}/.test(monthHint)) {
+    pid = monthlyPidFromMonth(monthHint);
+  } else {
+    const { data: pRow } = await supabase.from('periods').select('month').eq('id', rawPid).single();
+    if (pRow?.month) pid = monthlyPidFromMonth(String(pRow.month));
+  }
   if (!Array.isArray(logins) || logins.length === 0) {
     return Response.json({ error: 'logins must be non-empty array' }, { status: 400 });
   }

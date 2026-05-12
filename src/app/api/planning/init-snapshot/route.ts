@@ -32,6 +32,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
+import { monthlyPidFromMonth, monthlyPeriodMeta } from '@/lib/periods';
 
 interface SnapshotClient {
   clientId1c: string;
@@ -55,6 +56,15 @@ export async function POST(request: NextRequest) {
   if (!segmentCode || typeof periodId !== 'number') {
     return Response.json({ error: 'segmentCode + periodId required' }, { status: 400 });
   }
+  // ⚠️ ARCH (2026-05-12): snapshots зберігаємо у monthly pid (як forecasts/gap_closures).
+  // Якщо клієнт прислав тижневий — ремаппимо через period.month або через SELECT periods.
+  let monthlyPid = periodId;
+  if (period?.month && /^\d{4}-\d{2}/.test(String(period.month))) {
+    monthlyPid = monthlyPidFromMonth(String(period.month));
+  } else {
+    const { data: pRow } = await supabase.from('periods').select('month').eq('id', periodId).single();
+    if (pRow?.month) monthlyPid = monthlyPidFromMonth(String(pRow.month));
+  }
   const allowedSources = new Set(['auto-populate', 'backfill', 'manual']);
   const safeSource = allowedSources.has(source) ? source : 'auto-populate';
 
@@ -70,12 +80,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
   const uid = effectiveLogin;
-  const ctx = { uid, periodId, segmentCode };
+  const ctx = { uid, pid: monthlyPid, segmentCode };
 
-  // FK setup: period + user мають існувати. Robomо upsert щоб не падати на FK.
-  if (period?.weekStart && period?.weekEnd && period?.month) {
+  // FK setup: period + user мають існувати. UPSERT-имо саме MONTHLY meta,
+  // не тижневий (бо все пишемо у monthly pid).
+  if (period?.month) {
+    const meta = monthlyPeriodMeta(String(period.month));
     const { error: e } = await supabase.from('periods').upsert({
-      id: periodId, week_start: period.weekStart, week_end: period.weekEnd, month: period.month,
+      id: meta.id, week_start: meta.weekStart, week_end: meta.weekEnd, month: meta.month,
     }, { onConflict: 'id' });
     if (e) {
       console.error('[init-snapshot] period upsert error:', { ...ctx, error: e.message });
@@ -109,7 +121,7 @@ export async function POST(request: NextRequest) {
     return Number.isFinite(n) ? n : null;
   };
   const buildRow = (c: SnapshotClient, blockType: 'forecast' | 'gap') => ({
-    period_id: periodId,
+    period_id: monthlyPid,
     user_id: uid,
     segment_code: segmentCode,
     block_type: blockType,

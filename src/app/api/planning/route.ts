@@ -1,7 +1,32 @@
 import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
+import { monthlyPidFromMonth, monthlyPeriodMeta } from '@/lib/periods';
 import { NextRequest } from 'next/server';
+
+/**
+ * ⚠️ ARCH (2026-05-12): planning-дані зберігаються у monthly period_id (не тижневому).
+ * Менеджер планує раз на місяць, тижневий фільтр — лише для expected % розрахунку.
+ * Якщо клієнт прислав тижневий pid — сервер ремаппить у monthly через period.month
+ * або, якщо month не передано, через SELECT periods.month WHERE id=pid.
+ */
+async function resolveMonthlyPid(
+  rawPid: number,
+  knownMonth?: string,
+): Promise<{ pid: number; month: string | null; error?: string }> {
+  // Швидкий шлях — клієнт передав period.month.
+  if (knownMonth && /^\d{4}-\d{2}/.test(knownMonth)) {
+    return { pid: monthlyPidFromMonth(knownMonth), month: knownMonth };
+  }
+  // Повільний шлях — лук-апимо month з periods table за rawPid.
+  const { data, error } = await supabase.from('periods').select('month').eq('id', rawPid).single();
+  if (error || !data?.month) {
+    // Не знайшли period — повертаємо rawPid як fallback (новий місяць буде створено upsert-ом).
+    return { pid: rawPid, month: null, error: error?.message };
+  }
+  const month = String(data.month);
+  return { pid: monthlyPidFromMonth(month), month };
+}
 
 // GET — завантажити дані планування
 export async function GET(request: NextRequest) {
@@ -27,13 +52,19 @@ export async function GET(request: NextRequest) {
   if (!segmentCode || !periodIdStr) {
     return Response.json({ error: 'Missing: segmentCode, periodId' }, { status: 400 });
   }
-  const pid = parseInt(periodIdStr, 10);
-  if (isNaN(pid)) {
+  const rawPid = parseInt(periodIdStr, 10);
+  if (isNaN(rawPid)) {
     return Response.json({ error: 'periodId must be a number' }, { status: 400 });
   }
   // SECURITY: user_id це сам login (M5) — клієнт не може запросити чужі дані
   // бо login приходить ТІЛЬКИ з підписаної cookie.
   const uid = requestedLogin;
+
+  // Ремап на канонічний monthly pid. Клієнт може передати тижневий pid у
+  // ?periodId=...&month=YYYY-MM-DD — швидкий шлях; інакше SELECT periods.
+  const monthQuery = searchParams.get('month') ?? undefined;
+  const resolved = await resolveMonthlyPid(rawPid, monthQuery);
+  const pid = resolved.pid;
 
   const [forecasts, gapClosures, summary] = await Promise.all([
     supabase.from('forecasts').select('*')
@@ -84,10 +115,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Missing: segmentCode, periodId' }, { status: 400 });
   }
 
-  const pid = parseInt(String(periodId), 10);
-  if (isNaN(pid)) {
+  const rawPid = parseInt(String(periodId), 10);
+  if (isNaN(rawPid)) {
     return Response.json({ error: 'periodId must be a number' }, { status: 400 });
   }
+  // ⚠️ ARCH: завжди пишемо у monthly pid (period.month → last day of month → id).
+  // Якщо клієнт прислав тижневий pid 20260510 + period.month=2026-05-01 → pid=20260531.
+  const resolved = await resolveMonthlyPid(rawPid, period?.month);
+  const pid = resolved.pid;
 
   // SECURITY: login беремо ТІЛЬКИ з підписаної сесії (cookie). body.userMeta
   // використовуємо лише для метаданих профілю (fullName/region) при upsert у users.
@@ -176,13 +211,17 @@ export async function POST(request: NextRequest) {
   }
 
   // ---- 1. Upsert period (FK для forecasts/gap_closures) ----
-  if (period?.weekStart && period?.weekEnd && period?.month) {
+  // Записуємо MONTHLY metadata (week_start='YYYY-MM-01', week_end=last_day),
+  // не той тижневий який міг прийти від клієнта. Тоді фільтри тиждень↔місяць
+  // у дашборді показують ОДИН той самий план.
+  if (period?.month) {
+    const meta = monthlyPeriodMeta(period.month);
     const { error: e } = await supabase.from('periods').upsert({
-      id: pid, week_start: period.weekStart, week_end: period.weekEnd, month: period.month,
+      id: meta.id, week_start: meta.weekStart, week_end: meta.weekEnd, month: meta.month,
     }, { onConflict: 'id' });
     if (e) { errors.push(`Upsert period: ${e.message}`); console.error('[planning.POST] period error:', { ...ctx, error: e.message }); }
   } else {
-    errors.push('Missing period metadata (weekStart/weekEnd/month)');
+    errors.push('Missing period metadata (month)');
   }
 
   // ---- 2. Upsert user (FK) ----

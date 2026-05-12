@@ -19,6 +19,45 @@ export function weekEndToId(weekEnd: string): number {
   return parseInt(weekEnd.replace(/-/g, ''), 10);
 }
 
+/**
+ * Канонічний (місячний) period_id для збереження planning-даних.
+ *
+ * Менеджер планує ОДИН раз на місяць. Тижневий фільтр у дашборді — лише
+ * для розрахунку «expected %» (factor pass/total робочих днів). Дані ж
+ * (forecasts/gap_closures/snapshots) фіксуються в одному місячному період-id
+ * для всіх тижнів місяця, інакше переключення фільтру тиждень↔місяць
+ * показує різні цифри плану.
+ *
+ * Приймає 'YYYY-MM' або 'YYYY-MM-DD'. Повертає id останнього дня місяця.
+ *   '2026-05'      → 20260531
+ *   '2026-05-01'   → 20260531
+ *   '2026-05-10'   → 20260531
+ *   '2026-04-15'   → 20260430
+ */
+export function monthlyPidFromMonth(month: string): number {
+  const m = /^(\d{4})-(\d{2})/.exec(month);
+  if (!m) throw new Error(`monthlyPidFromMonth: invalid month "${month}"`);
+  const year = parseInt(m[1], 10);
+  const monthIdx = parseInt(m[2], 10) - 1;
+  const lastDay = new Date(year, monthIdx + 1, 0); // day=0 → last day of prev month
+  return weekEndToId(toDateStr(lastDay));
+}
+
+/**
+ * Метадані канонічного monthly-періоду — для UPSERT у periods table при save.
+ */
+export function monthlyPeriodMeta(month: string): { id: number; weekStart: string; weekEnd: string; month: string } {
+  const m = /^(\d{4})-(\d{2})/.exec(month);
+  if (!m) throw new Error(`monthlyPeriodMeta: invalid month "${month}"`);
+  const year = parseInt(m[1], 10);
+  const monthIdx = parseInt(m[2], 10) - 1;
+  const first = new Date(year, monthIdx, 1);
+  const last = new Date(year, monthIdx + 1, 0);
+  const weekStart = toDateStr(first);
+  const weekEnd = toDateStr(last);
+  return { id: weekEndToId(weekEnd), weekStart, weekEnd, month: weekStart };
+}
+
 // Генерація наростаючих періодів строго в рамках місяця
 // Кожен період: з 1-го числа до кінця тижня
 export function getWeeksForMonth(year: number, month: number): PeriodInfo[] {
