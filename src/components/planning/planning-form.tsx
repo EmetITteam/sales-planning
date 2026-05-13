@@ -13,6 +13,7 @@ import { mutate as swrMutate } from 'swr';
 import { useAppStore } from '@/lib/store';
 import { isPlanningWritesAllowed, FEATURES } from '@/lib/feature-flags';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
+import { WindowLockBanner } from '@/components/window-lock-banner';
 import { useFinalizationStatus, finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
 import { useWindowStatus } from '@/lib/use-window-status';
 import { getMonthName } from '@/lib/periods';
@@ -1079,21 +1080,9 @@ export function PlanningForm({
 
       <MaintenanceBanner />
 
-      {/* Window-lock banner — Пакет А Етап 3 (2026-05-13). Admin не бачить
-          (для нього windowStatus.allowed=true завжди). */}
-      {isWindowLocked && !isAdmin && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-            <Lock className="h-4 w-4 text-rose-700" />
-          </div>
-          <div className="flex-1">
-            <p className="text-[14px] font-bold text-rose-900">Планування зараз закрите</p>
-            <p className="text-[13px] text-rose-800 mt-0.5">
-              {windowStatus?.message || 'Поточне вікно планування закрите. Зверніться до адміністратора.'}
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Window-lock banner — Пакет А Етап 3 (2026-05-13). Логіка показу
+          (admin/director/manager + global-block vs standard) у компоненті. */}
+      <WindowLockBanner />
 
       {/* Whose-plan banner — коли admin/RM/Director дивиться чужого менеджера,
           явно показуємо ім'я і логін щоб не загубитись (Етап 2.6, 2026-05-13). */}
