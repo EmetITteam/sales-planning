@@ -3,6 +3,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta } from '@/lib/periods';
 import { safeRole } from '@/lib/types';
+import { isPlanningWritesAllowed } from '@/lib/feature-flags';
 import { NextRequest } from 'next/server';
 
 /**
@@ -116,6 +117,15 @@ export async function POST(request: NextRequest) {
 
   const session = await getSession();
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // ⚠️ ТИМЧАСОВИЙ kill-switch (Пакет А Етап 0, 2026-05-13). Адмін (itd@emet.in.ua)
+  // обходить. Видаляється після Етапу 3 коли window-lock перебере контроль.
+  if (!isPlanningWritesAllowed(session.login)) {
+    return Response.json({
+      error: 'Триває оновлення системи. Планування тимчасово недоступне. Спробуйте пізніше.',
+      code: 'PLANNING_DISABLED',
+    }, { status: 503 });
+  }
 
   let body;
   try {

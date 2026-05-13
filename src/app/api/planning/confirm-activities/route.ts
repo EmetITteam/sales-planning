@@ -37,6 +37,7 @@ import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
+import { isPlanningWritesAllowed } from '@/lib/feature-flags';
 
 interface Confirmation {
   block: 'forecast' | 'gap';
@@ -48,6 +49,14 @@ export async function POST(request: NextRequest) {
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
   const session = await getSession();
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // ⚠️ ТИМЧАСОВИЙ kill-switch (Пакет А Етап 0, 2026-05-13). Адмін обходить.
+  if (!isPlanningWritesAllowed(session.login)) {
+    return Response.json({
+      error: 'Триває оновлення системи. Підтвердження активностей тимчасово недоступне.',
+      code: 'PLANNING_DISABLED',
+    }, { status: 503 });
+  }
 
   let body;
   try { body = await request.json(); }

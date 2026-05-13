@@ -55,11 +55,16 @@ async function dumpTable(table) {
   }
 }
 
-const date = new Date().toISOString().slice(0, 10);
-const dir = join(process.cwd(), 'backups', date);
+// ⚠️ Папка з ДАТОЮ+ЧАСОМ (UTC), щоб повторні backup НЕ перезаписували
+// попередні. Раніше суфікс був тільки `YYYY-MM-DD` → коли я (або hook)
+// прогнав backup двічі в один день, pre-migration snapshot затерся пост-
+// міграційним станом. Це втрата страховки для відкату.
+//   Приклад: backups/2026-05-12T15-23-47Z/
+const stamp = new Date().toISOString().replace(/:/g, '-').replace(/\.\d+/, '').replace(/Z$/, 'Z');
+const dir = join(process.cwd(), 'backups', stamp);
 mkdirSync(dir, { recursive: true });
 
-const manifest = { date, takenAt: new Date().toISOString(), tables: {} };
+const manifest = { stamp, takenAt: new Date().toISOString(), tables: {} };
 for (const t of TABLES) {
   process.stdout.write(`${t}... `);
   const { rows, total, skipped } = await dumpTable(t);
@@ -73,4 +78,4 @@ for (const t of TABLES) {
   console.log(`${rows.length} rows`);
 }
 writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-console.log(`\nBackup written to backups/${date}/`);
+console.log(`\nBackup written to backups/${stamp}/`);

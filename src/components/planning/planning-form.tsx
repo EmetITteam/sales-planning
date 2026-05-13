@@ -11,6 +11,7 @@ import { savePlanning, loadPlanning } from '@/lib/api';
 import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
 import { mutate as swrMutate } from 'swr';
 import { useAppStore } from '@/lib/store';
+import { isPlanningWritesAllowed, FEATURES } from '@/lib/feature-flags';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import {
@@ -72,13 +73,17 @@ const STAGE_OPTIONS = [
 ];
 
 export function PlanningForm({
-  segmentCode, onBack, readOnly = false, targetUserLogin,
+  segmentCode, onBack, readOnly: readOnlyProp = false, targetUserLogin,
   clientsResponse = null, clientsLoading = false, clientsError = null,
   planAmount: propPlanAmount = 0, factAmount: propFactAmount = 0,
   factResponse = null,
 }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
   const { currentPeriod, user } = useAppStore();
+  // ⚠️ Пакет А Етап 0 (2026-05-13): kill-switch під час оновлення системи.
+  // Адмін (itd@emet.in.ua) обходить. Видаляється після Етапу 3.
+  const isMaintenanceLocked = FEATURES.PLANNING_DISABLED && !isPlanningWritesAllowed(user?.login);
+  const readOnly = readOnlyProp || isMaintenanceLocked;
   // Дані вантажимо/зберігаємо для targetUserLogin (якщо переданий — РМ дивиться чужий план)
   // або для поточного увійшовшого user.login.
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
@@ -964,12 +969,27 @@ export function PlanningForm({
         <span className="text-muted-foreground/40">/</span>
         <span className="text-[15px] font-bold">{segment?.name}</span>
         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">{periodLabel}</span>
-        {readOnly && (
+        {readOnlyProp && (
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 flex items-center gap-1">
             <Eye className="h-3 w-3" /> Перегляд
           </span>
         )}
       </div>
+
+      {/* Maintenance banner — Пакет А Етап 0 (2026-05-13). Адмін не бачить. */}
+      {isMaintenanceLocked && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+            <Lock className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[14px] font-bold text-amber-900">Триває оновлення системи</p>
+            <p className="text-[13px] text-amber-800 mt-0.5">
+              Планування тимчасово недоступне. Ви можете переглядати дані, але збереження змін заблоковано. Доступ буде відновлено після оновлення.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Метрики */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
