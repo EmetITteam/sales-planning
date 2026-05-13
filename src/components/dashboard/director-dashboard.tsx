@@ -350,7 +350,19 @@ export function DirectorDashboard() {
               label="План компанії"
               value={formatUSD(totalPlan)}
               isAmount
-              caption={<span className="text-muted-foreground">{periodLabel} · {workingDaysLabel(totalWD)}</span>}
+              caption={(() => {
+                const plannedAmount = planAgg ? planAgg.totalForecast + planAgg.totalGapPotential : 0;
+                return (
+                  <span className="space-y-0.5 block">
+                    <span className="text-muted-foreground block">{periodLabel} · {workingDaysLabel(totalWD)}</span>
+                    {plannedAmount > 0 && (
+                      <span className="text-muted-foreground block">
+                        Заплановано по компанії: <span className="amount font-semibold text-foreground">{formatUSD(plannedAmount)}</span>
+                      </span>
+                    )}
+                  </span>
+                );
+              })()}
             />
             <MetricCard
               icon={<DollarSign />}

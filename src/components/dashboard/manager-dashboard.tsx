@@ -453,7 +453,19 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
           label="План місяця"
           value={formatUSD(totalPlan)}
           isAmount
-          caption={<span className="text-muted-foreground">{periodMonthLabel} · {workingDaysLabel(totalWorkingDaysInMonth)}</span>}
+          caption={(() => {
+            const plannedAmount = planAgg ? planAgg.totalForecast + planAgg.totalGapPotential : 0;
+            return (
+              <span className="space-y-0.5 block">
+                <span className="text-muted-foreground block">{periodMonthLabel} · {workingDaysLabel(totalWorkingDaysInMonth)}</span>
+                {plannedAmount > 0 && (
+                  <span className="text-muted-foreground block">
+                    Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(plannedAmount)}</span>
+                  </span>
+                )}
+              </span>
+            );
+          })()}
         />
         <MetricCard
           icon={<DollarSign />}

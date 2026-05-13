@@ -1165,6 +1165,11 @@ export function PlanningForm({
           const factSubline = prevMonthFactAmount > 0
             ? `Мин. міс.: ${formatUSD(prevMonthFactAmount)} · ${prevFactPct.toFixed(1)}%`
             : null;
+          const plannedAmountForSegment = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0)
+            + gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
+          const planSubline = plannedAmountForSegment > 0
+            ? `Заплановано: ${formatUSD(plannedAmountForSegment)}`
+            : null;
           type Metric = {
             label: string;
             value: string;
@@ -1175,7 +1180,7 @@ export function PlanningForm({
             subline?: string;
           };
           const metrics: Metric[] = [
-            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true, subline: planSubline ?? undefined },
             { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
             { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true, subline: factSubline ?? undefined },
             { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
