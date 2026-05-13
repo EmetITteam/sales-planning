@@ -76,15 +76,20 @@ test('ADMIN_LOGINS містить itd@emet.in.ua і нічого зайвого'
 });
 
 test('isPlanningWritesAllowed пропускає admin login незалежно від case', () => {
+  // Прапор kill-switch може бути вимкнений (default state) — admin ВСЕ ОДНО проходить.
+  // Це смок-тест: ADMIN_LOGINS whitelist стабільний.
   assert.equal(isPlanningWritesAllowed('itd@emet.in.ua'), true);
   assert.equal(isPlanningWritesAllowed('ITD@emet.in.ua'), true);
   assert.equal(isPlanningWritesAllowed(' itd@emet.in.ua '), true);
 });
 
-test('isPlanningWritesAllowed блокує не-admin логіни', () => {
-  assert.equal(isPlanningWritesAllowed('boyko.olha@emet.in.ua'), false);
-  assert.equal(isPlanningWritesAllowed('sdu@emet.in.ua'), false);
-  assert.equal(isPlanningWritesAllowed(null), false);
-  assert.equal(isPlanningWritesAllowed(undefined), false);
-  assert.equal(isPlanningWritesAllowed(''), false);
+test('isPlanningWritesAllowed повертає true для всіх коли PLANNING_DISABLED=false', () => {
+  // PLANNING_DISABLED=false (поточний стан після Етапу 3) — функція no-op,
+  // всі логіни пропускаються. Контроль доступу далі робить window-lock.
+  // Якщо колись доведеться знов вмикати kill-switch — повернути PLANNING_DISABLED=true,
+  // і ці assertion-и перевертаються (менеджерські логіни блокуються).
+  assert.equal(isPlanningWritesAllowed('boyko.olha@emet.in.ua'), true);
+  assert.equal(isPlanningWritesAllowed('sdu@emet.in.ua'), true);
+  // null/undefined/'' — НЕ admin, але PLANNING_DISABLED=false пропускає все.
+  assert.equal(isPlanningWritesAllowed(null), true);
 });

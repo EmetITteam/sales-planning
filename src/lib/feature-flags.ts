@@ -24,12 +24,14 @@ export const FEATURES = {
    * крім adminLogins (див. ADMIN_LOGINS нижче). Frontend показує banner
    * «Триває оновлення системи». Backend POST повертає 503.
    *
-   * ⚠️ ТИМЧАСОВИЙ ПРАПОР на час Пакету А (2026-05-13). Після завершення
-   * Етапу 3 (Window-lock + Admin сторінка) — видалити цей прапор разом
-   * з ADMIN_LOGINS whitelist та усіма guard-перевірками. Window-lock
-   * перебирає на себе цей контроль через UI.
+   * 2026-05-13: вимкнено, контроль перейшов до window-lock через
+   * `/admin/planning-locks`. Прапор залишений як аварійний rescue —
+   * якщо треба ekstrene заблокувати всіх (наприклад при критичній помилці),
+   * прапор повертається у true і деплоїться. Видаляємо повністю окремим
+   * cleanup commit-ом після того як подовгу пересвідчимось що window-lock
+   * стабільно працює у проді.
    */
-  PLANNING_DISABLED: true,
+  PLANNING_DISABLED: false,
 };
 
 /**
