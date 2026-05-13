@@ -20,9 +20,18 @@ export interface CategoryStat {
 export interface PlanningAggregate {
   totalForecast: number;
   totalGapPotential: number;
+  /** Б.6 (Пакет Б): finalized-only підсумки. Поки window відкритий, UI може
+   *  показувати ОБА (Попередній план = total, Заплановано = Finalized).
+   *  Після закриття window — лише Finalized. */
+  totalForecastFinalized: number;
+  totalGapPotentialFinalized: number;
+  /** Чи відкритий window планування на цей місяць (з planning_settings + locks). */
+  planningOpen: boolean;
   bySegment: Record<string, {
     forecast: number;
     gap: number;
+    forecastFinalized: number;
+    gapFinalized: number;
     forecastClients: number;
     gapClients: number;
     byCategory: Record<PlanCategoryKey, CategoryStat>;
@@ -31,8 +40,11 @@ export interface PlanningAggregate {
    * Per-manager × segment breakdown — для розрахунку «Запл. %» per
    * (manager, brand) пара на дашборді РМ/Director. Без цього brand-row
    * падав на mock-формулу (`факт + 60% розриву`).
+   *
+   * `finalized: true` — для цього (manager × segment) period_summaries має
+   * finalized_at != null. Frontend може показати окремий маркер «фіналізовано».
    */
-  byLogin: Record<string, Record<string, { forecast: number; gap: number }>>;
+  byLogin: Record<string, Record<string, { forecast: number; gap: number; finalized: boolean }>>;
   /**
    * Унікальні client_id_1c з усіх forecasts ∪ gap_closures цього scope.
    * (Зберігаємо для зворотньої сумісності, але новий код використовує

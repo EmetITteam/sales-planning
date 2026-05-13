@@ -28,6 +28,8 @@ import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
+import { loadSettingsAndLocks } from '@/lib/load-window-state';
+import { canPlanForMonth } from '@/lib/planning-window';
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -83,7 +85,9 @@ export async function POST(request: NextRequest) {
   // У gap_closures добавляємо category — потрібно для розкладу по категоріях
   // (Сплячі / Втрачені / Нові / БЗ → агрегуємо у блок «Активізація» + «Нові» окремо).
   // ⚠️ M8: фільтр archived_at IS NULL — приховує soft-deleted рядки baгaжу.
-  const [forecastsRes, gapsRes] = await Promise.all([
+  // M9 (Etap 2 Пакету А): paralel-fetch period_summaries для finalize-status.
+  // Б.6 (Пакет Б): finalized_at != null → (user, segment) у finalized set.
+  const [forecastsRes, gapsRes, summariesRes] = await Promise.all([
     supabase.from('forecasts')
       .select('user_id,segment_code,client_id_1c,forecast_amount')
       .eq('period_id', pid)
@@ -93,6 +97,10 @@ export async function POST(request: NextRequest) {
       .select('user_id,segment_code,client_id_1c,potential_amount,category')
       .eq('period_id', pid)
       .is('archived_at', null)
+      .in('user_id', safeLogins),
+    supabase.from('period_summaries')
+      .select('user_id,segment_code,finalized_at')
+      .eq('period_id', pid)
       .in('user_id', safeLogins),
   ]);
 
@@ -108,6 +116,16 @@ export async function POST(request: NextRequest) {
 
   const forecasts = (forecastsRes.data ?? []) as FRow[];
   const gaps = (gapsRes.data ?? []) as GRow[];
+  // Set ключів `${user_id}|${segment_code}` для яких period_summaries
+  // має finalized_at != null. Б.6 (Пакет Б): надає frontend-у роз'єм
+  // "draft vs finalized" для UI.
+  const finalizedSet = new Set<string>();
+  type SRow = { user_id: string; segment_code: string; finalized_at: string | null };
+  for (const s of (summariesRes.data ?? []) as SRow[]) {
+    if (s.finalized_at) finalizedSet.add(`${s.user_id}|${s.segment_code}`);
+  }
+  const isFinalized = (userId: string, segmentCode: string) =>
+    finalizedSet.has(`${userId}|${segmentCode}`);
 
   // Маппинг 1С-категорій (зберігаємо у gap_closures.category як приходить з 1С)
   // у наші UI-bucket-и: 'sleeping' | 'lost' | 'new' | 'none'.
@@ -134,9 +152,14 @@ export async function POST(request: NextRequest) {
 
   let totalForecast = 0;
   let totalGapPotential = 0;
+  // Б.6: finalized-only підсумки (для UI «Заплановано» після закриття window).
+  let totalForecastFinalized = 0;
+  let totalGapPotentialFinalized = 0;
   const bySegment: Record<string, {
     forecast: number;
     gap: number;
+    forecastFinalized: number;
+    gapFinalized: number;
     forecastClients: number;
     gapClients: number;
     byCategory: SegCategoryBlock;
@@ -145,10 +168,12 @@ export async function POST(request: NextRequest) {
   // на дашборді РМ/Director (BrandManagerGroup / RegionAccordion).
   // Без цього brand-row падав на mock-формулу `факт + 60% розриву` (66%),
   // тоді як форма менеджера показувала реальні 92%.
-  const byLogin: Record<string, Record<string, { forecast: number; gap: number }>> = {};
+  const byLogin: Record<string, Record<string, { forecast: number; gap: number; finalized: boolean }>> = {};
   const addToLogin = (login: string, segment: string, kind: 'forecast' | 'gap', amt: number) => {
     if (!byLogin[login]) byLogin[login] = {};
-    if (!byLogin[login][segment]) byLogin[login][segment] = { forecast: 0, gap: 0 };
+    if (!byLogin[login][segment]) {
+      byLogin[login][segment] = { forecast: 0, gap: 0, finalized: isFinalized(login, segment) };
+    }
     byLogin[login][segment][kind] += amt;
   };
 
@@ -175,8 +200,11 @@ export async function POST(request: NextRequest) {
   for (const f of forecasts) {
     const amount = Number(f.forecast_amount) || 0;
     totalForecast += amount;
-    if (!bySegment[f.segment_code]) bySegment[f.segment_code] = { forecast: 0, gap: 0, forecastClients: 0, gapClients: 0, byCategory: emptySegBlock() };
+    const fin = isFinalized(f.user_id, f.segment_code);
+    if (fin) totalForecastFinalized += amount;
+    if (!bySegment[f.segment_code]) bySegment[f.segment_code] = { forecast: 0, gap: 0, forecastFinalized: 0, gapFinalized: 0, forecastClients: 0, gapClients: 0, byCategory: emptySegBlock() };
     bySegment[f.segment_code].forecast += amount;
+    if (fin) bySegment[f.segment_code].forecastFinalized += amount;
     bySegment[f.segment_code].byCategory.active.plannedSum += amount;
     bySegment[f.segment_code].byCategory.active.plannedCount += 1;
     if (!seenForecastClients.has(f.segment_code)) seenForecastClients.set(f.segment_code, new Set());
@@ -191,8 +219,11 @@ export async function POST(request: NextRequest) {
   for (const g of gaps) {
     const amount = Number(g.potential_amount) || 0;
     totalGapPotential += amount;
-    if (!bySegment[g.segment_code]) bySegment[g.segment_code] = { forecast: 0, gap: 0, forecastClients: 0, gapClients: 0, byCategory: emptySegBlock() };
+    const fin = isFinalized(g.user_id, g.segment_code);
+    if (fin) totalGapPotentialFinalized += amount;
+    if (!bySegment[g.segment_code]) bySegment[g.segment_code] = { forecast: 0, gap: 0, forecastFinalized: 0, gapFinalized: 0, forecastClients: 0, gapClients: 0, byCategory: emptySegBlock() };
     bySegment[g.segment_code].gap += amount;
+    if (fin) bySegment[g.segment_code].gapFinalized += amount;
     const cat = mapGapCategory(g.category);
     bySegment[g.segment_code].byCategory[cat].plannedSum += amount;
     bySegment[g.segment_code].byCategory[cat].plannedCount += 1;
@@ -210,9 +241,27 @@ export async function POST(request: NextRequest) {
   for (const [seg, set] of seenForecastClients) bySegment[seg].forecastClients = set.size;
   for (const [seg, set] of seenGapClients) bySegment[seg].gapClients = set.size;
 
+  // Б.6: чи відкритий window планування для цього місяця (для UI логіки
+  // «показувати чернетку + фінал» vs «тільки фінал»). Перевіряємо БЕЗ
+  // конкретного login — global rules (window_days, global locks). Якщо
+  // global-block активний — теж вважаємо closed.
+  let planningOpen = false;
+  if (typeof monthHint === 'string' && /^\d{4}-\d{2}/.test(monthHint)) {
+    try {
+      const { settings, locks } = await loadSettingsAndLocks(monthHint);
+      // Перевіряємо для fictional "не-існуючого" логіна щоб виключити
+      // user-allow/user-block. Бачимо тільки global rules + window_days.
+      const r = canPlanForMonth('__anon__', monthHint, new Date(), settings, locks);
+      planningOpen = r.allowed;
+    } catch { planningOpen = false; }
+  }
+
   return Response.json({
     totalForecast,
     totalGapPotential,
+    totalForecastFinalized,
+    totalGapPotentialFinalized,
+    planningOpen,
     bySegment,
     byLogin,
     plannedClientIds: Array.from(plannedClientIds),
@@ -224,6 +273,7 @@ export async function POST(request: NextRequest) {
       logins: safeLogins.length,
       forecastRows: forecasts.length,
       gapRows: gaps.length,
+      finalizedPairs: finalizedSet.size,
     },
   });
 }

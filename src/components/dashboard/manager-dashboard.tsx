@@ -454,13 +454,20 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
           value={formatUSD(totalPlan)}
           isAmount
           caption={(() => {
-            const plannedAmount = planAgg ? planAgg.totalForecast + planAgg.totalGapPotential : 0;
+            const totalAll = planAgg ? planAgg.totalForecast + planAgg.totalGapPotential : 0;
+            const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
+            const windowOpen = planAgg?.planningOpen ?? true;
             return (
               <span className="space-y-0.5 block">
                 <span className="text-muted-foreground block">{periodMonthLabel} · {workingDaysLabel(totalWorkingDaysInMonth)}</span>
-                {plannedAmount > 0 && (
+                {windowOpen && totalAll > 0 && (
                   <span className="text-muted-foreground block">
-                    Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(plannedAmount)}</span>
+                    Попередній план: <span className="amount font-semibold text-foreground">{formatUSD(totalAll)}</span>
+                  </span>
+                )}
+                {totalFin > 0 && (
+                  <span className="text-muted-foreground block">
+                    Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalFin)}</span>
                   </span>
                 )}
               </span>
