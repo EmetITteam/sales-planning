@@ -125,7 +125,16 @@ export function unpackGapAction(actionStr: string | null): UnpackedGapAction {
   return { stage: 'Дзвінок', stageComment: actionStr, stageDone: false, completed: false };
 }
 
-export async function savePlanning(params: SavePlanningParams): Promise<{ success: boolean; error?: string }> {
+export interface SavePlanningResult {
+  success: boolean;
+  error?: string;
+  /** Кількість рядків які реально потрапили у backend UPSERT (НЕ кількість у БД). */
+  counts?: { forecasts: number; gaps: number };
+  /** ISO timestamp коли backend завершив save. */
+  savedAt?: string;
+}
+
+export async function savePlanning(params: SavePlanningParams): Promise<SavePlanningResult> {
   try {
     const res = await fetch('/api/planning', {
       method: 'POST',
@@ -178,7 +187,7 @@ export async function savePlanning(params: SavePlanningParams): Promise<{ succes
 
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
-    return { success: true };
+    return { success: true, counts: data.counts, savedAt: data.savedAt };
   } catch {
     return { success: false, error: 'Помилка мережі' };
   }
@@ -221,6 +230,7 @@ export interface LoadPlanningResult {
     gap_action_1: string | null;
     gap_action_2: string | null;
     gap_action_3: string | null;
+    updated_at?: string | null;
   } | null;
 }
 

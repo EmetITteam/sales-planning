@@ -305,6 +305,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
         onBack={goToDashboard}
         readOnly={isViewing && user?.role !== 'admin'}
         targetUserLogin={targetUserLogin}
+        targetUserName={targetUserName}
         clientsResponse={clientsResponse ?? null}
         clientsLoading={clientsLoading}
         clientsError={clientsError}

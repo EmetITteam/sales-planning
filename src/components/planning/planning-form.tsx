@@ -44,6 +44,11 @@ interface PlanningFormProps {
    */
   targetUserLogin?: string;
   /**
+   * Повне ім'я цільового користувача (для banner «чий план» зверху форми
+   * + щоб у Supabase users.full_name писалось ім'я, а не email).
+   */
+  targetUserName?: string;
+  /**
    * Клієнти з 1С — приходять з ManagerDashboard через кеш (Zustand).
    * Дозволяє формі відкриватись миттєво (без власного fetch'у). Якщо null —
    * клієнти ще завантажуються (показуємо placeholder).
@@ -75,7 +80,7 @@ const STAGE_OPTIONS = [
 ];
 
 export function PlanningForm({
-  segmentCode, onBack, readOnly: readOnlyProp = false, targetUserLogin,
+  segmentCode, onBack, readOnly: readOnlyProp = false, targetUserLogin, targetUserName,
   clientsResponse = null, clientsLoading = false, clientsError = null,
   planAmount: propPlanAmount = 0, factAmount: propFactAmount = 0,
   factResponse = null,
@@ -122,6 +127,8 @@ export function PlanningForm({
   const [gapSearchOpen, setGapSearchOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Останнє успішне збереження (із summary.updated_at при load + з POST response).
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   // Підтвердження видалення — заміняє blocking browser `confirm()`. type вказує
   // куди застосовувати: forecast row (по clientId) або gap closure (по index).
   // bulk-варіанти — для multi-select видалення з чекбоксів.
@@ -228,6 +235,7 @@ export function PlanningForm({
           action2: data.summary.gap_action_2 || '',
           action3: data.summary.gap_action_3 || '',
         });
+        if (data.summary.updated_at) setLastSavedAt(data.summary.updated_at);
         // Маркер: форма вже зберігалась хоч раз (period_summaries запис існує).
         // Auto-populate більше не спрацює навіть якщо forecasts/gap_closures
         // порожні — це СВІДОМЕ рішення менеджера видалити всіх.
@@ -244,6 +252,15 @@ export function PlanningForm({
     // (clearAll flag), цей — додатковий.
     if (!supabaseLoaded) {
       setSaveResult({ ok: false, msg: 'Зачекайте — дані ще завантажуються' });
+      setTimeout(() => setSaveResult(null), 3000);
+      return;
+    }
+    // Захист від «тихого порожнього save»: коли state ще не догнав load з БД,
+    // forecasts може бути [], persistedClientIds має старі id-и. Backend
+    // skip-ає DELETE+UPSERT у такому стані (clearAll=false safety) → UI показав
+    // би «Збережено!» без реальних змін у БД. Тепер просимо почекати.
+    if (forecasts.length === 0 && gapClosures.length === 0 && persistedClientIds.size > 0) {
+      setSaveResult({ ok: false, msg: 'Дані ще завантажуються — спробуйте за секунду' });
       setTimeout(() => setSaveResult(null), 3000);
       return;
     }
@@ -273,7 +290,7 @@ export function PlanningForm({
       targetLogin: targetUserLogin || undefined,
       // Профіль потрібен серверу лише при drill-down (бо у session дані РМ а не
       // цільового менеджера). Для свого збереження сервер бере з сесії.
-      userMeta: targetUserLogin ? { fullName: targetUserLogin } : undefined,
+      userMeta: targetUserLogin ? { fullName: targetUserName || targetUserLogin } : undefined,
       forecasts,
       gapClosures,
       gapActions,
@@ -299,11 +316,17 @@ export function PlanningForm({
         { revalidate: true },
       );
     }
-    setSaveResult(result.success
-      ? { ok: true, msg: 'Збережено!' }
-      : { ok: false, msg: result.error || 'Помилка збереження' }
-    );
-    setTimeout(() => setSaveResult(null), 3000);
+    if (result.success) {
+      if (result.savedAt) setLastSavedAt(result.savedAt);
+      const c = result.counts;
+      const msg = c
+        ? `Збережено: прогноз ${c.forecasts}, розрив ${c.gaps}`
+        : 'Збережено';
+      setSaveResult({ ok: true, msg });
+    } else {
+      setSaveResult({ ok: false, msg: result.error || 'Помилка збереження' });
+    }
+    setTimeout(() => setSaveResult(null), 4000);
   };
 
   // ---- Фіналізація плану (Етап 2 Пакету А) ----
@@ -732,7 +755,7 @@ export function PlanningForm({
       },
       segmentCode,
       targetLogin: targetUserLogin || undefined,
-      userMeta: targetUserLogin ? { fullName: targetUserLogin } : undefined,
+      userMeta: targetUserLogin ? { fullName: targetUserName || targetUserLogin } : undefined,
       forecasts: activeClients.map(buildClient),
       gapClosures: sleepingClients.map(buildClient),
       source: 'auto-populate',
@@ -1045,6 +1068,25 @@ export function PlanningForm({
       </div>
 
       <MaintenanceBanner />
+
+      {/* Whose-plan banner — коли admin/RM/Director дивиться чужого менеджера,
+          явно показуємо ім'я і логін щоб не загубитись (Етап 2.6, 2026-05-13). */}
+      {targetUserLogin && targetUserLogin !== (user?.login || '') && (
+        <div className="bg-[#e8f4fc] border border-[#066aab]/20 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#066aab] text-white flex items-center justify-center shrink-0">
+            <Users className="h-4 w-4" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[14px] font-bold text-[#066aab]">
+              План менеджера: {targetUserName || targetUserLogin}
+            </p>
+            <p className="text-[12px] text-[#066aab]/70 mt-0.5">
+              Логін: {targetUserLogin}
+              {isAdmin ? ' · режим адміна — редагування дозволено' : ''}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Finalized banner — Пакет А Етап 2 (2026-05-13) */}
       {isFinalized && (
@@ -1897,6 +1939,13 @@ export function PlanningForm({
           бачить «Зберегти» весь час, не треба скролити. */}
       {!lockEdit && (
         <div className="sticky bottom-0 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex items-center justify-end gap-3 z-10">
+          {lastSavedAt && !saveResult && (
+            <span className="text-[11px] text-muted-foreground mr-auto">
+              Остання чернетка: {new Date(lastSavedAt).toLocaleString('uk-UA', {
+                day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit',
+              })}
+            </span>
+          )}
           {saveResult && (
             <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${
               saveResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'

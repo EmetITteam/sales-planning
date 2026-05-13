@@ -413,5 +413,12 @@ export async function POST(request: NextRequest) {
   if (errors.length > 0) {
     return Response.json({ error: errors.join('; ') }, { status: 500 });
   }
-  return Response.json({ success: true });
+  return Response.json({
+    success: true,
+    counts: {
+      forecasts: forecastRows.length,
+      gaps: gapRows.length,
+    },
+    savedAt: new Date().toISOString(),
+  });
 }
