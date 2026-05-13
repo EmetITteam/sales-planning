@@ -9,7 +9,7 @@
  */
 
 import { canPlanForMonth } from './planning-window';
-import { loadSettingsAndLocks } from '@/app/api/planning/window-check/route';
+import { loadSettingsAndLocks } from './load-window-state';
 import type { UserSession } from './types';
 
 export type WindowGuardResult =
