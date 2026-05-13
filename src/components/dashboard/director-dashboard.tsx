@@ -470,6 +470,17 @@ export function DirectorDashboard() {
                     onPlan: m.factPercent >= calcPctValue,
                   }));
                 const regionLogins = Array.from(new Set(region.managers.map(m => m.login).filter(Boolean)));
+                // Б.3: regionExpectedAmount = Σ forecast+gap по менеджерам регіону
+                // (з planAgg.byLogin). Передаємо у RegionAccordion для прогрес-лінії.
+                let regionExpectedAmount = 0;
+                if (planAgg) {
+                  for (const login of regionLogins) {
+                    const segs = planAgg.byLogin[login.toLowerCase().trim()] || {};
+                    for (const s of Object.values(segs)) {
+                      regionExpectedAmount += s.forecast + s.gap;
+                    }
+                  }
+                }
                 return (
                   <RegionAccordion
                     key={r.regionCode || r.regionName}
@@ -478,6 +489,7 @@ export function DirectorDashboard() {
                     calcPct={calcPctValue}
                     asOfDate={asOfDate}
                     regionLogins={regionLogins}
+                    regionExpectedAmount={regionExpectedAmount}
                     onDrillDown={() => goToRegion(r.regionCode)}
                     onManagerClick={(login) => goToManager(login)}
                   />

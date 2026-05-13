@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
-import { formatUSD, getTrafficLight, pctOf } from '@/lib/format';
+import { formatUSD, formatPct, getTrafficLight, pctOf, calcForecastPercent } from '@/lib/format';
+import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { BrandRow } from './brand-row';
 import { CategoryStatsTable } from './category-stats-table';
 import { useAppStore } from '@/lib/store';
@@ -18,6 +19,10 @@ interface Props {
   asOfDate: Date;
   /** Логіни менеджерів цього регіону — для lazy-load category-stats при expand. */
   regionLogins: string[];
+  /** Сума запланованого (forecast + gap) по всіх менеджерах регіону.
+   *  Передається з parent щоб не fetch-ити planAgg per region у header
+   *  (поки expand не відкритий). Для progress-лінії з насічкою «Запл.». */
+  regionExpectedAmount?: number;
   /** Drill-down у RMDashboard цього регіону. */
   onDrillDown: () => void;
   /**
@@ -41,14 +46,26 @@ function shortName(fullName: string): string {
  * Drill-down у RMDashboard — окрема <ChevronRight> кнопка справа з
  * stopPropagation. Mini-list менеджерів між назвою і Факт/План.
  */
-export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, regionLogins, onDrillDown, onManagerClick }: Props) {
+export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, regionLogins, regionExpectedAmount = 0, onDrillDown, onManagerClick }: Props) {
   const [expanded, setExpanded] = useState(false);
   const pct = pctOf(aggregate.totalFact, aggregate.totalPlan);
   const tl = getTrafficLight(pct, calcPct);
   const dev = pct - calcPct;
-  const dynAmount = aggregate.totalFact - aggregate.totalPrevMonthFact;
+  // Б.2: динаміка vs минулий = заплановане vs минулий факт (forward-looking).
+  // Fallback на totalFact якщо нема плану.
+  const compareForDyn = regionExpectedAmount > 0 ? regionExpectedAmount : aggregate.totalFact;
+  const dynAmount = compareForDyn - aggregate.totalPrevMonthFact;
   const dynBetter = dynAmount >= 0;
   const prevPct = pctOf(aggregate.totalPrevMonthFact, aggregate.totalPrevMonthPlan);
+
+  // Б.3: насічки прогрес-лінії — forecast (run-rate) + expected (planning).
+  const totalWD = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
+  const passedWD = getPassedWorkingDays(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
+  const regionForecastPct = calcForecastPercent(aggregate.totalFact, aggregate.totalPlan, passedWD, totalWD);
+  const regionExpectedPct = aggregate.totalPlan > 0
+    ? (regionExpectedAmount / aggregate.totalPlan) * 100
+    : 0;
+  const hasRegionPlan = regionExpectedAmount > 0;
 
   // Lazy-load: тягнемо план + факт по категоріях ТІЛЬКИ коли expanded.
   // Чому lazy: 8 регіонів × 2 запити одразу = багато викликів 1С. Користувач
@@ -194,15 +211,35 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               <p className="text-[12px] text-muted-foreground/40 leading-none mt-1.5">—</p>
             )}
           </div>
-          <div className="flex flex-col items-center gap-1 w-14">
-            <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
-              <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+          <div className="flex flex-col items-stretch gap-1 w-[180px]">
+            {/* Б.3: progress-лінія з насічками — як у BrandRow. */}
+            <div className="relative w-full h-2 rounded-full bg-[#f0f2f8] overflow-visible">
+              <div className={`absolute inset-y-0 left-0 rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
                 style={{ width: `${Math.min(pct, 100)}%` }} />
+              {regionForecastPct > 0 && regionForecastPct <= 100 && (
+                <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-amber-500 rounded-full"
+                  style={{ left: `calc(${Math.min(regionForecastPct, 100)}% - 1px)` }}
+                  title={`Прогноз (темп): ${formatPct(regionForecastPct)}`} />
+              )}
+              {hasRegionPlan && (
+                <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-[#066aab] rounded-full"
+                  style={{ left: `calc(${Math.min(regionExpectedPct, 100)}% - 1px)` }}
+                  title={`Запланований: ${formatPct(regionExpectedPct)}`} />
+              )}
             </div>
-            <span className={`text-[11px] font-bold leading-none ${tl.color}`}>{pct.toFixed(1)}%</span>
-            <span className={`text-[10px] font-bold leading-none ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
-            </span>
+            <div className="flex items-center gap-2 text-[10px] leading-none">
+              <span className={`font-bold text-[12px] ${tl.color}`}>{pct.toFixed(1)}%</span>
+              <span className={`font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{dev >= 0 ? '+' : ''}{dev.toFixed(1)}%</span>
+            </div>
+            <p className="text-[10px] truncate flex items-center gap-1.5">
+              <span><span className="text-amber-600">●</span> Прогноз: <span className="font-bold text-amber-600">{formatPct(regionForecastPct)}</span></span>
+              {hasRegionPlan && (
+                <>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span><span className="text-[#066aab]">●</span> Запл.: <span className="font-bold text-[#066aab]">{formatPct(regionExpectedPct)}</span></span>
+                </>
+              )}
+            </p>
           </div>
           <div className="w-[100px]">
             <div className="h-[12px] leading-none mb-1.5" aria-hidden />
