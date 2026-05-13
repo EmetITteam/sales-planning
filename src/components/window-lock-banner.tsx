@@ -61,9 +61,7 @@ export function WindowLockBanner() {
       </div>
       <div className="flex-1">
         <p className="text-[14px] font-bold text-rose-900">Планування зараз закрите</p>
-        <p className="text-[13px] text-rose-800 mt-0.5">
-          {status.message} Зверніться до адміністратора якщо потрібен доступ.
-        </p>
+        <p className="text-[13px] text-rose-800 mt-0.5">{status.message}</p>
       </div>
     </div>
   );
