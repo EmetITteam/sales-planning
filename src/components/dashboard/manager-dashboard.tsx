@@ -303,7 +303,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
       <PlanningForm
         segmentCode={selectedSegment}
         onBack={goToDashboard}
-        readOnly={isViewing}
+        readOnly={isViewing && user?.role !== 'admin'}
         targetUserLogin={targetUserLogin}
         clientsResponse={clientsResponse ?? null}
         clientsLoading={clientsLoading}
@@ -360,7 +360,9 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
           <span className="font-semibold">👁 Перегляд менеджера:</span>
           <span className="font-bold">{targetUserName || targetUserLogin}</span>
-          <span className="ml-auto text-[11px] text-amber-700">режим тільки для читання</span>
+          <span className="ml-auto text-[11px] text-amber-700">
+            {user?.role === 'admin' ? 'режим адміна — редагування дозволено' : 'режим тільки для читання'}
+          </span>
         </div>
       )}
       {(factLoading || clientsLoading || plansLoading) && (

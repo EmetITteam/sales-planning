@@ -1,9 +1,12 @@
 // === Ролі ===
-export type UserRole = 'manager' | 'rm' | 'director';
+// 'admin' (2026-05-13): технічний адмін системи (itd@emet.in.ua). Має
+// доступ як Director + може редагувати/розфіналізовувати чужі плани,
+// обходить window-lock і maintenance kill-switch. Один єдиний акаунт.
+export type UserRole = 'manager' | 'rm' | 'director' | 'admin';
 
 // Перелік дозволених значень для runtime-валідації payload від клієнта.
 // users.role NOT NULL, тому fallback завжди потрібен.
-const VALID_ROLES: readonly UserRole[] = ['manager', 'rm', 'director'];
+const VALID_ROLES: readonly UserRole[] = ['manager', 'rm', 'director', 'admin'];
 
 /**
  * Безпечно парсить значення з тіла запиту як UserRole. Якщо payload
@@ -14,11 +17,22 @@ const VALID_ROLES: readonly UserRole[] = ['manager', 'rm', 'director'];
  * у body.userMeta.role випадково / зловмисно приходить інший рядок.
  * Без цієї перевірки `upsert({ role: userMeta.role || null })` записав би
  * 'superadmin' у users.role.
+ *
+ * ⚠️ 'admin' за замовчуванням відкидається навіть якщо валідний — щоб
+ * Director через drill-down save planning з body.userMeta.role='admin' не
+ * міг повісити admin-роль на чужого менеджера у users.role. Admin
+ * ставиться ТІЛЬКИ через ADMIN_LOGINS override у adaptLogin (login-based).
+ * Якщо колись знадобиться передавати 'admin' з payload — викликати
+ * safeRole(raw, fallback, true) явно.
  */
-export function safeRole(raw: unknown, fallback: UserRole = 'manager'): UserRole {
-  return typeof raw === 'string' && VALID_ROLES.includes(raw as UserRole)
-    ? (raw as UserRole)
-    : fallback;
+export function safeRole(
+  raw: unknown,
+  fallback: UserRole = 'manager',
+  allowAdmin = false,
+): UserRole {
+  if (typeof raw !== 'string') return fallback;
+  if (raw === 'admin' && !allowAdmin) return fallback;
+  return VALID_ROLES.includes(raw as UserRole) ? (raw as UserRole) : fallback;
 }
 
 // === Дані користувача (з 1С при логіні) ===

@@ -79,14 +79,14 @@ export async function POST(request: NextRequest) {
   const safeSource = allowedSources.has(source) ? source : 'auto-populate';
 
   // SECURITY:
-  //   - Director: будь-який targetLogin (аналогічно /api/onec/region-stats)
+  //   - Admin: будь-який targetLogin (включаючи backfill)
   //   - RM/Manager: тільки свій login або з managedUsers
-  // Snapshot — read-mostly архів аудиту, не змінює існуючих операційних
-  // даних. Director має право заповнити по всій компанії (backfill).
+  //   - Director: ТІЛЬКИ свій (read-only роль; чужих snapshot не створює)
+  // Snapshot — read-mostly архів, але це INSERT у БД. Director не пише.
   const effectiveLogin = targetLogin && targetLogin !== session.login
     ? targetLogin
     : session.login;
-  if (effectiveLogin !== session.login && session.role !== 'director' && !session.managedUsers.includes(effectiveLogin)) {
+  if (effectiveLogin !== session.login && session.role !== 'admin' && !session.managedUsers.includes(effectiveLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
   const uid = effectiveLogin;

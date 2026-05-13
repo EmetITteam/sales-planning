@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
   const requestedLogin = searchParams.get('login') || session.login;
   if (requestedLogin !== session.login
       && session.role !== 'director'
+      && session.role !== 'admin'
       && !session.managedUsers.includes(requestedLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
@@ -151,12 +152,15 @@ export async function POST(request: NextRequest) {
 
   // SECURITY: login беремо ТІЛЬКИ з підписаної сесії (cookie). body.userMeta
   // використовуємо лише для метаданих профілю (fullName/region) при upsert у users.
-  // Drill-down: targetLogin → перевіряємо scope (Director: будь-хто; RM/Manager: managedUsers).
+  // Drill-down scope для WRITE:
+  //   - admin: будь-хто
+  //   - rm/manager: тільки свої managedUsers
+  //   - director: ТІЛЬКИ власний логін (read-only роль; чужі плани не пише)
   const effectiveLogin = targetLogin && targetLogin !== session.login
     ? targetLogin
     : session.login;
   if (effectiveLogin !== session.login
-      && session.role !== 'director'
+      && session.role !== 'admin'
       && !session.managedUsers.includes(effectiveLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }

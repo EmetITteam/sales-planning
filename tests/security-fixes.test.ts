@@ -19,6 +19,8 @@ test('safeRole: валідні ролі повертаються як є', () =>
 
 test('safeRole: спроби ескалації → fallback manager', () => {
   assert.equal(safeRole('superadmin'), 'manager');
+  // 'admin' тепер валідна роль у enum, але за замовч. safeRole її відкидає
+  // (захист від userMeta.role='admin' ескалації через drill-down save).
   assert.equal(safeRole('admin'), 'manager');
   assert.equal(safeRole('owner'), 'manager');
   assert.equal(safeRole('root'), 'manager');

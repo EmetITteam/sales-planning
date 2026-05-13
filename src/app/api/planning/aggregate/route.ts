@@ -60,13 +60,13 @@ export async function POST(request: NextRequest) {
   }
 
   // SECURITY: фільтруємо logins по правах сесії.
-  // Director → всі дозволені.
+  // Director / Admin → всі дозволені (read).
   // RM → лише свій login + managedUsers.
   // Manager → тільки свій login.
   const sessionLogin = session.login.toLowerCase().trim();
   const allowed = new Set<string>([sessionLogin]);
-  if (session.role === 'director') {
-    // Director — всі logins що передали (бо managedUsers у нього не повний дерево).
+  if (session.role === 'director' || session.role === 'admin') {
+    // Director / Admin — всі logins що передали (бо managedUsers у них не повний дерево).
     for (const l of logins) allowed.add(String(l).toLowerCase().trim());
   } else {
     // RM/Manager — тільки своя scope

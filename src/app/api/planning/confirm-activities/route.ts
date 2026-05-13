@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
     if (purePid !== periodId) monthlyPid = purePid;
   }
 
-  // SECURITY scope: як у /api/planning POST.
+  // SECURITY scope: як у /api/planning POST (WRITE — Director не пропускається).
   const effectiveLogin = targetLogin && targetLogin !== session.login ? targetLogin : session.login;
   if (effectiveLogin !== session.login
-      && session.role !== 'director'
+      && session.role !== 'admin'
       && !session.managedUsers.includes(effectiveLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }

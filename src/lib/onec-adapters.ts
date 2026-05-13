@@ -18,6 +18,7 @@ import type {
   OneCTraining,
   OneCManagerClientStats,
 } from './onec-types';
+import { ADMIN_LOGINS } from './feature-flags';
 import type {
   UserSession,
   Client1C,
@@ -98,13 +99,15 @@ function mapSegmentCode(code: string): string {
 
 // === login ===
 export function adaptLogin(r: LoginResponse): UserSession {
+  const login = (r.login || '').toLowerCase().trim();
+  // 1С не знає про роль 'admin' (там itd@emet.in.ua = звичайний менеджер).
+  // Override на нашому боці — список технічних адмінів у feature-flags.ts.
+  // Тимчасово до моменту коли 1С підтримає роль adminа у своєму довіднику.
+  const isAdmin = ADMIN_LOGINS.includes(login);
   return {
-    // Нормалізуємо логін до lower-case + trim — інакше при join з Action 4
-    // (registryPlans.managerLogin теж lower-cased у нас) міг би бути desync.
-    // Це джерело істини: цей логін також є users.id (PK) у Supabase після M5.
-    login: (r.login || '').toLowerCase().trim(),
+    login,
     fullName: r.fullName,
-    role: r.roleCode,
+    role: isAdmin ? 'admin' : r.roleCode,
     region: r.region,
     regionCode: r.regionCode,
     managedUsers: (r.managedUsers ?? []).map(l => (l || '').toLowerCase().trim()),

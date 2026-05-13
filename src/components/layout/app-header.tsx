@@ -14,7 +14,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PeriodFilter } from './period-filter';
-import { LogOut, ChevronDown, Eye, EyeOff, Zap } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield } from 'lucide-react';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -22,6 +23,7 @@ const ROLE_LABELS: Record<string, string> = {
   manager: 'Менеджер',
   rm: 'Регіональний керівник',
   director: 'Директор з продажів',
+  admin: 'Адміністратор системи',
 };
 
 // Login-based override для конкретних осіб з рівнем доступу директора, але
@@ -39,11 +41,13 @@ const ROLE_COLORS: Record<string, string> = {
   manager: 'bg-[#c5e3f6] text-[#055a91]',
   rm: 'bg-[#e8d5f5] text-[#6b21a8]',
   director: 'bg-[#fde68a] text-[#92400e]',
+  admin: 'bg-[#fecaca] text-[#991b1b]',
 };
 
 export function AppHeader() {
   const { user, setUser, liveMode, setLiveMode } = useAppStore();
   const { mutate } = useSWRConfig();
+  const router = useRouter();
   const handleLogout = async () => {
     // Спершу серверна частина — clear HttpOnly cookie. Потім локальний state.
     await apiLogout();
@@ -159,6 +163,15 @@ export function AppHeader() {
                 </>
               )}
             </DropdownMenuItem>
+            {user.role === 'admin' && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/admin')} className="cursor-pointer">
+                  <Shield className="mr-2 h-3.5 w-3.5" />
+                  Адмін-панель
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-rose-600 cursor-pointer">
               <LogOut className="mr-2 h-3.5 w-3.5" />
