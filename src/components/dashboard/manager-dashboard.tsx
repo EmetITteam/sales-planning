@@ -551,6 +551,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
                   calcPct={tm.calcPercent}
                   asOfDate={asOfDate}
                   expectedPercent={tm.expectedPercent}
+                  expectedAmount={(planAgg?.bySegment[tm.segmentCode]?.forecast ?? 0) + (planAgg?.bySegment[tm.segmentCode]?.gap ?? 0)}
                   hasManagerPlan={tm.hasManagerPlan}
                   clientCount={tm.clientCount}
                   prevMonthFactAmount={tm.prevMonthFactAmount}

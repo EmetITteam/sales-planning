@@ -65,12 +65,15 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
   // «Запл. %» для бренду в цілому = Σ planSum (всі категорії plan) / brand.totalPlan.
   // hasBrandPlan тільки коли planCategoriesForBrand уже догрузився (без blink
   // 0% → real коли SWR fetch-ить).
+  const brandPlannedSum = planCategoriesForBrand
+    ? planCategoriesForBrand.active.plannedSum
+      + planCategoriesForBrand.sleeping.plannedSum
+      + planCategoriesForBrand.lost.plannedSum
+      + planCategoriesForBrand.none.plannedSum
+      + planCategoriesForBrand.new.plannedSum
+    : 0;
   const brandExpectedPct = brand.totalPlan > 0 && planCategoriesForBrand
-    ? ((planCategoriesForBrand.active.plannedSum
-        + planCategoriesForBrand.sleeping.plannedSum
-        + planCategoriesForBrand.lost.plannedSum
-        + planCategoriesForBrand.none.plannedSum
-        + planCategoriesForBrand.new.plannedSum) / brand.totalPlan) * 100
+    ? (brandPlannedSum / brand.totalPlan) * 100
     : 0;
   const hasBrandPlan = !!planCategoriesForBrand && brand.totalPlan > 0;
 
@@ -85,6 +88,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
         prevMonthFactAmount={brand.totalPrevMonthFact}
         prevMonthFactPercent={totalPrevPct}
         expectedPercent={brandExpectedPct}
+        expectedAmount={brandPlannedSum}
         hasManagerPlan={hasBrandPlan}
         onClick={() => setExpanded(!expanded)}
         expandable
@@ -125,6 +129,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
                 prevMonthFactAmount={m.prevFact}
                 prevMonthFactPercent={pctOf(m.prevFact, m.prevPlan)}
                 expectedPercent={mgrExpectedPct}
+                expectedAmount={mgrForecast + mgrGap}
                 hasManagerPlan={hasMgrPlan}
                 onClick={() => onManagerClick(m.login, brand.segmentCode)}
               />

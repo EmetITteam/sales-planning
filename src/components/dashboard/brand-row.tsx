@@ -19,6 +19,8 @@ export interface BrandRowProps {
    * брехливі 67% на дашборді який мав показувати 95%).
    */
   expectedPercent?: number;
+  /** Сума запланованого — forecast + gap, у $. Показується поряд з %. */
+  expectedAmount?: number;
   /** Чи є реальний план менеджера (для бейджу 'план не заповнено') */
   hasManagerPlan?: boolean;
   /** Кількість клієнтів — лише на менеджерському дашборді */
@@ -46,6 +48,7 @@ export function BrandRow({
   calcPct,
   asOfDate,
   expectedPercent,
+  expectedAmount,
   hasManagerPlan = true,
   clientCount,
   prevMonthFactAmount,
@@ -145,7 +148,13 @@ export function BrandRow({
             {hasManagerPlan && (
               <>
                 <span className="text-muted-foreground/40">·</span>
-                <span><span className="text-[#066aab]">●</span> Запл.: <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
+                <span>
+                  <span className="text-[#066aab]">●</span> Запл.:{' '}
+                  <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span>
+                  {expectedAmount !== undefined && expectedAmount > 0 && (
+                    <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount)}</span></span>
+                  )}
+                </span>
               </>
             )}
           </p>
@@ -242,7 +251,13 @@ export function BrandRow({
         <div className="flex items-center gap-3 text-[11px] flex-wrap">
           <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
           {hasManagerPlan && (
-            <span><span className="text-[#066aab]">●</span> Запл. <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span></span>
+            <span>
+              <span className="text-[#066aab]">●</span> Запл.{' '}
+              <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span>
+              {expectedAmount !== undefined && expectedAmount > 0 && (
+                <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount)}</span></span>
+              )}
+            </span>
           )}
           <span className="text-muted-foreground">|</span>
           <span>План <span className="font-bold amount">{formatUSD(planAmount)}</span></span>

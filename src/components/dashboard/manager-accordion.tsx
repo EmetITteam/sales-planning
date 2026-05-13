@@ -202,6 +202,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
                 asOfDate={asOfDate}
                 hasManagerPlan={hasManagerPlan}
                 expectedPercent={expectedPercent}
+                expectedAmount={managerForecast + managerGap}
                 prevMonthFactAmount={seg.prevMonthFactAmount}
                 prevMonthFactPercent={pctOf(seg.prevMonthFactAmount ?? 0, seg.prevMonthPlanAmount ?? 0)}
                 onClick={onPlanBrand ? () => onPlanBrand(seg.segmentCode) : undefined}

@@ -309,6 +309,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
                   asOfDate={asOfDate}
                   hasManagerPlan={hasManagerPlan}
                   expectedPercent={expectedPercent}
+                  expectedAmount={managerForecast + managerGap}
                   prevMonthFactAmount={seg.prevMonthFactAmount}
                   prevMonthFactPercent={pctOf(seg.prevMonthFactAmount, seg.prevMonthPlanAmount)}
                   readOnly

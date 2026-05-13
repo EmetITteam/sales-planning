@@ -75,12 +75,15 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
 
   // «Запл. %» для бренду в цілому: Σ planSum / brand.totalPlan.
   // hasBrandPlan тільки після того як planCategoriesForBrand догрузився.
+  const brandPlannedSum = planCategoriesForBrand
+    ? planCategoriesForBrand.active.plannedSum
+      + planCategoriesForBrand.sleeping.plannedSum
+      + planCategoriesForBrand.lost.plannedSum
+      + planCategoriesForBrand.none.plannedSum
+      + planCategoriesForBrand.new.plannedSum
+    : 0;
   const brandExpectedPct = brand.totalPlan > 0 && planCategoriesForBrand
-    ? ((planCategoriesForBrand.active.plannedSum
-        + planCategoriesForBrand.sleeping.plannedSum
-        + planCategoriesForBrand.lost.plannedSum
-        + planCategoriesForBrand.none.plannedSum
-        + planCategoriesForBrand.new.plannedSum) / brand.totalPlan) * 100
+    ? (brandPlannedSum / brand.totalPlan) * 100
     : 0;
   const hasBrandPlan = !!planCategoriesForBrand && brand.totalPlan > 0;
 
@@ -95,6 +98,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
         prevMonthFactAmount={brand.totalPrevMonthFact}
         prevMonthFactPercent={totalPrevPct}
         expectedPercent={brandExpectedPct}
+        expectedAmount={brandPlannedSum}
         hasManagerPlan={hasBrandPlan}
         onClick={() => setExpanded(!expanded)}
         expandable
@@ -143,6 +147,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                       prevMonthFactAmount={r.prevFact}
                       prevMonthFactPercent={pctOf(r.prevFact, r.prevPlan)}
                       expectedPercent={regionExpectedPct}
+                      expectedAmount={regionForecastPlusGap}
                       hasManagerPlan={hasRegionPlan}
                       onClick={() => onRegionClick(r.regionCode)}
                     />
