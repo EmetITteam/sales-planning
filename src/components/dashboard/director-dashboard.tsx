@@ -21,6 +21,7 @@ import { BrandRegionGroup, pivotBrandsByRegion } from './brand-region-group';
 import { PlanningReadinessCard } from './planning-readiness-card';
 import { FEATURES } from '@/lib/feature-flags';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
+import { WindowLockBanner } from '@/components/window-lock-banner';
 import { CategoryStatsTable } from './category-stats-table';
 import {
   ChevronRight, RefreshCw,
@@ -289,6 +290,7 @@ export function DirectorDashboard() {
   return (
     <div className="space-y-8">
       <MaintenanceBanner />
+      <WindowLockBanner />
       {errorBanner}
 
       {/* Header */}

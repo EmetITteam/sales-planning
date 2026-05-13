@@ -28,6 +28,7 @@ import { BrandExpandedDetails } from './brand-expanded-details';
 import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
+import { WindowLockBanner } from '@/components/window-lock-banner';
 import {
   DollarSign, Target, TrendingUp, TrendingDown, RefreshCw,
 } from 'lucide-react';
@@ -357,6 +358,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
   return (
     <div className="space-y-8">
       <MaintenanceBanner />
+      <WindowLockBanner />
       {isViewing && (
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
           <span className="font-semibold">👁 Перегляд менеджера:</span>
