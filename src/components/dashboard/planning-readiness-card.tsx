@@ -3,15 +3,15 @@
 /**
  * <PlanningReadinessCard> — overview готовності планування на дашборді Director.
  *
- * Метрика: «заповнила бренд» = є ≥1 рядок у forecasts АБО gap_closures для
- * (менеджер × бренд × місяць). Не сума, не %, а саме факт роботи у системі.
+ * Стан кожної клітинки (manager × brand) тепер один з трьох:
+ *   🟢 finalized — є рядки + finalized_at != null у period_summaries
+ *   🟡 draft     — є рядки, але плана не фіналізовано
+ *   ⚪ empty     — нема рядків взагалі
  *
- * Дані беруться з planAgg.byLogin (вже завантажено для дашборду через
- * usePlanningAggregate). Якщо byLogin[login][segment] існує → бренд заповнено.
- *
- * Стани:
- *  - Усі заповнили 9/9 → компактний «✓ Усі менеджери заповнили план» (без drill-down)
- *  - Хтось не заповнив → повний блок з expand-меню (як RegionAccordion)
+ * Регіон-стейтус:
+ *   GREEN — усі (managers × brands) клітинки finalized
+ *   AMBER — хоч одна draft (план у роботі, але ще не закріплений)
+ *   ROSE  — всі empty (нічого не зроблено)
  *
  * Вимикається через FEATURES.PLANNING_READINESS у feature-flags.ts.
  */
@@ -22,13 +22,13 @@ import type { RegionData } from '@/lib/types';
 import { SEGMENTS } from '@/lib/mock-data';
 
 interface PlanByLogin {
-  [login: string]: { [segment: string]: { forecast: number; gap: number } };
+  [login: string]: { [segment: string]: { forecast: number; gap: number; finalized: boolean } };
 }
 
 interface Props {
   /** Сирий список регіонів з 1С Action 5 — для імен менеджерів. */
   regions: RegionData[];
-  /** byLogin breakdown з /api/planning/aggregate (повертається коли всі менеджери у запиті). */
+  /** byLogin breakdown з /api/planning/aggregate. */
   planByLogin?: PlanByLogin | null;
   /** Загальна кількість брендів у плануванні (default = 9 з SEGMENTS). */
   totalBrands?: number;
@@ -39,36 +39,35 @@ const ALL_BRAND_CODES = SEGMENTS.map(s => s.code);
 interface ManagerStat {
   login: string;
   name: string;
-  filled: string[]; // segment codes that have rows
-  missing: string[]; // segment codes that have NO rows
+  finalized: string[]; // segment codes finalized
+  draft: string[];     // segment codes with rows but not finalized
+  empty: string[];     // segment codes without any rows
 }
 
 interface RegionStat {
   regionName: string;
   managers: ManagerStat[];
-  filledCount: number; // менеджерів які мають ≥1 бренд
-  totalCount: number;
-  fullyFilledCount: number; // менеджерів які заповнили ВСІ бренди
-  /** Сума заповнених брендів усіх менеджерів регіону (для true % покриття). */
-  filledCells: number;
-  /** totalCount × 9 — очікувана к-сть бренд-клітинок. */
+  /** Менеджерів які мають ≥1 finalized cell. */
+  managersWithFinalized: number;
+  /** Менеджерів які мають ≥1 cell (finalized або draft). */
+  managersWithAny: number;
+  totalManagers: number;
+  /** Сума cells по 3 категоріях у регіоні. */
+  finalizedCells: number;
+  draftCells: number;
+  emptyCells: number;
   totalCells: number;
 }
 
-/**
- * Status color — за РЕАЛЬНИМ покриттям бренд-клітинок (а не за «менеджер
- * торкнувся системи»). Бо інакше Житомир з 1 менеджером 6/9 brands давав
- * 100% зеленим — нечесно, 3 бренди не заповнені.
- *
- *  GREEN — усі бренд-клітинки заповнені (всі менеджери 9/9)
- *  ROSE  — 0 заповнено
- *  AMBER — частково
- */
-function statusColor(filledCells: number, totalCells: number): 'green' | 'amber' | 'rose' {
-  if (totalCells === 0) return 'rose';
-  if (filledCells === totalCells) return 'green';
-  if (filledCells === 0) return 'rose';
-  return 'amber';
+function regionStatusColor(
+  finalized: number,
+  draft: number,
+  total: number,
+): 'green' | 'amber' | 'rose' {
+  if (total === 0) return 'rose';
+  if (finalized === total) return 'green';      // все fіналізовано
+  if (finalized + draft > 0) return 'amber';     // хоч щось у роботі
+  return 'rose';                                  // все пусто
 }
 
 const dotClass: Record<string, string> = {
@@ -81,13 +80,17 @@ const textClass: Record<string, string> = {
   amber: 'text-amber-600',
   rose: 'text-rose-600',
 };
+const badgeBgClass: Record<string, string> = {
+  green: 'bg-emerald-50 text-emerald-700',
+  amber: 'bg-amber-50 text-amber-700',
+  rose: 'bg-rose-50 text-rose-700',
+};
 const barClass: Record<string, string> = {
   green: 'bg-emerald-500',
   amber: 'bg-amber-500',
   rose: 'bg-rose-500',
 };
 
-// Назва бренду для display (Petaran замість PETARAN). З SEGMENTS.
 const brandName = (code: string) => SEGMENTS.find(s => s.code === code)?.name ?? code;
 
 export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }: Props) {
@@ -100,60 +103,61 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
       .map(r => {
         const managers: ManagerStat[] = r.managers.map(m => {
           const segMap = planByLogin[m.login] || {};
-          const filled = ALL_BRAND_CODES.filter(code => segMap[code] !== undefined);
-          const missing = ALL_BRAND_CODES.filter(code => segMap[code] === undefined);
-          return { login: m.login, name: m.name, filled, missing };
+          const finalized: string[] = [];
+          const draft: string[] = [];
+          const empty: string[] = [];
+          for (const code of ALL_BRAND_CODES) {
+            const row = segMap[code];
+            if (!row) empty.push(code);
+            else if (row.finalized) finalized.push(code);
+            else draft.push(code);
+          }
+          return { login: m.login, name: m.name, finalized, draft, empty };
         });
-        const filledCount = managers.filter(m => m.filled.length > 0).length;
-        const fullyFilledCount = managers.filter(m => m.filled.length === totalBrands).length;
-        const filledCells = managers.reduce((s, m) => s + m.filled.length, 0);
-        const totalCells = managers.length * totalBrands;
+        const finalizedCells = managers.reduce((s, m) => s + m.finalized.length, 0);
+        const draftCells = managers.reduce((s, m) => s + m.draft.length, 0);
+        const emptyCells = managers.reduce((s, m) => s + m.empty.length, 0);
         return {
           regionName: r.regionName,
           managers,
-          filledCount,
-          totalCount: managers.length,
-          fullyFilledCount,
-          filledCells,
-          totalCells,
+          managersWithFinalized: managers.filter(m => m.finalized.length > 0).length,
+          managersWithAny: managers.filter(m => m.finalized.length + m.draft.length > 0).length,
+          totalManagers: managers.length,
+          finalizedCells, draftCells, emptyCells,
+          totalCells: managers.length * totalBrands,
         };
       })
-      .filter(r => r.totalCount > 0)
-      // Сортуємо: спочатку де нема нічого, потім часткові, потім повністю
+      .filter(r => r.totalManagers > 0)
       .sort((a, b) => {
-        // Спершу регіони з 0 заповнених (червоні)
-        const aEmpty = a.filledCount === 0 ? 1 : 0;
-        const bEmpty = b.filledCount === 0 ? 1 : 0;
-        if (aEmpty !== bEmpty) return bEmpty - aEmpty;
-        // Потім за % менеджерів які почали
-        const aPct = a.totalCount === 0 ? 1 : a.filledCount / a.totalCount;
-        const bPct = b.totalCount === 0 ? 1 : b.filledCount / b.totalCount;
+        // Пріоритет: спочатку повністю пусті, потім часткові, потім завершені.
+        const aDone = a.finalizedCells === a.totalCells ? 1 : 0;
+        const bDone = b.finalizedCells === b.totalCells ? 1 : 0;
+        if (aDone !== bDone) return aDone - bDone;
+        const aPct = a.totalCells === 0 ? 0 : (a.finalizedCells + a.draftCells) / a.totalCells;
+        const bPct = b.totalCells === 0 ? 0 : (b.finalizedCells + b.draftCells) / b.totalCells;
         return aPct - bPct;
       });
   }, [regions, planByLogin, totalBrands]);
 
   const total = useMemo(() => {
-    let totalManagers = 0;
-    let totalFilled = 0;
-    let totalFullyFilled = 0;
-    let totalFilledCells = 0;
-    let totalCells = 0;
+    let tFin = 0, tDraft = 0, tEmpty = 0, tCells = 0, tMgrFin = 0, tMgrAny = 0, tMgrAll = 0;
     for (const r of stats) {
-      totalManagers += r.totalCount;
-      totalFilled += r.filledCount;
-      totalFullyFilled += r.fullyFilledCount;
-      totalFilledCells += r.filledCells;
-      totalCells += r.totalCells;
+      tFin += r.finalizedCells;
+      tDraft += r.draftCells;
+      tEmpty += r.emptyCells;
+      tCells += r.totalCells;
+      tMgrFin += r.managersWithFinalized;
+      tMgrAny += r.managersWithAny;
+      tMgrAll += r.totalManagers;
     }
-    return { totalManagers, totalFilled, totalFullyFilled, totalFilledCells, totalCells };
+    return { tFin, tDraft, tEmpty, tCells, tMgrFin, tMgrAny, tMgrAll };
   }, [stats]);
 
-  // Loading state (planAgg ще не догрузився)
-  if (!planByLogin || total.totalManagers === 0) return null;
+  if (!planByLogin || total.tMgrAll === 0) return null;
 
-  // Усі заповнили повністю → компактний інлайн-стан без drill-down
-  const allFullyFilled = total.totalFullyFilled === total.totalManagers;
-  if (allFullyFilled) {
+  // Усі fіналізовані → компактний інлайн
+  const allFinalized = total.tFin === total.tCells && total.tCells > 0;
+  if (allFinalized) {
     return (
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-3.5">
@@ -161,27 +165,25 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
             <ClipboardCheck className="h-5 w-5 text-emerald-600" />
           </div>
           <div className="flex-1">
-            <p className="text-[14px] font-bold">Усі менеджери заповнили план</p>
+            <p className="text-[14px] font-bold">Усі менеджери фіналізували план</p>
             <p className="text-[11px] text-muted-foreground">
-              {total.totalManagers} менеджерів · усі {totalBrands} брендів закрито
+              {total.tMgrAll} менеджерів · усі {totalBrands} брендів закрито
             </p>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-50 text-emerald-700">✓ ПОВНІСТЮ</span>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-50 text-emerald-700">✓ ФІНАЛ</span>
         </div>
       </div>
     );
   }
 
-  // Часткова готовність — повний блок з drill-down.
-  // %/колір — за реальним покриттям бренд-клітинок. Якщо хоч 1 бренд десь
-  // не заповнений → не 100%. Text count «X/Y менеджерів» окремо.
-  const filledPct = total.totalCells === 0 ? 0 : Math.round((total.totalFilledCells / total.totalCells) * 100);
-  const overallStatus = statusColor(total.totalFilledCells, total.totalCells);
-  const overallLabel = overallStatus === 'green' ? 'ГОТОВО' : overallStatus === 'amber' ? 'ЧАСТКОВО' : 'ВІДСТАВАННЯ';
+  const finalizedPct = total.tCells === 0 ? 0 : Math.round((total.tFin / total.tCells) * 100);
+  const draftPct = total.tCells === 0 ? 0 : Math.round((total.tDraft / total.tCells) * 100);
+  const overallStatus = regionStatusColor(total.tFin, total.tDraft, total.tCells);
+  const overallLabel = overallStatus === 'green' ? 'ГОТОВО' : overallStatus === 'amber' ? 'У РОБОТІ' : 'ВІДСТАВАННЯ';
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
-      {/* Header row — у стилі RegionAccordion */}
+      {/* Header */}
       <div
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
@@ -192,44 +194,56 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           </div>
           <div className="min-w-0">
             <p className="text-[14px] font-bold truncate">Готовність планування</p>
-            <p className="text-[11px] text-muted-foreground">{total.totalManagers} менеджерів</p>
+            <p className="text-[11px] text-muted-foreground">{total.tMgrAll} менеджерів</p>
           </div>
         </div>
 
-        {/* Mini-list регіонів — dot колір за реальним покриттям бренд-клітинок */}
+        {/* Mini-list регіонів з трьома лічильниками */}
         <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
           {stats.map(r => {
-            const s = statusColor(r.filledCells, r.totalCells);
+            const s = regionStatusColor(r.finalizedCells, r.draftCells, r.totalCells);
             return (
               <span key={r.regionName} className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass[s]}`} />
-                <span className="font-semibold text-foreground/80 truncate">{r.regionName}</span>
-                <span className="text-muted-foreground/60 ml-auto shrink-0 font-mono">{r.filledCount}/{r.totalCount}</span>
+                <span className="font-semibold text-foreground/80 truncate flex-1">{r.regionName}</span>
+                <span className="text-emerald-600 font-bold shrink-0">{r.finalizedCells}</span>
+                <span className="text-muted-foreground/40">·</span>
+                <span className="text-amber-600 font-bold shrink-0">{r.draftCells}</span>
+                <span className="text-muted-foreground/40">·</span>
+                <span className="text-muted-foreground/60 font-mono shrink-0">{r.totalCells}</span>
               </span>
             );
           })}
         </div>
 
-        {/* Right cluster — як у RegionAccordion */}
+        {/* Right cluster */}
         <div className="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
-          <div className="text-right min-w-[140px]">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Заповнили</p>
+          <div className="text-right min-w-[160px]">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Заповнено</p>
             <p className="text-[14px] font-bold font-mono leading-none mt-1.5 whitespace-nowrap">
-              {total.totalFilled}<span className="text-muted-foreground/50 font-normal"> / </span><span className="text-muted-foreground/70">{total.totalManagers}</span>
+              <span className="text-emerald-600">{total.tFin}</span>
+              <span className="text-muted-foreground/50"> · </span>
+              <span className="text-amber-600">{total.tDraft}</span>
+              <span className="text-muted-foreground/50"> · </span>
+              <span className="text-muted-foreground/70">{total.tCells}</span>
             </p>
             <p className="text-[10px] text-muted-foreground leading-none mt-1">
-              {total.totalFullyFilled} повністю · {total.totalFilled - total.totalFullyFilled} частково
+              <span className="text-emerald-600 font-semibold">{total.tFin}</span> фінал ·{' '}
+              <span className="text-amber-600 font-semibold">{total.tDraft}</span> чернетка ·{' '}
+              <span className="font-semibold">{total.tEmpty}</span> пусто
             </p>
           </div>
-          <div className="flex flex-col items-center gap-1 w-14">
-            <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]" style={{ width: `${filledPct}%` }} />
+          <div className="flex flex-col items-center gap-1 w-20">
+            {/* Stacked bar: emerald (finalized) + amber (draft) */}
+            <div className="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden relative">
+              <div className="absolute inset-y-0 left-0 bg-emerald-500" style={{ width: `${finalizedPct}%` }} />
+              <div className="absolute inset-y-0 bg-amber-500" style={{ left: `${finalizedPct}%`, width: `${draftPct}%` }} />
             </div>
-            <span className="text-[11px] font-bold leading-none text-[#066aab]">{filledPct}%</span>
+            <span className="text-[11px] font-bold leading-none text-emerald-600">{finalizedPct}%</span>
           </div>
           <div className="w-[100px]">
             <div className="h-[12px] leading-none mb-1.5" />
-            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-${overallStatus === 'green' ? 'emerald' : overallStatus === 'amber' ? 'amber' : 'rose'}-50 text-${overallStatus === 'green' ? 'emerald' : overallStatus === 'amber' ? 'amber' : 'rose'}-700`}>{overallLabel}</span>
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${badgeBgClass[overallStatus]}`}>{overallLabel}</span>
           </div>
           <div>
             <div className="h-[12px] leading-none mb-1.5" />
@@ -242,11 +256,10 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
       {expanded && (
         <div className="px-5 pb-4 pt-3 space-y-2 bg-[#fafbfe] border-t border-[#f0f2f8]">
           {stats.map(r => {
-            const s = statusColor(r.filledCells, r.totalCells);
+            const s = regionStatusColor(r.finalizedCells, r.draftCells, r.totalCells);
             const isRegionExpanded = expandedRegions.has(r.regionName);
-            // % за реальним покриттям брендів (не «1/1 менеджер = 100%»):
-            // Житомир з 1 менеджером 6/9 → 67%, не 100%.
-            const pct = r.totalCells === 0 ? 0 : Math.round((r.filledCells / r.totalCells) * 100);
+            const finPct = r.totalCells === 0 ? 0 : Math.round((r.finalizedCells / r.totalCells) * 100);
+            const draftPctR = r.totalCells === 0 ? 0 : Math.round((r.draftCells / r.totalCells) * 100);
             return (
               <div key={r.regionName} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                 <button
@@ -258,45 +271,73 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                       return next;
                     });
                   }}
-                  className="w-full grid grid-cols-[20px_1fr_140px_80px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left"
+                  className="w-full grid grid-cols-[20px_1fr_180px_100px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left"
                 >
                   <span className={`w-2.5 h-2.5 rounded-full shadow-sm ${dotClass[s]}`} />
                   <span className="text-[14px] font-bold">{r.regionName}</span>
-                  <span className="text-[11px] text-muted-foreground text-right font-mono">{r.filledCount}/{r.totalCount} менеджерів</span>
+                  <span className="text-[11px] text-right font-mono">
+                    <span className="text-emerald-600 font-bold">{r.finalizedCells}</span>
+                    <span className="text-muted-foreground/40"> · </span>
+                    <span className="text-amber-600 font-bold">{r.draftCells}</span>
+                    <span className="text-muted-foreground/40"> · </span>
+                    <span className="text-muted-foreground/60">{r.emptyCells}</span>
+                    <span className="text-muted-foreground/40"> з {r.totalCells}</span>
+                  </span>
                   <div className="flex flex-col items-center gap-1">
-                    <div className="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
-                      <div className={`h-full rounded-full ${barClass[s]}`} style={{ width: `${pct}%` }} />
+                    <div className="w-full h-2 rounded-full bg-[#f0f2f8] overflow-hidden relative">
+                      <div className="absolute inset-y-0 left-0 bg-emerald-500" style={{ width: `${finPct}%` }} />
+                      <div className="absolute inset-y-0 bg-amber-500" style={{ left: `${finPct}%`, width: `${draftPctR}%` }} />
                     </div>
-                    <span className={`text-[11px] font-bold leading-none ${textClass[s]}`}>{pct}%</span>
+                    <span className={`text-[11px] font-bold leading-none ${textClass[s]}`}>{finPct}%</span>
                   </div>
                   <ChevronDown className={`h-4 w-4 text-muted-foreground/40 transition-transform ${isRegionExpanded ? 'rotate-180' : ''}`} />
                 </button>
                 {isRegionExpanded && (
                   <div className="px-4 pb-3 pt-2 border-t border-[#f0f2f8] grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
                     {r.managers.map(m => {
-                      const mgrStatus = m.filled.length === 0
-                        ? 'rose'
-                        : m.filled.length === totalBrands
-                          ? 'green'
+                      const mgrStatus = m.finalized.length === totalBrands
+                        ? 'green'
+                        : m.finalized.length + m.draft.length === 0
+                          ? 'rose'
                           : 'amber';
                       return (
                         <div key={m.login} className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-2 text-[12px]">
                             <span className={`w-2 h-2 rounded-full ${dotClass[mgrStatus]}`} />
                             <span className={`font-semibold flex-1 truncate ${mgrStatus === 'rose' ? 'text-rose-700' : ''}`}>{m.name || m.login}</span>
-                            <span className={`text-[11px] font-bold font-mono ${textClass[mgrStatus]}`}>{m.filled.length}/{totalBrands}</span>
+                            <span className="text-[11px] font-mono">
+                              <span className="text-emerald-600 font-bold">{m.finalized.length}</span>
+                              <span className="text-muted-foreground/40">·</span>
+                              <span className="text-amber-600 font-bold">{m.draft.length}</span>
+                              <span className="text-muted-foreground/40">/</span>
+                              <span className="text-muted-foreground/60">{totalBrands}</span>
+                            </span>
                           </div>
-                          {m.missing.length > 0 && m.filled.length > 0 && (
-                            <p className="text-[10.5px] text-muted-foreground pl-4 leading-tight">
-                              пропустила:{' '}
-                              {m.missing.map((code, i) => (
-                                <span key={code}>
-                                  <span className="text-rose-500">●</span>{' '}
-                                  <span className="font-medium">{brandName(code)}</span>
-                                  {i < m.missing.length - 1 && ', '}
-                                </span>
-                              ))}
-                            </p>
+                          {(m.draft.length > 0 || m.empty.length > 0) && (
+                            <div className="pl-4 text-[10.5px] leading-tight space-y-0.5">
+                              {m.draft.length > 0 && (
+                                <p className="text-amber-700">
+                                  чернетка:{' '}
+                                  {m.draft.map((code, i) => (
+                                    <span key={code}>
+                                      <span className="font-medium">{brandName(code)}</span>
+                                      {i < m.draft.length - 1 && ', '}
+                                    </span>
+                                  ))}
+                                </p>
+                              )}
+                              {m.empty.length > 0 && m.finalized.length + m.draft.length > 0 && (
+                                <p className="text-muted-foreground">
+                                  пусто:{' '}
+                                  {m.empty.map((code, i) => (
+                                    <span key={code}>
+                                      <span className="font-medium">{brandName(code)}</span>
+                                      {i < m.empty.length - 1 && ', '}
+                                    </span>
+                                  ))}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
                       );
