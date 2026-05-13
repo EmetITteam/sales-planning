@@ -263,7 +263,13 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const totalPrevFact = aggregate?.totalPrevMonthFact ?? 0;
   const totalPrevPlan = aggregate?.totalPrevMonthPlan ?? 0;
   const totalPrevPct = pctOf(totalPrevFact, totalPrevPlan);
-  const dynAmount = totalFact - totalPrevFact;
+  // Б.2: динаміка — заплановане vs минулий факт (forward-looking).
+  // Fallback на totalFact якщо план ще не складено.
+  const totalExpectedAmount = planAgg
+    ? planAgg.totalForecast + planAgg.totalGapPotential
+    : 0;
+  const compareForDyn = totalExpectedAmount > 0 ? totalExpectedAmount : totalFact;
+  const dynAmount = compareForDyn - totalPrevFact;
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);

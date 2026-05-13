@@ -481,7 +481,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
           value={formatUSD(totalFact)}
           isAmount
           caption={totalPrevFact > 0 && (() => {
-            const dyn = totalFact - totalPrevFact;
+            // Б.2: порівнюємо ЗАПЛАНОВАНИЙ показник з минулим фактом (forward-looking).
+            // Fallback на totalFact якщо менеджер ще не склав план.
+            const totalExpected = planAgg
+              ? planAgg.totalForecast + planAgg.totalGapPotential
+              : 0;
+            const compareValue = totalExpected > 0 ? totalExpected : totalFact;
+            const dyn = compareValue - totalPrevFact;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
             return (
@@ -493,6 +499,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
                 <span className={`font-semibold block ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
                   <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
                   <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
+                  <span className="text-[10px] text-muted-foreground ml-1">vs мин.</span>
                 </span>
               </span>
             );

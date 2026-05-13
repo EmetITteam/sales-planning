@@ -72,9 +72,13 @@ export function BrandRow({
   // mock factPct+60% давав брехливі ~67% коли реальний план міг бути 95%).
   const computedExpectedPct = expectedPercent ?? 0;
 
-  // Динаміка vs минулий місяць (повний факт)
+  // Динаміка vs минулий місяць — порівняння ЗАПЛАНОВАНОГО показника (expectedAmount)
+  // з фактом минулого. Forward-looking: «план цього місяця кращий/гірший за минулий
+  // факт на $X». Якщо expectedAmount=0 (план менеджера ще не складено) — fallback
+  // на factAmount (поточний факт vs минулий, як було раніше).
   const prev = prevMonthFactAmount ?? 0;
-  const dynAmount = factAmount - prev;
+  const expectedForCompare = expectedAmount && expectedAmount > 0 ? expectedAmount : factAmount;
+  const dynAmount = expectedForCompare - prev;
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
 

@@ -276,7 +276,12 @@ export function DirectorDashboard() {
   const totalPrevFact = company?.totalPrevMonthFact ?? 0;
   const totalPrevPlan = company?.totalPrevMonthPlan ?? 0;
   const totalPrevPct = pctOf(totalPrevFact, totalPrevPlan);
-  const dynAmount = totalFact - totalPrevFact;
+  // Б.2: динаміка hero «Факт» = заплановане vs минулий факт (forward-looking).
+  const totalExpectedAmountForDyn = planAgg
+    ? planAgg.totalForecast + planAgg.totalGapPotential
+    : 0;
+  const compareForDyn = totalExpectedAmountForDyn > 0 ? totalExpectedAmountForDyn : totalFact;
+  const dynAmount = compareForDyn - totalPrevFact;
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
