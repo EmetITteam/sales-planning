@@ -1999,7 +1999,8 @@ export function PlanningForm({
           const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
           const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
           const diff = Math.max(0, propPlanAmount - (fSum + gSum));
-          return `Запланована сума менше за план на ${formatUSD(diff)}. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми.`;
+          const pct = propPlanAmount > 0 ? ((fSum + gSum) / propPlanAmount) * 100 : 0;
+          return `Запланована сума менше за план на ${formatUSD(diff)}, відсоток планування — ${pct.toFixed(1)}%. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми.`;
         })()}
         confirmLabel="Так, фіналізувати"
         cancelLabel="Назад"
