@@ -165,15 +165,16 @@ async function directPatch(table: string, opts: {
   const inList = opts.client_ids.map(escapeListValue).join(',');
   const stagesList = opts.stages.map(escapeListValue).join(',');
 
-  const params = new URLSearchParams();
-  params.append('period_id', `eq.${opts.period_id}`);
-  params.append('user_id', `eq.${encodeURIComponent(opts.user_id)}`);
-  params.append('segment_code', `eq.${opts.segment_code}`);
-  params.append('archived_at', 'is.null');
-  params.append('stage_done', `eq.${opts.stage_done}`);
-
-  // PostgREST `in.()` синтаксис — конструюємо вручну бо URLSearchParams encode-ить дужки
-  const url = `${URL}/rest/v1/${table}?${params.toString()}&client_id_1c=in.(${inList})&stage=in.(${stagesList})`;
+  // ⚠️ НЕ використовуємо URLSearchParams — він double-encode email %40 → %2540
+  // (фіксили схожий баг у GET у commit ab47451). Ручна конкатенація як у lib/supabase.ts.
+  const qs = [
+    `period_id=eq.${opts.period_id}`,
+    `user_id=eq.${encodeURIComponent(opts.user_id)}`,
+    `segment_code=eq.${encodeURIComponent(opts.segment_code)}`,
+    `archived_at=is.null`,
+    `stage_done=eq.${opts.stage_done}`,
+  ].join('&');
+  const url = `${URL}/rest/v1/${table}?${qs}&client_id_1c=in.(${inList})&stage=in.(${stagesList})`;
 
   const r = await fetch(url, {
     method: 'PATCH',

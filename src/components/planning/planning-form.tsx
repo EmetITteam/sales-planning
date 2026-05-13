@@ -1995,7 +1995,11 @@ export function PlanningForm({
       <ConfirmDialog
         open={showIncompleteConfirm}
         title="Увага — план неповний"
-        description={`Сума прогнозу + закриття розриву менша за план місяця ($${propPlanAmount.toLocaleString()}). Ви впевнені що хочете фіналізувати? Після цього менеджер не зможе додати клієнтів чи змінити суми.`}
+        description={(() => {
+          const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
+          const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
+          return `Сума прогнозу + закриття розриву (${formatUSD(fSum + gSum)}) менша за план місяця (${formatUSD(propPlanAmount)}). Ви впевнені що хочете фіналізувати? Після цього менеджер не зможе додати клієнтів чи змінити суми.`;
+        })()}
         confirmLabel="Так, фіналізувати"
         cancelLabel="Назад"
         onConfirm={() => { setShowIncompleteConfirm(false); void doFinalize(); }}

@@ -195,12 +195,14 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Supabase env missing' }, { status: 500 });
     }
     const patchRow = async (table: string, clientId: string, stageComment: string | null, stageDone: boolean) => {
-      const params = new URLSearchParams();
-      params.append('period_id', `eq.${pid}`);
-      params.append('user_id', `eq.${encodeURIComponent(uid)}`);
-      params.append('segment_code', `eq.${segmentCode}`);
-      params.append('client_id_1c', `eq.${encodeURIComponent(clientId)}`);
-      const u = `${URL_BASE}/rest/v1/${table}?${params.toString()}`;
+      // ⚠️ НЕ використовуємо URLSearchParams — він double-encode email %40 → %2540.
+      const qs = [
+        `period_id=eq.${pid}`,
+        `user_id=eq.${encodeURIComponent(uid)}`,
+        `segment_code=eq.${encodeURIComponent(segmentCode)}`,
+        `client_id_1c=eq.${encodeURIComponent(clientId)}`,
+      ].join('&');
+      const u = `${URL_BASE}/rest/v1/${table}?${qs}`;
       const r = await fetch(u, {
         method: 'PATCH',
         headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },

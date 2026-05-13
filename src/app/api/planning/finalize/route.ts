@@ -142,15 +142,19 @@ export async function DELETE(request: NextRequest) {
   const { monthlyPid, segmentCode, effectiveLogin } = parsed;
 
   // PATCH через direct REST (custom wrapper не має .update()).
-  const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // ⚠️ НЕ використовуємо URLSearchParams — він робить ДРУГЕ encode на
+  // вже-encoded значення (email %40 → %2540 → PostgREST не знаходить рядок).
+  // Той самий патерн що у lib/supabase.ts: ручний conн queryParts.
+  const URL_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!URL || !KEY) return Response.json({ error: 'Supabase env missing' }, { status: 500 });
+  if (!URL_BASE || !KEY) return Response.json({ error: 'Supabase env missing' }, { status: 500 });
 
-  const params = new URLSearchParams();
-  params.append('period_id', `eq.${monthlyPid}`);
-  params.append('user_id', `eq.${encodeURIComponent(effectiveLogin)}`);
-  params.append('segment_code', `eq.${segmentCode}`);
-  const url = `${URL}/rest/v1/period_summaries?${params.toString()}`;
+  const qs = [
+    `period_id=eq.${monthlyPid}`,
+    `user_id=eq.${encodeURIComponent(effectiveLogin)}`,
+    `segment_code=eq.${encodeURIComponent(segmentCode)}`,
+  ].join('&');
+  const url = `${URL_BASE}/rest/v1/period_summaries?${qs}`;
 
   const r = await fetch(url, {
     method: 'PATCH',
