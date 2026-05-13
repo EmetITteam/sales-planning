@@ -21,6 +21,7 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
 
 // Дозволені 1С actions — whitelist щоб через прокі не можна було звертатись
 // до довільних 1С-методів. `login` НЕ дозволений тут — для нього є /api/auth/login
@@ -97,15 +98,16 @@ export async function POST(request: NextRequest) {
   // або перевіряємо доступ.
   // - Менеджер: тільки свій логін
   // - РМ: свій + managedUsers (менеджери регіону) напряму
-  // - Director: будь-хто (бо session.managedUsers містить РМ, не менеджерів —
-  //   transitive перевірити без додаткового 1С виклику не можемо. Director
-  //   за визначенням бачить всю компанію.)
+  // - Director / Admin: будь-хто. Admin без явного login → proxy через
+  //   DIRECTOR_PROXY_LOGIN бо 1С не знає що itd@emet.in.ua = Director.
   let safePayload = payload ?? {};
   if (LOGIN_BOUND_ACTIONS.has(action)) {
     const requestedLogin = (safePayload as { login?: string }).login;
+    const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
     if (!requestedLogin) {
-      safePayload = { ...safePayload, login: session.login };
-    } else if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin) && session.role !== 'director') {
+      const proxyLogin = session.role === 'admin' ? DIRECTOR_PROXY_LOGIN : session.login;
+      safePayload = { ...safePayload, login: proxyLogin };
+    } else if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin) && !isAdminOrDirector) {
       return Response.json(
         { status: 'error', message: 'Forbidden: login outside your scope' },
         { status: 403 },
