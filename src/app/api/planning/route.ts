@@ -170,6 +170,71 @@ export async function POST(request: NextRequest) {
   const errors: string[] = [];
   const ctx = { uid, pid, segmentCode };
 
+  // ---- FINALIZATION GUARD (Етап 2, 2026-05-13) ----
+  // Якщо план уже фіналізований і це не admin — переходимо у filtered mode:
+  // дозволяємо тільки stage_comment + stage_done. Решта payload ігнорується.
+  // Список клієнтів, суми, етап, тренінг — заморожено.
+  const { data: finalRows } = await supabase
+    .from('period_summaries')
+    .select('finalized_at')
+    .eq('period_id', pid)
+    .eq('user_id', uid)
+    .eq('segment_code', segmentCode);
+  const finalRow = Array.isArray(finalRows) && finalRows.length > 0 ? finalRows[0] : null;
+  const isFinalized = !!finalRow?.finalized_at;
+  if (isFinalized && session.role !== 'admin') {
+    // Filtered mode: тільки stage_comment + stage_done per existing row.
+    // PATCH через direct REST (custom wrapper не має .update()).
+    type IncomingStage = { clientId1c?: string; stageComment?: string; stageDone?: boolean };
+    const fIncoming = (forecasts as IncomingStage[] | undefined ?? []);
+    const gIncoming = (gapClosures as IncomingStage[] | undefined ?? []);
+
+    const URL_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!URL_BASE || !KEY) {
+      return Response.json({ error: 'Supabase env missing' }, { status: 500 });
+    }
+    const patchRow = async (table: string, clientId: string, stageComment: string | null, stageDone: boolean) => {
+      const params = new URLSearchParams();
+      params.append('period_id', `eq.${pid}`);
+      params.append('user_id', `eq.${encodeURIComponent(uid)}`);
+      params.append('segment_code', `eq.${segmentCode}`);
+      params.append('client_id_1c', `eq.${encodeURIComponent(clientId)}`);
+      const u = `${URL_BASE}/rest/v1/${table}?${params.toString()}`;
+      const r = await fetch(u, {
+        method: 'PATCH',
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ stage_comment: stageComment, stage_done: stageDone }),
+      });
+      if (!r.ok) {
+        const text = await r.text().catch(() => '');
+        return `HTTP ${r.status}: ${text.slice(0, 100)}`;
+      }
+      return null;
+    };
+
+    let updated = 0;
+    const updErrors: string[] = [];
+    for (const row of fIncoming) {
+      if (!row.clientId1c) continue;
+      const e = await patchRow('forecasts', row.clientId1c, row.stageComment ?? null, row.stageDone ?? false);
+      if (e) updErrors.push(`forecasts ${row.clientId1c}: ${e}`);
+      else updated++;
+    }
+    for (const row of gIncoming) {
+      if (!row.clientId1c) continue;
+      const e = await patchRow('gap_closures', row.clientId1c, row.stageComment ?? null, row.stageDone ?? false);
+      if (e) updErrors.push(`gap_closures ${row.clientId1c}: ${e}`);
+      else updated++;
+    }
+
+    if (updErrors.length > 0) {
+      console.error('[planning.POST finalized-filtered] errors:', { ...ctx, updErrors });
+      return Response.json({ error: updErrors.join('; ') }, { status: 500 });
+    }
+    return Response.json({ success: true, filteredFinalized: true, updated });
+  }
+
   // ---- 0. Pre-validate (підготувати рядки до інсерту) ----
   // Робимо це ДО будь-яких записів, щоб 400 не залишав сміття у БД.
   // Після migration M3 (2026-05-08) пишемо у нові колонки замість JSON-pack.

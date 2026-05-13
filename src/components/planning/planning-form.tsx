@@ -13,6 +13,7 @@ import { mutate as swrMutate } from 'swr';
 import { useAppStore } from '@/lib/store';
 import { isPlanningWritesAllowed, FEATURES } from '@/lib/feature-flags';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
+import { useFinalizationStatus, finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import {
@@ -85,9 +86,26 @@ export function PlanningForm({
   // Адмін (itd@emet.in.ua) обходить. Видаляється після Етапу 3.
   const isMaintenanceLocked = FEATURES.PLANNING_DISABLED && !isPlanningWritesAllowed(user?.login);
   const readOnly = readOnlyProp || isMaintenanceLocked;
+  const isAdmin = user?.role === 'admin';
   // Дані вантажимо/зберігаємо для targetUserLogin (якщо переданий — РМ дивиться чужий план)
   // або для поточного увійшовшого user.login.
   const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
+
+  // ⚠️ Пакет А Етап 2 (2026-05-13): finalization status — після фіналізації
+  // менеджер блокується на редагування сум/клієнтів/етапів. Admin обходить.
+  // periodId для finalize endpoint — береться з currentPeriod.id (тижневий).
+  // Backend сам ремапить на monthly через period.month. Передаємо як є.
+  const { finalizedAt, finalizedBy, refetch: refetchFinalize } = useFinalizationStatus(
+    currentPeriod?.id ?? null,
+    segmentCode,
+    effectiveLogin,
+    currentPeriod?.month ?? null,
+  );
+  const isFinalized = !!finalizedAt;
+  // Lock редагування сум, списку клієнтів, етапів, тренінгу, кнопок Add/Remove
+  // коли план фіналізований (не для admin). Stage_comment поки теж заблоковано —
+  // інлайн-edit коментарів додамо як окремий патч у наступних ітераціях.
+  const lockEdit = readOnly || (isFinalized && !isAdmin);
 
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
   // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
@@ -285,6 +303,55 @@ export function PlanningForm({
       ? { ok: true, msg: 'Збережено!' }
       : { ok: false, msg: result.error || 'Помилка збереження' }
     );
+    setTimeout(() => setSaveResult(null), 3000);
+  };
+
+  // ---- Фіналізація плану (Етап 2 Пакету А) ----
+  const [finalizing, setFinalizing] = useState(false);
+  const [showIncompleteConfirm, setShowIncompleteConfirm] = useState(false);
+  const doFinalize = async () => {
+    setFinalizing(true);
+    const result = await finalizePlan({
+      periodId: currentPeriod.id,
+      month: currentPeriod.month,
+      segmentCode,
+      targetLogin: targetUserLogin || undefined,
+    });
+    setFinalizing(false);
+    if (result.ok) {
+      refetchFinalize();
+      setSaveResult({ ok: true, msg: 'План фіналізовано' });
+    } else {
+      setSaveResult({ ok: false, msg: result.error });
+    }
+    setTimeout(() => setSaveResult(null), 3000);
+  };
+  const handleFinalize = () => {
+    // Перевірка повноти: forecast+gap >= planAmount → повний; інакше попередження.
+    const forecastSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
+    const gapSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
+    if (forecastSum + gapSum < propPlanAmount) {
+      setShowIncompleteConfirm(true);
+      return;
+    }
+    void doFinalize();
+  };
+  const handleUnfinalize = async () => {
+    if (!isAdmin) return;
+    setFinalizing(true);
+    const result = await unfinalizePlan({
+      periodId: currentPeriod.id,
+      month: currentPeriod.month,
+      segmentCode,
+      targetLogin: targetUserLogin || undefined,
+    });
+    setFinalizing(false);
+    if (result.ok) {
+      refetchFinalize();
+      setSaveResult({ ok: true, msg: 'План розфіналізовано' });
+    } else {
+      setSaveResult({ ok: false, msg: result.error });
+    }
     setTimeout(() => setSaveResult(null), 3000);
   };
 
@@ -979,6 +1046,26 @@ export function PlanningForm({
 
       <MaintenanceBanner />
 
+      {/* Finalized banner — Пакет А Етап 2 (2026-05-13) */}
+      {isFinalized && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+            <Check className="h-4 w-4 text-emerald-700" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[14px] font-bold text-emerald-900">
+              ✓ Фіналізовано {finalizedAt ? new Date(finalizedAt).toLocaleString('uk-UA', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' }) : ''}
+            </p>
+            <p className="text-[13px] text-emerald-800 mt-0.5">
+              {isAdmin
+                ? 'Ви бачите план у режимі адміна — можете редагувати або розфіналізувати.'
+                : 'План заблокований для редагування сум і списку клієнтів. Для змін зверніться до адміністратора.'}
+              {finalizedBy && ` · Фіналізував: ${finalizedBy}`}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Метрики */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -1095,7 +1182,7 @@ export function PlanningForm({
             <h3 className="text-[15px] font-bold">Прогноз по активних клієнтах</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">Клієнти які купували цей сегмент за останні 3 місяці</p>
           </div>
-          {!readOnly && (
+          {!lockEdit && (
             <Button onClick={() => setSearchOpen(true)}
               className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
               <Search className="h-3.5 w-3.5" /> Додати клієнта
@@ -1104,7 +1191,7 @@ export function PlanningForm({
         </div>
 
         {/* Bulk action bar — з'являється коли є вибрані */}
-        {!readOnly && selectedForecasts.size > 0 && (
+        {!lockEdit && selectedForecasts.size > 0 && (
           <div className="flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedForecasts.size}</span>
             <div className="flex items-center gap-2">
@@ -1122,7 +1209,7 @@ export function PlanningForm({
 
         {/* Заголовок колонок (тільки на md+) */}
         <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
-          {!readOnly && sortedForecasts.length > 0 ? (
+          {!lockEdit && sortedForecasts.length > 0 ? (
             <input
               type="checkbox"
               aria-label="Обрати всіх"
@@ -1166,7 +1253,7 @@ export function PlanningForm({
                 {/* === DESKTOP (md+) === */}
                 <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                   {/* Чекбокс multi-select (тільки для незавершених) */}
-                  {!readOnly && !row.completed ? (
+                  {!lockEdit && !row.completed ? (
                     <input
                       type="checkbox"
                       aria-label={`Обрати ${row.clientName}`}
@@ -1197,7 +1284,7 @@ export function PlanningForm({
                   ) : (
                     <Input type="number" value={row.forecastAmount}
                       onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
-                      disabled={readOnly}
+                      disabled={lockEdit}
                       className="amount h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
                   )}
 
@@ -1205,9 +1292,9 @@ export function PlanningForm({
                   <Select
                     value={row.stage || undefined}
                     onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v)}
-                    disabled={readOnly}
+                    disabled={lockEdit}
                   >
-                    <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                    <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
                       <SelectValue placeholder="Обрати" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1244,9 +1331,9 @@ export function PlanningForm({
                             updateForecast(row.clientId1c, 'trainingDate', t.date);
                           }
                         }}
-                        disabled={readOnly}
+                        disabled={lockEdit}
                       >
-                        <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                        <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
                           <SelectValue placeholder="Обрати навчання з 1С..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -1260,12 +1347,12 @@ export function PlanningForm({
                         </SelectContent>
                       </Select>
                       <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                        disabled={readOnly}
+                        disabled={lockEdit}
                         className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
                     </div>
                   ) : (
                     <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                      disabled={readOnly}
+                      disabled={lockEdit}
                       className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль..." />
                   )}
 
@@ -1275,7 +1362,7 @@ export function PlanningForm({
                   </p>
 
                   {/* Видалити */}
-                  {!readOnly && !row.completed ? (
+                  {!lockEdit && !row.completed ? (
                     <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
                       className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                       <Trash2 className="h-4 w-4" />
@@ -1287,7 +1374,7 @@ export function PlanningForm({
                 <div className="md:hidden p-4 space-y-3">
                   {/* Шапка: чекбокс + іконка + ім'я + delete */}
                   <div className="flex items-start gap-3">
-                    {!readOnly && !row.completed && (
+                    {!lockEdit && !row.completed && (
                       <input
                         type="checkbox"
                         aria-label={`Обрати ${row.clientName}`}
@@ -1305,7 +1392,7 @@ export function PlanningForm({
                         Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span>
                       </p>
                     </div>
-                    {!readOnly && !row.completed && (
+                    {!lockEdit && !row.completed && (
                       <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
                         className="p-2.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
                         <Trash2 className="h-4 w-4" />
@@ -1322,7 +1409,7 @@ export function PlanningForm({
                       ) : (
                         <Input type="number" value={row.forecastAmount}
                           onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
-                          disabled={readOnly}
+                          disabled={lockEdit}
                           className="amount h-9 w-full text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1" />
                       )}
                     </div>
@@ -1341,9 +1428,9 @@ export function PlanningForm({
                       <Select
                         value={row.stage || undefined}
                         onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v)}
-                        disabled={readOnly}
+                        disabled={lockEdit}
                       >
-                        <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                        <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
                           <SelectValue placeholder="Обрати" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1377,9 +1464,9 @@ export function PlanningForm({
                             updateForecast(row.clientId1c, 'trainingDate', t.date);
                           }
                         }}
-                        disabled={readOnly}
+                        disabled={lockEdit}
                       >
-                        <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={readOnly}>
+                        <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={lockEdit}>
                           <SelectValue placeholder="Обрати навчання..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -1392,7 +1479,7 @@ export function PlanningForm({
                       </Select>
                     )}
                     <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                      disabled={readOnly}
+                      disabled={lockEdit}
                       className="h-9 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1"
                       placeholder={row.stage === 'Навчання' ? 'Коментар (необов\'язково)...' : 'Ціль...'} />
                   </div>
@@ -1449,7 +1536,7 @@ export function PlanningForm({
               Очікуване <span className="amount">{formatUSD(Math.round(expectedAmount))}</span> − факт <span className="amount">{formatUSD(factAmount)}</span> − прогноз <span className="amount">{formatUSD(pendingForecastTotal)}</span> = розрив <span className="amount">{formatUSD(Math.round(gapAfterForecast))}</span>
             </p>
           </div>
-          {!readOnly && (
+          {!lockEdit && (
             <Button onClick={() => setGapSearchOpen(true)}
               className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
               <Search className="h-3.5 w-3.5" /> Додати клієнта
@@ -1467,7 +1554,7 @@ export function PlanningForm({
           </div>
         )}
         {/* Bulk action bar для gap-closures */}
-        {!readOnly && selectedGaps.size > 0 && (
+        {!lockEdit && selectedGaps.size > 0 && (
           <div className="flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedGaps.size}</span>
             <div className="flex items-center gap-2">
@@ -1487,7 +1574,7 @@ export function PlanningForm({
             {/* Заголовки колонок (тільки md+) */}
             {gapClosures.length > 0 && (
               <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
-                {!readOnly ? (
+                {!lockEdit ? (
                   <input
                     type="checkbox"
                     aria-label="Обрати всіх"
@@ -1522,7 +1609,7 @@ export function PlanningForm({
                   {/* === DESKTOP (md+) === */}
                   <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                     {/* Чекбокс multi-select */}
-                    {!readOnly && !row.completed ? (
+                    {!lockEdit && !row.completed ? (
                       <input
                         type="checkbox"
                         aria-label={`Обрати ${row.clientName}`}
@@ -1540,7 +1627,7 @@ export function PlanningForm({
                     <div className="min-w-0">
                       {row.manuallyAdded ? (
                         <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)}
-                          disabled={readOnly}
+                          disabled={lockEdit}
                           className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
                       ) : (
                         <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
@@ -1561,7 +1648,7 @@ export function PlanningForm({
                       </div>
                     ) : (
                       <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
-                        disabled={readOnly}
+                        disabled={lockEdit}
                         className="amount h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
                     )}
 
@@ -1569,9 +1656,9 @@ export function PlanningForm({
                     <Select
                       value={row.stage || undefined}
                       onValueChange={(v) => updateGap(i, 'stage', v)}
-                      disabled={readOnly}
+                      disabled={lockEdit}
                     >
-                      <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                      <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
                         <SelectValue placeholder="Обрати" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1609,9 +1696,9 @@ export function PlanningForm({
                               updateGap(i, 'deadline', t.date);
                             }
                           }}
-                          disabled={readOnly}
+                          disabled={lockEdit}
                         >
-                          <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                          <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
                             <SelectValue placeholder="Обрати навчання з 1С..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -1625,12 +1712,12 @@ export function PlanningForm({
                           </SelectContent>
                         </Select>
                         <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
-                          disabled={readOnly}
+                          disabled={lockEdit}
                           className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
                       </div>
                     ) : (
                       <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
-                        disabled={readOnly}
+                        disabled={lockEdit}
                         className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
                     )}
 
@@ -1640,7 +1727,7 @@ export function PlanningForm({
                     </p>
 
                     {/* Видалити */}
-                    {!readOnly ? (
+                    {!lockEdit ? (
                       <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
                         className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                         <Trash2 className="h-4 w-4" />
@@ -1652,7 +1739,7 @@ export function PlanningForm({
                   <div className="md:hidden p-4 space-y-3">
                     {/* Шапка */}
                     <div className="flex items-start gap-3">
-                      {!readOnly && !row.completed && (
+                      {!lockEdit && !row.completed && (
                         <input
                           type="checkbox"
                           aria-label={`Обрати ${row.clientName}`}
@@ -1666,7 +1753,7 @@ export function PlanningForm({
                       </div>
                       <div className="flex-1 min-w-0">
                         {row.manuallyAdded ? (
-                          <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)} disabled={readOnly}
+                          <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)} disabled={lockEdit}
                             className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
                         ) : (
                           <p className="text-[13px] font-semibold leading-tight">{row.clientName}</p>
@@ -1678,7 +1765,7 @@ export function PlanningForm({
                           )}
                         </div>
                       </div>
-                      {!readOnly && !row.completed && (
+                      {!lockEdit && !row.completed && (
                         <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
                           className="p-2.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
                           <Trash2 className="h-4 w-4" />
@@ -1693,7 +1780,7 @@ export function PlanningForm({
                         {row.completed ? (
                           <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.potentialAmount)}</p>
                         ) : (
-                          <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)} disabled={readOnly}
+                          <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)} disabled={lockEdit}
                             className="amount h-9 w-full text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1" />
                         )}
                       </div>
@@ -1711,8 +1798,8 @@ export function PlanningForm({
                       <div className="flex items-center gap-2 mt-1">
                         <Select value={row.stage || undefined}
                           onValueChange={(v) => updateGap(i, 'stage', v)}
-                          disabled={readOnly}>
-                          <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={readOnly}>
+                          disabled={lockEdit}>
+                          <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
                             <SelectValue placeholder="Обрати" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1738,8 +1825,8 @@ export function PlanningForm({
                             updateGap(i, 'trainingId', trainingId);
                             if (t) { updateGap(i, 'trainingName', t.trainingName); updateGap(i, 'trainingDate', t.date); }
                           }}
-                          disabled={readOnly}>
-                          <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={readOnly}>
+                          disabled={lockEdit}>
+                          <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={lockEdit}>
                             <SelectValue placeholder="Обрати навчання..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -1751,7 +1838,7 @@ export function PlanningForm({
                           </SelectContent>
                         </Select>
                       )}
-                      <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)} disabled={readOnly}
+                      <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)} disabled={lockEdit}
                         className="h-9 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1"
                         placeholder={row.stage === 'Навчання' ? 'Коментар (необов\'язково)...' : 'Дія...'} />
                     </div>
@@ -1799,7 +1886,7 @@ export function PlanningForm({
             <div key={key} className="flex items-center gap-3">
               <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#f4f7fb] text-[12px] font-bold text-muted-foreground shrink-0">{i + 1}</span>
               <Input value={gapActions[key]} onChange={(e) => setGapActions(prev => ({ ...prev, [key]: e.target.value }))}
-                disabled={readOnly}
+                disabled={lockEdit}
                 className="h-9 text-[13px] rounded-xl border-[#e8ebf4] bg-[#fafbfe]" placeholder={`Дія ${i + 1}...`} />
             </div>
           ))}
@@ -1808,7 +1895,7 @@ export function PlanningForm({
 
       {/* Sticky save bar — внизу екрана. Менеджер у довгій формі (25+ рядків)
           бачить «Зберегти» весь час, не треба скролити. */}
-      {!readOnly && (
+      {!lockEdit && (
         <div className="sticky bottom-0 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex items-center justify-end gap-3 z-10">
           {saveResult && (
             <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${
@@ -1819,7 +1906,7 @@ export function PlanningForm({
           )}
           <Button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || finalizing}
             className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
           >
             {saving ? (
@@ -1828,11 +1915,44 @@ export function PlanningForm({
                 Зберігаю...
               </>
             ) : (
-              <><Save className="h-4 w-4" /> Зберегти</>
+              <><Save className="h-4 w-4" /> Зберегти чернетку</>
             )}
           </Button>
+          {!isFinalized && (
+            <Button
+              onClick={handleFinalize}
+              disabled={saving || finalizing}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+              title="Заблокувати план від подальших змін сум і списку клієнтів"
+            >
+              <Lock className="h-4 w-4" />
+              {finalizing ? 'Фіналізую…' : 'Фіналізувати'}
+            </Button>
+          )}
+          {isFinalized && isAdmin && (
+            <Button
+              onClick={handleUnfinalize}
+              disabled={saving || finalizing}
+              className="gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+              title="Зняти фіналізацію — дозволити менеджеру редагувати"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {finalizing ? 'Розфіналізую…' : 'Розфіналізувати'}
+            </Button>
+          )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={showIncompleteConfirm}
+        title="Увага — план неповний"
+        description={`Сума прогнозу + закриття розриву менша за план місяця ($${propPlanAmount.toLocaleString()}). Ви впевнені що хочете фіналізувати? Після цього менеджер не зможе додати клієнтів чи змінити суми.`}
+        confirmLabel="Так, фіналізувати"
+        cancelLabel="Назад"
+        onConfirm={() => { setShowIncompleteConfirm(false); void doFinalize(); }}
+        onCancel={() => setShowIncompleteConfirm(false)}
+      />
+
 
       <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} clients={segmentClients} loading={clientsLoading} />
       <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[...gapExistingIds, ...existingIds]} clients={allManagerClients} loading={clientsLoading} />
