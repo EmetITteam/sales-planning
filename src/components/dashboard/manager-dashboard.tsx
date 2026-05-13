@@ -359,6 +359,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
         clientsError={clientsError}
         planAmount={seg?.planAmount ?? 0}
         factAmount={seg?.factAmount ?? 0}
+        prevMonthFactAmount={seg?.prevMonthFactAmount ?? 0}
+        prevMonthPlanAmount={seg?.prevMonthPlanAmount ?? 0}
         factResponse={adaptedFact}
       />
     );

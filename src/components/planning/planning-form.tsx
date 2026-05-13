@@ -64,6 +64,9 @@ interface PlanningFormProps {
    */
   planAmount?: number;
   factAmount?: number;
+  /** Prev-month dual: для порівняльного рядка у hero-чіпі FACT (Б.8). */
+  prevMonthFactAmount?: number;
+  prevMonthPlanAmount?: number;
   /**
    * Адаптована відповідь Action 3 (`getSalesFact`) — потрібна щоб у формі
    * показати «незапланованих покупців» (які купили без плану) під списками.
@@ -85,6 +88,7 @@ export function PlanningForm({
   segmentCode, onBack, readOnly: readOnlyProp = false, targetUserLogin, targetUserName,
   clientsResponse = null, clientsLoading = false, clientsError = null,
   planAmount: propPlanAmount = 0, factAmount: propFactAmount = 0,
+  prevMonthFactAmount = 0, prevMonthPlanAmount = 0,
   factResponse = null,
 }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
@@ -1154,25 +1158,46 @@ export function PlanningForm({
 
       {/* Метрики */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
-          { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
-          { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true },
-          { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
-        ].map(m => (
-          <div key={m.label} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br ${m.grad} text-white`}>{m.icon}</div>
-              {'badge' in m && m.badge && (
-                <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${m.badge.ok ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                  {m.badge.ok ? <ArrowUpRight className="inline h-2.5 w-2.5" /> : <ArrowDownRight className="inline h-2.5 w-2.5" />} {m.badge.text}
-                </span>
+        {(() => {
+          const prevFactPct = prevMonthPlanAmount > 0
+            ? (prevMonthFactAmount / prevMonthPlanAmount) * 100
+            : 0;
+          const factSubline = prevMonthFactAmount > 0
+            ? `Мин. міс.: ${formatUSD(prevMonthFactAmount)} · ${prevFactPct.toFixed(1)}%`
+            : null;
+          type Metric = {
+            label: string;
+            value: string;
+            icon: React.ReactNode;
+            grad: string;
+            isAmount: boolean;
+            badge?: { text: string; ok: boolean };
+            subline?: string;
+          };
+          const metrics: Metric[] = [
+            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+            { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+            { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true, subline: factSubline ?? undefined },
+            { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
+          ];
+          return metrics.map(m => (
+            <div key={m.label} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br ${m.grad} text-white`}>{m.icon}</div>
+                {m.badge && (
+                  <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${m.badge.ok ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                    {m.badge.ok ? <ArrowUpRight className="inline h-2.5 w-2.5" /> : <ArrowDownRight className="inline h-2.5 w-2.5" />} {m.badge.text}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">{m.label}</p>
+              <p className={`text-xl font-extrabold tracking-tight ${m.isAmount ? 'amount' : ''}`}>{m.value}</p>
+              {m.subline && (
+                <p className="text-[11px] text-muted-foreground mt-1 truncate" title={m.subline}>{m.subline}</p>
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground font-medium">{m.label}</p>
-            <p className={`text-xl font-extrabold tracking-tight ${m.isAmount ? 'amount' : ''}`}>{m.value}</p>
-          </div>
-        ))}
+          ));
+        })()}
       </div>
 
       {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === */}
