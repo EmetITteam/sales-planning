@@ -1998,7 +1998,8 @@ export function PlanningForm({
         description={(() => {
           const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
           const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-          return `Сума прогнозу + закриття розриву (${formatUSD(fSum + gSum)}) менша за план місяця (${formatUSD(propPlanAmount)}). Ви впевнені що хочете фіналізувати? Після цього менеджер не зможе додати клієнтів чи змінити суми.`;
+          const diff = Math.max(0, propPlanAmount - (fSum + gSum));
+          return `Запланована сума менше за план на ${formatUSD(diff)}. Після цього неможливо додати клієнтів чи змінити суми.`;
         })()}
         confirmLabel="Так, фіналізувати"
         cancelLabel="Назад"
