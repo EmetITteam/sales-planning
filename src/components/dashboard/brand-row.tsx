@@ -86,8 +86,11 @@ export function BrandRow({
         onClick && !readOnly ? 'hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer hover:-translate-y-px' : ''
       } transition-all duration-200 ${isInactive ? 'opacity-50' : ''}`}
     >
-      {/* === DESKTOP (md+): один рядок === */}
-      <div className="hidden md:grid md:grid-cols-[140px_95px_115px_minmax(120px,1fr)_85px_85px_60px_170px_20px] gap-3 items-center">
+      {/* === DESKTOP (xl+: 1280px і ширше): один рядок з 9 колонками ===
+          На md..lg (768-1280) показуємо mobile-стиль із wrap — інакше
+          колонки «КЛІЄНТИ» / «МИН. МІС.» обрізаються бо grid sum ~1086px
+          з gap + padding не вміщається. */}
+      <div className="hidden xl:grid xl:grid-cols-[140px_95px_115px_minmax(120px,1fr)_85px_85px_60px_170px_20px] gap-3 items-center">
         {/* 1. Бренд + точка */}
         <div className="flex items-center gap-2.5 min-w-0">
           <div className={`w-2.5 h-2.5 rounded-full ${tl.dot} shadow-sm shrink-0`} />
@@ -199,8 +202,8 @@ export function BrandRow({
         ) : <div />}
       </div>
 
-      {/* === MOBILE (<md): дві строки === */}
-      <div className="md:hidden flex flex-col gap-2">
+      {/* === MOBILE + TABLET (<xl): дві стрічки з wrap === */}
+      <div className="xl:hidden flex flex-col gap-2">
         {/* Mobile верх: бренд / бейдж / факт% / chevron */}
         <div className="flex items-center gap-2 min-w-0">
           <div className={`w-2.5 h-2.5 rounded-full ${tl.dot} shrink-0`} />

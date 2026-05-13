@@ -147,6 +147,26 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
     !isDemo && effectiveLogin !== 'anonymous' ? dateTo : null,
   );
 
+  // === Prev-month fetch (Б.1, 2026-05-13): окремі виклики Action 3 + Action 4
+  // для попереднього місяця. Менеджер сам собі — Action 5 не використовуємо.
+  // Якщо це травень → prev = квітень.
+  const prevPm = pm === 1 ? 12 : pm - 1;
+  const prevPy = pm === 1 ? py - 1 : py;
+  const prevDateFrom = `${prevPy}-${String(prevPm).padStart(2, '0')}-01`;
+  const prevLastDay = new Date(prevPy, prevPm, 0).getDate();
+  const prevDateTo = `${prevPy}-${String(prevPm).padStart(2, '0')}-${String(prevLastDay).padStart(2, '0')}`;
+  const prevPeriodKey = `${prevPy}-${String(prevPm).padStart(2, '0')}`;
+  const { data: prevPlansResponse } = useRegistryPlans(
+    !isDemo && effectiveLogin !== 'anonymous' ? prevDateFrom : null,
+    !isDemo && effectiveLogin !== 'anonymous' ? prevDateTo : null,
+  );
+  const { data: prevFactResponse } = useOneCData(
+    'getSalesFact',
+    !isDemo && effectiveLogin !== 'anonymous' && allClientIds.length > 0
+      ? { login: effectiveLogin, period: prevPeriodKey, clientIds: allClientIds, asOfDate: prevDateTo }
+      : null,
+  );
+
   // Map { segmentCode → planAmount } для поточного користувача.
   // Нормалізуємо логіни до lower-case з обох сторін.
   const effectiveLoginLower = effectiveLogin.toLowerCase().trim();
@@ -184,6 +204,28 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
     }
     return map;
   }, [plansResponse, effectiveLoginLower]);
+
+  // Prev-month plans per segment (Б.1, 2026-05-13).
+  const prevMyPlansBySegment = useMemo(() => {
+    if (!prevPlansResponse) return null;
+    const map = new Map<string, number>();
+    for (const p of adaptRegistryPlans(prevPlansResponse)) {
+      if (p.managerLogin === effectiveLoginLower) {
+        map.set(p.segmentCode, (map.get(p.segmentCode) ?? 0) + p.planAmount);
+      }
+    }
+    return map;
+  }, [prevPlansResponse, effectiveLoginLower]);
+
+  // Prev-month facts per segment (Б.1, 2026-05-13).
+  const prevFactsBySegment = useMemo(() => {
+    if (!prevFactResponse) return null;
+    const map = new Map<string, number>();
+    for (const f of adaptSalesFact(prevFactResponse).facts) {
+      map.set(f.segmentCode, f.totalAmount);
+    }
+    return map;
+  }, [prevFactResponse]);
 
   // Агрегати по категоріях клієнтів (для ClientStatsCard) — з реальних даних 1С
   // або з демо-цифр у DEMO режимі.
@@ -248,6 +290,11 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
         ? ((managerForecast + managerGap) / planAmount) * 100
         : 0;
 
+      // Prev-month (Б.1): окремі Action 3 + Action 4 виклики з prev period.
+      const prevPlanAmount = prevMyPlansBySegment?.get(seg.code) ?? 0;
+      const prevFactAmount = prevFactsBySegment?.get(seg.code) ?? 0;
+      const prevFactPct = pctOf(prevFactAmount, prevPlanAmount);
+
       return {
         segmentCode: seg.code,
         segmentName: seg.name,
@@ -259,15 +306,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
         expectedPercent: Math.round(expectedPct * 100) / 100,
         hasManagerPlan,
         deviationPercent: Math.round((forecastPct - calcPctValue) * 100) / 100,
-        prevMonthFactAmount: 0, // Action 5 — то todo
-        prevMonthPlanAmount: 0,
-        prevMonthFactPercent: 0,
+        prevMonthFactAmount: Math.round(prevFactAmount * 100) / 100,
+        prevMonthPlanAmount: Math.round(prevPlanAmount * 100) / 100,
+        prevMonthFactPercent: Math.round(prevFactPct * 100) / 100,
         weightedPipeline: factAmount * 1.5,
         clientCount,
         status: 'draft',
       } satisfies TMSummaryCard;
     });
-  }, [isDemo, asOfDate, factResponse, myPlansBySegment, planAgg]);
+  }, [isDemo, asOfDate, factResponse, myPlansBySegment, planAgg, prevMyPlansBySegment, prevFactsBySegment]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   const totalPct = pctOf(totalFact, totalPlan);
