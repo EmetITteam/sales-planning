@@ -575,28 +575,56 @@ export function PlanningForm({
 
   useEffect(() => {
     if (activitiesByClient.size === 0) return;
-    const matches = (row: { clientId1c: string; stage: string; stageDone: boolean }): boolean => {
-      if (row.stageDone) return false; // вже виконано, не чіпати
-      const act = activitiesByClient.get(row.clientId1c);
-      if (!act) return false;
-      if (row.stage === 'Дзвінок' && act.hasCall) return true;
-      if (row.stage === 'Зустріч' && act.hasMeeting) return true;
-      return false;
-    };
-    // Збираємо confirmations що потрібно persist-нути (тільки нові, які
-    // ще не дзвонили цією сесією).
-    const toPersist: Array<{ block: 'forecast' | 'gap'; clientId1c: string }> = [];
 
+    // Plan-vs-fact tracking (Етап 4 Пакету А, 2026-05-13):
+    // Збираємо ВСІ клієнтів у яких 1С повернула hasCall/hasMeeting,
+    // незалежно від запланованого етапу. Backend пише actual_had_* для
+    // аналітики, плюс stage_done якщо planned stage співпав з фактом.
+    const toPersist: Array<{
+      block: 'forecast' | 'gap';
+      clientId1c: string;
+      hasCall: boolean;
+      hasMeeting: boolean;
+      plannedStage: string;
+    }> = [];
+
+    const buildItem = (
+      block: 'forecast' | 'gap',
+      row: { clientId1c: string; stage: string },
+    ): typeof toPersist[number] | null => {
+      const act = activitiesByClient.get(row.clientId1c);
+      if (!act || (!act.hasCall && !act.hasMeeting)) return null;
+      // Memo-key включає фактичні прапори — якщо 1С згодом додасть meeting
+      // до існуючого call, ми викличемо backend знов (інакше new actual_had_meeting
+      // не запишеться у БД).
+      const memoKey = `${block}|${row.clientId1c}|${act.hasCall ? 'c' : ''}${act.hasMeeting ? 'm' : ''}|${row.stage}`;
+      if (confirmedRef.current.has(memoKey)) return null;
+      confirmedRef.current.add(memoKey);
+      return {
+        block,
+        clientId1c: row.clientId1c,
+        hasCall: !!act.hasCall,
+        hasMeeting: !!act.hasMeeting,
+        plannedStage: row.stage || '',
+      };
+    };
+
+    // Локальний state — оновлюємо stageDone=true ТІЛЬКИ коли planned stage
+    // співпадає з фактом (cross-channel separation: дзвінок не підтверджується
+    // мітингом). actual_had_* — це БД-only, не у state форми.
     setForecasts(prev => {
       let changed = false;
       const next = prev.map(f => {
-        if (!matches(f)) return f;
+        const act = activitiesByClient.get(f.clientId1c);
+        if (!act) return f;
+        // Збираємо для persist (незалежно від stageDone — actual_* може ще не записано)
+        const item = buildItem('forecast', f);
+        if (item) toPersist.push(item);
+        // Локальний stageDone — тільки якщо match і ще не done
+        if (f.stageDone) return f;
+        const match = (f.stage === 'Дзвінок' && act.hasCall) || (f.stage === 'Зустріч' && act.hasMeeting);
+        if (!match) return f;
         changed = true;
-        const memoKey = `forecast|${f.clientId1c}`;
-        if (!confirmedRef.current.has(memoKey)) {
-          confirmedRef.current.add(memoKey);
-          toPersist.push({ block: 'forecast', clientId1c: f.clientId1c });
-        }
         return { ...f, stageDone: true };
       });
       return changed ? next : prev;
@@ -604,21 +632,22 @@ export function PlanningForm({
     setGapClosures(prev => {
       let changed = false;
       const next = prev.map(g => {
-        if (!matches(g)) return g;
+        const act = activitiesByClient.get(g.clientId1c);
+        if (!act) return g;
+        const item = buildItem('gap', g);
+        if (item) toPersist.push(item);
+        if (g.stageDone) return g;
+        const match = (g.stage === 'Дзвінок' && act.hasCall) || (g.stage === 'Зустріч' && act.hasMeeting);
+        if (!match) return g;
         changed = true;
-        const memoKey = `gap|${g.clientId1c}`;
-        if (!confirmedRef.current.has(memoKey)) {
-          confirmedRef.current.add(memoKey);
-          toPersist.push({ block: 'gap', clientId1c: g.clientId1c });
-        }
         return { ...g, stageDone: true };
       });
       return changed ? next : prev;
     });
 
     // Fire-and-forget auto-persist. Помилки логуємо у консоль — стейт уже
-    // оновлено локально, тож менеджер бачить «Виконано» все одно. При
-    // наступному save-у форми звичайним flow stage_done теж потрапить у БД.
+    // оновлено локально, тож менеджер бачить «Виконано» все одно. Backend
+    // пише stage_done (якщо match) і actual_had_* (завжди коли є активність).
     if (toPersist.length > 0) {
       fetch('/api/planning/confirm-activities', {
         method: 'POST',

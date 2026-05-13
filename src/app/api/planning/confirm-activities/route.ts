@@ -1,39 +1,45 @@
 /**
  * POST /api/planning/confirm-activities
  *
- * Minimal endpoint що persист-ить `stage_done=true` для рядків плану що
- * 1С Action 7 (`checkActivities`) автоматично підтвердив (Дзвінок/Зустріч).
+ * Пише ДВА типи даних з 1С Action 7 (`checkActivities`):
  *
- * НЕ робить save повного плану — лише UPDATE одного поля на конкретних
- * рядках. Це безпечно навіть коли менеджер посеред редагування інших
- * полів (не перетирає її незбережені зміни).
+ *   1. stage_done — ставиться TRUE коли planned stage співпадає з фактом:
+ *        stage='Дзвінок'  + hasCall=true → stage_done=true
+ *        stage='Зустріч'  + hasMeeting=true → stage_done=true
+ *      ONE-WAY: stage_done=true ніколи не скидається з 1С (поважаємо
+ *      ручну позначку менеджера).
+ *
+ *   2. actual_had_call / actual_had_meeting / actual_first_seen_at —
+ *      фіксують РЕАЛЬНІ активності НЕЗАЛЕЖНО від запланованого етапу.
+ *      Якщо менеджер планував дзвінок, а зробив зустріч —
+ *      actual_had_meeting=true; це дає аналітиці чіткий план/факт-зріз.
+ *      ONE-WAY: actual_had_* теж не скидається.
  *
  * Запит:
  *   {
- *     periodId: number,                  // monthly canonical (ремаппиться)
+ *     periodId: number,
  *     period?: { month: 'YYYY-MM-DD' },
  *     segmentCode: string,
  *     targetLogin?: string,
  *     confirmations: Array<{
  *       block: 'forecast' | 'gap',
  *       clientId1c: string,
+ *       hasCall?: boolean,        // факт з 1С Action 7
+ *       hasMeeting?: boolean,     // факт з 1С Action 7
+ *       plannedStage?: string,    // 'Дзвінок' | 'Зустріч' | '' — як у state форми
  *     }>,
  *   }
  *
- * Логіка UPDATE:
- *   - WHERE (period_id, user_id, segment_code, client_id_1c)
- *   - AND archived_at IS NULL
- *   - AND stage_done = false  (no-op якщо вже true)
- *   - AND stage IN ('Дзвінок', 'Зустріч')  (захист від випадкового update)
- *   - SET stage_done = true
+ * Запис per item (PATCH):
+ *   - Якщо hasCall → actual_had_call=true, first_seen якщо NULL
+ *   - Якщо hasMeeting → actual_had_meeting=true, first_seen якщо NULL
+ *   - Якщо (plannedStage='Дзвінок' && hasCall) || (plannedStage='Зустріч' && hasMeeting)
+ *     → stage_done=true (плюс попередні два)
  *
- * Захист:
- *   - Session required + scope check (як у /api/planning POST)
- *   - confirmations.length ≤ 200 (одна форма не може бути більшою)
+ * Якщо hasCall=false AND hasMeeting=false для item — пропускаємо (no-op).
  */
 
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
@@ -43,6 +49,16 @@ import { assertWindowAllowed } from '@/lib/window-guard';
 interface Confirmation {
   block: 'forecast' | 'gap';
   clientId1c: string;
+  hasCall?: boolean;
+  hasMeeting?: boolean;
+  plannedStage?: string;
+}
+
+interface PatchPayload {
+  stage_done?: boolean;
+  actual_had_call?: boolean;
+  actual_had_meeting?: boolean;
+  actual_first_seen_at?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -51,7 +67,6 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // ⚠️ ТИМЧАСОВИЙ kill-switch (Пакет А Етап 0, 2026-05-13). Адмін обходить.
   if (!isPlanningWritesAllowed(session.login)) {
     return Response.json({
       error: 'Триває оновлення системи. Підтвердження активностей тимчасово недоступне.',
@@ -77,7 +92,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'too many confirmations (max 200)' }, { status: 400 });
   }
 
-  // Ремап на monthly pid (паритет з planning/aggregate routes).
+  // Ремап на monthly pid.
   let monthlyPid = periodId;
   if (period?.month && /^\d{4}-\d{2}/.test(String(period.month))) {
     monthlyPid = monthlyPidFromMonth(String(period.month));
@@ -86,7 +101,6 @@ export async function POST(request: NextRequest) {
     if (purePid !== periodId) monthlyPid = purePid;
   }
 
-  // SECURITY scope: як у /api/planning POST (WRITE — Director не пропускається).
   const effectiveLogin = targetLogin && targetLogin !== session.login ? targetLogin : session.login;
   if (effectiveLogin !== session.login
       && session.role !== 'admin'
@@ -95,51 +109,110 @@ export async function POST(request: NextRequest) {
   }
   const uid = effectiveLogin;
 
-  // Window-lock guard (Етап 3): stage_done write — це теж edit плану.
   const winCheck = await assertWindowAllowed(session, uid, period?.month);
   if (winCheck.blocked) return winCheck.response;
 
-  // Розкладаємо confirmations по таблицях.
-  const forecastIds: string[] = [];
-  const gapIds: string[] = [];
+  const URL_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!URL_BASE || !KEY) {
+    return Response.json({ error: 'Supabase env missing' }, { status: 500 });
+  }
+
+  const nowIso = new Date().toISOString();
+
+  /** Будує per-item PATCH payload. Якщо немає що писати — повертає null. */
+  function buildPatch(c: Confirmation): PatchPayload | null {
+    const hasCall = c.hasCall === true;
+    const hasMeeting = c.hasMeeting === true;
+    if (!hasCall && !hasMeeting) return null;
+
+    const patch: PatchPayload = { actual_first_seen_at: nowIso };
+    if (hasCall) patch.actual_had_call = true;
+    if (hasMeeting) patch.actual_had_meeting = true;
+
+    // stage_done — cross-channel separation: plannedStage='Дзвінок' + hasCall
+    // АБО plannedStage='Зустріч' + hasMeeting. Решта — stage_done не чіпаємо.
+    if ((c.plannedStage === 'Дзвінок' && hasCall)
+        || (c.plannedStage === 'Зустріч' && hasMeeting)) {
+      patch.stage_done = true;
+    }
+    return patch;
+  }
+
+  /** PATCH одного рядка. Сервер виставляє ONE-WAY поля — якщо колонка вже
+   *  true, PATCH=true → no-op (Postgres UPDATE з тим самим значенням).
+   *  actual_first_seen_at пишемо лише якщо у БД ще NULL → COALESCE через
+   *  фільтр у URL: `actual_first_seen_at=is.null` (виконається лише раз). */
+  async function patchOne(table: string, clientId: string, patch: PatchPayload): Promise<string | null> {
+    // PATCH 1 — actual_first_seen_at (тільки якщо ще NULL).
+    if (patch.actual_first_seen_at) {
+      const qs1 = [
+        `period_id=eq.${monthlyPid}`,
+        `user_id=eq.${encodeURIComponent(uid)}`,
+        `segment_code=eq.${encodeURIComponent(segmentCode)}`,
+        `client_id_1c=eq.${encodeURIComponent(clientId)}`,
+        `actual_first_seen_at=is.null`,
+      ].join('&');
+      await fetch(`${URL_BASE}/rest/v1/${table}?${qs1}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: KEY!, Authorization: `Bearer ${KEY!}`,
+          'Content-Type': 'application/json', Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ actual_first_seen_at: patch.actual_first_seen_at }),
+      });
+    }
+
+    // PATCH 2 — основні one-way прапори (без first_seen щоб не перетерти).
+    const main: PatchPayload = { ...patch };
+    delete main.actual_first_seen_at;
+    if (Object.keys(main).length === 0) return null;
+
+    const qs2 = [
+      `period_id=eq.${monthlyPid}`,
+      `user_id=eq.${encodeURIComponent(uid)}`,
+      `segment_code=eq.${encodeURIComponent(segmentCode)}`,
+      `client_id_1c=eq.${encodeURIComponent(clientId)}`,
+    ].join('&');
+    const r = await fetch(`${URL_BASE}/rest/v1/${table}?${qs2}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: KEY!, Authorization: `Bearer ${KEY!}`,
+        'Content-Type': 'application/json', Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(main),
+    });
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      return `HTTP ${r.status}: ${text.slice(0, 100)}`;
+    }
+    return null;
+  }
+
+  let updatedF = 0, updatedG = 0;
+  const errors: string[] = [];
+
+  // Розкладаємо confirmations + обчислюємо patch, виконуємо паралельно.
+  const tasks: Array<{ table: 'forecasts' | 'gap_closures'; clientId: string; patch: PatchPayload }> = [];
   for (const c of confirmations as Confirmation[]) {
     if (!c || typeof c.clientId1c !== 'string' || !c.clientId1c) continue;
-    if (c.block === 'forecast') forecastIds.push(c.clientId1c);
-    else if (c.block === 'gap') gapIds.push(c.clientId1c);
+    if (c.block !== 'forecast' && c.block !== 'gap') continue;
+    const patch = buildPatch(c);
+    if (!patch) continue;
+    tasks.push({
+      table: c.block === 'forecast' ? 'forecasts' : 'gap_closures',
+      clientId: c.clientId1c,
+      patch,
+    });
   }
 
-  const errors: string[] = [];
-  let updatedF = 0, updatedG = 0;
-
-  // UPDATE forecasts SET stage_done=true WHERE ... (тільки stage IN Дзвінок/Зустріч + не archived + не done)
-  if (forecastIds.length > 0) {
-    // Supabase wrapper не має .neq/.in для UPDATE — використовуємо PATCH через REST direct.
-    // Але наш SDK дозволяє ланцюжки `.eq().in().is()` для UPDATE? Перевіримо.
-    // Спробуємо через окремий REST fetch — простіше і явніше.
-    const r = await directPatch('forecasts', {
-      period_id: monthlyPid,
-      user_id: uid,
-      segment_code: segmentCode,
-      archived_at: null,
-      stage_done: false,
-      client_ids: forecastIds,
-      stages: ['Дзвінок', 'Зустріч'],
-    });
-    if (!r.ok) errors.push(`forecasts: ${r.error}`);
-    else updatedF = r.updated;
-  }
-  if (gapIds.length > 0) {
-    const r = await directPatch('gap_closures', {
-      period_id: monthlyPid,
-      user_id: uid,
-      segment_code: segmentCode,
-      archived_at: null,
-      stage_done: false,
-      client_ids: gapIds,
-      stages: ['Дзвінок', 'Зустріч'],
-    });
-    if (!r.ok) errors.push(`gap_closures: ${r.error}`);
-    else updatedG = r.updated;
+  // Концурентність — невелика (макс 200 items, на практиці 10-30).
+  // Запускаємо все паралельно — Vercel дає достатньо connections.
+  const results = await Promise.all(tasks.map(t => patchOne(t.table, t.clientId, t.patch).then(err => ({ t, err }))));
+  for (const { t, err } of results) {
+    if (err) errors.push(`${t.table} ${t.clientId}: ${err}`);
+    else if (t.table === 'forecasts') updatedF++;
+    else updatedG++;
   }
 
   if (errors.length > 0) {
@@ -147,54 +220,4 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: errors.join('; ') }, { status: 500 });
   }
   return Response.json({ success: true, updated: { forecasts: updatedF, gaps: updatedG } });
-}
-
-// Direct PostgREST PATCH — використовуємо тут бо наш custom SDK не підтримує
-// `.in()` + `.is()` + `.eq()` для PATCH. Цей endpoint — єдиний що потребує
-// складного WHERE в UPDATE, тож не варто розширювати SDK заради одного місця.
-async function directPatch(table: string, opts: {
-  period_id: number;
-  user_id: string;
-  segment_code: string;
-  archived_at: null;
-  stage_done: boolean;
-  client_ids: string[];
-  stages: string[];
-}): Promise<{ ok: true; updated: number } | { ok: false; error: string }> {
-  const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!URL || !KEY) return { ok: false, error: 'Supabase env missing' };
-
-  const escapeListValue = (v: string) =>
-    /[,()"\\]/.test(v) ? `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : encodeURIComponent(v);
-  const inList = opts.client_ids.map(escapeListValue).join(',');
-  const stagesList = opts.stages.map(escapeListValue).join(',');
-
-  // ⚠️ НЕ використовуємо URLSearchParams — він double-encode email %40 → %2540
-  // (фіксили схожий баг у GET у commit ab47451). Ручна конкатенація як у lib/supabase.ts.
-  const qs = [
-    `period_id=eq.${opts.period_id}`,
-    `user_id=eq.${encodeURIComponent(opts.user_id)}`,
-    `segment_code=eq.${encodeURIComponent(opts.segment_code)}`,
-    `archived_at=is.null`,
-    `stage_done=eq.${opts.stage_done}`,
-  ].join('&');
-  const url = `${URL}/rest/v1/${table}?${qs}&client_id_1c=in.(${inList})&stage=in.(${stagesList})`;
-
-  const r = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      apikey: KEY,
-      Authorization: `Bearer ${KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify({ stage_done: true }),
-  });
-  if (!r.ok) {
-    const text = await r.text().catch(() => '');
-    return { ok: false, error: `HTTP ${r.status}: ${text.slice(0, 200)}` };
-  }
-  const rows = await r.json().catch(() => []);
-  return { ok: true, updated: Array.isArray(rows) ? rows.length : 0 };
 }
