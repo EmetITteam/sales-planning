@@ -1249,11 +1249,11 @@ export function PlanningForm({
           {sortedForecasts.map((row) => {
             const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
             return (
-              <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
+              <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
                 {/* === DESKTOP (md+) === */}
                 <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                   {/* Чекбокс multi-select (тільки для незавершених) */}
-                  {!lockEdit && !row.completed ? (
+                  {!lockEdit && !(row.completed && !isAdmin) ? (
                     <input
                       type="checkbox"
                       aria-label={`Обрати ${row.clientName}`}
@@ -1263,8 +1263,8 @@ export function PlanningForm({
                     />
                   ) : <div />}
                   {/* Іконка статусу */}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
-                    {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${(row.completed && !isAdmin) ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
+                    {(row.completed && !isAdmin) ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
                   </div>
 
                   {/* Клієнт */}
@@ -1276,7 +1276,7 @@ export function PlanningForm({
                   </div>
 
                   {/* Прогноз */}
-                  {row.completed ? (
+                  {(row.completed && !isAdmin) ? (
                     <div className="flex items-center justify-end gap-1">
                       <Lock className="h-3 w-3 text-muted-foreground/40" />
                       <span className="text-[14px] font-bold text-muted-foreground amount">{formatUSD(row.forecastAmount)}</span>
@@ -1362,7 +1362,7 @@ export function PlanningForm({
                   </p>
 
                   {/* Видалити */}
-                  {!lockEdit && !row.completed ? (
+                  {!lockEdit && !(row.completed && !isAdmin) ? (
                     <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
                       className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
                       <Trash2 className="h-4 w-4" />
@@ -1374,7 +1374,7 @@ export function PlanningForm({
                 <div className="md:hidden p-4 space-y-3">
                   {/* Шапка: чекбокс + іконка + ім'я + delete */}
                   <div className="flex items-start gap-3">
-                    {!lockEdit && !row.completed && (
+                    {!lockEdit && !(row.completed && !isAdmin) && (
                       <input
                         type="checkbox"
                         aria-label={`Обрати ${row.clientName}`}
@@ -1383,8 +1383,8 @@ export function PlanningForm({
                         onChange={() => toggleForecast(row.clientId1c)}
                       />
                     )}
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${row.completed ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
-                      {row.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${(row.completed && !isAdmin) ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
+                      {(row.completed && !isAdmin) ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold leading-tight">{row.clientName}</p>
@@ -1392,7 +1392,7 @@ export function PlanningForm({
                         Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span>
                       </p>
                     </div>
-                    {!lockEdit && !row.completed && (
+                    {!lockEdit && !(row.completed && !isAdmin) && (
                       <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
                         className="p-2.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
                         <Trash2 className="h-4 w-4" />
@@ -1404,7 +1404,7 @@ export function PlanningForm({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Прогноз</label>
-                      {row.completed ? (
+                      {(row.completed && !isAdmin) ? (
                         <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.forecastAmount)}</p>
                       ) : (
                         <Input type="number" value={row.forecastAmount}
@@ -1605,11 +1605,11 @@ export function PlanningForm({
               const hasFact = row.factAmount > 0;
               const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
               return (
-                <div key={row.clientId1c || `idx-${i}`} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${row.completed ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
+                <div key={row.clientId1c || `idx-${i}`} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
                   {/* === DESKTOP (md+) === */}
                   <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                     {/* Чекбокс multi-select */}
-                    {!lockEdit && !row.completed ? (
+                    {!lockEdit && !(row.completed && !isAdmin) ? (
                       <input
                         type="checkbox"
                         aria-label={`Обрати ${row.clientName}`}
@@ -1619,8 +1619,8 @@ export function PlanningForm({
                       />
                     ) : <div />}
                     {/* Іконка */}
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${row.completed || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
-                      {row.completed || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${(row.completed && !isAdmin) || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
+                      {(row.completed && !isAdmin) || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
                     </div>
 
                     {/* Клієнт */}
@@ -1641,7 +1641,7 @@ export function PlanningForm({
                     </div>
 
                     {/* Потенціал */}
-                    {row.completed ? (
+                    {(row.completed && !isAdmin) ? (
                       <div className="flex items-center justify-end gap-1">
                         <Lock className="h-3 w-3 text-muted-foreground/40" />
                         <span className="text-[14px] font-bold text-muted-foreground amount">{formatUSD(row.potentialAmount)}</span>
@@ -1739,7 +1739,7 @@ export function PlanningForm({
                   <div className="md:hidden p-4 space-y-3">
                     {/* Шапка */}
                     <div className="flex items-start gap-3">
-                      {!lockEdit && !row.completed && (
+                      {!lockEdit && !(row.completed && !isAdmin) && (
                         <input
                           type="checkbox"
                           aria-label={`Обрати ${row.clientName}`}
@@ -1748,8 +1748,8 @@ export function PlanningForm({
                           onChange={() => toggleGap(i)}
                         />
                       )}
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${row.completed || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
-                        {row.completed || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${(row.completed && !isAdmin) || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
+                        {(row.completed && !isAdmin) || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         {row.manuallyAdded ? (
@@ -1765,7 +1765,7 @@ export function PlanningForm({
                           )}
                         </div>
                       </div>
-                      {!lockEdit && !row.completed && (
+                      {!lockEdit && !(row.completed && !isAdmin) && (
                         <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
                           className="p-2.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
                           <Trash2 className="h-4 w-4" />
@@ -1777,7 +1777,7 @@ export function PlanningForm({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Потенціал</label>
-                        {row.completed ? (
+                        {(row.completed && !isAdmin) ? (
                           <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.potentialAmount)}</p>
                         ) : (
                           <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)} disabled={lockEdit}
