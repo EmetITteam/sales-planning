@@ -17,6 +17,7 @@ import { BrandManagerGroup, pivotBrandsByManager } from './brand-manager-group';
 import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
+import { MaintenanceBanner } from '@/components/maintenance-banner';
 import {
   ChevronRight, MapPin, ClipboardList, RefreshCw,
   DollarSign, Target, TrendingUp, TrendingDown,
@@ -274,6 +275,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
   return (
     <div className="space-y-8">
+      <MaintenanceBanner />
       {errorBanner}
 
       {/* Region header */}
