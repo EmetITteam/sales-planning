@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
-import { Shield, Lock, Clock, Settings2 } from 'lucide-react';
+import Link from 'next/link';
+import { Shield, Lock, Clock, Settings2, ArrowLeft } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -33,6 +34,12 @@ export default function AdminPage() {
     <>
       <AppHeader />
       <main className="p-5 max-w-5xl mx-auto space-y-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4" /> На дашборд
+        </Link>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#991b1b] to-[#dc2626] text-white flex items-center justify-center shadow-lg shadow-rose-500/15">
             <Shield className="h-5 w-5" />

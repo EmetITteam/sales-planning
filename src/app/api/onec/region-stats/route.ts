@@ -114,7 +114,7 @@ async function handlePost(request: NextRequest) {
   // Security: scope-перевірка як у /api/onec
   const sessionLogin = session.login.toLowerCase().trim();
   const allowed = new Set<string>([sessionLogin]);
-  if (session.role === 'director') {
+  if (session.role === 'director' || session.role === 'admin') {
     for (const l of logins) allowed.add(String(l).toLowerCase().trim());
   } else {
     for (const l of session.managedUsers ?? []) allowed.add(l.toLowerCase().trim());
