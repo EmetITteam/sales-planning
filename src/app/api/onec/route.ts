@@ -104,9 +104,14 @@ export async function POST(request: NextRequest) {
   if (LOGIN_BOUND_ACTIONS.has(action)) {
     const requestedLogin = (safePayload as { login?: string }).login;
     const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
-    if (!requestedLogin) {
-      const proxyLogin = session.role === 'admin' ? DIRECTOR_PROXY_LOGIN : session.login;
-      safePayload = { ...safePayload, login: proxyLogin };
+    // Admin → 1С не знає його як Director. Якщо payload.login або відсутній,
+    // або вказує на самого admin (own login) — підміняємо на DIRECTOR_PROXY_LOGIN.
+    // Якщо admin явно передав ЧУЖИЙ targetLogin (drill-down менеджера) —
+    // пропускаємо як є.
+    if (session.role === 'admin' && (!requestedLogin || requestedLogin === session.login)) {
+      safePayload = { ...safePayload, login: DIRECTOR_PROXY_LOGIN };
+    } else if (!requestedLogin) {
+      safePayload = { ...safePayload, login: session.login };
     } else if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin) && !isAdminOrDirector) {
       return Response.json(
         { status: 'error', message: 'Forbidden: login outside your scope' },
