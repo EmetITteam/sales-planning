@@ -34,6 +34,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta } from '@/lib/periods';
 import { safeRole } from '@/lib/types';
+import { assertWindowAllowed } from '@/lib/window-guard';
 
 interface SnapshotClient {
   clientId1c: string;
@@ -90,6 +91,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
   const uid = effectiveLogin;
+
+  // Window-lock guard (Етап 3): без снапшота при closed window — менеджер
+  // не повинен створювати base data поза вікном. Admin обходить.
+  const winCheck = await assertWindowAllowed(session, uid, period?.month);
+  if (winCheck.blocked) return winCheck.response;
   const ctx = { uid, pid: monthlyPid, segmentCode };
 
   // FK setup: period + user мають існувати. UPSERT-имо саме MONTHLY meta,

@@ -31,6 +31,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
 import { isPlanningWritesAllowed } from '@/lib/feature-flags';
+import { assertWindowAllowed } from '@/lib/window-guard';
 
 interface FinalizeBody {
   periodId?: number;
@@ -83,6 +84,12 @@ async function parseAndAuthorize(request: NextRequest, requireAdmin: boolean) {
       && !session.managedUsers.includes(effectiveLogin)) {
     return { error: Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 }) };
   }
+
+  // Window-lock guard (Етап 3): admin обходить, інші перевіряються.
+  // POST (фіналізувати) перевіряємо. DELETE (розфіналізувати) — лише admin,
+  // не потрапить сюди як non-admin.
+  const winCheck = await assertWindowAllowed(session, effectiveLogin, period?.month);
+  if (winCheck.blocked) return { error: winCheck.response };
 
   return { session, monthlyPid, segmentCode, effectiveLogin };
 }

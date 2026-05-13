@@ -14,6 +14,7 @@ import { useAppStore } from '@/lib/store';
 import { isPlanningWritesAllowed, FEATURES } from '@/lib/feature-flags';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
 import { useFinalizationStatus, finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
+import { useWindowStatus } from '@/lib/use-window-status';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import {
@@ -107,10 +108,19 @@ export function PlanningForm({
     currentPeriod?.month ?? null,
   );
   const isFinalized = !!finalizedAt;
+
+  // Window-lock (Етап 3): admin завжди allowed; менеджер — за window_days
+  // + per-user / global locks.
+  const { status: windowStatus } = useWindowStatus(
+    currentPeriod?.month ?? null,
+    effectiveLogin && effectiveLogin !== 'anonymous' ? effectiveLogin : null,
+  );
+  const isWindowLocked = !!windowStatus && !windowStatus.allowed;
+
   // Lock редагування сум, списку клієнтів, етапів, тренінгу, кнопок Add/Remove
-  // коли план фіналізований (не для admin). Stage_comment поки теж заблоковано —
-  // інлайн-edit коментарів додамо як окремий патч у наступних ітераціях.
-  const lockEdit = readOnly || (isFinalized && !isAdmin);
+  // коли план фіналізований (не для admin) АБО window-lock заблокував менеджера.
+  // Stage_comment поки теж заблоковано — інлайн-edit коментарів додамо окремим патчем.
+  const lockEdit = readOnly || (isFinalized && !isAdmin) || (isWindowLocked && !isAdmin);
 
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
   // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
@@ -1068,6 +1078,22 @@ export function PlanningForm({
       </div>
 
       <MaintenanceBanner />
+
+      {/* Window-lock banner — Пакет А Етап 3 (2026-05-13). Admin не бачить
+          (для нього windowStatus.allowed=true завжди). */}
+      {isWindowLocked && !isAdmin && (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+            <Lock className="h-4 w-4 text-rose-700" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[14px] font-bold text-rose-900">Планування зараз закрите</p>
+            <p className="text-[13px] text-rose-800 mt-0.5">
+              {windowStatus?.message || 'Поточне вікно планування закрите. Зверніться до адміністратора.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Whose-plan banner — коли admin/RM/Director дивиться чужого менеджера,
           явно показуємо ім'я і логін щоб не загубитись (Етап 2.6, 2026-05-13). */}

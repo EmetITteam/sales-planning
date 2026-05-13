@@ -51,23 +51,24 @@ export default function AdminPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <PlaceholderCard
+          <AdminCard
+            href="/admin/planning-locks"
             icon={<Lock className="h-4 w-4 text-amber-700" />}
             title="Блокування планування"
-            description="Відкривати/закривати редагування планів для конкретних менеджерів або всім одразу."
-            stage="Етап 3"
+            description="Графік (скільки днів місяця доступне) + персональні блокування/дозволи менеджерам."
+            ready
           />
-          <PlaceholderCard
+          <AdminCard
+            href="/admin/planning-locks"
             icon={<Clock className="h-4 w-4 text-amber-700" />}
             title="Графік планування"
-            description="Скільки днів місяця менеджери можуть планувати (за замовч.: перші 5)."
-            stage="Етап 3"
+            description="Скільки перших днів місяця менеджери можуть редагувати плани (за замовч.: 5)."
+            ready
           />
-          <PlaceholderCard
+          <AdminCard
             icon={<Settings2 className="h-4 w-4 text-amber-700" />}
             title="Розфіналізація планів"
-            description="Скасувати фіналізацію плану для конкретного (менеджер × бренд × місяць)."
-            stage="Етап 2"
+            description="Скасування фіналізації — кнопка «Розфіналізувати» доступна прямо у формі планування менеджера у режимі адміна."
           />
         </div>
       </main>
@@ -75,23 +76,30 @@ export default function AdminPage() {
   );
 }
 
-function PlaceholderCard({ icon, title, description, stage }: {
+function AdminCard({ icon, title, description, ready, href }: {
   icon: React.ReactNode;
   title: string;
   description: string;
-  stage: string;
+  ready?: boolean;
+  href?: string;
 }) {
+  const Wrapper: React.ElementType = href && ready ? Link : 'div';
+  const wrapperProps = href && ready ? { href } : {};
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+    <Wrapper
+      {...wrapperProps}
+      className={`block bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] ${ready ? 'hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all cursor-pointer' : ''}`}
+    >
       <div className="flex items-center gap-2.5 mb-2">
         <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">{icon}</div>
         <p className="text-[14px] font-bold">{title}</p>
-        <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#e8f4fc] text-[#066aab] font-bold">
-          {stage}
-        </span>
+        {!ready && (
+          <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#e8f4fc] text-[#066aab] font-bold">
+            Інлайн у формі
+          </span>
+        )}
       </div>
       <p className="text-[12px] text-muted-foreground leading-relaxed">{description}</p>
-      <p className="text-[11px] text-muted-foreground/60 mt-2">У розробці</p>
-    </div>
+    </Wrapper>
   );
 }

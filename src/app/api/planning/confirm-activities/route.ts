@@ -38,6 +38,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
 import { isPlanningWritesAllowed } from '@/lib/feature-flags';
+import { assertWindowAllowed } from '@/lib/window-guard';
 
 interface Confirmation {
   block: 'forecast' | 'gap';
@@ -93,6 +94,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
   const uid = effectiveLogin;
+
+  // Window-lock guard (Етап 3): stage_done write — це теж edit плану.
+  const winCheck = await assertWindowAllowed(session, uid, period?.month);
+  if (winCheck.blocked) return winCheck.response;
 
   // Розкладаємо confirmations по таблицях.
   const forecastIds: string[] = [];

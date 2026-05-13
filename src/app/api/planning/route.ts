@@ -4,6 +4,7 @@ import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta } from '@/lib/periods';
 import { safeRole } from '@/lib/types';
 import { isPlanningWritesAllowed } from '@/lib/feature-flags';
+import { assertWindowAllowed } from '@/lib/window-guard';
 import { NextRequest } from 'next/server';
 
 /**
@@ -166,6 +167,11 @@ export async function POST(request: NextRequest) {
   }
   // M5: user_id = login (раніше було hash через loginToUserId)
   const uid = effectiveLogin;
+
+  // ---- WINDOW-LOCK GUARD (Етап 3, 2026-05-13) ----
+  // Admin обходить, інші проходять перевірку window_days + per-user locks.
+  const winCheck = await assertWindowAllowed(session, uid, period?.month);
+  if (winCheck.blocked) return winCheck.response;
 
   const errors: string[] = [];
   const ctx = { uid, pid, segmentCode };
