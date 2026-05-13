@@ -168,7 +168,7 @@ export default function AdminPlanningLocksPage() {
             </div>
             <Button
               onClick={saveSettings}
-              disabled={savingSettings || windowDaysDraft === settings?.windowDays}
+              disabled={savingSettings || windowDaysDraft === null}
               className="gap-2 h-10 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white"
             >
               <Save className="h-4 w-4" /> {savingSettings ? 'Збереження…' : 'Зберегти'}
