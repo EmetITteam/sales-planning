@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useSWRConfig } from 'swr';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
@@ -107,6 +108,22 @@ export function DirectorDashboard() {
     }
   }, [regionResp, adapted, autoRetryAttempt]);
   const handleManualRetry = () => { setAutoRetryAttempt(0); refetch(); };
+
+  // «Оновити» — повний хард-рефреш всіх SWR-ключів дашборду. Без цього
+  // refetch скидав тільки getRegionData, а CategoryStatsTable + RegionStats +
+  // planAggregate сиділи у 5хв кеші і виглядали «не оновлюються».
+  const { mutate: swrMutate } = useSWRConfig();
+  const handleRefreshAll = useCallback(() => {
+    swrMutate(
+      (key) => typeof key === 'string' && (
+        key.startsWith('onec|') ||
+        key.startsWith('region-stats|') ||
+        key.startsWith('agg|')
+      ),
+      undefined,
+      { revalidate: true },
+    );
+  }, [swrMutate]);
 
   // Агрегат клієнтів по компанії — береться з Action 5 (v2.5 clientStats per manager).
   const clientStats = useMemo(() => adapted ? aggregateCompanyClientStats(adapted.regions) : null, [adapted]);
@@ -288,9 +305,9 @@ export function DirectorDashboard() {
         </div>
         {!loading && (
           <button
-            onClick={refetch}
-            title="Оновити з 1С"
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors"
+            onClick={handleRefreshAll}
+            title="Оновити всі дані (1С + статистика регіонів)"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors cursor-pointer"
           >
             <RefreshCw className="h-3 w-3" /> Оновити
           </button>
