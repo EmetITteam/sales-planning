@@ -33,7 +33,7 @@ export default function Home() {
         <InstallPrompt />
         {user.role === 'manager' && <ManagerDashboard />}
         {user.role === 'rm' && <RMDashboard />}
-        {user.role === 'director' && <DirectorDashboard />}
+        {(user.role === 'director' || user.role === 'admin') && <DirectorDashboard />}
       </main>
     </div>
   );
