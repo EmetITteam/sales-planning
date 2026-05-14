@@ -933,6 +933,7 @@ export function PlanningForm({
   // «Дані по клієнтах по ТМ» — РЕАЛЬНИЙ розклад планування менеджера, не
   // потенціал з 1С. Активні = forecasts (за визначенням 3-month rule). Нові +
   // Активізація = gap_closures, розділяємо за полем category (з 1С).
+  // ⚠️ Passive rows (amount=0) — «пам'ятаю, не планую» — НЕ враховуємо у counter'ах.
   const isNewCategory = (c?: string | null) => !!c && /(^|\s)нов(ый|ий)/i.test(c);
   const newGapRows = gapClosures.filter(g => isNewCategory(g.category));
   const sleepingGapRows = gapClosures.filter(g => !isNewCategory(g.category));
@@ -942,11 +943,15 @@ export function PlanningForm({
   const newFactSum = newGapRows.reduce((s, g) => s + (g.factAmount || 0), 0);
   const sleepingPotentialSum = sleepingGapRows.reduce((s, g) => s + (g.potentialAmount || 0), 0);
   const sleepingFactSum = sleepingGapRows.reduce((s, g) => s + (g.factAmount || 0), 0);
+  // Лічильники ТІЛЬКИ активно запланованих клієнтів (amount > 0).
+  const activeForecastCount = forecasts.filter(f => !isPassiveAmount(f.forecastAmount)).length;
+  const newGapActiveCount = newGapRows.filter(g => !isPassiveAmount(g.potentialAmount)).length;
+  const sleepingGapActiveCount = sleepingGapRows.filter(g => !isPassiveAmount(g.potentialAmount)).length;
 
   const categories: ClientCategorySummary[] = [
-    { category: 'active', label: 'Активні клієнти', clientCount: forecasts.length, expectedAmount: activeForecastSum, factAmount: activeFactSum, planCoveragePercent: pctOf(activeForecastSum, planAmount) },
-    { category: 'new', label: 'Нові клієнти по ТМ', clientCount: newGapRows.length, expectedAmount: newPotentialSum, factAmount: newFactSum, planCoveragePercent: pctOf(newPotentialSum, planAmount) },
-    { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingGapRows.length, expectedAmount: sleepingPotentialSum, factAmount: sleepingFactSum, planCoveragePercent: pctOf(sleepingPotentialSum, planAmount) },
+    { category: 'active', label: 'Активні клієнти', clientCount: activeForecastCount, expectedAmount: activeForecastSum, factAmount: activeFactSum, planCoveragePercent: pctOf(activeForecastSum, planAmount) },
+    { category: 'new', label: 'Нові клієнти по ТМ', clientCount: newGapActiveCount, expectedAmount: newPotentialSum, factAmount: newFactSum, planCoveragePercent: pctOf(newPotentialSum, planAmount) },
+    { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingGapActiveCount, expectedAmount: sleepingPotentialSum, factAmount: sleepingFactSum, planCoveragePercent: pctOf(sleepingPotentialSum, planAmount) },
   ];
   const totalCatClients = categories.reduce((s, c) => s + c.clientCount, 0);
   const totalCatAmount = categories.reduce((s, c) => s + c.expectedAmount, 0);
@@ -1694,7 +1699,7 @@ export function PlanningForm({
             <div className="w-px h-8 bg-[#e2e7ef]" />
             <div><span className="text-[11px] text-muted-foreground">Незавершено</span><p className="text-lg font-extrabold amount">{formatUSD(pendingForecastTotal)}</p></div>
             <div className="w-px h-8 bg-[#e2e7ef]" />
-            <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{forecasts.length} <span className="text-emerald-600 text-sm">({forecasts.filter(f => f.completed).length} ✓)</span></p></div>
+            <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{activeForecastCount} <span className="text-emerald-600 text-sm">({forecasts.filter(f => f.completed && !isPassiveAmount(f.forecastAmount)).length} ✓)</span></p></div>
           </div>
         )}
       </div>
@@ -2060,7 +2065,7 @@ export function PlanningForm({
                 <div className="w-px h-8 bg-amber-200/40" />
                 <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600 amount">{formatUSD(gapFactTotal)}</p></div>
                 <div className="w-px h-8 bg-amber-200/40" />
-                <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{gapClosures.length}</p></div>
+                <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{gapClosures.filter(g => !isPassiveAmount(g.potentialAmount)).length}</p></div>
               </div>
             )}
           </div>
