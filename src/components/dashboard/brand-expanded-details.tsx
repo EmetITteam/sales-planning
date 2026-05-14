@@ -77,65 +77,63 @@ export function BrandExpandedDetails({
   );
   const unplannedByCat = useMemo(() => groupUnplannedByCategory(unplanned), [unplanned]);
 
-  // Хто купив цей сегмент за категоріями — ТІЛЬКИ ті що БУЛИ В ПЛАНІ (planned&bought).
-  // Інакше один клієнт показався б одночасно у "Активні: bought=1" І "Незаплановані: 1"
-  // — двічі для тієї ж людини.
+  // Класифікація клієнта по **plan-source** — точно ту саму що форма
+  // планування у «Дані по клієнтах по ТМ» (planning-form.tsx, lines ~947-950).
+  // Інакше drill-down показував би «Активні: 36» а форма — «9» бо рахували
+  // по різних правилах (1С-категорія vs місце у плані менеджера).
+  //
+  //  Активні       = клієнти у forecasts (amount > 0)
+  //  Нові          = клієнти у gap_closures з 1С-категорією 'Новий'
+  //  Активація     = клієнти у gap_closures з іншими 1С-категоріями (Сплячий/Втрачений/БЗ)
+  const isNewCategory = (c?: string | null) => !!c && /(^|\s)нов(ый|ий)/i.test(c);
+  const planSource = useMemo(() => {
+    const map = new Map<string, 'active' | 'new' | 'sleeping_lost'>();
+    if (!plan) return map;
+    for (const f of plan.forecasts) {
+      if (f.client_id_1c && !isPassiveAmount(f.forecast_amount)) {
+        map.set(f.client_id_1c, 'active');
+      }
+    }
+    for (const g of plan.gapClosures) {
+      if (g.client_id_1c && !isPassiveAmount(g.potential_amount)) {
+        map.set(g.client_id_1c, isNewCategory(g.category) ? 'new' : 'sleeping_lost');
+      }
+    }
+    return map;
+  }, [plan]);
+
+  // Хто купив цей сегмент — ТІЛЬКИ ті що БУЛИ В ПЛАНІ. Незаплановані йдуть
+  // у окремий блок Sparkles нижче.
   const factSegment = factResponse?.facts.find(f => f.segmentCode === segmentCode);
   const buyersByCategory = useMemo(() => {
-    const map = new Map<string, Client1C['category']>();
-    for (const c of allClients) map.set(c.clientId, c.category);
     const out = { active: 0, new: 0, sleeping_lost: 0 };
     if (!factSegment) return out;
     for (const buyer of factSegment.clients) {
       if (buyer.amount <= 0) continue;
-      if (!plannedIds.has(buyer.clientId)) continue; // skip unplanned — вони у блоці Незаплановані
-      const cat = map.get(buyer.clientId) ?? 'none';
-      if (cat === 'active') out.active += 1;
-      else if (cat === 'new') out.new += 1;
-      else if (cat === 'sleeping' || cat === 'lost' || cat === 'none') out.sleeping_lost += 1;
+      const cat = planSource.get(buyer.clientId);
+      if (!cat) continue; // not in plan → у Незаплановані
+      out[cat] += 1;
     }
     return out;
-  }, [factSegment, allClients, plannedIds]);
+  }, [factSegment, planSource]);
 
   const factByCategory = useMemo(() => {
-    const map = new Map<string, Client1C['category']>();
-    for (const c of allClients) map.set(c.clientId, c.category);
     const out = { active: 0, new: 0, sleeping_lost: 0 };
     if (!factSegment) return out;
     for (const buyer of factSegment.clients) {
-      if (!plannedIds.has(buyer.clientId)) continue; // skip unplanned — їх fact у блоці Незаплановані
-      const cat = map.get(buyer.clientId) ?? 'none';
-      if (cat === 'active') out.active += buyer.amount;
-      else if (cat === 'new') out.new += buyer.amount;
-      else out.sleeping_lost += buyer.amount;
+      const cat = planSource.get(buyer.clientId);
+      if (!cat) continue;
+      out[cat] += buyer.amount;
     }
     return out;
-  }, [factSegment, allClients, plannedIds]);
+  }, [factSegment, planSource]);
 
-  // Скільки в плані менеджера у цій категорії.
-  // ⚠️ Passive рядки (amount=0) НЕ враховуємо — це «пам'ятаю, не планую».
+  // Скільки в плані менеджера у цій категорії (passive вже виключені у planSource).
   const plannedByCategory = useMemo(() => {
-    const map = new Map<string, Client1C['category']>();
-    for (const c of allClients) map.set(c.clientId, c.category);
     const out = { active: 0, new: 0, sleeping_lost: 0 };
-    if (!plan) return out;
-    const seen = new Set<string>();
-    const tally = (clientId: string) => {
-      if (seen.has(clientId)) return;
-      seen.add(clientId);
-      const cat = map.get(clientId) ?? 'none';
-      if (cat === 'active') out.active += 1;
-      else if (cat === 'new') out.new += 1;
-      else out.sleeping_lost += 1;
-    };
-    for (const f of plan.forecasts) {
-      if (f.client_id_1c && !isPassiveAmount(f.forecast_amount)) tally(f.client_id_1c);
-    }
-    for (const g of plan.gapClosures) {
-      if (g.client_id_1c && !isPassiveAmount(g.potential_amount)) tally(g.client_id_1c);
-    }
+    for (const [, cat] of planSource) out[cat] += 1;
     return out;
-  }, [plan, allClients]);
+  }, [planSource]);
 
   const unplannedTotalFact = unplanned.reduce((s, b) => s + b.factAmount, 0);
 
