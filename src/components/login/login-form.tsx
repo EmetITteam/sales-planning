@@ -63,9 +63,9 @@ export function LoginForm() {
             <img src="/emet-logo.png" alt="EMET" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-[#066aab] to-[#0880cc] bg-clip-text text-transparent">
-            Sales Planning
+            Планування продажів
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Планування та контроль продажів</p>
+          <p className="text-sm text-muted-foreground mt-1">Прогноз, закриття розриву, факт</p>
         </div>
 
         {/* Form */}

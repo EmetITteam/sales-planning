@@ -17,12 +17,12 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EMET | Sales Planning",
+  title: "EMET | Планування продажів",
   description: "Система планування та консолідації продажів",
   // PWA: коли додаток встановлено на iOS — title app-icon і status bar
   appleWebApp: {
     capable: true,
-    title: 'Sales Planning',
+    title: 'Планування продажів',
     statusBarStyle: 'default',
   },
   // Не дозволяємо автоматичне розпізнавання телефонів/email/адрес — на дашборді

@@ -15,8 +15,8 @@ import type { MetadataRoute } from 'next';
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'EMET Sales Planning',
-    short_name: 'Sales Planning',
+    name: 'EMET — Планування продажів',
+    short_name: 'Планування',
     description: 'Планування та контроль продажів EMET',
     start_url: '/',
     display: 'standalone',

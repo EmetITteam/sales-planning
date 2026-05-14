@@ -91,7 +91,7 @@ export function AppHeader() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/emet-logo.png" alt="EMET" className="h-8 w-8 object-contain" />
           <span className="text-[15px] font-semibold tracking-tight hidden sm:inline bg-gradient-to-r from-[#066aab] to-[#0880cc] bg-clip-text text-transparent">
-            Sales Planning
+            Планування продажів
           </span>
         </div>
 
