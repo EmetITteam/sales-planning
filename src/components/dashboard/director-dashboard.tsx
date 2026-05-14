@@ -392,7 +392,7 @@ export function DirectorDashboard() {
                     <DynArrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
                     <span className="amount whitespace-nowrap">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
                     <span className="text-[10px] text-muted-foreground ml-1">
-                      {totalExpectedAmountForDyn > 0 ? 'план vs мин. факт' : 'факт vs мин. факт'}
+                      {totalExpectedAmountForDyn > 0 ? 'заплан. vs мин. факт' : 'факт vs мин. факт'}
                     </span>
                   </span>
                 </span>

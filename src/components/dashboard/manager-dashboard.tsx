@@ -491,7 +491,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
             const dyn = compareValue - totalPrevFact;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
-            const label = hasPlan ? 'план vs мин. факт' : 'факт vs мин. факт';
+            const label = hasPlan ? 'заплан. vs мин. факт' : 'факт vs мин. факт';
             return (
               <span className="space-y-0.5 block">
                 <span className="text-muted-foreground block">
