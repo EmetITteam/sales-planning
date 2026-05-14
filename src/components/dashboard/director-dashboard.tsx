@@ -284,8 +284,9 @@ export function DirectorDashboard() {
     ? ((planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized) / totalPlan) * 100
     : null;
   // Унікальні логіни — менеджер у 2 регіонах (приклад: Пашковська) не лічиться двічі.
-  // Раніше було Σ managerCount по регіонах → завищувало на дублі та історичні «хвости».
-  const totalManagers = useMemo(() => {
+  // ⚠️ БЕЗ useMemo бо early returns вище (loading guard на line 249) роблять
+  // hook count різним між рендерами → React error #310. Inline IIFE дешевий.
+  const totalManagers = (() => {
     const set = new Set<string>();
     for (const r of adapted?.regions ?? []) {
       for (const m of r.managers ?? []) {
@@ -293,7 +294,7 @@ export function DirectorDashboard() {
       }
     }
     return set.size;
-  }, [adapted]);
+  })();
 
   return (
     <div className="space-y-8">
