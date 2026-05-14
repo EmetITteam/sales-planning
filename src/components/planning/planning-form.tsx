@@ -255,11 +255,18 @@ export function PlanningForm({
           action3: data.summary.gap_action_3 || '',
         });
         if (data.summary.updated_at) setLastSavedAt(data.summary.updated_at);
-        // Маркер: форма вже зберігалась хоч раз (period_summaries запис існує).
-        // Auto-populate більше не спрацює навіть якщо forecasts/gap_closures
-        // порожні — це СВІДОМЕ рішення менеджера видалити всіх.
-        setFormEverEdited(true);
       }
+      // ⚠️ Day 14 fix (2026-05-14): formEverEdited тільки якщо у БД є РЕАЛЬНІ
+      // дані — forecasts/gap_closures або заповнені gap_actions. Раніше
+      // ставили true просто від наявності period_summaries запису, через
+      // що сценарій «finalize порожнім → admin розфіналізував» залишав
+      // менеджера у вічно-пустій формі (auto-populate skip + БД 0 рядків).
+      const hasPlanData = data.forecasts.length > 0
+        || data.gapClosures.length > 0
+        || !!data.summary?.gap_action_1
+        || !!data.summary?.gap_action_2
+        || !!data.summary?.gap_action_3;
+      if (hasPlanData) setFormEverEdited(true);
     });
     return () => { cancelled = true; };
   }, [segmentCode, currentPeriod.id, effectiveLogin]);
@@ -277,8 +284,11 @@ export function PlanningForm({
     // Захист від «тихого порожнього save»: коли state ще не догнав load з БД,
     // forecasts може бути [], persistedClientIds має старі id-и. Backend
     // skip-ає DELETE+UPSERT у такому стані (clearAll=false safety) → UI показав
-    // би «Збережено!» без реальних змін у БД. Тепер просимо почекати.
-    if (forecasts.length === 0 && gapClosures.length === 0 && persistedClientIds.size > 0) {
+    // би «Збережено!» без реальних змін у БД.
+    // ⚠️ Day 14 fix: блокуємо ТІЛЬКИ якщо menager ще не редагував (formEverEdited=false).
+    // Якщо менеджер усвідомлено видалив усіх клієнтів (formEverEdited=true) — save
+    // має пройти з clearAll=true (бекенд робить DELETE+UPSERT properly).
+    if (!formEverEdited && forecasts.length === 0 && gapClosures.length === 0 && persistedClientIds.size > 0) {
       setSaveResult({ ok: false, msg: 'Дані ще завантажуються — спробуйте за секунду' });
       setTimeout(() => setSaveResult(null), 3000);
       return;
@@ -405,14 +415,10 @@ export function PlanningForm({
     setTimeout(() => setSaveResult(null), 3000);
   };
   const handleFinalize = () => {
-    // Перевірка повноти: forecast+gap >= planAmount → повний; інакше попередження.
-    const forecastSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
-    const gapSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-    if (forecastSum + gapSum < propPlanAmount) {
-      setShowIncompleteConfirm(true);
-      return;
-    }
-    void doFinalize();
+    // Day 14 fix: показуємо діалог ЗАВЖДИ — навіть при повному плані
+    // (менеджер має свідомо підтвердити, що це фінал). Текст діалогу
+    // різниться залежно від повноти.
+    setShowIncompleteConfirm(true);
   };
   const handleUnfinalize = async () => {
     if (!isAdmin) return;
@@ -2115,13 +2121,26 @@ export function PlanningForm({
 
       <ConfirmDialog
         open={showIncompleteConfirm}
-        title="Увага — план неповний"
+        title={(() => {
+          const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
+          const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
+          return fSum + gSum < propPlanAmount
+            ? 'Увага — план неповний'
+            : 'Підтвердження фіналізації';
+        })()}
         description={(() => {
           const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
           const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-          const diff = Math.max(0, propPlanAmount - (fSum + gSum));
-          const pct = propPlanAmount > 0 ? ((fSum + gSum) / propPlanAmount) * 100 : 0;
-          return `Запланована сума менше за план на ${formatUSD(diff)}, відсоток планування — ${pct.toFixed(1)}%. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми.`;
+          const planned = fSum + gSum;
+          const pct = propPlanAmount > 0 ? (planned / propPlanAmount) * 100 : 0;
+          if (planned < propPlanAmount) {
+            const diff = Math.max(0, propPlanAmount - planned);
+            return `Запланована сума менше за план на ${formatUSD(diff)}, відсоток планування — ${pct.toFixed(1)}%. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми.`;
+          }
+          // План повний або перевищений — теж попереджаємо що це фінальний крок.
+          const overshoot = planned - propPlanAmount;
+          const overMsg = overshoot > 0 ? ` (на ${formatUSD(overshoot)} більше за план)` : '';
+          return `Запланована сума: ${formatUSD(planned)}${overMsg}, відсоток планування — ${pct.toFixed(1)}%. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми (коментарі залишаються редагованими).`;
         })()}
         confirmLabel="Так, фіналізувати"
         cancelLabel="Назад"
