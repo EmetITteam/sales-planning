@@ -51,14 +51,27 @@ if (!LOGIN || !PASSWORD || !PERIOD_ID || !PERIOD_MONTH || !PERIOD_WEEK_START || 
   process.exit(1);
 }
 
+// ⚠️ Cutoff FIXED на плановий місяць — не «90 днів від сьогодні».
+// Inline копія `isActiveForBrand` з src/lib/three-month-rule.ts (Node .mjs не може
+// імпортувати .ts напряму без транспайлу). Логіка ОДНА — якщо міняти, то у двох
+// місцях + tests/three-month-rule.test.ts покриває контракт.
 const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
-const cutoffMs = Date.now() - THREE_MONTHS_MS;
+const planMonthStartMs = (() => {
+  const ym = String(PERIOD_MONTH).slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(y, m - 1, 1, 0, 0, 0, 0).getTime();
+})();
+const cutoffMs = planMonthStartMs - THREE_MONTHS_MS;
 
 const isRecentBrandPurchase = (dateStr) => {
   if (!dateStr) return false;
   const [y, m, d] = String(dateStr).split('-').map(Number);
   if (!y || !m || !d) return false;
-  return new Date(y, m - 1, d).getTime() >= cutoffMs;
+  const t = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+  // Купівля повинна бути у вікні [cutoff, planMonthStart) — НЕ всередині планового
+  // місяця (інакше клієнт що купив 13.05 для травневого плану перейшов би у
+  // forecast і виник би дубль з gap).
+  return t >= cutoffMs && t < planMonthStartMs;
 };
 
 // Mapping 1С category → Russian text (як у БД)

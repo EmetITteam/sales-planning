@@ -19,6 +19,7 @@ import { useWindowStatus } from '@/lib/use-window-status';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
+import { isActiveForBrand } from '@/lib/three-month-rule';
 import {
   SEGMENTS, isDemoLogin, getDemoForecastsPETARAN, getDemoGapClosuresPETARAN,
 } from '@/lib/mock-data';
@@ -747,20 +748,19 @@ export function PlanningForm({
 
   // === Активні vs Неактивні ПО ЦЬОМУ БРЕНДУ ===
   // Логіка погоджена з директором продажу:
-  //   «активні по бренду» = купив цей бренд протягом останніх 3 місяців
-  //   «неактивні по бренду» = купив колись, але >3 місяців тому → блок «Закриття розриву»
-  // 1С-категорія (Активный/Спящий/...) — окрема глобальна оцінка по клієнту,
-  // НЕ використовуємо її тут. Використовуємо ТІЛЬКИ дату останньої покупки бренду.
-  const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
-  const cutoffDate = Date.now() - THREE_MONTHS_MS;
-  const isRecentBrandPurchase = (dateStr: string | null): boolean => {
-    if (!dateStr) return false;
-    const [y, m, d] = dateStr.split('-').map(Number);
-    if (!y || !m || !d) return false;
-    return new Date(y, m - 1, d).getTime() >= cutoffDate;
-  };
-  const activeClients = segmentClients.filter(c => isRecentBrandPurchase(c.lastPurchaseDate));
-  const sleepingClients = segmentClients.filter(c => !isRecentBrandPurchase(c.lastPurchaseDate));
+  //   «активні по бренду» = купив у вікні [planMonth − 3 міс, planMonthStart)
+  //   «неактивні по бренду» = решта → блок «Закриття розриву»
+  //
+  // ⚠️ Cutoff FIXED на плановий місяць (не «90 днів від сьогодні»). Без цього
+  // класифікація плавала: 12.05 клієнт у gap, 14.05 (після покупки 13.05) — у
+  // forecast. Виникали дублі коли менеджер відкривала форму повторно.
+  // Виправлено 2026-05-14 — див. tests/three-month-rule.test.ts.
+  //
+  // Купівлі ВСЕРЕДИНІ планового місяця → не міняють бакет (це факт виконання,
+  // а не зміна категорії).
+  const planMonth = currentPeriod.month;
+  const activeClients = segmentClients.filter(c => isActiveForBrand(c.lastPurchaseDate, planMonth));
+  const sleepingClients = segmentClients.filter(c => !isActiveForBrand(c.lastPurchaseDate, planMonth));
 
   // Map clientId → factAmount з 1С Action 3 для ПОТОЧНОГО сегмента.
   // Потрібно щоб у колонці ФАКТ кожного рядка показалась справжня сума
