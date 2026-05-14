@@ -104,7 +104,19 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
     if (!planByLogin) return [];
     return regions
       .map(r => {
-        const managers: ManagerStat[] = r.managers.map(m => {
+        // Виключаємо менеджерів які НЕ планують у цьому регіоні цього місяця:
+        // 1С Action 5 повертає історичних «хвостів» (менеджер мав факт минулого
+        // місяця у іншому регіоні де він уже не працює). totalPlan=0 + factи=0 у
+        // поточному місяці → ця людина не має бути у readiness цього регіону.
+        // Приклад: Пашковська (rm.odessa) показується у Миколаєві з planом=0,
+        // а реально планує тільки в Одесі ($65K плану).
+        const managers: ManagerStat[] = r.managers
+          .filter(m => {
+            const totalPlan = m.segments.reduce((a, s) => a + s.planAmount, 0);
+            const totalFact = m.segments.reduce((a, s) => a + s.factAmount, 0);
+            return totalPlan > 0 || totalFact > 0;
+          })
+          .map(m => {
           const segMap = planByLogin[m.login] || {};
           const finalized: string[] = [];
           const draft: string[] = [];
