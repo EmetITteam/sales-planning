@@ -128,12 +128,23 @@ export function BrandExpandedDetails({
     return out;
   }, [factSegment, planSource]);
 
-  // Скільки в плані менеджера у цій категорії (passive вже виключені у planSource).
+  // Скільки в плані менеджера у цій категорії — рахуємо РЯДКИ (як у формі),
+  // а не distinct clientIds. Інакше manually-added клієнти (без 1С-id) і
+  // потенційні дублі давали б розбіжність типу 9 у формі vs 8 у drill-down.
   const plannedByCategory = useMemo(() => {
     const out = { active: 0, new: 0, sleeping_lost: 0 };
-    for (const [, cat] of planSource) out[cat] += 1;
+    if (!plan) return out;
+    for (const f of plan.forecasts) {
+      if (!isPassiveAmount(f.forecast_amount)) out.active += 1;
+    }
+    for (const g of plan.gapClosures) {
+      if (!isPassiveAmount(g.potential_amount)) {
+        if (isNewCategory(g.category)) out.new += 1;
+        else out.sleeping_lost += 1;
+      }
+    }
     return out;
-  }, [planSource]);
+  }, [plan]);
 
   const unplannedTotalFact = unplanned.reduce((s, b) => s + b.factAmount, 0);
 
