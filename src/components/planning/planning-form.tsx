@@ -2064,7 +2064,7 @@ export function PlanningForm({
               title="Заблокувати план від подальших змін сум і списку клієнтів"
             >
               <Lock className="h-4 w-4" />
-              {finalizing ? 'Фіналізую…' : 'Фіналізувати'}
+              {finalizing ? 'Зберігаю…' : 'Фінальне збереження'}
             </Button>
           )}
           {isFinalized && isAdmin && (
