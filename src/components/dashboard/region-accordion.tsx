@@ -438,10 +438,9 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           <div className="space-y-1.5">
             {aggregate.segments.map(seg => {
               // hasManagerPlan тільки коли planAgg догрузилось (без blink).
-              // ТІЛЬКИ фіналізовані плани (чернетки у звітність не йдуть).
               const segPlan = planAgg?.bySegment[seg.segmentCode];
-              const managerForecast = segPlan?.forecastFinalized ?? 0;
-              const managerGap = segPlan?.gapFinalized ?? 0;
+              const managerForecast = segPlan?.forecast ?? 0;
+              const managerGap = segPlan?.gap ?? 0;
               const hasManagerPlan = !!planAgg && seg.planAmount > 0;
               const expectedPercent = seg.planAmount > 0
                 ? ((managerForecast + managerGap) / seg.planAmount) * 100

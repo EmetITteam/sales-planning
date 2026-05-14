@@ -268,32 +268,20 @@ export function DirectorDashboard() {
   const totalPrevPlan = company?.totalPrevMonthPlan ?? 0;
   const totalPrevPct = pctOf(totalPrevFact, totalPrevPlan);
   // Б.2: динаміка hero «Факт» = заплановане vs минулий факт (forward-looking).
-  // ТІЛЬКИ finalized — порівняння з прошлим робимо до зафіксованих планів.
   const totalExpectedAmountForDyn = planAgg
-    ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized
+    ? planAgg.totalForecast + planAgg.totalGapPotential
     : 0;
   const compareForDyn = totalExpectedAmountForDyn > 0 ? totalExpectedAmountForDyn : totalFact;
   const dynAmount = compareForDyn - totalPrevFact;
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
-  // «Запланований %» — ТІЛЬКИ з фіналізованих планів (не чернеток).
-  // Семантика: реальне зобов'язання менеджерів, на яке керівник має покладатись.
-  // Чернетки можуть змінюватись до останнього дня — їх у звітність не пускаємо.
+  // Очікуваний % компанії (Variant B aggregate-endpoint).
+  // «Запланований %» = чисто план менеджерів / план місяця, БЕЗ факту.
   const totalExpectedPct = planAgg && totalPlan > 0
-    ? ((planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized) / totalPlan) * 100
+    ? ((planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
     : null;
-  // Унікальні логіни — менеджер у 2 регіонах (приклад: Пашковська) не лічиться двічі.
-  // Раніше було Σ managerCount по регіонах → завищувало на дублі та історичні «хвости».
-  const totalManagers = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of adapted?.regions ?? []) {
-      for (const m of r.managers ?? []) {
-        if (m.login) set.add(m.login);
-      }
-    }
-    return set.size;
-  }, [adapted]);
+  const totalManagers = company?.regionAggregates.reduce((a, r) => a + r.managerCount, 0) ?? 0;
 
   return (
     <div className="space-y-8">
@@ -477,15 +465,13 @@ export function DirectorDashboard() {
                   }));
                 const regionLogins = Array.from(new Set(region.managers.map(m => m.login).filter(Boolean)));
                 // Б.3: regionExpectedAmount = Σ forecast+gap по менеджерам регіону
-                // (з planAgg.byLogin). ТІЛЬКИ ФІНАЛІЗОВАНІ — чернетки не входять
-                // у «Запл.» прогрес-лінію регіону (мають враховуватись тільки
-                // зафіксовані плани, не draft).
+                // (з planAgg.byLogin). Передаємо у RegionAccordion для прогрес-лінії.
                 let regionExpectedAmount = 0;
                 if (planAgg) {
                   for (const login of regionLogins) {
                     const segs = planAgg.byLogin[login.toLowerCase().trim()] || {};
                     for (const s of Object.values(segs)) {
-                      if (s.finalized) regionExpectedAmount += s.forecast + s.gap;
+                      regionExpectedAmount += s.forecast + s.gap;
                     }
                   }
                 }

@@ -49,7 +49,7 @@ interface Props {
    * Використовуємо щоб рахувати real «Запл. %» per (manager, brand) замість
    * mock-формули у brand-row.
    */
-  planByLogin?: Record<string, Record<string, { forecast: number; gap: number; finalized: boolean }>> | null;
+  planByLogin?: Record<string, Record<string, { forecast: number; gap: number }>> | null;
 }
 
 /**
@@ -62,19 +62,20 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
   const [expanded, setExpanded] = useState(false);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
 
-  // «Запл. %» для бренду в цілому = Σ finalized forecast+gap по менеджерам цього
-  // бренду. ТІЛЬКИ фіналізовані плани (не чернетки).
-  let brandPlannedSum = 0;
-  if (planByLogin) {
-    for (const m of brand.managers) {
-      const mp = planByLogin[m.login]?.[brand.segmentCode];
-      if (mp?.finalized) brandPlannedSum += mp.forecast + mp.gap;
-    }
-  }
-  const brandExpectedPct = brand.totalPlan > 0 && planByLogin
+  // «Запл. %» для бренду в цілому = Σ planSum (всі категорії plan) / brand.totalPlan.
+  // hasBrandPlan тільки коли planCategoriesForBrand уже догрузився (без blink
+  // 0% → real коли SWR fetch-ить).
+  const brandPlannedSum = planCategoriesForBrand
+    ? planCategoriesForBrand.active.plannedSum
+      + planCategoriesForBrand.sleeping.plannedSum
+      + planCategoriesForBrand.lost.plannedSum
+      + planCategoriesForBrand.none.plannedSum
+      + planCategoriesForBrand.new.plannedSum
+    : 0;
+  const brandExpectedPct = brand.totalPlan > 0 && planCategoriesForBrand
     ? (brandPlannedSum / brand.totalPlan) * 100
     : 0;
-  const hasBrandPlan = !!planByLogin && brand.totalPlan > 0;
+  const hasBrandPlan = !!planCategoriesForBrand && brand.totalPlan > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -109,12 +110,10 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
             <ChevronDown className="inline h-3 w-3 mr-1" />Менеджери
           </p>
           {brand.managers.map(m => {
-            // Per-manager «Запл. %» — ТІЛЬКИ фіналізовані плани цього менеджера
-            // по цьому бренду. Якщо у нього лише чернетка — 0% (ще не зафіксував).
+            // Per-manager «Запл. %» — тільки коли planByLogin догрузився.
             const mgrPlan = planByLogin?.[m.login]?.[brand.segmentCode];
-            const isFinalized = !!mgrPlan?.finalized;
-            const mgrForecast = isFinalized ? (mgrPlan?.forecast ?? 0) : 0;
-            const mgrGap = isFinalized ? (mgrPlan?.gap ?? 0) : 0;
+            const mgrForecast = mgrPlan?.forecast ?? 0;
+            const mgrGap = mgrPlan?.gap ?? 0;
             const mgrExpectedPct = m.plan > 0
               ? ((mgrForecast + mgrGap) / m.plan) * 100
               : 0;

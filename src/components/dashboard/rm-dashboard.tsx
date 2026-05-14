@@ -246,19 +246,20 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const totalPrevPlan = aggregate?.totalPrevMonthPlan ?? 0;
   const totalPrevPct = pctOf(totalPrevFact, totalPrevPlan);
   // Б.2: динаміка — заплановане vs минулий факт (forward-looking).
-  // ТІЛЬКИ finalized — порівнюємо проти зафіксованих планів менеджерів регіону.
+  // Fallback на totalFact якщо план ще не складено.
   const totalExpectedAmount = planAgg
-    ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized
+    ? planAgg.totalForecast + planAgg.totalGapPotential
     : 0;
   const compareForDyn = totalExpectedAmount > 0 ? totalExpectedAmount : totalFact;
   const dynAmount = compareForDyn - totalPrevFact;
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
-  // «Запланований %» — ТІЛЬКИ з фіналізованих планів (не чернеток).
-  // Семантика: реальне зобов'язання менеджерів регіону, на яке РМ покладається.
+  // Очікуваний % = (факт + Σ прогноз менеджерів + Σ потенціал закриття розриву) / план
+  // Дані з aggregate-endpoint (Variant B). Якщо ще не догружено — null.
+  // «Запланований %» = чисто план менеджерів / план місяця, БЕЗ факту.
   const totalExpectedPct = planAgg && totalPlan > 0
-    ? ((planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized) / totalPlan) * 100
+    ? ((planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
     : null;
 
   return (

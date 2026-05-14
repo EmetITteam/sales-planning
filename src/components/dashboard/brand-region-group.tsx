@@ -57,7 +57,7 @@ interface Props {
    * Per-manager × segment breakdown від /api/planning/aggregate.
    * Використовуємо щоб рахувати real «Запл. %» per (region, brand) sum-over-managers.
    */
-  planByLogin?: Record<string, Record<string, { forecast: number; gap: number; finalized: boolean }>> | null;
+  planByLogin?: Record<string, Record<string, { forecast: number; gap: number }>> | null;
 }
 
 /**
@@ -73,21 +73,19 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
 
-  // «Запл. %» для бренду в цілому: Σ finalized forecast+gap по менеджерам цього
-  // бренду. ТІЛЬКИ фіналізовані плани, чернетки у звітність не йдуть.
-  let brandPlannedSum = 0;
-  if (planByLogin) {
-    for (const r of brand.regions) {
-      for (const m of r.managers) {
-        const mp = planByLogin[m.login]?.[brand.segmentCode];
-        if (mp?.finalized) brandPlannedSum += mp.forecast + mp.gap;
-      }
-    }
-  }
-  const brandExpectedPct = brand.totalPlan > 0 && planByLogin
+  // «Запл. %» для бренду в цілому: Σ planSum / brand.totalPlan.
+  // hasBrandPlan тільки після того як planCategoriesForBrand догрузився.
+  const brandPlannedSum = planCategoriesForBrand
+    ? planCategoriesForBrand.active.plannedSum
+      + planCategoriesForBrand.sleeping.plannedSum
+      + planCategoriesForBrand.lost.plannedSum
+      + planCategoriesForBrand.none.plannedSum
+      + planCategoriesForBrand.new.plannedSum
+    : 0;
+  const brandExpectedPct = brand.totalPlan > 0 && planCategoriesForBrand
     ? (brandPlannedSum / brand.totalPlan) * 100
     : 0;
-  const hasBrandPlan = !!planByLogin && brand.totalPlan > 0;
+  const hasBrandPlan = !!planCategoriesForBrand && brand.totalPlan > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -129,7 +127,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
             if (planByLogin) {
               for (const m of r.managers) {
                 const mp = planByLogin[m.login]?.[brand.segmentCode];
-                if (mp?.finalized) regionForecastPlusGap += mp.forecast + mp.gap;
+                if (mp) regionForecastPlusGap += mp.forecast + mp.gap;
               }
             }
             const regionExpectedPct = r.plan > 0
