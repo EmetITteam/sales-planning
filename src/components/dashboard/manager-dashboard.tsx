@@ -133,10 +133,6 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     !isDemo && effectiveLogin !== 'anonymous' && allClientIds.length > 0
       ? { login: effectiveLogin, period: periodKey, clientIds: allClientIds, asOfDate: asOfIso }
       : null,
-    {
-      // Auto-retry якщо 1С повернула порожній segments[] на cold start.
-      isEmptyResponse: (r) => !r?.segments || r.segments.length === 0,
-    },
   );
 
   // === ETAP 3. Action 4 (getRegistryPlans) — план місяця по ВСІХ менеджерах ===

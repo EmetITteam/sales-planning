@@ -78,10 +78,6 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const { data: regionResp, loading, error, refetch } = useOneCData(
     'getRegionData',
     user ? { login: user.login, period: periodKey, asOfDate: asOfIso } : null,
-    {
-      // Day 14 #4: auto-retry якщо 1С повернула regions=[] на cold start.
-      isEmptyResponse: (r) => !r?.regions || r.regions.length === 0,
-    },
   );
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const region = useMemo(() => {

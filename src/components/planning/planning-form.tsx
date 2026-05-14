@@ -357,6 +357,36 @@ export function PlanningForm({
   const [showIncompleteConfirm, setShowIncompleteConfirm] = useState(false);
   const doFinalize = async () => {
     setFinalizing(true);
+    // ⚠️ Спочатку зберегти поточний state форми (Day 14 fix, 2026-05-14).
+    // Інакше менеджер натискає «Фінальне збереження» без попереднього
+    // «Зберегти чернетку» → finalize endpoint ставить тільки finalized_at,
+    // а forecasts/gap_closures лишаються порожніми → план фіналізований
+    // з 0 рядків (втрата даних). Виявлено на тесті sm.odessa2 × PETARAN.
+    const isExplicitClearAll = formEverEdited || persistedClientIds.size > 0
+      || forecasts.length > 0 || gapClosures.length > 0;
+    const saveResultLocal = await savePlanning({
+      segmentCode,
+      periodId: currentPeriod.id,
+      period: { weekStart: currentPeriod.weekStart, weekEnd: currentPeriod.weekEnd, month: currentPeriod.month },
+      targetLogin: targetUserLogin || undefined,
+      userMeta: targetUserLogin ? {
+        fullName: targetUserName || targetUserLogin,
+        region: targetUserRegion || undefined,
+        regionCode: targetUserRegionCode || undefined,
+      } : undefined,
+      forecasts,
+      gapClosures,
+      gapActions,
+      clearAll: isExplicitClearAll,
+    });
+    if (!saveResultLocal.success) {
+      setFinalizing(false);
+      setSaveResult({ ok: false, msg: 'Не вдалось зберегти перед фіналізацією: ' + (saveResultLocal.error || 'unknown') });
+      setTimeout(() => setSaveResult(null), 4000);
+      return;
+    }
+    if (saveResultLocal.savedAt) setLastSavedAt(saveResultLocal.savedAt);
+    // Тільки після успішного save — викликаємо finalize.
     const result = await finalizePlan({
       periodId: currentPeriod.id,
       month: currentPeriod.month,
@@ -366,7 +396,9 @@ export function PlanningForm({
     setFinalizing(false);
     if (result.ok) {
       refetchFinalize();
-      setSaveResult({ ok: true, msg: 'План фіналізовано' });
+      const c = saveResultLocal.counts;
+      const savedMsg = c ? ` (прогноз ${c.forecasts}, розрив ${c.gaps})` : '';
+      setSaveResult({ ok: true, msg: 'План фіналізовано' + savedMsg });
     } else {
       setSaveResult({ ok: false, msg: result.error });
     }

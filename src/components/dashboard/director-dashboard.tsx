@@ -84,10 +84,6 @@ export function DirectorDashboard() {
   const { data: regionResp, loading, error, refetch } = useOneCData(
     'getRegionData',
     user ? { login: user.login, period: periodKey, asOfDate: asOfIso } : null,
-    {
-      // Day 14 #4: auto-retry до 3 спроб (логіка винесена у useOneCData).
-      isEmptyResponse: (r) => !r?.regions || r.regions.length === 0,
-    },
   );
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const company = useMemo(() => adapted ? aggregateCompany(adapted.regions) : null, [adapted]);
