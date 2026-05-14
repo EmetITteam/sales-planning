@@ -13,5 +13,9 @@ export function useRegistryPlans(dateFrom: string | null, dateTo: string | null)
   return useOneCData(
     'getRegistryPlans',
     shouldFetch ? { dateFrom: dateFrom!, dateTo: dateTo! } : null,
+    {
+      // Auto-retry якщо 1С повернула порожній plans[] на cold start.
+      isEmptyResponse: (r) => !r?.plans || r.plans.length === 0,
+    },
   );
 }

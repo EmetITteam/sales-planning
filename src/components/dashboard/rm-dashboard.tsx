@@ -78,6 +78,10 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const { data: regionResp, loading, error, refetch } = useOneCData(
     'getRegionData',
     user ? { login: user.login, period: periodKey, asOfDate: asOfIso } : null,
+    {
+      // Day 14 #4: auto-retry якщо 1С повернула regions=[] на cold start.
+      isEmptyResponse: (r) => !r?.regions || r.regions.length === 0,
+    },
   );
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const region = useMemo(() => {
@@ -96,29 +100,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     return withFact.length > 0 ? withFact : all.filter(m => m.totalPlan > 0);
   }, [region]);
 
-  // Auto-retry: до 3 спроб з backoff (1.2с / 2.5с / 5с) якщо 1С повертає
-  // порожньо. На першому запиті після login Action 5 іноді не встигає —
-  // короткий retry зазвичай дає валідну відповідь. Поки йдуть retries
-  // (autoRetryAttempt < 3) — показуємо loader, не noData.
-  const [autoRetryAttempt, setAutoRetryAttempt] = useState(0);
-  const isAutoRetrying = !!regionResp && !!adapted && adapted.regions.length === 0 && !error && autoRetryAttempt < 3;
-  useEffect(() => {
-    if (regionResp && adapted && adapted.regions.length === 0 && !error && !loading && autoRetryAttempt < 3) {
-      const delay = autoRetryAttempt === 0 ? 1200 : autoRetryAttempt === 1 ? 2500 : 5000;
-      const t = setTimeout(() => {
-        setAutoRetryAttempt(n => n + 1);
-        refetch();
-      }, delay);
-      return () => clearTimeout(t);
-    }
-  }, [regionResp, adapted, error, loading, refetch, autoRetryAttempt]);
-  // Якщо у форкомі стан скинутий через нову повну сесію (нова відповідь з даними) — нуль на attempt
-  useEffect(() => {
-    if (regionResp && adapted && adapted.regions.length > 0 && autoRetryAttempt > 0) {
-      setAutoRetryAttempt(0);
-    }
-  }, [regionResp, adapted, autoRetryAttempt]);
-  const handleManualRetry = () => { setAutoRetryAttempt(0); refetch(); };
+  // Auto-retry для cold-start винесено у useOneCData (Day 14 #4).
+  // `loading` flag тепер true поки йде retry — UI не блимає.
+  const handleManualRetry = () => { refetch(); };
 
   // Aggregate planning по всіх менеджерах регіону → для розрахунку «Очікуваного %»
   const allLogins = useMemo(() => {
@@ -232,6 +216,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         <ManagerDashboard
           targetUserLogin={selectedManager}
           targetUserName={target?.name || selectedManager}
+          targetUserRegion={region?.regionName || ''}
+          targetUserRegionCode={region?.regionCode || ''}
           initialSegmentCode={selectedSegmentForManager || undefined}
         />
       </div>
@@ -252,9 +238,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   ) : null;
 
   // === Empty state ===
-  // Показуємо noData ТІЛЬКИ якщо retry-петля вичерпала всі 3 спроби.
-  // Поки йдуть retries — рендеримо інший стан (loader-фідбек).
-  const noRegion = !loading && !error && !region && !isAutoRetrying;
+  // `loading` тепер true поки йде auto-retry (useOneCData), тому окрема
+  // isAutoRetrying flag непотрібна.
+  const noRegion = !loading && !error && !region;
 
   // === Dashboard ===
   const totalPlan = aggregate?.totalPlan ?? 0;
@@ -323,7 +309,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         <ChevronRight className="h-4 w-4 ml-auto" />
       </button>
 
-      {isAutoRetrying && (
+      {loading && !region && (
         <div className="bg-white rounded-2xl border border-[#e2e7ef] p-12 text-center">
           <div className="inline-flex flex-col items-center gap-3">
             <RefreshCw className="h-6 w-6 animate-spin text-[#066aab]" />

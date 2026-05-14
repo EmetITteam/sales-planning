@@ -84,31 +84,15 @@ export function DirectorDashboard() {
   const { data: regionResp, loading, error, refetch } = useOneCData(
     'getRegionData',
     user ? { login: user.login, period: periodKey, asOfDate: asOfIso } : null,
+    {
+      // Day 14 #4: auto-retry до 3 спроб (логіка винесена у useOneCData).
+      isEmptyResponse: (r) => !r?.regions || r.regions.length === 0,
+    },
   );
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const company = useMemo(() => adapted ? aggregateCompany(adapted.regions) : null, [adapted]);
 
-  // Auto-retry: до 3 спроб з backoff (1.2с / 2.5с / 5с) якщо 1С повертає
-  // порожньо. На першому запиті після login Action 5 іноді не встигає.
-  // Поки йдуть retries (autoRetryAttempt < 3) — показуємо loader, не noData.
-  const [autoRetryAttempt, setAutoRetryAttempt] = useState(0);
-  const isAutoRetrying = !!regionResp && !!adapted && adapted.regions.length === 0 && !error && autoRetryAttempt < 3;
-  useEffect(() => {
-    if (regionResp && adapted && adapted.regions.length === 0 && !error && !loading && autoRetryAttempt < 3) {
-      const delay = autoRetryAttempt === 0 ? 1200 : autoRetryAttempt === 1 ? 2500 : 5000;
-      const t = setTimeout(() => {
-        setAutoRetryAttempt(n => n + 1);
-        refetch();
-      }, delay);
-      return () => clearTimeout(t);
-    }
-  }, [regionResp, adapted, error, loading, refetch, autoRetryAttempt]);
-  useEffect(() => {
-    if (regionResp && adapted && adapted.regions.length > 0 && autoRetryAttempt > 0) {
-      setAutoRetryAttempt(0);
-    }
-  }, [regionResp, adapted, autoRetryAttempt]);
-  const handleManualRetry = () => { setAutoRetryAttempt(0); refetch(); };
+  const handleManualRetry = () => { refetch(); };
 
   // «Оновити» — повний хард-рефреш всіх SWR-ключів дашборду. Без цього
   // refetch скидав тільки getRegionData, а CategoryStatsTable + RegionStats +
@@ -236,10 +220,17 @@ export function DirectorDashboard() {
     // Швидкий drill-down напряму у менеджера (з manager-mini-list у RegionAccordion).
     // Знаходимо ім'я для шапки.
     let managerName = selectedManagerLogin;
+    let managerRegion = '';
+    let managerRegionCode = '';
     if (adapted) {
       for (const r of adapted.regions) {
         const m = r.managers.find(x => x.login === selectedManagerLogin);
-        if (m) { managerName = m.name; break; }
+        if (m) {
+          managerName = m.name;
+          managerRegion = r.regionName;
+          managerRegionCode = r.regionCode;
+          break;
+        }
       }
     }
     return (
@@ -250,6 +241,8 @@ export function DirectorDashboard() {
         <ManagerDashboard
           targetUserLogin={selectedManagerLogin}
           targetUserName={managerName}
+          targetUserRegion={managerRegion}
+          targetUserRegionCode={managerRegionCode}
           initialSegmentCode={selectedSegmentForManager || undefined}
         />
       </div>
@@ -268,7 +261,9 @@ export function DirectorDashboard() {
     </div>
   ) : null;
 
-  const noData = !loading && !error && (!company || company.regionAggregates.length === 0) && !isAutoRetrying;
+  // loading тепер включає auto-retry (через isEmptyResponse у useOneCData),
+  // тому окремий isAutoRetrying flag не потрібен.
+  const noData = !loading && !error && (!company || company.regionAggregates.length === 0);
 
   const totalPlan = company?.totalPlan ?? 0;
   const totalFact = company?.totalFact ?? 0;
@@ -321,7 +316,7 @@ export function DirectorDashboard() {
         )}
       </div>
 
-      {isAutoRetrying && (
+      {loading && (
         <div className="bg-white rounded-2xl border border-[#e2e7ef] p-12 text-center">
           <div className="inline-flex flex-col items-center gap-3">
             <RefreshCw className="h-6 w-6 animate-spin text-[#066aab]" />

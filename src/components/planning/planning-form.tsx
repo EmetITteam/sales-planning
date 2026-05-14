@@ -50,6 +50,9 @@ interface PlanningFormProps {
    * + щоб у Supabase users.full_name писалось ім'я, а не email).
    */
   targetUserName?: string;
+  /** Регіон цільового — щоб users.region не залишався null при save. */
+  targetUserRegion?: string;
+  targetUserRegionCode?: string;
   /**
    * Клієнти з 1С — приходять з ManagerDashboard через кеш (Zustand).
    * Дозволяє формі відкриватись миттєво (без власного fetch'у). Якщо null —
@@ -86,6 +89,7 @@ const STAGE_OPTIONS = [
 
 export function PlanningForm({
   segmentCode, onBack, readOnly: readOnlyProp = false, targetUserLogin, targetUserName,
+  targetUserRegion, targetUserRegionCode,
   clientsResponse = null, clientsLoading = false, clientsError = null,
   planAmount: propPlanAmount = 0, factAmount: propFactAmount = 0,
   prevMonthFactAmount = 0, prevMonthPlanAmount = 0,
@@ -305,7 +309,11 @@ export function PlanningForm({
       targetLogin: targetUserLogin || undefined,
       // Профіль потрібен серверу лише при drill-down (бо у session дані РМ а не
       // цільового менеджера). Для свого збереження сервер бере з сесії.
-      userMeta: targetUserLogin ? { fullName: targetUserName || targetUserLogin } : undefined,
+      userMeta: targetUserLogin ? {
+        fullName: targetUserName || targetUserLogin,
+        region: targetUserRegion || undefined,
+        regionCode: targetUserRegionCode || undefined,
+      } : undefined,
       forecasts,
       gapClosures,
       gapActions,
@@ -799,7 +807,11 @@ export function PlanningForm({
       },
       segmentCode,
       targetLogin: targetUserLogin || undefined,
-      userMeta: targetUserLogin ? { fullName: targetUserName || targetUserLogin } : undefined,
+      userMeta: targetUserLogin ? {
+        fullName: targetUserName || targetUserLogin,
+        region: targetUserRegion || undefined,
+        regionCode: targetUserRegionCode || undefined,
+      } : undefined,
       forecasts: activeClients.map(buildClient),
       gapClosures: sleepingClients.map(buildClient),
       source: 'auto-populate',
@@ -1463,12 +1475,12 @@ export function PlanningForm({
                         </SelectContent>
                       </Select>
                       <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                        disabled={lockEdit}
+                        disabled={readOnly}
                         className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
                     </div>
                   ) : (
                     <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                      disabled={lockEdit}
+                      disabled={readOnly}
                       className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль..." />
                   )}
 
@@ -1595,7 +1607,7 @@ export function PlanningForm({
                       </Select>
                     )}
                     <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                      disabled={lockEdit}
+                      disabled={readOnly}
                       className="h-9 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1"
                       placeholder={row.stage === 'Навчання' ? 'Коментар (необов\'язково)...' : 'Ціль...'} />
                   </div>
@@ -1828,12 +1840,12 @@ export function PlanningForm({
                           </SelectContent>
                         </Select>
                         <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
-                          disabled={lockEdit}
+                          disabled={readOnly}
                           className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
                       </div>
                     ) : (
                       <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
-                        disabled={lockEdit}
+                        disabled={readOnly}
                         className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
                     )}
 
@@ -1954,7 +1966,7 @@ export function PlanningForm({
                           </SelectContent>
                         </Select>
                       )}
-                      <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)} disabled={lockEdit}
+                      <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)} disabled={readOnly}
                         className="h-9 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1"
                         placeholder={row.stage === 'Навчання' ? 'Коментар (необов\'язково)...' : 'Дія...'} />
                     </div>
@@ -2010,8 +2022,11 @@ export function PlanningForm({
       </div>
 
       {/* Sticky save bar — внизу екрана. Менеджер у довгій формі (25+ рядків)
-          бачить «Зберегти» весь час, не треба скролити. */}
-      {!lockEdit && (
+          бачить «Зберегти» весь час, не треба скролити.
+          Day 14 #2: bar показуємо навіть коли план фіналізований (lockEdit=true для
+          non-admin), щоб менеджер міг зберегти оновлені stage_comment. Backend
+          filtered-mode (Етап 2) пропустить лише ці поля. */}
+      {!readOnly && (
         <div className="sticky bottom-0 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex items-center justify-end gap-3 z-10">
           {lastSavedAt && !saveResult && (
             <span className="text-[11px] text-muted-foreground mr-auto">
@@ -2038,7 +2053,7 @@ export function PlanningForm({
                 Зберігаю...
               </>
             ) : (
-              <><Save className="h-4 w-4" /> Зберегти чернетку</>
+              <><Save className="h-4 w-4" /> {isFinalized && !isAdmin ? 'Зберегти коментарі' : 'Зберегти чернетку'}</>
             )}
           </Button>
           {!isFinalized && (

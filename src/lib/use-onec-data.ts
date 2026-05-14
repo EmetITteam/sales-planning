@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { callOneC, OneCError, OneCNetworkError } from './onec-client';
 import { useAppStore } from './store';
@@ -10,6 +11,20 @@ interface UseOneCDataResult<T> {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+}
+
+interface UseOneCDataOptions<T> {
+  /**
+   * Auto-retry callback (Day 14 backlog #4, 2026-05-14).
+   * Якщо повертає `true` для отриманих даних — hook автоматично робить
+   * до 3 retries з backoff 1.2s / 2.5s / 5s. Поки йде retry — `loading`
+   * залишається true (щоб UI не блимав «нема даних» / «є дані» поки 1С
+   * cold-starts).
+   *
+   * Типовий приклад: 1С Action 5 повертає `{regions: []}` на першому
+   * запиті після login → isEmpty: r => r.regions.length === 0.
+   */
+  isEmptyResponse?: (data: T) => boolean;
 }
 
 /**
@@ -26,10 +41,14 @@ interface UseOneCDataResult<T> {
  *
  * Cache key — JSON.stringify payload, тож зміна payload (наприклад іншій
  * період) тригерить новий запит автоматично.
+ *
+ * Auto-retry (options.isEmptyResponse): якщо 1С повернула «порожньо» на
+ * cold start, hook сам повторно дзвонить з експоненціальним backoff.
  */
 export function useOneCData<A extends OneCAction>(
   action: A,
   payload: OneCActionMap[A]['request'] | null,
+  options?: UseOneCDataOptions<OneCActionMap[A]['response']>,
 ): UseOneCDataResult<OneCActionMap[A]['response']> {
   const liveMode = useAppStore(s => s.liveMode);
   const key = payload ? `onec|${action}|${JSON.stringify(payload)}` : null;
@@ -49,11 +68,29 @@ export function useOneCData<A extends OneCAction>(
     },
   );
 
+  // Auto-retry для cold-start 1С (Day 14 #4). До 3 спроб з backoff.
+  // Reset counter коли змінюється key (новий запит = нова логіка retry).
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  useEffect(() => { setRetryAttempt(0); }, [key]);
+  const isEmptyData = !!options?.isEmptyResponse && !!data && options.isEmptyResponse(data);
+  const isAutoRetrying = isEmptyData && !error && retryAttempt < 3;
+  useEffect(() => {
+    if (!isAutoRetrying || isLoading) return;
+    const delay = retryAttempt === 0 ? 1200 : retryAttempt === 1 ? 2500 : 5000;
+    const t = setTimeout(() => {
+      setRetryAttempt(n => n + 1);
+      mutate();
+    }, delay);
+    return () => clearTimeout(t);
+  }, [isAutoRetrying, isLoading, retryAttempt, mutate]);
+
   return {
     data: data ?? null,
-    loading: isLoading,
+    // loading=true поки йде SWR fetch АБО поки auto-retry чекає — UI не
+    // блимає «нема даних» між невдалою першою спробою та successful retry.
+    loading: isLoading || isAutoRetrying,
     error: error ? formatError(error) : null,
-    refetch: () => { mutate(); },
+    refetch: () => { setRetryAttempt(0); mutate(); },
   };
 }
 

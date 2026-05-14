@@ -38,13 +38,17 @@ interface ManagerDashboardProps {
    *  Заголовок показує ПІБ цільового менеджера, drill-down у форму = read-only. */
   targetUserLogin?: string;
   targetUserName?: string;
+  /** Регіон цільового менеджера — щоб у Supabase users.region не лишався
+   *  null при admin/RM drill-down save. Передається з 1С Action 5. */
+  targetUserRegion?: string;
+  targetUserRegionCode?: string;
   /** Якщо передано — одразу відкриває PlanningForm для вказаного сегмента
    *  (skip dashboard view). Використовується для shortcut «Director → manager → brand
    *  безпосередньо у планування». */
   initialSegmentCode?: string;
 }
 
-export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegmentCode }: ManagerDashboardProps = {}) {
+export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRegion, targetUserRegionCode, initialSegmentCode }: ManagerDashboardProps = {}) {
   // Initial state читається з nav store (зберігається в sessionStorage),
   // щоб refresh повертав на ту ж форму а не на список брендів. Пріоритет:
   //   1. initialSegmentCode (drill-down з parent dashboard) — явне завдання
@@ -129,6 +133,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
     !isDemo && effectiveLogin !== 'anonymous' && allClientIds.length > 0
       ? { login: effectiveLogin, period: periodKey, clientIds: allClientIds, asOfDate: asOfIso }
       : null,
+    {
+      // Auto-retry якщо 1С повернула порожній segments[] на cold start.
+      isEmptyResponse: (r) => !r?.segments || r.segments.length === 0,
+    },
   );
 
   // === ETAP 3. Action 4 (getRegistryPlans) — план місяця по ВСІХ менеджерах ===
@@ -354,6 +362,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
         readOnly={isViewing && user?.role !== 'admin'}
         targetUserLogin={targetUserLogin}
         targetUserName={targetUserName}
+        targetUserRegion={targetUserRegion}
+        targetUserRegionCode={targetUserRegionCode}
         clientsResponse={clientsResponse ?? null}
         clientsLoading={clientsLoading}
         clientsError={clientsError}
