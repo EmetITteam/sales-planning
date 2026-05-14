@@ -155,14 +155,36 @@ try {
   await page.waitForTimeout(1000);
   await shot(page, '05-rm-brand-expanded');
 
-  // Click "Моє планування" to enter Manager view
-  console.log('5. Entering "Моє планування"...');
+  // Reach Manager view — пробуємо «Моє планування» (РМ), а як його немає
+  // (Director/Admin сесія), переходимо через drill-down з регіону.
+  console.log('5. Entering Manager view...');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  let reachedManager = false;
   const myPlanningBtn = page.locator('button:has-text("Моє планування")').first();
   if (await myPlanningBtn.count() > 0) {
     await myPlanningBtn.click();
-    // Manager dashboard має дочекатись Action 2 + 3 + 4 — це ~3-5 сек.
-    // Чекаємо поки спіннер зникне і brand-рядки заповняться реальними цифрами.
     await waitForDataReady(page, 'text=/Petaran|Ellanse|Neuramis/i', 25000);
+    reachedManager = true;
+  } else {
+    // Director/Admin: drill-down через RegionAccordion → перший менеджер mini-list.
+    // Спочатку розкриваємо перший регіон (click на header картки регіону).
+    const regionHeader = page.locator('[class*="cursor-pointer"]:has(svg.lucide-map-pin)').first();
+    if (await regionHeader.count() > 0) {
+      await regionHeader.click({ position: { x: 200, y: 20 } });
+      await page.waitForTimeout(800);
+      await shot(page, '04b-region-expanded');
+      // Перший менеджер у mini-list — кнопки мають title="<name>: <pct>% ..."
+      const firstManagerBtn = page.locator('button[title*="vs норма"]').first();
+      if (await firstManagerBtn.count() > 0) {
+        await firstManagerBtn.click();
+        await waitForDataReady(page, 'text=/Petaran|Ellanse|Neuramis/i', 25000);
+        reachedManager = true;
+      } else {
+        console.warn('  · manager mini-list button not found, skipping drill-down');
+      }
+    }
+  }
+  if (reachedManager) {
     await shot(page, '06-manager-dashboard');
 
     // Click ELLANSE to open expand
@@ -221,6 +243,17 @@ try {
     });
     await page.waitForTimeout(400);
     await shot(page, '12-bulk-delete');
+  }
+
+  // === 13. Admin panel — /admin/planning-locks (тільки для admin сесії) ===
+  console.log('9. Admin panel...');
+  try {
+    await page.goto(`${BASE_URL}/admin/planning-locks`, { waitUntil: 'networkidle', timeout: 20000 });
+    await page.waitForSelector('text=/Блокування планування|Графік планування/i', { timeout: 15000 });
+    await page.waitForTimeout(1000);
+    await shot(page, '13-admin-planning-locks');
+  } catch {
+    console.warn('  · admin panel skipped (not an admin session?)');
   }
 
   console.log(`\nAll screenshots saved to ${OUT_DIR}`);
