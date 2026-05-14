@@ -79,7 +79,16 @@ jobs:
           2. Завантаж `<table>.json` файли.
           3. Імпортуй у Supabase через REST/PSQL `INSERT ... ON CONFLICT DO UPDATE`.
           EOF
-            git add README.md
+            # vercel.json з deploymentEnabled=false → Vercel не пробує деплоїти
+            # цю гілку як preview (інакше падає бо нема Next.js джерел)
+            cat > vercel.json <<'EOF'
+          {
+            "git": {
+              "deploymentEnabled": false
+            }
+          }
+          EOF
+            git add README.md vercel.json
             git commit -m 'Init backups branch'
           fi
 
