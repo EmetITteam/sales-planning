@@ -232,11 +232,20 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               <span className={`font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{dev >= 0 ? '+' : ''}{dev.toFixed(1)}%</span>
             </div>
             <p className="text-[10px] truncate flex items-center gap-1.5">
-              <span><span className="text-amber-600">●</span> Прогноз: <span className="font-bold text-amber-600">{formatPct(regionForecastPct)}</span></span>
+              <span>
+                <span className="text-amber-600">●</span> Прогноз (темп):{' '}
+                <span className="font-bold text-amber-600">{formatPct(regionForecastPct)}</span>
+              </span>
               {hasRegionPlan && (
                 <>
                   <span className="text-muted-foreground/40">·</span>
-                  <span><span className="text-[#066aab]">●</span> Запл.: <span className="font-bold text-[#066aab]">{formatPct(regionExpectedPct)}</span></span>
+                  <span>
+                    <span className="text-[#066aab]">●</span> Запл.:{' '}
+                    <span className="font-bold text-[#066aab]">{formatPct(regionExpectedPct)}</span>
+                    {regionExpectedAmount > 0 && (
+                      <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedAmount)}</span></span>
+                    )}
+                  </span>
                 </>
               )}
             </p>

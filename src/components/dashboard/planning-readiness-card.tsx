@@ -198,19 +198,23 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           </div>
         </div>
 
-        {/* Mini-list регіонів з трьома лічильниками */}
-        <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-4 gap-y-1 px-2">
+        {/* Mini-list регіонів — 1 регіон у рядку щоб імена не обрізались.
+            Лічильники компактні: `N/M` (фіналізовано/усього), tooltip
+            пояснює деталь (чернетки). Драфти показуємо як суфікс «+K» якщо
+            є — і тільки коли draftCells > 0. */}
+        <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 px-2">
           {stats.map(r => {
             const s = regionStatusColor(r.finalizedCells, r.draftCells, r.totalCells);
+            const tooltip = `${r.regionName}: ${r.finalizedCells} фінал · ${r.draftCells} чернетка · ${r.emptyCells} пусто`;
             return (
-              <span key={r.regionName} className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+              <span key={r.regionName} className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap min-w-0" title={tooltip}>
                 <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass[s]}`} />
-                <span className="font-semibold text-foreground/80 truncate flex-1">{r.regionName}</span>
-                <span className="text-emerald-600 font-bold shrink-0">{r.finalizedCells}</span>
-                <span className="text-muted-foreground/40">·</span>
-                <span className="text-amber-600 font-bold shrink-0">{r.draftCells}</span>
-                <span className="text-muted-foreground/40">·</span>
-                <span className="text-muted-foreground/60 font-mono shrink-0">{r.totalCells}</span>
+                <span className="font-semibold text-foreground/80 truncate flex-1 min-w-0">{r.regionName}</span>
+                <span className="font-mono shrink-0">
+                  <span className="text-emerald-600 font-bold">{r.finalizedCells}</span>
+                  {r.draftCells > 0 && <span className="text-amber-600 font-bold">+{r.draftCells}</span>}
+                  <span className="text-muted-foreground/60">/{r.totalCells}</span>
+                </span>
               </span>
             );
           })}

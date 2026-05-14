@@ -358,18 +358,18 @@ export function DirectorDashboard() {
               caption={(() => {
                 const totalAll = planAgg ? planAgg.totalForecast + planAgg.totalGapPotential : 0;
                 const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
-                const windowOpen = planAgg?.planningOpen ?? true;
+                const draftPart = totalAll - totalFin;
                 return (
                   <span className="space-y-0.5 block">
                     <span className="text-muted-foreground block">{periodLabel} · {workingDaysLabel(totalWD)}</span>
-                    {windowOpen && totalAll > 0 && (
+                    {totalAll > 0 && (
                       <span className="text-muted-foreground block">
-                        Попередній план: <span className="amount font-semibold text-foreground">{formatUSD(totalAll)}</span>
+                        Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalAll)}</span>
                       </span>
                     )}
-                    {totalFin > 0 && (
-                      <span className="text-muted-foreground block">
-                        Заплановано по компанії: <span className="amount font-semibold text-foreground">{formatUSD(totalFin)}</span>
+                    {totalFin > 0 && draftPart > 0 && (
+                      <span className="text-muted-foreground block text-[10.5px]">
+                        з них фінал: <span className="amount font-semibold text-emerald-700">{formatUSD(totalFin)}</span>
                       </span>
                     )}
                   </span>
@@ -391,6 +391,9 @@ export function DirectorDashboard() {
                   <span className={`font-semibold block ${dynBetter ? 'text-emerald-600' : 'text-rose-600'}`}>
                     <DynArrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
                     <span className="amount whitespace-nowrap">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
+                    <span className="text-[10px] text-muted-foreground ml-1">
+                      {totalExpectedAmountForDyn > 0 ? 'план vs мин. факт' : 'факт vs мин. факт'}
+                    </span>
                   </span>
                 </span>
               ) : null}

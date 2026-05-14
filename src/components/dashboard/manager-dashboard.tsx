@@ -456,18 +456,18 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
           caption={(() => {
             const totalAll = planAgg ? planAgg.totalForecast + planAgg.totalGapPotential : 0;
             const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
-            const windowOpen = planAgg?.planningOpen ?? true;
+            const draftPart = totalAll - totalFin;
             return (
               <span className="space-y-0.5 block">
                 <span className="text-muted-foreground block">{periodMonthLabel} · {workingDaysLabel(totalWorkingDaysInMonth)}</span>
-                {windowOpen && totalAll > 0 && (
+                {totalAll > 0 && (
                   <span className="text-muted-foreground block">
-                    Попередній план: <span className="amount font-semibold text-foreground">{formatUSD(totalAll)}</span>
+                    Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalAll)}</span>
                   </span>
                 )}
-                {totalFin > 0 && (
-                  <span className="text-muted-foreground block">
-                    Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalFin)}</span>
+                {totalFin > 0 && draftPart > 0 && (
+                  <span className="text-muted-foreground block text-[10.5px]">
+                    з них фінал: <span className="amount font-semibold text-emerald-700">{formatUSD(totalFin)}</span>
                   </span>
                 )}
               </span>
@@ -482,14 +482,16 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
           isAmount
           caption={totalPrevFact > 0 && (() => {
             // Б.2: порівнюємо ЗАПЛАНОВАНИЙ показник з минулим фактом (forward-looking).
-            // Fallback на totalFact якщо менеджер ще не склав план.
+            // Якщо плану ще нема — порівнюємо поточний факт з минулим (з міткою).
             const totalExpected = planAgg
               ? planAgg.totalForecast + planAgg.totalGapPotential
               : 0;
-            const compareValue = totalExpected > 0 ? totalExpected : totalFact;
+            const hasPlan = totalExpected > 0;
+            const compareValue = hasPlan ? totalExpected : totalFact;
             const dyn = compareValue - totalPrevFact;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
+            const label = hasPlan ? 'план vs мин. факт' : 'факт vs мин. факт';
             return (
               <span className="space-y-0.5 block">
                 <span className="text-muted-foreground block">
@@ -499,7 +501,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, initialSegme
                 <span className={`font-semibold block ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
                   <Arrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
                   <span className="amount whitespace-nowrap">{better ? '+' : ''}{formatUSD(dyn)}</span>
-                  <span className="text-[10px] text-muted-foreground ml-1">vs мин.</span>
+                  <span className="text-[10px] text-muted-foreground ml-1">{label}</span>
                 </span>
               </span>
             );
