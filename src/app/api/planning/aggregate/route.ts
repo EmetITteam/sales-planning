@@ -30,6 +30,7 @@ import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
 import { loadSettingsAndLocks } from '@/lib/load-window-state';
 import { canPlanForMonth } from '@/lib/planning-window';
+import { isPassiveAmount } from '@/lib/passive-rows';
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -199,6 +200,11 @@ export async function POST(request: NextRequest) {
 
   for (const f of forecasts) {
     const amount = Number(f.forecast_amount) || 0;
+    // Passive row (amount=0) — «пам'ятаю, не планую цього періоду».
+    // НЕ враховуємо у totals, counter-ах і Set-ах планованих клієнтів.
+    // Завдяки цьому клієнт з фактом > 0 на amount=0 рядку коректно
+    // потрапить у блок «Незаплановані покупці» (unplanned-buyers).
+    if (isPassiveAmount(amount)) continue;
     totalForecast += amount;
     const fin = isFinalized(f.user_id, f.segment_code);
     if (fin) totalForecastFinalized += amount;
@@ -218,6 +224,8 @@ export async function POST(request: NextRequest) {
   }
   for (const g of gaps) {
     const amount = Number(g.potential_amount) || 0;
+    // Passive row — див. коментар у forecasts вище.
+    if (isPassiveAmount(amount)) continue;
     totalGapPotential += amount;
     const fin = isFinalized(g.user_id, g.segment_code);
     if (fin) totalGapPotentialFinalized += amount;

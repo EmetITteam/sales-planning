@@ -490,6 +490,3 @@ git tag --list 'etalon-*'
 ## Контакти
 
 - **Проект:** EMET IT (`itd@emet.in.ua`)
-- **GitHub:** [EmetITteam/sales-planning](https://github.com/EmetITteam/sales-planning)
-- **Vercel:** `emetits-projects/sales-planning`
-- **Supabase org:** `nlnwcduommjzrzabxzyu`

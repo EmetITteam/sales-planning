@@ -18,6 +18,7 @@ import { useFinalizationStatus, finalizePlan, unfinalizePlan } from '@/lib/use-f
 import { useWindowStatus } from '@/lib/use-window-status';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
 import {
   SEGMENTS, isDemoLogin, getDemoForecastsPETARAN, getDemoGapClosuresPETARAN,
 } from '@/lib/mock-data';
@@ -470,31 +471,23 @@ export function PlanningForm({
   const factPct = pctOf(factAmount, planAmount);
   const deviation = factPct - expectedPct;
 
-  // Сортовані прогнози: невиконані зверху, виконані знизу. У межах однієї
-  // групи — алфавіт по clientName. Без вторинного сортування auto-populate
-  // показує клієнтів у порядку як 1С повернула (рандом), а після першого
-  // save+reload — в алфавіті (бо Supabase order). User бачить як
-  // 'збивається сортування'.
+  // Сортовані прогнози: активні зверху → passive (amount=0) → completed вниз.
+  // У межах кожної групи — алфавіт по clientName.
+  // Passive («без плану») окремою групою щоб око одразу бачило хто реально
+  // запланований, а хто «у резерві».
   const sortedForecasts = useMemo(() => {
-    return [...forecasts].sort((a, b) => {
-      if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      return (a.clientName || '').localeCompare(b.clientName || '', 'uk');
-    });
+    return [...forecasts].sort(compareForecastRows);
   }, [forecasts]);
 
-  // Аналогічно для Закриття розриву — сортуємо за алфавітом, completed вниз.
-  // Раніше gapClosures рендерився як є (порядок auto-populate / load).
+  // Аналогічно для Закриття розриву.
+  // Тримаємо оригінальний index — потрібен для updateGap/removeGapClosure
+  // (selectedGaps теж по index, але sync через sortedGapClosures.findIndex
+  // ламає логіку). Тому сортування лише ВІЗУАЛЬНЕ — повертаємо пари
+  // {row, originalIndex}.
   const sortedGapClosures = useMemo(() => {
-    // Тримаємо оригінальний index — потрібен для updateGap/removeGapClosure
-    // (selectedGaps теж по index, але sync через sortedGapClosures.findIndex
-    // ламає логіку). Тому сортування лише ВІЗУАЛЬНЕ — повертаємо пари
-    // {row, originalIndex}.
     return gapClosures
       .map((row, originalIndex) => ({ row, originalIndex }))
-      .sort((a, b) => {
-        if (a.row.completed !== b.row.completed) return a.row.completed ? 1 : -1;
-        return (a.row.clientName || '').localeCompare(b.row.clientName || '', 'uk');
-      });
+      .sort((a, b) => compareGapRows(a.row, b.row));
   }, [gapClosures]);
 
   const forecastTotal = forecasts.reduce((s, f) => s + f.forecastAmount, 0);
@@ -1447,7 +1440,12 @@ export function PlanningForm({
 
                   {/* Клієнт */}
                   <div className="min-w-0">
-                    <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
+                    <p className="text-[13px] font-semibold truncate">
+                      {row.clientName}
+                      {isPassiveAmount(row.forecastAmount) && (
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-zinc-100 text-zinc-500 align-middle">без плану</span>
+                      )}
+                    </p>
                     <p className="text-[10px] text-muted-foreground truncate">
                       Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span>
                     </p>
@@ -1565,7 +1563,12 @@ export function PlanningForm({
                       {(row.completed && !isAdmin) ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-semibold leading-tight">{row.clientName}</p>
+                      <p className="text-[13px] font-semibold leading-tight">
+                        {row.clientName}
+                        {isPassiveAmount(row.forecastAmount) && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-zinc-100 text-zinc-500 align-middle">без плану</span>
+                        )}
+                      </p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span>
                       </p>
@@ -1808,7 +1811,12 @@ export function PlanningForm({
                           disabled={lockEdit}
                           className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
                       ) : (
-                        <p className="text-[13px] font-semibold truncate">{row.clientName}</p>
+                        <p className="text-[13px] font-semibold truncate">
+                          {row.clientName}
+                          {isPassiveAmount(row.potentialAmount) && (
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-zinc-100 text-zinc-500 align-middle">без плану</span>
+                          )}
+                        </p>
                       )}
                       <div className="flex items-center gap-2 mt-0.5">
                         {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}
@@ -1934,7 +1942,12 @@ export function PlanningForm({
                           <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)} disabled={lockEdit}
                             className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
                         ) : (
-                          <p className="text-[13px] font-semibold leading-tight">{row.clientName}</p>
+                          <p className="text-[13px] font-semibold leading-tight">
+                            {row.clientName}
+                            {isPassiveAmount(row.potentialAmount) && (
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-zinc-100 text-zinc-500 align-middle">без плану</span>
+                            )}
+                          </p>
                         )}
                         <div className="flex items-center gap-2 mt-0.5">
                           {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}

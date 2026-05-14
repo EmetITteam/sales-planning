@@ -9,6 +9,7 @@ import { adaptClientsForPlanning } from '@/lib/onec-adapters';
 import {
   getUnplannedBuyersForSegment, groupUnplannedByCategory,
 } from '@/lib/unplanned-buyers';
+import { isPassiveAmount } from '@/lib/passive-rows';
 import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
 import type { SalesFactResponse, Client1C } from '@/lib/types';
 
@@ -55,12 +56,18 @@ export function BrandExpandedDetails({
     [clientsResponse],
   );
 
-  // Хто у плані менеджера для цього сегменту (forecasts ∪ gapClosures)
+  // Хто у плані менеджера для цього сегменту (forecasts ∪ gapClosures).
+  // ⚠️ Passive rows (amount=0) НЕ потрапляють у Set — це означає що клієнт
+  // з фактом > 0 на amount=0 рядку коректно виплигне у блок «Незаплановані».
   const plannedIds = useMemo(() => {
     if (!plan) return new Set<string>();
     const set = new Set<string>();
-    for (const f of plan.forecasts) if (f.client_id_1c) set.add(f.client_id_1c);
-    for (const g of plan.gapClosures) if (g.client_id_1c) set.add(g.client_id_1c);
+    for (const f of plan.forecasts) {
+      if (f.client_id_1c && !isPassiveAmount(f.forecast_amount)) set.add(f.client_id_1c);
+    }
+    for (const g of plan.gapClosures) {
+      if (g.client_id_1c && !isPassiveAmount(g.potential_amount)) set.add(g.client_id_1c);
+    }
     return set;
   }, [plan]);
 

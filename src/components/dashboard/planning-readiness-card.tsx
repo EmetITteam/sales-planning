@@ -27,6 +27,7 @@ import { useState, useMemo } from 'react';
 import { ChevronDown, ClipboardCheck } from 'lucide-react';
 import type { RegionData } from '@/lib/types';
 import { SEGMENTS } from '@/lib/mock-data';
+import { classifyManagerStatus } from '@/lib/passive-rows';
 
 interface PlanByLogin {
   [login: string]: { [segment: string]: { forecast: number; gap: number; finalized: boolean } };
@@ -108,16 +109,20 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           const finalized: string[] = [];
           const draft: string[] = [];
           const empty: string[] = [];
+          // Бренд має byLogin entry ТІЛЬКИ якщо у ньому є хоч один рядок
+          // з amount > 0 (passive rows відфільтровані у aggregate route).
+          // Тому бренд з усіма passive рядками автоматично → empty.
           for (const code of ALL_BRAND_CODES) {
             const row = segMap[code];
             if (!row) empty.push(code);
             else if (row.finalized) finalized.push(code);
             else draft.push(code);
           }
-          let status: ManagerStatus;
-          if (finalized.length === totalBrands) status = 'finalized';
-          else if (finalized.length + draft.length === 0) status = 'empty';
-          else status = 'partial';
+          const status: ManagerStatus = classifyManagerStatus(
+            finalized.length + draft.length,
+            finalized.length,
+            totalBrands,
+          );
           return { login: m.login, name: m.name, status, finalized, draft, empty };
         });
         return {
