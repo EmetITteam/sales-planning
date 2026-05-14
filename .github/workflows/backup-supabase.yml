@@ -1,0 +1,98 @@
+name: Supabase Backup (twice daily)
+
+on:
+  schedule:
+    # 06:00 UTC = 09:00 Київ; 17:00 UTC = 20:00 Київ
+    # GitHub Actions cron може спізнитись 5-15 хв при високому навантаженні — це норма.
+    - cron: '0 6 * * *'
+    - cron: '0 17 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backup-supabase
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Supabase backup
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/backup-supabase.mjs
+
+      - name: Commit snapshot to `backups` branch
+        run: |
+          set -euo pipefail
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # 1) Виносимо щойно створену папку у /tmp (поза робочим деревом),
+          #    щоб перемикання гілок не зачепило її.
+          NEW_DIR=$(ls -1d backups/*/ | head -n 1)
+          STAMP=$(basename "$NEW_DIR")
+          echo "→ New backup: $STAMP"
+
+          mkdir -p /tmp/sp-backup
+          cp -r "$NEW_DIR" "/tmp/sp-backup/$STAMP"
+          rm -rf "$NEW_DIR"
+
+          # 2) Перемикаємось на гілку backups (створюємо orphan якщо ще нема).
+          if git ls-remote --exit-code --heads origin backups > /dev/null 2>&1; then
+            git fetch origin backups:backups
+            git checkout backups
+          else
+            git checkout --orphan backups
+            git rm -rf --cached . > /dev/null 2>&1 || true
+            find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+            cat > README.md <<'EOF'
+          # Supabase Backups
+
+          Автоматичні дампи БД `sales-planning`. Workflow
+          `.github/workflows/backup-supabase.yml` бере snapshot усіх таблиць
+          (`users`, `periods`, `forecasts`, `gap_closures`, `period_summaries`,
+          `planning_snapshots`) і комітить сюди двічі на день:
+
+          - 09:00 Київ (06:00 UTC)
+          - 20:00 Київ (17:00 UTC)
+
+          Кожен снапшот лежить у власній папці `backups/<UTC-timestamp>/`
+          разом із `manifest.json` (кількість рядків по кожній таблиці).
+
+          ## Відновлення
+
+          1. Знайди потрібну дату в `backups/`.
+          2. Завантаж `<table>.json` файли.
+          3. Імпортуй у Supabase через REST/PSQL `INSERT ... ON CONFLICT DO UPDATE`.
+          EOF
+            git add README.md
+            git commit -m 'Init backups branch'
+          fi
+
+          # 3) Кладемо новий backup і комітимо.
+          mkdir -p backups
+          cp -r "/tmp/sp-backup/$STAMP" "backups/$STAMP"
+          git add "backups/$STAMP"
+
+          if git diff --staged --quiet; then
+            echo '→ Нічого нового (порожній snapshot?)'
+            exit 0
+          fi
+
+          git commit -m "Backup $STAMP"
+          git push origin backups
+          echo "→ Pushed backups/$STAMP"
