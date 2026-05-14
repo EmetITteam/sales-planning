@@ -4,6 +4,46 @@
 
 ---
 
+## [2026-05-14] · Автоматичні бекапи БД + повний technical README
+
+### 📖 Документація проекту
+
+Замість Next.js-boilerplate README — повний technical overview:
+- Бізнес-функція + ключові механіки
+- Tech stack з версіями і важливими обмеженнями (Next 16 + webpack, не Turbopack у prod)
+- Структура проекту з деревом папок
+- 4 ролі (manager/rm/director/admin) + permission matrix
+- 7 actions 1С з призначенням і викликачами
+- 11 таблиць Supabase зі зв'язками
+- API routes (auth, onec, planning, admin, archive) — короткий опис кожного
+- 13 dashboard-компонентів + planning-form
+- ~30 lib helpers (SWR хуки, агрегати, guards, formatters)
+- State machine: чернетка → finalized → unfinalize, window-lock priority
+- Deploy + env vars + git hooks
+- Backup стратегія (посилання на `docs/BACKUPS.md`)
+- Тести (180+ unit + Playwright QA + architecture-check)
+- Index всіх документів проекту
+
+Файл: [README.md](./README.md)
+
+### 🗄️ GitHub Actions cron — двічі на день
+
+Supabase Free не має managed backups, тому самі: workflow `backup-supabase.yml` запускає `scripts/backup-supabase.mjs` за розкладом і комітить snapshot у окрему гілку `backups` цього ж репо.
+
+- **Розклад:** 09:00 + 20:00 Київ (06:00 + 17:00 UTC), щоденно
+- **Зберігання:** orphan-гілка [`backups`](https://github.com/EmetITteam/sales-planning/tree/backups), кожен snapshot = окремий commit
+- **Структура:** `backups/<UTC-timestamp>/{users,periods,forecasts,gap_closures,period_summaries,planning_snapshots}.json` + `manifest.json` з row counts
+- **Required secrets:** `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (legacy)
+- **Vercel guard:** `vercel.json` на гілці `backups` з `deploymentEnabled: false` — без нього Vercel падав би на кожен snapshot-push (там нема Next.js джерел)
+
+**Файли:**
+- `.github/workflows/backup-supabase.yml` — cron workflow з orphan-init
+- `docs/BACKUPS.md` — повна документація стратегії, як відновлювати, ретеншн-план
+
+**Backup-стратегія тепер hybrid:** auto 2×день для історії + ручний `node scripts/backup-supabase.mjs` перед кожною DDL міграцією для свіжості.
+
+---
+
 ## [etalon-2026-05-12-v2] · git tag `etalon-2026-05-12-v2` (commit `741b5c7`)
 
 ### 🏁 Новий ETALON — після Action 7 + PlanningReadinessCard
