@@ -340,12 +340,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     ? summaries.reduce((s, t) => s + t.forecastPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
     : 0;
   // ⚠️ «Запланований %» — пряма формула як у RM/Director:
-  //   (Σ forecast + Σ gap) / totalPlan × 100, БЕЗ факту.
-  // Раніше була weighted-average per-segment expectedPercent, що давала
-  // ІНШУ цифру коли є сегменти з planAmount=0 але plan>0 (вони «зникали»
-  // у numerator). Тепер скрізь однакова формула.
+  //   (Σ finalized forecast + Σ finalized gap) / totalPlan × 100, БЕЗ факту.
+  // ТІЛЬКИ ФІНАЛІЗОВАНІ — чернетки до фінального збереження у звітність не йдуть.
   const totalExpectedPct = planAgg && totalPlan > 0
-    ? ((planAgg.totalForecast + planAgg.totalGapPotential) / totalPlan) * 100
+    ? ((planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized) / totalPlan) * 100
     : 0;
 
   if (view === 'plan' && selectedSegment) {
@@ -488,9 +486,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           isAmount
           caption={totalPrevFact > 0 && (() => {
             // Б.2: порівнюємо ЗАПЛАНОВАНИЙ показник з минулим фактом (forward-looking).
+            // ТІЛЬКИ finalized — чернетки у dyn-порівнянні не йдуть.
             // Якщо плану ще нема — порівнюємо поточний факт з минулим (з міткою).
             const totalExpected = planAgg
-              ? planAgg.totalForecast + planAgg.totalGapPotential
+              ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized
               : 0;
             const hasPlan = totalExpected > 0;
             const compareValue = hasPlan ? totalExpected : totalFact;
@@ -566,7 +565,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
                   calcPct={tm.calcPercent}
                   asOfDate={asOfDate}
                   expectedPercent={tm.expectedPercent}
-                  expectedAmount={(planAgg?.bySegment[tm.segmentCode]?.forecast ?? 0) + (planAgg?.bySegment[tm.segmentCode]?.gap ?? 0)}
+                  expectedAmount={(planAgg?.bySegment[tm.segmentCode]?.forecastFinalized ?? 0) + (planAgg?.bySegment[tm.segmentCode]?.gapFinalized ?? 0)}
                   hasManagerPlan={tm.hasManagerPlan}
                   clientCount={tm.clientCount}
                   prevMonthFactAmount={tm.prevMonthFactAmount}

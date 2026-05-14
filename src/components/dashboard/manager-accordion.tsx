@@ -183,9 +183,11 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
       {expanded && (
         <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
           {manager.segments.map(seg => {
-            const segPlan = planAgg?.bySegment[seg.segmentCode];
-            const managerForecast = segPlan?.forecast ?? 0;
-            const managerGap = segPlan?.gap ?? 0;
+            // ТІЛЬКИ фіналізовані плани цього менеджера у цьому бренді.
+            const segPlan = planAgg?.byLogin[manager.login]?.[seg.segmentCode];
+            const isFinalized = !!segPlan?.finalized;
+            const managerForecast = isFinalized ? (segPlan?.forecast ?? 0) : 0;
+            const managerGap = isFinalized ? (segPlan?.gap ?? 0) : 0;
             // hasManagerPlan тільки після того як planAgg догрузилось.
             // Уникає blink «Запл.: 0%» → реальний % коли SWR fetch-ить.
             const hasManagerPlan = !!planAgg && seg.planAmount > 0;
