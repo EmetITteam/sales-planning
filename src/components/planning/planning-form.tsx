@@ -2094,7 +2094,10 @@ export function PlanningForm({
           Day 14 #2: bar показуємо навіть коли план фіналізований (lockEdit=true для
           non-admin), щоб менеджер міг зберегти оновлені stage_comment. Backend
           filtered-mode (Етап 2) пропустить лише ці поля. */}
-      {!readOnly && (
+      {/* Save bar ховаємо коли window закритий не-адміну (техноботи /
+          global-block / user-block / поза вікном). Admin завжди бачить
+          кнопки — він має bypass усіх обмежень. */}
+      {!readOnly && (isAdmin || !isWindowLocked) && (
         <div className="sticky bottom-0 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex items-center justify-end gap-3 z-10">
           {lastSavedAt && !saveResult && (
             <span className="text-[11px] text-muted-foreground mr-auto">
