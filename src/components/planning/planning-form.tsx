@@ -396,6 +396,18 @@ export function PlanningForm({
       return;
     }
     if (saveResultLocal.savedAt) setLastSavedAt(saveResultLocal.savedAt);
+    // Day 14: дзеркалити post-save side-effects з handleSave щоб state був консистентним.
+    setFormEverEdited(true);
+    const justSaved = new Set<string>();
+    for (const f of forecasts) if (f.clientId1c) justSaved.add(f.clientId1c);
+    for (const g of gapClosures) if (g.clientId1c) justSaved.add(g.clientId1c);
+    setPersistedClientIds(justSaved);
+    // Invalidate dashboard caches — дашборд має побачити нові цифри одразу.
+    swrMutate(
+      (key) => typeof key === 'string' && (key.startsWith('agg|') || key.startsWith('region-stats|')),
+      undefined,
+      { revalidate: true },
+    );
     // Тільки після успішного save — викликаємо finalize.
     const result = await finalizePlan({
       periodId: currentPeriod.id,
