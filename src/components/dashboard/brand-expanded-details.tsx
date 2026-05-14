@@ -112,7 +112,8 @@ export function BrandExpandedDetails({
     return out;
   }, [factSegment, allClients, plannedIds]);
 
-  // Скільки в плані менеджера у цій категорії
+  // Скільки в плані менеджера у цій категорії.
+  // ⚠️ Passive рядки (amount=0) НЕ враховуємо — це «пам'ятаю, не планую».
   const plannedByCategory = useMemo(() => {
     const map = new Map<string, Client1C['category']>();
     for (const c of allClients) map.set(c.clientId, c.category);
@@ -127,8 +128,12 @@ export function BrandExpandedDetails({
       else if (cat === 'new') out.new += 1;
       else out.sleeping_lost += 1;
     };
-    for (const f of plan.forecasts) if (f.client_id_1c) tally(f.client_id_1c);
-    for (const g of plan.gapClosures) if (g.client_id_1c) tally(g.client_id_1c);
+    for (const f of plan.forecasts) {
+      if (f.client_id_1c && !isPassiveAmount(f.forecast_amount)) tally(f.client_id_1c);
+    }
+    for (const g of plan.gapClosures) {
+      if (g.client_id_1c && !isPassiveAmount(g.potential_amount)) tally(g.client_id_1c);
+    }
     return out;
   }, [plan, allClients]);
 
