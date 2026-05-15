@@ -50,8 +50,17 @@ export function getCutoffMs(planMonth: string): number {
 /**
  * Чи цей клієнт активний по бренду для конкретного планового місяця.
  *
- * Active = купив у вікні [cutoff, planMonthStart) — лише ДО початку плану.
- * Купівлі ВСЕРЕДИНІ планового місяця → не active (це факт, не зміна категорії).
+ * Active = last_buy >= cutoff (тобто купував у останні 3 місяці перед
+ * плановим АБО у самому плановому місяці).
+ *
+ * ⚠️ Раніше тут була upper bound `< planMonthStart` щоб виключити купівлі
+ * у плановому місяці (захист від кейсу Кравченко з дублем forecast+gap).
+ * Але це поламало звичайних постійних клієнтів: ті хто купує бренд
+ * щомісяця (last_buy = поточний місяць) автоматично летіли у gap.
+ *
+ * Правильний захист від кейсу Кравченко — через snapshot fixation:
+ * планування фіксується при першому save, повторні відкриття форми
+ * НЕ переоцінюють бакети.
  *
  * @param lastPurchaseDate — рядок 'YYYY-MM-DD' або null
  * @param planMonth — 'YYYY-MM' або 'YYYY-MM-DD'
@@ -65,7 +74,6 @@ export function isActiveForBrand(
   const [y, m, d] = lastPurchaseDate.split('-').map(Number);
   if (!y || !m || !d) return false;
   const lastBuyMs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-  const planMonthStartMs = getPlanMonthStartMs(planMonth);
-  const cutoffMs = planMonthStartMs - THREE_MONTHS_MS;
-  return lastBuyMs >= cutoffMs && lastBuyMs < planMonthStartMs;
+  const cutoffMs = getPlanMonthStartMs(planMonth) - THREE_MONTHS_MS;
+  return lastBuyMs >= cutoffMs;
 }

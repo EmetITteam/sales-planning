@@ -200,10 +200,15 @@ export function PlanningForm({
       setSupabaseLoaded(true);
       if (!data) return;
       // Зберігаємо ID-и які РЕАЛЬНО прийшли з Supabase — щоб «Незаплановані»
-      // блок узгоджувався з дашбордом (де теж дивиться лише на saved-план).
+      // блок узгоджувався з дашбордом. ⚠️ ТІЛЬКИ якщо план finalized — інакше
+      // блок «Незаплановані» має показувати ВСІХ покупців, бо чернетка не
+      // вважається зобов'язанням (як на дашборді через b841c52).
       const persisted = new Set<string>();
-      for (const f of data.forecasts) if (f.client_id_1c) persisted.add(f.client_id_1c);
-      for (const g of data.gapClosures) if (g.client_id_1c) persisted.add(g.client_id_1c);
+      const isFinalized = !!data.summary?.finalized_at;
+      if (isFinalized) {
+        for (const f of data.forecasts) if (f.client_id_1c) persisted.add(f.client_id_1c);
+        for (const g of data.gapClosures) if (g.client_id_1c) persisted.add(g.client_id_1c);
+      }
       setPersistedClientIds(persisted);
       // ⚠️ Після migration M3: читаємо дедіковані колонки замість unpack JSON.
       // Якщо БД ще має старі JSON-row (не мігровані), вони опрацюються через
