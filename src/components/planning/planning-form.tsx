@@ -563,11 +563,15 @@ export function PlanningForm({
   }, [supabaseLoaded, segmentClients]);
 
   // Тренінги для блоку «Закриття розриву» — Action 6 з 1С.
-  // regionCode беремо з user.regionCode; для невідомих/демо — порожній список.
+  // ⚠️ Пріоритет regionCode: цільовий менеджер (коли admin/RM drill-down)
+  // → свій regionCode (коли менеджер сам редагує). Без цього admin Малькова
+  // переглядаючи план одеського менеджера не отримувала тренінги (її власний
+  // regionCode може бути порожній), і Select показував raw trainingId «4635».
+  const effectiveRegionCode = targetUserRegionCode || user?.regionCode;
   const todayIso = new Date().toISOString().slice(0, 10);
   const { data: trainingsResponse } = useOneCData(
     'getTrainings',
-    user?.regionCode ? { regionCode: user.regionCode, dateFrom: todayIso } : null,
+    effectiveRegionCode ? { regionCode: effectiveRegionCode, dateFrom: todayIso } : null,
   );
   const trainings = useMemo(() => {
     return trainingsResponse ? adaptTrainings(trainingsResponse) : [];
