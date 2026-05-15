@@ -123,17 +123,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   // Збираємо plan + fact для CategoryStatsTable: сумарно по регіону (всі бренди разом)
   const aggregatedPlan = useMemo(() => {
     if (!planAgg) return null;
-    const out = {
-      active: { plannedCount: 0, plannedSum: 0 },
-      sleeping: { plannedCount: 0, plannedSum: 0 },
-      lost: { plannedCount: 0, plannedSum: 0 },
-      new: { plannedCount: 0, plannedSum: 0 },
-      none: { plannedCount: 0, plannedSum: 0 },
-    };
+    const empty = () => ({ plannedCount: 0, plannedSum: 0, plannedCountFinalized: 0, plannedSumFinalized: 0 });
+    const out = { active: empty(), sleeping: empty(), lost: empty(), new: empty(), none: empty() };
     for (const seg of Object.values(planAgg.bySegment)) {
       for (const cat of ['active','sleeping','lost','new','none'] as const) {
         out[cat].plannedCount += seg.byCategory[cat].plannedCount;
         out[cat].plannedSum   += seg.byCategory[cat].plannedSum;
+        out[cat].plannedCountFinalized += seg.byCategory[cat].plannedCountFinalized ?? 0;
+        out[cat].plannedSumFinalized   += seg.byCategory[cat].plannedSumFinalized ?? 0;
       }
     }
     return out;

@@ -79,12 +79,15 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
     unplanned:  { plannedCount: 0, plannedSum: 0, factCount: 0, factSum: 0 },
   };
   if (plan) {
-    rows.active.plannedCount += plan.active.plannedCount;
-    rows.active.plannedSum   += plan.active.plannedSum;
-    rows.new.plannedCount    += plan.new.plannedCount;
-    rows.new.plannedSum      += plan.new.plannedSum;
-    rows.activation.plannedCount += plan.sleeping.plannedCount + plan.lost.plannedCount + plan.none.plannedCount;
-    rows.activation.plannedSum   += plan.sleeping.plannedSum   + plan.lost.plannedSum   + plan.none.plannedSum;
+    // ТІЛЬКИ finalized плани — чернетки до натискання «Фінальне збереження»
+    // у звітний блок не йдуть. Fallback на 0 для accumulators які ще не
+    // заповнюють Finalized-поля (поетапна міграція).
+    rows.active.plannedCount += plan.active.plannedCountFinalized ?? 0;
+    rows.active.plannedSum   += plan.active.plannedSumFinalized ?? 0;
+    rows.new.plannedCount    += plan.new.plannedCountFinalized ?? 0;
+    rows.new.plannedSum      += plan.new.plannedSumFinalized ?? 0;
+    rows.activation.plannedCount += (plan.sleeping.plannedCountFinalized ?? 0) + (plan.lost.plannedCountFinalized ?? 0) + (plan.none.plannedCountFinalized ?? 0);
+    rows.activation.plannedSum   += (plan.sleeping.plannedSumFinalized ?? 0)   + (plan.lost.plannedSumFinalized ?? 0)   + (plan.none.plannedSumFinalized ?? 0);
   }
   if (fact) {
     rows.active.factCount += fact.active.factCount;
