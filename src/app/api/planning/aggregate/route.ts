@@ -225,7 +225,10 @@ export async function POST(request: NextRequest) {
     }
     if (!seenForecastClients.has(f.segment_code)) seenForecastClients.set(f.segment_code, new Set());
     seenForecastClients.get(f.segment_code)!.add(`${f.user_id}|${f.client_id_1c}`);
-    if (f.client_id_1c) {
+    if (f.client_id_1c && fin) {
+      // ТІЛЬКИ finalized — щоб покупки клієнтів з ЧЕРНЕТОК потрапляли у
+      // «Незаплановані», а не у «Активні». Чернетки до фінального
+      // збереження не вважаються зобов'язаннями.
       // Композитний ключ — щоб клієнт у Vitaran не «крав» fact-у IUSE.
       forecastClientIds.add(`${f.segment_code}|${f.client_id_1c}`);
       plannedClientIds.add(f.client_id_1c);
@@ -251,7 +254,8 @@ export async function POST(request: NextRequest) {
     }
     if (!seenGapClients.has(g.segment_code)) seenGapClients.set(g.segment_code, new Set());
     seenGapClients.get(g.segment_code)!.add(`${g.user_id}|${g.client_id_1c}`);
-    if (g.client_id_1c) {
+    if (g.client_id_1c && fin) {
+      // ТІЛЬКИ finalized — див. коментар у forecasts loop вище.
       const planKey = `${g.segment_code}|${g.client_id_1c}`;
       if (cat === 'new') gapNewClientIds.add(planKey);
       else gapActivationClientIds.add(planKey);
