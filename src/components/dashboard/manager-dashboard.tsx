@@ -458,22 +458,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           value={formatUSD(totalPlan)}
           isAmount
           caption={(() => {
-            const totalAll = planAgg ? planAgg.totalForecast + planAgg.totalGapPotential : 0;
+            // ТІЛЬКИ finalized — чернетки до натискання «Фінальне збереження»
+            // не йдуть у звітність.
             const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
-            const draftPart = totalAll - totalFin;
             return (
               <span className="space-y-0.5 block">
                 <span className="text-muted-foreground block">{periodMonthLabel} · {workingDaysLabel(totalWorkingDaysInMonth)}</span>
-                {totalAll > 0 && (
-                  <span className="text-muted-foreground block">
-                    Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalAll)}</span>
-                  </span>
-                )}
-                {totalFin > 0 && draftPart > 0 && (
-                  <span className="text-muted-foreground block text-[10.5px]">
-                    з них фінал: <span className="amount font-semibold text-emerald-700">{formatUSD(totalFin)}</span>
-                  </span>
-                )}
+                <span className="text-muted-foreground block">
+                  Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalFin)}</span>
+                </span>
               </span>
             );
           })()}
@@ -485,18 +478,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           value={formatUSD(totalFact)}
           isAmount
           caption={totalPrevFact > 0 && (() => {
-            // Б.2: порівнюємо ЗАПЛАНОВАНИЙ показник з минулим фактом (forward-looking).
-            // ТІЛЬКИ finalized — чернетки у dyn-порівнянні не йдуть.
-            // Якщо плану ще нема — порівнюємо поточний факт з минулим (з міткою).
+            // Б.2: ЗАВЖДИ заплановане vs минулий факт (ТІЛЬКИ finalized).
+            // Якщо план=$0 — dyn = -prevFact, наочно показує «у плані нічого нема».
             const totalExpected = planAgg
               ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized
               : 0;
-            const hasPlan = totalExpected > 0;
-            const compareValue = hasPlan ? totalExpected : totalFact;
-            const dyn = compareValue - totalPrevFact;
+            const dyn = totalExpected - totalPrevFact;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;
-            const label = hasPlan ? 'заплан. vs мин. факт' : 'факт vs мин. факт';
+            const label = 'заплан. vs мин. факт';
             return (
               <span className="space-y-0.5 block">
                 <span className="text-muted-foreground block">

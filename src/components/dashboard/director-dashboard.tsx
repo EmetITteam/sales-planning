@@ -265,12 +265,13 @@ export function DirectorDashboard() {
   const totalPrevPlan = company?.totalPrevMonthPlan ?? 0;
   const totalPrevPct = pctOf(totalPrevFact, totalPrevPlan);
   // Б.2: динаміка hero «Факт» = заплановане vs минулий факт (forward-looking).
-  // ТІЛЬКИ finalized — порівняння з прошлим робимо до зафіксованих планів.
+  // ТІЛЬКИ finalized. ЗАВЖДИ порівнюємо план vs минулий факт — навіть коли
+  // план = $0 (тоді dyn = -prevFact, показує наочно «у плані нічого нема»).
+  // Без fallback на totalFact щоб label «заплан. vs мин. факт» був стабільний.
   const totalExpectedAmountForDyn = planAgg
     ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized
     : 0;
-  const compareForDyn = totalExpectedAmountForDyn > 0 ? totalExpectedAmountForDyn : totalFact;
-  const dynAmount = compareForDyn - totalPrevFact;
+  const dynAmount = totalExpectedAmountForDyn - totalPrevFact;
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
   const totalForecastPct = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);
@@ -357,22 +358,15 @@ export function DirectorDashboard() {
               value={formatUSD(totalPlan)}
               isAmount
               caption={(() => {
-                const totalAll = planAgg ? planAgg.totalForecast + planAgg.totalGapPotential : 0;
+                // ТІЛЬКИ finalized — це реальне зобов'язання менеджерів.
+                // Чернетки до натискання «Фінальне збереження» не йдуть у звітність.
                 const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
-                const draftPart = totalAll - totalFin;
                 return (
                   <span className="space-y-0.5 block">
                     <span className="text-muted-foreground block">{periodLabel} · {workingDaysLabel(totalWD)}</span>
-                    {totalAll > 0 && (
-                      <span className="text-muted-foreground block">
-                        Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalAll)}</span>
-                      </span>
-                    )}
-                    {totalFin > 0 && draftPart > 0 && (
-                      <span className="text-muted-foreground block text-[10.5px]">
-                        з них фінал: <span className="amount font-semibold text-emerald-700">{formatUSD(totalFin)}</span>
-                      </span>
-                    )}
+                    <span className="text-muted-foreground block">
+                      Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalFin)}</span>
+                    </span>
                   </span>
                 );
               })()}
@@ -393,7 +387,7 @@ export function DirectorDashboard() {
                     <DynArrow className="inline h-3 w-3 -mt-0.5 mr-0.5" />
                     <span className="amount whitespace-nowrap">{dynBetter ? '+' : ''}{formatUSD(dynAmount)}</span>
                     <span className="text-[10px] text-muted-foreground ml-1">
-                      {totalExpectedAmountForDyn > 0 ? 'заплан. vs мин. факт' : 'факт vs мин. факт'}
+                      заплан. vs мин. факт
                     </span>
                   </span>
                 </span>
