@@ -796,6 +796,19 @@ export function PlanningForm({
   const [manuallyEditedFactRows, setManuallyEditedFactRows] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (factByClientId.size === 0) return;
+    // ⚠️ Поки план НЕ finalized — НЕ мапимо факт у рядки. Інакше факт
+    // дублюється: у рядку («Активізація: $9,889») і у блоці «Незаплановані»
+    // ($9,969). Оскільки чернетка не вважається зобов'язанням (factу йде
+    // у Незаплановані), рядки мають factAmount=0 поки фінал.
+    if (!isFinalized) {
+      setForecasts(prev => prev.some(f => f.factAmount !== 0)
+        ? prev.map(f => f.factAmount !== 0 ? { ...f, factAmount: 0, completed: false } : f)
+        : prev);
+      setGapClosures(prev => prev.some(g => g.factAmount !== 0)
+        ? prev.map(g => g.factAmount !== 0 ? { ...g, factAmount: 0, completed: false } : g)
+        : prev);
+      return;
+    }
     setForecasts(prev => {
       let changed = false;
       const next = prev.map(f => {
@@ -823,7 +836,7 @@ export function PlanningForm({
       });
       return changed ? next : prev;
     });
-  }, [factByClientId, manuallyEditedFactRows]);
+  }, [factByClientId, manuallyEditedFactRows, isFinalized]);
 
   // Snapshot: фіксуємо первинний список клієнтів у БД ОДИН РАЗ на (manager
   // × segment × period). Backend INSERT з ON CONFLICT DO NOTHING — повторні
