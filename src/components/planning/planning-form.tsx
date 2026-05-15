@@ -1087,7 +1087,23 @@ export function PlanningForm({
   // бренду і плутати. Менеджер сама впише потенціал і дедлайн.
   // Для forecast-модалі дані брендозалежні, але уніфіковуємо UX: «доданий
   // вручну = заповни сам, щоб не плутатись».
+  // Перевірка на дубль (forecast ∪ gap_closures): клієнт може бути ТІЛЬКИ
+  // у одному блоці одночасно. Перевірка тут у add handler, а не у фільтрі
+  // ClientSearchModal — щоб user бачив у пошуку всіх клієнтів менеджера
+  // і отримав явне попередження якщо клієнт вже у плані.
+  const isAlreadyInPlan = (clientId: string): 'forecast' | 'gap' | null => {
+    if (forecasts.some(f => f.clientId1c === clientId)) return 'forecast';
+    if (gapClosures.some(g => g.clientId1c === clientId)) return 'gap';
+    return null;
+  };
+
   const addClient = (client: Client1C) => {
+    const where = isAlreadyInPlan(client.clientId);
+    if (where) {
+      const block = where === 'forecast' ? '«Прогноз по активних»' : '«Закриття розриву»';
+      alert(`${client.clientName} вже у вашому плані: ${block}. Один клієнт може бути лише в одному блоці.`);
+      return;
+    }
     setForecasts(prev => [...prev, {
       clientId1c: client.clientId, clientName: client.clientName,
       forecastAmount: 0,
@@ -1100,6 +1116,12 @@ export function PlanningForm({
   };
 
   const addGapClient = (client: Client1C) => {
+    const where = isAlreadyInPlan(client.clientId);
+    if (where) {
+      const block = where === 'forecast' ? '«Прогноз по активних»' : '«Закриття розриву»';
+      alert(`${client.clientName} вже у вашому плані: ${block}. Один клієнт може бути лише в одному блоці.`);
+      return;
+    }
     setGapClosures(prev => [...prev, {
       clientId1c: client.clientId,
       clientName: client.clientName,
@@ -2197,8 +2219,10 @@ export function PlanningForm({
       />
 
 
-      <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={existingIds} clients={segmentClients} loading={clientsLoading} />
-      <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[...gapExistingIds, ...existingIds]} clients={allManagerClients} loading={clientsLoading} />
+      {/* Обидва пошукові модали показують ВСІХ клієнтів менеджера. Перевірка на
+          дубль (forecast ∪ gap) робиться у addClient/addGapClient через alert. */}
+      <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={[]} clients={allManagerClients} loading={clientsLoading} />
+      <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[]} clients={allManagerClients} loading={clientsLoading} />
       <ConfirmDialog
         open={pendingDelete !== null}
         title={
