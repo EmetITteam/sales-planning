@@ -149,15 +149,17 @@ export function BrandRow({
           </div>
           <p className="text-[10px] mt-1 truncate flex items-center gap-2">
             <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
-            {hasManagerPlan && (
+            {/* «Запл.» показуємо ЗАВЖДИ коли бренд активний (planAmount > 0).
+                Навіть «Запл.: 0% · $0» — щоб менеджер бачив що план не складено.
+                Раніше при hasManagerPlan=false блок зникав, і не було видно
+                чи менеджер не планував, чи рендер забув показати. */}
+            {planAmount > 0 && (
               <>
                 <span className="text-muted-foreground/40">·</span>
                 <span>
                   <span className="text-[#066aab]">●</span> Запл.:{' '}
                   <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span>
-                  {expectedAmount !== undefined && expectedAmount > 0 && (
-                    <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount)}</span></span>
-                  )}
+                  <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount ?? 0)}</span></span>
                 </span>
               </>
             )}
@@ -254,13 +256,11 @@ export function BrandRow({
         {/* Mobile низ: проценти + суми + динаміка */}
         <div className="flex items-center gap-3 text-[11px] flex-wrap">
           <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
-          {hasManagerPlan && (
+          {planAmount > 0 && (
             <span>
               <span className="text-[#066aab]">●</span> Запл.{' '}
               <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span>
-              {expectedAmount !== undefined && expectedAmount > 0 && (
-                <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount)}</span></span>
-              )}
+              <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount ?? 0)}</span></span>
             </span>
           )}
           <span className="text-muted-foreground">|</span>
