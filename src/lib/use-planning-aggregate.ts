@@ -15,6 +15,12 @@ export type PlanCategoryKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
 export interface CategoryStat {
   plannedCount: number;
   plannedSum: number;
+  /** Підмножина plannedCount/Sum — ТІЛЬКИ рядки з finalized=true у period_summaries.
+   *  Використовується у CategoryStatsTable щоб не показувати чернетки до фіналізації.
+   *  Optional тому що locally побудовані accumulators у dashboards можуть не
+   *  заповняти ці поля — у такому разі fallback на 0. */
+  plannedCountFinalized?: number;
+  plannedSumFinalized?: number;
 }
 
 export interface PlanningAggregate {

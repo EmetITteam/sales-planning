@@ -138,7 +138,13 @@ export async function POST(request: NextRequest) {
     return 'none'; // 'без закупок' або порожнє
   };
 
-  type CatStats = { plannedCount: number; plannedSum: number };
+  type CatStats = {
+    plannedCount: number;
+    plannedSum: number;
+    /** Σ у фіналізованих рядках (finalized=true у period_summaries). */
+    plannedCountFinalized: number;
+    plannedSumFinalized: number;
+  };
   type SegCategoryBlock = {
     active: CatStats;     // з forecasts
     sleeping: CatStats;   // з gap_closures category=Сплячий
@@ -146,7 +152,7 @@ export async function POST(request: NextRequest) {
     new: CatStats;        // з gap_closures category=Новий
     none: CatStats;       // з gap_closures без категорії або 'Без закупок'
   };
-  const emptyCat = (): CatStats => ({ plannedCount: 0, plannedSum: 0 });
+  const emptyCat = (): CatStats => ({ plannedCount: 0, plannedSum: 0, plannedCountFinalized: 0, plannedSumFinalized: 0 });
   const emptySegBlock = (): SegCategoryBlock => ({
     active: emptyCat(), sleeping: emptyCat(), lost: emptyCat(), new: emptyCat(), none: emptyCat(),
   });
@@ -213,6 +219,10 @@ export async function POST(request: NextRequest) {
     if (fin) bySegment[f.segment_code].forecastFinalized += amount;
     bySegment[f.segment_code].byCategory.active.plannedSum += amount;
     bySegment[f.segment_code].byCategory.active.plannedCount += 1;
+    if (fin) {
+      bySegment[f.segment_code].byCategory.active.plannedSumFinalized += amount;
+      bySegment[f.segment_code].byCategory.active.plannedCountFinalized += 1;
+    }
     if (!seenForecastClients.has(f.segment_code)) seenForecastClients.set(f.segment_code, new Set());
     seenForecastClients.get(f.segment_code)!.add(`${f.user_id}|${f.client_id_1c}`);
     if (f.client_id_1c) {
@@ -235,6 +245,10 @@ export async function POST(request: NextRequest) {
     const cat = mapGapCategory(g.category);
     bySegment[g.segment_code].byCategory[cat].plannedSum += amount;
     bySegment[g.segment_code].byCategory[cat].plannedCount += 1;
+    if (fin) {
+      bySegment[g.segment_code].byCategory[cat].plannedSumFinalized += amount;
+      bySegment[g.segment_code].byCategory[cat].plannedCountFinalized += 1;
+    }
     if (!seenGapClients.has(g.segment_code)) seenGapClients.set(g.segment_code, new Set());
     seenGapClients.get(g.segment_code)!.add(`${g.user_id}|${g.client_id_1c}`);
     if (g.client_id_1c) {
