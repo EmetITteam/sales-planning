@@ -60,8 +60,15 @@ async function dumpTable(table) {
 // прогнав backup двічі в один день, pre-migration snapshot затерся пост-
 // міграційним станом. Це втрата страховки для відкату.
 //   Приклад: backups/2026-05-12T15-23-47Z/
+//
+// BACKUP_DIR_PREFIX env: якщо передано, додає підпапку перед stamp.
+// Використовується для частих pilot-backups щоб не змішувати з основним 2×день:
+//   BACKUP_DIR_PREFIX=pilot → backups/pilot/2026-05-15T11-30-00Z/
 const stamp = new Date().toISOString().replace(/:/g, '-').replace(/\.\d+/, '').replace(/Z$/, 'Z');
-const dir = join(process.cwd(), 'backups', stamp);
+const prefix = process.env.BACKUP_DIR_PREFIX || '';
+const dir = prefix
+  ? join(process.cwd(), 'backups', prefix, stamp)
+  : join(process.cwd(), 'backups', stamp);
 mkdirSync(dir, { recursive: true });
 
 const manifest = { stamp, takenAt: new Date().toISOString(), tables: {} };
