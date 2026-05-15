@@ -799,10 +799,13 @@ export function PlanningForm({
       const next = prev.map(f => {
         if (manuallyEditedFactRows.has(f.clientId1c)) return f; // skip manual edit
         const realFact = factByClientId.get(f.clientId1c) ?? 0;
-        if (realFact !== f.factAmount) {
+        // completed = факт >= прогноз ⚠️ ТІЛЬКИ якщо план finalized.
+        // До фінал — менеджер має можливість правити рядок навіть якщо клієнт
+        // уже купив (бо план чернетковий, нічого не «зафіксовано»).
+        const newCompleted = isFinalized && realFact >= f.forecastAmount;
+        if (realFact !== f.factAmount || newCompleted !== f.completed) {
           changed = true;
-          // completed = факт >= прогноз (та сама логіка що в updateForecast)
-          return { ...f, factAmount: realFact, completed: realFact >= f.forecastAmount };
+          return { ...f, factAmount: realFact, completed: newCompleted };
         }
         return f;
       });
@@ -813,15 +816,16 @@ export function PlanningForm({
       const next = prev.map(g => {
         if (manuallyEditedFactRows.has(g.clientId1c)) return g; // skip manual edit
         const realFact = factByClientId.get(g.clientId1c) ?? 0;
-        if (realFact !== g.factAmount) {
+        const newCompleted = isFinalized && realFact >= g.potentialAmount;
+        if (realFact !== g.factAmount || newCompleted !== g.completed) {
           changed = true;
-          return { ...g, factAmount: realFact, completed: realFact >= g.potentialAmount };
+          return { ...g, factAmount: realFact, completed: newCompleted };
         }
         return g;
       });
       return changed ? next : prev;
     });
-  }, [factByClientId, manuallyEditedFactRows]);
+  }, [factByClientId, manuallyEditedFactRows, isFinalized]);
 
   // Snapshot: фіксуємо первинний список клієнтів у БД ОДИН РАЗ на (manager
   // × segment × period). Backend INSERT з ON CONFLICT DO NOTHING — повторні
