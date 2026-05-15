@@ -57,10 +57,14 @@ export function BrandExpandedDetails({
   );
 
   // Хто у плані менеджера для цього сегменту (forecasts ∪ gapClosures).
-  // ⚠️ Passive rows (amount=0) НЕ потрапляють у Set — це означає що клієнт
-  // з фактом > 0 на amount=0 рядку коректно виплигне у блок «Незаплановані».
+  // ⚠️ ТІЛЬКИ якщо план finalized — інакше Set порожній, і всі покупки
+  // потрапляють у «Незаплановані». Чернетки до фінального збереження не
+  // вважаються зобов'язанням → buyers не класифікуються як «у плані».
+  // ⚠️ Passive rows (amount=0) теж виключаємо — клієнт з фактом виплигне у
+  // «Незаплановані» навіть коли план finalized.
   const plannedIds = useMemo(() => {
     if (!plan) return new Set<string>();
+    if (!plan.summary?.finalized_at) return new Set<string>();
     const set = new Set<string>();
     for (const f of plan.forecasts) {
       if (f.client_id_1c && !isPassiveAmount(f.forecast_amount)) set.add(f.client_id_1c);
@@ -89,6 +93,10 @@ export function BrandExpandedDetails({
   const planSource = useMemo(() => {
     const map = new Map<string, 'active' | 'new' | 'sleeping_lost'>();
     if (!plan) return map;
+    // ТІЛЬКИ finalized плани впливають на класифікацію buyer'ів — поки чернетка,
+    // усі покупки йдуть у «Незаплановані». Як тільки натиснуто «Фінальне
+    // збереження» — клієнти переходять у Активні/Нові/Активізація.
+    if (!plan.summary?.finalized_at) return map;
     for (const f of plan.forecasts) {
       if (f.client_id_1c && !isPassiveAmount(f.forecast_amount)) {
         map.set(f.client_id_1c, 'active');
@@ -134,6 +142,9 @@ export function BrandExpandedDetails({
   const plannedByCategory = useMemo(() => {
     const out = { active: 0, new: 0, sleeping_lost: 0 };
     if (!plan) return out;
+    // ТІЛЬКИ finalized — поки чернетка, counter «КУП./ПЛАН» показує 0/0,
+    // щоб не створювати ілюзію зобов'язань.
+    if (!plan.summary?.finalized_at) return out;
     for (const f of plan.forecasts) {
       if (!isPassiveAmount(f.forecast_amount)) out.active += 1;
     }

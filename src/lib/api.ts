@@ -231,6 +231,8 @@ export interface LoadPlanningResult {
     gap_action_2: string | null;
     gap_action_3: string | null;
     updated_at?: string | null;
+    /** M9: timestamp фіналізації плану. NULL = чернетка. */
+    finalized_at?: string | null;
   } | null;
 }
 

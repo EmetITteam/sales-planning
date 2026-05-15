@@ -282,10 +282,11 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       const factPct = pctOf(factAmount, planAmount);
       const forecastPct = calcForecastPercent(factAmount, planAmount, passedWD, totalWD);
 
-      // План менеджера для цього сегменту з planAgg
+      // План менеджера для цього сегменту з planAgg.
+      // ТІЛЬКИ finalized — чернетки не зараховуються у звітні відсотки.
       const segPlan = planAgg?.bySegment[seg.code];
-      const managerForecast = segPlan?.forecast ?? 0;
-      const managerGap = segPlan?.gap ?? 0;
+      const managerForecast = segPlan?.forecastFinalized ?? 0;
+      const managerGap = segPlan?.gapFinalized ?? 0;
       // Показуємо «Запл.: X%» коли (1) planAgg уже догрузився, і (2) бренд
       // має target. Без guard на planAgg був blink: 0% → реальний %
       // через ~500ms коли SWR закінчував fetch.
