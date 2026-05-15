@@ -1519,7 +1519,12 @@ export function PlanningForm({
                         disabled={lockEdit}
                       >
                         <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
-                          <SelectValue placeholder="Обрати навчання з 1С..." />
+                          {/* Якщо тренінг не у поточному списку 1С (наприклад минулий) —
+                              Radix Select показав би raw ID. Override через children:
+                              беремо збережене row.trainingName з БД. */}
+                          <SelectValue placeholder="Обрати навчання з 1С...">
+                            {row.trainingId ? (row.trainingName || row.trainingId) : null}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {trainings.map(t => (
@@ -1657,7 +1662,9 @@ export function PlanningForm({
                         disabled={lockEdit}
                       >
                         <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={lockEdit}>
-                          <SelectValue placeholder="Обрати навчання..." />
+                          <SelectValue placeholder="Обрати навчання...">
+                            {row.trainingId ? (row.trainingName || row.trainingId) : null}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {trainings.map(t => (
@@ -1894,7 +1901,9 @@ export function PlanningForm({
                           disabled={lockEdit}
                         >
                           <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
-                            <SelectValue placeholder="Обрати навчання з 1С..." />
+                            <SelectValue placeholder="Обрати навчання з 1С...">
+                              {row.trainingId ? (row.trainingName || row.trainingId) : null}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {trainings.map(t => (
@@ -2027,7 +2036,9 @@ export function PlanningForm({
                           }}
                           disabled={lockEdit}>
                           <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={lockEdit}>
-                            <SelectValue placeholder="Обрати навчання..." />
+                            <SelectValue placeholder="Обрати навчання...">
+                              {row.trainingId ? (row.trainingName || row.trainingId) : null}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {trainings.map(t => (
