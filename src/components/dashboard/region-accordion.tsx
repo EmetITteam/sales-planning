@@ -227,15 +227,17 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
                 <span className="text-amber-600">●</span> Прогноз (темп):{' '}
                 <span className="font-bold text-amber-600">{formatPct(regionForecastPct)}</span>
               </span>
-              {hasRegionPlan && (
+              {/* «Запл.» показуємо ЗАВЖДИ коли регіон має план з 1С — навіть
+                  «Запл.: 0% · $0» якщо менеджери ще не finalized. Раніше
+                  блок зникав і user не розумів чи це не планували, чи рендер
+                  забув показати. */}
+              {aggregate.totalPlan > 0 && (
                 <>
                   <span className="text-muted-foreground/40">·</span>
                   <span>
                     <span className="text-[#066aab]">●</span> Запл.:{' '}
                     <span className="font-bold text-[#066aab]">{formatPct(regionExpectedPct)}</span>
-                    {regionExpectedAmount > 0 && (
-                      <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedAmount)}</span></span>
-                    )}
+                    <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedAmount)}</span></span>
                   </span>
                 </>
               )}
@@ -343,10 +345,10 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
 
         <div className="flex items-center gap-3 text-[11px] flex-wrap mb-2">
           <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(regionForecastPct)}</span></span>
-          {hasRegionPlan && (
+          {aggregate.totalPlan > 0 && (
             <span>
               <span className="text-[#066aab]">●</span> Запл. <span className="font-bold text-[#066aab]">{formatPct(regionExpectedPct)}</span>
-              {regionExpectedAmount > 0 && <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedAmount)}</span></span>}
+              <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedAmount)}</span></span>
             </span>
           )}
           <span className="text-muted-foreground">|</span>
