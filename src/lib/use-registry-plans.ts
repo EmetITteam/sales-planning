@@ -10,13 +10,12 @@ import { useOneCData } from './use-onec-data';
  */
 export function useRegistryPlans(dateFrom: string | null, dateTo: string | null) {
   const shouldFetch = !!dateFrom && !!dateTo;
-  // ⚠️ Day 14: тимчасово зняли isEmptyResponse — підозра що auto-retry
-  // у combination з SWR mutate створює нестабільний стан коли 1С
-  // повертає не-empty respondse але hook трактує його як empty (можливо
-  // через timing setRetryAttempt / mutate). Відкочуємо до простого hook
-  // поки не діагностовано.
+  // Auto-retry для cold-start 1С (повернуто 2026-05-18 після скарг user
+  // «не з першого разу прогружається»). 1С іноді повертає plans=[] на
+  // першому запиті після login → 3 спроби з backoff 1.2/2.5/5 сек.
   return useOneCData(
     'getRegistryPlans',
     shouldFetch ? { dateFrom: dateFrom!, dateTo: dateTo! } : null,
+    { isEmptyResponse: (r) => !r?.plans || r.plans.length === 0 },
   );
 }

@@ -84,6 +84,7 @@ export function DirectorDashboard() {
   const { data: regionResp, loading, error, refetch } = useOneCData(
     'getRegionData',
     user ? { login: user.login, period: periodKey, asOfDate: asOfIso } : null,
+    { isEmptyResponse: (r) => !r?.regions || r.regions.length === 0 },
   );
   const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
   const company = useMemo(() => adapted ? aggregateCompany(adapted.regions) : null, [adapted]);

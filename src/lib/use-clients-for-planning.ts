@@ -10,9 +10,10 @@ import { useOneCData } from './use-onec-data';
  */
 export function useClientsForPlanning(login: string | null) {
   const shouldFetch = !!login && login !== 'anonymous';
-  // ⚠️ Day 14: тимчасово зняли isEmptyResponse — див. use-registry-plans.ts.
+  // Auto-retry для cold-start (повернуто 2026-05-18).
   return useOneCData(
     'getClientsForPlanning',
     shouldFetch ? { login: login! } : null,
+    { isEmptyResponse: (r) => !r?.clients || r.clients.length === 0 },
   );
 }
