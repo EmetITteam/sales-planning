@@ -1399,10 +1399,10 @@ export function PlanningForm({
           )}
         </div>
 
-        {/* Bulk action bar — sticky над save bar щоб не треба було скролити
+        {/* Bulk action bar — fixed над save bar щоб не треба було скролити
             нагору для кнопки видалення при довгих списках. */}
         {!lockEdit && selectedForecasts.size > 0 && (
-          <div className="sticky bottom-[76px] z-20 flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200 shadow-lg">
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50 border-2 border-rose-300 shadow-2xl">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedForecasts.size}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedForecasts(new Set())}
@@ -1780,9 +1780,9 @@ export function PlanningForm({
             <p className="text-[12px] font-medium">Завантажуємо клієнтів з 1С…</p>
           </div>
         )}
-        {/* Bulk action bar для gap-closures — sticky над save bar */}
+        {/* Bulk action bar для gap-closures — fixed над save bar */}
         {!lockEdit && selectedGaps.size > 0 && (
-          <div className="sticky bottom-[76px] z-20 flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200 shadow-lg">
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50 border-2 border-rose-300 shadow-2xl">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedGaps.size}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedGaps(new Set())}
