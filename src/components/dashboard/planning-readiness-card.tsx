@@ -28,6 +28,7 @@ import { ChevronDown, ClipboardCheck } from 'lucide-react';
 import type { RegionData } from '@/lib/types';
 import { SEGMENTS } from '@/lib/mock-data';
 import { classifyManagerStatus } from '@/lib/passive-rows';
+import { isTrialManager } from '@/lib/trial-manager';
 
 interface PlanByLogin {
   [login: string]: { [segment: string]: { forecast: number; gap: number; finalized: boolean } };
@@ -50,6 +51,8 @@ interface ManagerStat {
   login: string;
   name: string;
   status: ManagerStatus;
+  /** Trial-менеджер — 1С виставила $1 sentinel на всі бренди (новачок на випробувальному). */
+  isTrial: boolean;
   finalized: string[]; // brand codes finalized
   draft: string[];     // brand codes with rows but not finalized
   empty: string[];     // brand codes without rows
@@ -62,8 +65,10 @@ interface RegionStat {
   managersFinalized: number;
   /** Скільки менеджерів частково (хоч щось почали але не всі finalized). */
   managersPartial: number;
-  /** Скільки взагалі не торкнулись. */
+  /** Скільки взагалі не торкнулись (виключаючи trial). */
   managersEmpty: number;
+  /** Скільки trial-новачків (1С виставила $1 sentinel на всі бренди). */
+  managersTrial: number;
   totalManagers: number;
 }
 
@@ -130,19 +135,26 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
             else if (row.finalized) finalized.push(code);
             else draft.push(code);
           }
+          // Trial-новачок: 1С виставила $1 sentinel на ВСІ бренди (план ще не складено).
+          // Дивимось ТІЛЬКИ на бренди де є план (planAmount > 0) — без плану бренди ігноруємо.
+          const segPlans = m.segments.map(s => s.planAmount).filter(p => p > 0);
+          const isTrial = isTrialManager(segPlans);
           const status: ManagerStatus = classifyManagerStatus(
             finalized.length + draft.length,
             finalized.length,
             totalBrands,
           );
-          return { login: m.login, name: m.name, status, finalized, draft, empty };
+          return { login: m.login, name: m.name, status, isTrial, finalized, draft, empty };
         });
+        // Trial-менеджерів НЕ рахуємо як "empty" — у них 1С ще не виставила реальний план.
+        // Лишаємо їх у totalManagers щоб admin бачив повну картину команди.
         return {
           regionName: r.regionName,
           managers,
-          managersFinalized: managers.filter(m => m.status === 'finalized').length,
-          managersPartial: managers.filter(m => m.status === 'partial').length,
-          managersEmpty: managers.filter(m => m.status === 'empty').length,
+          managersFinalized: managers.filter(m => !m.isTrial && m.status === 'finalized').length,
+          managersPartial: managers.filter(m => !m.isTrial && m.status === 'partial').length,
+          managersEmpty: managers.filter(m => !m.isTrial && m.status === 'empty').length,
+          managersTrial: managers.filter(m => m.isTrial).length,
           totalManagers: managers.length,
         };
       })
@@ -159,20 +171,21 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
   }, [regions, planByLogin, totalBrands]);
 
   const total = useMemo(() => {
-    let mgrFin = 0, mgrPartial = 0, mgrEmpty = 0, mgrAll = 0;
+    let mgrFin = 0, mgrPartial = 0, mgrEmpty = 0, mgrTrial = 0, mgrAll = 0;
     for (const r of stats) {
       mgrFin += r.managersFinalized;
       mgrPartial += r.managersPartial;
       mgrEmpty += r.managersEmpty;
+      mgrTrial += r.managersTrial;
       mgrAll += r.totalManagers;
     }
-    return { mgrFin, mgrPartial, mgrEmpty, mgrAll };
+    return { mgrFin, mgrPartial, mgrEmpty, mgrTrial, mgrAll };
   }, [stats]);
 
   if (!planByLogin || total.mgrAll === 0) return null;
 
-  // Усі fіналізували → компактний інлайн
-  const allFinalized = total.mgrFin === total.mgrAll && total.mgrAll > 0;
+  // Усі fіналізували → компактний інлайн (trial рахуються як «закрив», бо не блокують команду).
+  const allFinalized = total.mgrFin + total.mgrTrial === total.mgrAll && total.mgrAll > 0 && total.mgrEmpty === 0 && total.mgrPartial === 0;
   if (allFinalized) {
     return (
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -218,8 +231,10 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
         {/* Mini-list регіонів — менеджерські лічильники */}
         <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 px-2">
           {stats.map(r => {
-            const s = regionStatusColor(r.managersFinalized, r.managersPartial, r.totalManagers);
-            const tooltip = `${r.regionName}: ${r.managersFinalized} повністю · ${r.managersPartial} частково · ${r.managersEmpty} не торкнулись`;
+            // Trial-and-finalized разом — позитивний sum, для статусу регіону.
+            const s = regionStatusColor(r.managersFinalized + r.managersTrial, r.managersPartial, r.totalManagers);
+            const trialPart = r.managersTrial > 0 ? ` · ${r.managersTrial} новачок` : '';
+            const tooltip = `${r.regionName}: ${r.managersFinalized} повністю · ${r.managersPartial} частково · ${r.managersEmpty} не торкнулись${trialPart}`;
             return (
               <span key={r.regionName} className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap min-w-0" title={tooltip}>
                 <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass[s]}`} />
@@ -227,6 +242,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                 <span className="font-mono shrink-0">
                   <span className="text-emerald-600 font-bold">{r.managersFinalized}</span>
                   {r.managersPartial > 0 && <span className="text-amber-600 font-bold">+{r.managersPartial}</span>}
+                  {r.managersTrial > 0 && <span className="text-slate-500 font-bold">+{r.managersTrial}т</span>}
                   <span className="text-muted-foreground/60">/{r.totalManagers}</span>
                 </span>
               </span>
@@ -249,6 +265,9 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
               <span className="text-emerald-600 font-semibold">{total.mgrFin}</span> повністю ·{' '}
               <span className="text-amber-600 font-semibold">{total.mgrPartial}</span> частково ·{' '}
               <span className="font-semibold">{total.mgrEmpty}</span> не торкнулись
+              {total.mgrTrial > 0 && (
+                <> · <span className="text-slate-500 font-semibold">{total.mgrTrial}</span> новачок</>
+              )}
             </p>
           </div>
           <div className="flex flex-col items-center gap-1 w-20">
@@ -274,7 +293,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
       {expanded && (
         <div className="px-5 pb-4 pt-3 space-y-2 bg-[#fafbfe] border-t border-[#f0f2f8]">
           {stats.map(r => {
-            const s = regionStatusColor(r.managersFinalized, r.managersPartial, r.totalManagers);
+            const s = regionStatusColor(r.managersFinalized + r.managersTrial, r.managersPartial, r.totalManagers);
             const isRegionExpanded = expandedRegions.has(r.regionName);
             const rFinPct = r.totalManagers === 0 ? 0 : Math.round((r.managersFinalized / r.totalManagers) * 100);
             const rPartialPct = r.totalManagers === 0 ? 0 : Math.round((r.managersPartial / r.totalManagers) * 100);
@@ -299,6 +318,13 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                     <span className="text-amber-600 font-bold">{r.managersPartial}</span>
                     <span className="text-muted-foreground/60"> частково · </span>
                     <span className="font-bold">{r.managersEmpty}</span>
+                    {r.managersTrial > 0 && (
+                      <>
+                        <span className="text-muted-foreground/60"> · </span>
+                        <span className="text-slate-500 font-bold">{r.managersTrial}</span>
+                        <span className="text-muted-foreground/60"> новачок</span>
+                      </>
+                    )}
                     <span className="text-muted-foreground/60"> з {r.totalManagers}</span>
                   </span>
                   <div className="flex flex-col items-center gap-1">
@@ -312,20 +338,39 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                 </button>
                 {isRegionExpanded && (
                   <div className="px-4 pb-3 pt-2 border-t border-[#f0f2f8] grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-                    {r.managers.map(m => (
+                    {r.managers.map(m => {
+                      // Trial = 1С виставила $1 sentinel замість плану.
+                      // Не червонимо, не вважаємо «не торкнулась» — це новачок на випробувальному.
+                      const dotColor = m.isTrial
+                        ? 'bg-slate-400'
+                        : dotClass[m.status === 'finalized' ? 'green' : m.status === 'partial' ? 'amber' : 'rose'];
+                      const nameClass = m.isTrial
+                        ? 'text-slate-600'
+                        : m.status === 'empty' ? 'text-rose-700' : '';
+                      return (
                       <div key={m.login} className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2 text-[12px]">
-                          <span className={`w-2 h-2 rounded-full ${dotClass[m.status === 'finalized' ? 'green' : m.status === 'partial' ? 'amber' : 'rose']}`} />
-                          <span className={`font-semibold flex-1 truncate ${m.status === 'empty' ? 'text-rose-700' : ''}`}>{m.name || m.login}</span>
-                          <span className="text-[11px] font-mono shrink-0">
-                            <span className="text-emerald-600 font-bold">{m.finalized.length}</span>
-                            <span className="text-muted-foreground/40">/</span>
-                            <span className="text-amber-600 font-bold">{m.draft.length}</span>
-                            <span className="text-muted-foreground/40">/</span>
-                            <span className="text-muted-foreground/60">{totalBrands}</span>
-                          </span>
+                          <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+                          <span className={`font-semibold flex-1 truncate ${nameClass}`}>{m.name || m.login}</span>
+                          {m.isTrial && (
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 shrink-0"
+                              title="1С виставила $1 sentinel на всі бренди — менеджер на випробувальному, план ще не складено"
+                            >
+                              Новачок
+                            </span>
+                          )}
+                          {!m.isTrial && (
+                            <span className="text-[11px] font-mono shrink-0">
+                              <span className="text-emerald-600 font-bold">{m.finalized.length}</span>
+                              <span className="text-muted-foreground/40">/</span>
+                              <span className="text-amber-600 font-bold">{m.draft.length}</span>
+                              <span className="text-muted-foreground/40">/</span>
+                              <span className="text-muted-foreground/60">{totalBrands}</span>
+                            </span>
+                          )}
                         </div>
-                        {(m.draft.length > 0 || (m.empty.length > 0 && m.status !== 'empty')) && (
+                        {!m.isTrial && (m.draft.length > 0 || (m.empty.length > 0 && m.status !== 'empty')) && (
                           <div className="pl-4 text-[10.5px] leading-tight space-y-0.5">
                             {m.draft.length > 0 && (
                               <p className="text-amber-700">
@@ -352,7 +397,8 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

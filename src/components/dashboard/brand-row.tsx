@@ -3,6 +3,7 @@
 import { ChevronRight, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatUSD, formatPct, getTrafficLight, calcForecastPercent, pctOf } from '@/lib/format';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { isTrialBrandPlan } from '@/lib/trial-manager';
 
 export interface BrandRowProps {
   segmentName: string;
@@ -58,7 +59,10 @@ export function BrandRow({
   expandable,
   expanded,
 }: BrandRowProps) {
-  const factPercent = pctOf(factAmount, planAmount);
+  // Trial-менеджер (1С виставила $1 sentinel замість реального плану):
+  // factу/$1 = тисячі %, дашборд вибухає. Не показуємо % взагалі.
+  const isTrial = isTrialBrandPlan(planAmount);
+  const factPercent = isTrial ? 0 : pctOf(factAmount, planAmount);
   const tl = getTrafficLight(factPercent, calcPct);
   const dev = factPercent - calcPct;
   const factBarWidth = Math.min(factPercent, 100);
