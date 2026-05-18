@@ -84,19 +84,24 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
   // РМ може бути закріплений за кількома регіонами (приклад: Пашковська —
   // Одеса + Миколаїв). 1С Action 5 повертає всі. Якщо нема явного regionCode
-  // prop (drill-down з Director) — даємо РМ-у самому обрати, дефолт = перший
-  // регіон з реальними менеджерами (а не «історичний хвост» з planом=0).
-  const availableRegions = useMemo(() => {
-    if (!adapted) return [];
-    // Фільтр: лише регіони де є хоча б один менеджер з планом або фактом.
-    return adapted.regions.filter(r =>
+  // prop (drill-down з Director) — показуємо ВСІ регіони з адаптера.
+  // (Раніше був фільтр «тільки з planом/фактом» — він приховував Миколаїв
+  //  у Пашковської де вона має ТІЛЬКИ historic хвіст без actіve плану,
+  //  але регіон сам по собі активний за рахунок інших менеджерів.)
+  const availableRegions = adapted?.regions ?? [];
+
+  // Дефолт: перший регіон з реальними даними (де є менеджер з planом/фактом),
+  // інакше — просто перший. Це щоб РМ не відкривав одразу порожній регіон.
+  const defaultRegionCode = useMemo(() => {
+    if (!adapted) return null;
+    const withData = adapted.regions.find(r =>
       r.managers.some(m => m.segments.some(s => s.planAmount > 0 || s.factAmount > 0))
     );
+    return withData?.regionCode || adapted.regions[0]?.regionCode || null;
   }, [adapted]);
 
   const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(null);
-  // Дефолт: regionCode prop (drill-down Director) → перший із availableRegions
-  const effectiveRegionCode = regionCode || selectedRegionCode || availableRegions[0]?.regionCode || adapted?.regions[0]?.regionCode || null;
+  const effectiveRegionCode = regionCode || selectedRegionCode || defaultRegionCode;
 
   const region = useMemo(() => {
     if (!adapted) return null;
