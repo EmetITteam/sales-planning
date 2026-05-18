@@ -82,35 +82,44 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'No allowed logins in scope' }, { status: 403 });
   }
 
-  // Завантажуємо дві таблиці паралельно. Тільки потрібні поля.
-  // У gap_closures добавляємо category — потрібно для розкладу по категоріях
-  // (Сплячі / Втрачені / Нові / БЗ → агрегуємо у блок «Активізація» + «Нові» окремо).
-  // ⚠️ M8: фільтр archived_at IS NULL — приховує soft-deleted рядки baгaжу.
-  // M9 (Etap 2 Пакету А): paralel-fetch period_summaries для finalize-status.
-  // Б.6 (Пакет Б): finalized_at != null → (user, segment) у finalized set.
-  const [forecastsRes, gapsRes, summariesRes] = await Promise.all([
-    supabase.from('forecasts')
-      .select('user_id,segment_code,client_id_1c,forecast_amount')
-      .eq('period_id', pid)
-      .is('archived_at', null)
-      .in('user_id', safeLogins),
-    supabase.from('gap_closures')
-      .select('user_id,segment_code,client_id_1c,potential_amount,category')
-      .eq('period_id', pid)
-      .is('archived_at', null)
-      .in('user_id', safeLogins),
-    supabase.from('period_summaries')
-      .select('user_id,segment_code,finalized_at')
-      .eq('period_id', pid)
-      .in('user_id', safeLogins),
-  ]);
+  // ⚠️ PostgREST дефолт = 1000 рядків per запит. При ~2000 forecasts +
+  // ~4200 gap_closures aggregate бачив тільки перші 1000 → деякі бренди
+  // менеджерів пропадали з byLogin (Кейс 2026-05-18: Некова Ellanse/EXOXE
+  // показувались empty у PlanningReadiness). Робимо raw fetch з пагінацією.
+  const SBURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const SBKEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const sbHeaders = { apikey: SBKEY, Authorization: `Bearer ${SBKEY}` };
+  const loginsParam = safeLogins.map(l => `"${l}"`).join(',');
+  async function fetchAllPaginated(table: string, fields: string): Promise<unknown[]> {
+    const out: unknown[] = [];
+    for (let from = 0; ; from += 1000) {
+      const url = `${SBURL}/rest/v1/${table}?select=${fields}&period_id=eq.${pid}&archived_at=is.null&user_id=in.(${loginsParam})`;
+      const r = await fetch(url, { headers: { ...sbHeaders, Range: `${from}-${from + 999}` } });
+      if (!r.ok) throw new Error(`${table}: ${r.status} ${await r.text()}`);
+      const rows = await r.json();
+      out.push(...rows);
+      if (rows.length < 1000) break;
+    }
+    return out;
+  }
 
-  if (forecastsRes.error) {
-    return Response.json({ error: `forecasts: ${forecastsRes.error.message}` }, { status: 500 });
+  let forecastsData: unknown[];
+  let gapsData: unknown[];
+  let summariesRes;
+  try {
+    [forecastsData, gapsData, summariesRes] = await Promise.all([
+      fetchAllPaginated('forecasts', 'user_id,segment_code,client_id_1c,forecast_amount'),
+      fetchAllPaginated('gap_closures', 'user_id,segment_code,client_id_1c,potential_amount,category'),
+      supabase.from('period_summaries')
+        .select('user_id,segment_code,finalized_at')
+        .eq('period_id', pid)
+        .in('user_id', safeLogins),
+    ]);
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : 'fetch failed' }, { status: 500 });
   }
-  if (gapsRes.error) {
-    return Response.json({ error: `gap_closures: ${gapsRes.error.message}` }, { status: 500 });
-  }
+  const forecastsRes = { data: forecastsData, error: null as null | { message: string } };
+  const gapsRes = { data: gapsData, error: null as null | { message: string } };
 
   type FRow = { user_id: string; segment_code: string; client_id_1c: string; forecast_amount: number };
   type GRow = { user_id: string; segment_code: string; client_id_1c: string; potential_amount: number; category: string | null };
