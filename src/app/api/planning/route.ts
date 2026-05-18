@@ -3,7 +3,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta } from '@/lib/periods';
 import { safeRole } from '@/lib/types';
-import { isPlanningWritesAllowed } from '@/lib/feature-flags';
+import { isPlanningWritesAllowed, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 import { assertWindowAllowed } from '@/lib/window-guard';
 import { NextRequest } from 'next/server';
 
@@ -53,9 +53,11 @@ export async function GET(request: NextRequest) {
   // Director може бачити план будь-якого менеджера компанії (через CompanyDashboard
   // drill-down). RM/Manager — тільки свій + managedUsers.
   const requestedLogin = searchParams.get('login') || session.login;
+  const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[session.login.toLowerCase().trim()];
   if (requestedLogin !== session.login
       && session.role !== 'director'
       && session.role !== 'admin'
+      && !isMultiRegionRM
       && !session.managedUsers.includes(requestedLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
@@ -160,8 +162,10 @@ export async function POST(request: NextRequest) {
   const effectiveLogin = targetLogin && targetLogin !== session.login
     ? targetLogin
     : session.login;
+  const isMultiRegionRM_POST = !!MULTI_REGION_RM_OVERRIDES[session.login.toLowerCase().trim()];
   if (effectiveLogin !== session.login
       && session.role !== 'admin'
+      && !isMultiRegionRM_POST
       && !session.managedUsers.includes(effectiveLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }

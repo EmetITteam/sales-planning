@@ -30,6 +30,7 @@ import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
+import { MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 import { isPlanningWritesAllowed } from '@/lib/feature-flags';
 import { assertWindowAllowed } from '@/lib/window-guard';
 
@@ -79,8 +80,10 @@ async function parseAndAuthorize(request: NextRequest, requireAdmin: boolean) {
 
   // Scope: admin → будь-хто, RM/Manager → managedUsers, Director → тільки свій.
   const effectiveLogin = targetLogin && targetLogin !== session.login ? targetLogin : session.login;
+  const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[session.login.toLowerCase().trim()];
   if (effectiveLogin !== session.login
       && session.role !== 'admin'
+      && !isMultiRegionRM
       && !session.managedUsers.includes(effectiveLogin)) {
     return { error: Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 }) };
   }
@@ -211,9 +214,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Scope: admin / director — будь-хто. RM/Manager — свої.
+  const isMultiRegionRM_GET = !!MULTI_REGION_RM_OVERRIDES[session.login.toLowerCase().trim()];
   if (requestedLogin !== session.login
       && session.role !== 'admin'
       && session.role !== 'director'
+      && !isMultiRegionRM_GET
       && !session.managedUsers.includes(requestedLogin)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }

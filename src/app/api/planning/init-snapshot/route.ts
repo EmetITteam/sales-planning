@@ -33,6 +33,7 @@ import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid, monthlyPeriodMeta } from '@/lib/periods';
+import { MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 import { safeRole } from '@/lib/types';
 import { assertWindowAllowed } from '@/lib/window-guard';
 
@@ -87,7 +88,8 @@ export async function POST(request: NextRequest) {
   const effectiveLogin = targetLogin && targetLogin !== session.login
     ? targetLogin
     : session.login;
-  if (effectiveLogin !== session.login && session.role !== 'admin' && !session.managedUsers.includes(effectiveLogin)) {
+  const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[session.login.toLowerCase().trim()];
+  if (effectiveLogin !== session.login && session.role !== 'admin' && !isMultiRegionRM && !session.managedUsers.includes(effectiveLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }
   const uid = effectiveLogin;

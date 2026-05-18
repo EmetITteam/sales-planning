@@ -43,7 +43,7 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
-import { isPlanningWritesAllowed } from '@/lib/feature-flags';
+import { isPlanningWritesAllowed, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 import { assertWindowAllowed } from '@/lib/window-guard';
 
 interface Confirmation {
@@ -102,8 +102,10 @@ export async function POST(request: NextRequest) {
   }
 
   const effectiveLogin = targetLogin && targetLogin !== session.login ? targetLogin : session.login;
+  const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[session.login.toLowerCase().trim()];
   if (effectiveLogin !== session.login
       && session.role !== 'admin'
+      && !isMultiRegionRM
       && !session.managedUsers.includes(effectiveLogin)) {
     return Response.json({ error: 'Forbidden: not your managed user' }, { status: 403 });
   }

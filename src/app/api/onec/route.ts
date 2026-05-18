@@ -108,8 +108,9 @@ export async function POST(request: NextRequest) {
     // або вказує на самого admin (own login) — підміняємо на DIRECTOR_PROXY_LOGIN.
     // Якщо admin явно передав ЧУЖИЙ targetLogin (drill-down менеджера) —
     // пропускаємо як є.
-    // Multi-region RM (Пашковська) — теж дозволяємо використовувати
-    // DIRECTOR_PROXY для отримання повної картини регіонів де вона.
+    // Multi-region RM (Пашковська) — дозволяємо як director (будь-який login).
+    // Бо вона drill-down'ить у менеджерів іншого регіону (Лопушанська, Клименко
+    // з Миколаєва) — а в її managedUsers тільки Одеса.
     const sessionLoginLower = session.login.toLowerCase().trim();
     const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLoginLower];
     if (session.role === 'admin' && (!requestedLogin || requestedLogin === session.login)) {
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
       requestedLogin !== session.login
       && !session.managedUsers.includes(requestedLogin)
       && !isAdminOrDirector
-      && !(isMultiRegionRM && requestedLogin === DIRECTOR_PROXY_LOGIN)
+      && !isMultiRegionRM
     ) {
       return Response.json(
         { status: 'error', message: 'Forbidden: login outside your scope' },
