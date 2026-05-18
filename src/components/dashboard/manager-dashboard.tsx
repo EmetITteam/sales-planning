@@ -29,6 +29,7 @@ import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
 import { WindowLockBanner } from '@/components/window-lock-banner';
+import { isTrialManager } from '@/lib/trial-manager';
 import {
   DollarSign, Target, TrendingUp, TrendingDown, RefreshCw,
 } from 'lucide-react';
@@ -322,7 +323,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   }, [isDemo, asOfDate, factResponse, myPlansBySegment, planAgg, prevMyPlansBySegment, prevFactsBySegment]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
-  const totalPct = pctOf(totalFact, totalPlan);
+  // Trial-новачок: 1С виставила $1 sentinel на КОЖЕН сегмент. Дивимось на non-zero
+  // плани — якщо всі == $1, це trial. Без цього: totalPlan=$9 / fact=$1143 = 12702%.
+  const isTrial = isTrialManager(summaries.map(s => s.planAmount).filter(p => p > 0));
+  const totalPct = isTrial ? 0 : pctOf(totalFact, totalPlan);
   const totalPrevFact = summaries.reduce((s, t) => s + (t.prevMonthFactAmount ?? 0), 0);
   const totalPrevPlan = summaries.reduce((s, t) => s + (t.prevMonthPlanAmount ?? 0), 0);
   const totalPrevPct = pctOf(totalPrevFact, totalPrevPlan);
@@ -337,15 +341,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     yest.setDate(yest.getDate() - 1);
     return getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), yest);
   }, [asOfDate]);
-  const totalForecastPct = summaries.length > 0
+  const totalForecastPct = isTrial ? 0 : (summaries.length > 0
     ? summaries.reduce((s, t) => s + t.forecastPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
-    : 0;
+    : 0);
   // ⚠️ «Запланований %» — пряма формула як у RM/Director:
   //   (Σ finalized forecast + Σ finalized gap) / totalPlan × 100, БЕЗ факту.
   // ТІЛЬКИ ФІНАЛІЗОВАНІ — чернетки до фінального збереження у звітність не йдуть.
-  const totalExpectedPct = planAgg && totalPlan > 0
+  const totalExpectedPct = isTrial ? 0 : (planAgg && totalPlan > 0
     ? ((planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized) / totalPlan) * 100
-    : 0;
+    : 0);
 
   if (view === 'plan' && selectedSegment) {
     const seg = summaries.find(s => s.segmentCode === selectedSegment);
@@ -456,9 +460,19 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           icon={<Target />}
           iconColor="text-[#066aab]"
           label="План місяця"
-          value={formatUSD(totalPlan)}
-          isAmount
+          value={isTrial ? '—' : formatUSD(totalPlan)}
+          isAmount={!isTrial}
           caption={(() => {
+            // Trial-новачок: 1С ще не виставила реальний план ($1 sentinel на кожен сегмент).
+            // Не показуємо суму/факти/проценти — все одно безглузді.
+            if (isTrial) {
+              return (
+                <span className="space-y-0.5 block">
+                  <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">Новачок</span>
+                  <span className="text-muted-foreground block text-[11px]">1С ще не виставила план — менеджер на випробувальному</span>
+                </span>
+              );
+            }
             // ТІЛЬКИ finalized — чернетки до натискання «Фінальне збереження»
             // не йдуть у звітність.
             const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
@@ -504,10 +518,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           })()}
         />
         <MetricCard
-          icon={totalPct >= totalCalcPct ? <TrendingUp /> : <TrendingDown />}
-          iconColor={totalPct >= totalCalcPct ? 'text-emerald-500' : 'text-rose-500'}
+          icon={isTrial ? <Target /> : (totalPct >= totalCalcPct ? <TrendingUp /> : <TrendingDown />)}
+          iconColor={isTrial ? 'text-slate-400' : (totalPct >= totalCalcPct ? 'text-emerald-500' : 'text-rose-500')}
           label="Виконання"
-          value={(
+          value={isTrial ? '—' : (
             <span className="flex items-baseline gap-2">
               <span>{formatPct(totalPct)}</span>
               <span className={`text-[12px] font-bold ${totalPct >= totalCalcPct ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -515,7 +529,9 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
               </span>
             </span>
           )}
-          caption={(
+          caption={isTrial ? (
+            <p className="text-[11px] text-muted-foreground">Без реального плану відсотки не рахуються</p>
+          ) : (
             <div className="space-y-0.5">
               <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
               <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
