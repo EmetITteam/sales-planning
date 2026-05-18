@@ -21,7 +21,7 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
+import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 
 // Дозволені 1С actions — whitelist щоб через прокі не можна було звертатись
 // до довільних 1С-методів. `login` НЕ дозволений тут — для нього є /api/auth/login
@@ -108,11 +108,20 @@ export async function POST(request: NextRequest) {
     // або вказує на самого admin (own login) — підміняємо на DIRECTOR_PROXY_LOGIN.
     // Якщо admin явно передав ЧУЖИЙ targetLogin (drill-down менеджера) —
     // пропускаємо як є.
+    // Multi-region RM (Пашковська) — теж дозволяємо використовувати
+    // DIRECTOR_PROXY для отримання повної картини регіонів де вона.
+    const sessionLoginLower = session.login.toLowerCase().trim();
+    const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLoginLower];
     if (session.role === 'admin' && (!requestedLogin || requestedLogin === session.login)) {
       safePayload = { ...safePayload, login: DIRECTOR_PROXY_LOGIN };
     } else if (!requestedLogin) {
       safePayload = { ...safePayload, login: session.login };
-    } else if (requestedLogin !== session.login && !session.managedUsers.includes(requestedLogin) && !isAdminOrDirector) {
+    } else if (
+      requestedLogin !== session.login
+      && !session.managedUsers.includes(requestedLogin)
+      && !isAdminOrDirector
+      && !(isMultiRegionRM && requestedLogin === DIRECTOR_PROXY_LOGIN)
+    ) {
       return Response.json(
         { status: 'error', message: 'Forbidden: login outside your scope' },
         { status: 403 },

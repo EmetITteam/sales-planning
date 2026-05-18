@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
+import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 import { aggregateRegion, aggregateManagers, aggregateRegionClientStats } from '@/lib/region-aggregates';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { useRegionStats } from '@/lib/use-region-stats';
@@ -75,19 +76,26 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     : currentPeriod.weekEnd;
 
   // === Action 5 ===
+  // КОСТИЛЬ: для МУЛЬТИ-РМ (Пашковська — Одеса + Миколаїв) 1С повертає
+  // тільки той регіон де вона офіційно РМ (Одеса). У Миколаєві вона є
+  // як менеджер з historic хвостом — але без інших менеджерів регіону.
+  // Якщо логін у MULTI_REGION_RM_OVERRIDES — викликаємо Action 5 через
+  // DIRECTOR_PROXY (повна картина), потім фільтруємо до її regionCodes.
+  const overrideRegions = user ? MULTI_REGION_RM_OVERRIDES[user.login] : undefined;
+  const a5Login = overrideRegions ? DIRECTOR_PROXY_LOGIN : user?.login;
   const { data: regionResp, loading, error, refetch } = useOneCData(
     'getRegionData',
-    user ? { login: user.login, period: periodKey, asOfDate: asOfIso } : null,
+    a5Login ? { login: a5Login, period: periodKey, asOfDate: asOfIso } : null,
     { isEmptyResponse: (r) => !r?.regions || r.regions.length === 0 },
   );
-  const adapted = useMemo(() => regionResp ? adaptRegionData(regionResp) : null, [regionResp]);
+  const adapted = useMemo(() => {
+    if (!regionResp) return null;
+    const full = adaptRegionData(regionResp);
+    if (!overrideRegions) return full;
+    // Фільтруємо до тих регіонів які РМ має бачити
+    return { ...full, regions: full.regions.filter(r => overrideRegions.includes(r.regionCode)) };
+  }, [regionResp, overrideRegions]);
 
-  // РМ може бути закріплений за кількома регіонами (приклад: Пашковська —
-  // Одеса + Миколаїв). 1С Action 5 повертає всі. Якщо нема явного regionCode
-  // prop (drill-down з Director) — показуємо ВСІ регіони з адаптера.
-  // (Раніше був фільтр «тільки з planом/фактом» — він приховував Миколаїв
-  //  у Пашковської де вона має ТІЛЬКИ historic хвіст без actіve плану,
-  //  але регіон сам по собі активний за рахунок інших менеджерів.)
   const availableRegions = adapted?.regions ?? [];
 
   // Дефолт: перший регіон з реальними даними (де є менеджер з planом/фактом),

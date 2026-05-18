@@ -55,6 +55,20 @@ export const ADMIN_LOGINS: readonly string[] = ['itd@emet.in.ua'];
 export const DIRECTOR_PROXY_LOGIN = 'sdu@emet.in.ua';
 
 /**
+ * РМ-логіни які закріплені за кількома регіонами і у 1С повертаються
+ * як «частковий РМ» (тільки в одному регіоні бачать менеджерів). Для них
+ * робимо окремий обхід: Action 5 викликаємо через DIRECTOR_PROXY_LOGIN
+ * (повна картина), фільтруємо до перерахованих regionCodes. Аналогічно у
+ * /api/planning/aggregate цим логінам дається full company access.
+ *
+ * Костиль для Пашковської (rm.odessa) — РМ Одеси, але закріплена і за
+ * Миколаєвом де менеджери (Лопушанська, Клименко). 2026-05-18.
+ */
+export const MULTI_REGION_RM_OVERRIDES: Record<string, readonly string[]> = {
+  'rm.odessa@emet.in.ua': ['ODS', 'NLV'],
+};
+
+/**
  * Чи дозволено сесії з даним логіном писати у систему планування коли
  * PLANNING_DISABLED=true.
  */
