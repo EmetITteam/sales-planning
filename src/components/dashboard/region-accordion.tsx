@@ -14,7 +14,7 @@ import type { RegionAggregate } from '@/lib/region-aggregates';
 interface Props {
   aggregate: RegionAggregate;
   /** managers brief — для mini-list (per-manager %). */
-  managersBrief: Array<{ name: string; login: string; pct: number; dev: number; onPlan: boolean }>;
+  managersBrief: Array<{ name: string; login: string; pct: number; dev: number; onPlan: boolean; isTrial?: boolean }>;
   calcPct: number;
   asOfDate: Date;
   /** Логіни менеджерів цього регіону — для lazy-load category-stats при expand. */
@@ -130,7 +130,15 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   const miniList = (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-1">
       {managersBrief.map(m => {
-        const inner = (
+        // Trial-новачок (1С виставила $1 sentinel замість плану) — не показуємо
+        // % бо безглуздо. Сіра точка + badge «Новачок» замість червоного «0%».
+        const inner = m.isTrial ? (
+          <>
+            <span className="w-2 h-2 rounded-full shrink-0 bg-slate-400" />
+            <span className="font-semibold text-slate-600 truncate flex-1 min-w-0">{shortName(m.name)}</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 shrink-0">Новачок</span>
+          </>
+        ) : (
           <>
             <span className={`w-2 h-2 rounded-full shrink-0 ${m.onPlan ? 'bg-emerald-500' : 'bg-rose-500'}`} />
             <span className="font-semibold text-foreground/80 truncate flex-1 min-w-0">{shortName(m.name)}</span>
@@ -142,7 +150,9 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
             </span>
           </>
         );
-        const tip = `${m.name}: ${m.pct.toFixed(1)}% (${m.dev >= 0 ? '+' : ''}${m.dev.toFixed(1)}% vs норма)${onManagerClick ? ' · клік для drill-down' : ''}`;
+        const tip = m.isTrial
+          ? `${m.name}: новачок на випробувальному (1С виставила $1 sentinel)${onManagerClick ? ' · клік для drill-down' : ''}`
+          : `${m.name}: ${m.pct.toFixed(1)}% (${m.dev >= 0 ? '+' : ''}${m.dev.toFixed(1)}% vs норма)${onManagerClick ? ' · клік для drill-down' : ''}`;
         if (onManagerClick) {
           return (
             <button

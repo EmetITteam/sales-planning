@@ -467,6 +467,7 @@ export function DirectorDashboard() {
                     pct: m.factPercent,
                     dev: m.factPercent - calcPctValue,
                     onPlan: m.factPercent >= calcPctValue,
+                    isTrial: m.isTrial,
                   }));
                 const regionLogins = Array.from(new Set(region.managers.map(m => m.login).filter(Boolean)));
                 // Б.3: regionExpectedAmount = Σ forecast+gap по менеджерам регіону

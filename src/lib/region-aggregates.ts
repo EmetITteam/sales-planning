@@ -144,6 +144,8 @@ export interface ManagerAggregate {
   totalFact: number;
   totalPrevMonthFact: number;
   factPercent: number;
+  /** Trial-новачок — 1С виставила $1 sentinel на КОЖЕН сегмент. factPercent примусово 0. */
+  isTrial: boolean;
 }
 
 export function aggregateManagers(region: RegionData): ManagerAggregate[] {
@@ -151,13 +153,18 @@ export function aggregateManagers(region: RegionData): ManagerAggregate[] {
     const totalPlan = m.segments.reduce((a, s) => a + s.planAmount, 0);
     const totalFact = m.segments.reduce((a, s) => a + s.factAmount, 0);
     const totalPrevMonthFact = m.totalPrevMonthFact ?? 0;
+    // Trial-новачок: 1С виставила $1 sentinel замість реального плану.
+    // Без обробки: $1143 / $9 = 12700% — у managersBrief mini-list червоніє «12702%».
+    const nonZeroPlans = m.segments.map(s => s.planAmount).filter(p => p > 0);
+    const isTrial = nonZeroPlans.length > 0 && nonZeroPlans.every(p => p <= 1);
     return {
       login: m.login,
       name: m.name,
       totalPlan,
       totalFact,
       totalPrevMonthFact,
-      factPercent: totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0,
+      factPercent: isTrial ? 0 : (totalPlan > 0 ? (totalFact / totalPlan) * 100 : 0),
+      isTrial,
     };
   });
 }
