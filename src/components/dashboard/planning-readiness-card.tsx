@@ -206,8 +206,12 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
   }
 
   // Stacked bar % — за менеджерами
-  const finPct = total.mgrAll === 0 ? 0 : Math.round((total.mgrFin / total.mgrAll) * 100);
-  const partialPct = total.mgrAll === 0 ? 0 : Math.round((total.mgrPartial / total.mgrAll) * 100);
+  // Trial-новачків ВИКЛЮЧАЄМО зі знаменника — у них 1С ще не виставила план,
+  // вони фізично не можуть «фіналізувати». Інакше 5 повністю з 6 (1 новачок) = 83%,
+  // а має бути 5/5 = 100% бо новачок не блокує готовність команди.
+  const planningDenom = Math.max(total.mgrAll - total.mgrTrial, 1);
+  const finPct = total.mgrAll === total.mgrTrial ? 100 : Math.round((total.mgrFin / planningDenom) * 100);
+  const partialPct = total.mgrAll === total.mgrTrial ? 0 : Math.round((total.mgrPartial / planningDenom) * 100);
   const overallStatus = regionStatusColor(total.mgrFin, total.mgrPartial, total.mgrAll);
   const overallLabel = overallStatus === 'green' ? 'ГОТОВО' : overallStatus === 'amber' ? 'У РОБОТІ' : 'ВІДСТАВАННЯ';
 
@@ -295,8 +299,11 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           {stats.map(r => {
             const s = regionStatusColor(r.managersFinalized + r.managersTrial, r.managersPartial, r.totalManagers);
             const isRegionExpanded = expandedRegions.has(r.regionName);
-            const rFinPct = r.totalManagers === 0 ? 0 : Math.round((r.managersFinalized / r.totalManagers) * 100);
-            const rPartialPct = r.totalManagers === 0 ? 0 : Math.round((r.managersPartial / r.totalManagers) * 100);
+            // Денomінатор без trial — новачки не блокують готовність регіону (1С ще не виставила план).
+            const rDenom = Math.max(r.totalManagers - r.managersTrial, 1);
+            const allTrial = r.totalManagers > 0 && r.totalManagers === r.managersTrial;
+            const rFinPct = allTrial ? 100 : Math.round((r.managersFinalized / rDenom) * 100);
+            const rPartialPct = allTrial ? 0 : Math.round((r.managersPartial / rDenom) * 100);
             return (
               <div key={r.regionName} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                 <button
