@@ -1399,9 +1399,10 @@ export function PlanningForm({
           )}
         </div>
 
-        {/* Bulk action bar — з'являється коли є вибрані */}
+        {/* Bulk action bar — sticky над save bar щоб не треба було скролити
+            нагору для кнопки видалення при довгих списках. */}
         {!lockEdit && selectedForecasts.size > 0 && (
-          <div className="flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200">
+          <div className="sticky bottom-[76px] z-20 flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200 shadow-lg">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedForecasts.size}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedForecasts(new Set())}
@@ -1779,9 +1780,9 @@ export function PlanningForm({
             <p className="text-[12px] font-medium">Завантажуємо клієнтів з 1С…</p>
           </div>
         )}
-        {/* Bulk action bar для gap-closures */}
+        {/* Bulk action bar для gap-closures — sticky над save bar */}
         {!lockEdit && selectedGaps.size > 0 && (
-          <div className="flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200">
+          <div className="sticky bottom-[76px] z-20 flex items-center justify-between px-5 py-2.5 mb-2 rounded-xl bg-rose-50 border border-rose-200 shadow-lg">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedGaps.size}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedGaps(new Set())}
