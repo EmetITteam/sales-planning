@@ -172,18 +172,13 @@ export async function POST(request: NextRequest) {
   // M5: user_id = login (раніше було hash через loginToUserId)
   const uid = effectiveLogin;
 
-  // ---- WINDOW-LOCK GUARD (Етап 3, 2026-05-13) ----
-  // Admin обходить, інші проходять перевірку window_days + per-user locks.
-  const winCheck = await assertWindowAllowed(session, uid, period?.month);
-  if (winCheck.blocked) return winCheck.response;
-
   const errors: string[] = [];
   const ctx = { uid, pid, segmentCode };
 
-  // ---- FINALIZATION GUARD (Етап 2, 2026-05-13) ----
-  // Якщо план уже фіналізований і це не admin — переходимо у filtered mode:
-  // дозволяємо тільки stage_comment + stage_done. Решта payload ігнорується.
-  // Список клієнтів, суми, етап, тренінг — заморожено.
+  // ---- FINALIZATION + STAGE EDIT PERMISSION ----
+  // Fetch обидва ДО window-guard: якщо менеджер фіналізований І має дозвіл
+  // редагувати етап → window-lock не блокує (use case «поміняти Дзвінок на
+  // Зустріч» актуальний весь місяць, не тільки перші 5 днів планування).
   const { data: finalRows } = await supabase
     .from('period_summaries')
     .select('finalized_at')
@@ -192,10 +187,9 @@ export async function POST(request: NextRequest) {
     .eq('segment_code', segmentCode);
   const finalRow = Array.isArray(finalRows) && finalRows.length > 0 ? finalRows[0] : null;
   const isFinalized = !!finalRow?.finalized_at;
-  if (isFinalized && session.role !== 'admin') {
-    // 🆕 M9 (2026-05-19): per-manager дозвіл редагувати ETAP після фіналізації.
-    // Fetch flag з users — якщо ON, у filtered mode ще й приймаємо stage.
-    let allowStageEdit = false;
+
+  let allowStageEdit = false;
+  if (session.role !== 'admin') {
     try {
       const { data: permRows } = await supabase
         .from('users')
@@ -207,6 +201,19 @@ export async function POST(request: NextRequest) {
     } catch {
       // Колонка не існує (M9 ще не applied) — мовчки false.
     }
+  }
+
+  // ---- WINDOW-LOCK GUARD (Етап 3, 2026-05-13) ----
+  // Admin обходить. Менеджер з allowStageEdit + isFinalized теж обходить
+  // (бо у filtered-finalized branch ми приймаємо тільки stage/stage_comment/
+  // stage_done — амоунти і клієнти не міняються, тому window-lock не
+  // повинен блокувати). Решта — стандартна перевірка.
+  if (!(isFinalized && allowStageEdit)) {
+    const winCheck = await assertWindowAllowed(session, uid, period?.month);
+    if (winCheck.blocked) return winCheck.response;
+  }
+
+  if (isFinalized && session.role !== 'admin') {
 
     // Filtered mode: тільки stage_comment + stage_done per existing row.
     // Якщо allowStageEdit=true (M9) — ще й stage.

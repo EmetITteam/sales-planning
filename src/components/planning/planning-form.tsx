@@ -139,8 +139,11 @@ export function PlanningForm({
   // Інші поля (амоунти, клієнти, тренінг) лишаються заблокованими.
   const canEditStagesAfterFinalize = !!user?.canEditStagesAfterFinalize;
   const stageUnlockedAfterFinalize = isFinalized && !isAdmin && canEditStagesAfterFinalize;
+  // Дозвіл редагувати etap після фіналу теж BYPASS window-lock — інакше
+  // після 5-го числа місяця менеджер не зможе нічого поміняти навіть з
+  // дозволом. Use case "поміняти Дзвінок на Зустріч" актуальний весь місяць.
   const lockStage = stageUnlockedAfterFinalize
-    ? readOnly || (isWindowLocked && !isAdmin)
+    ? readOnly
     : lockEdit;
 
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
