@@ -69,6 +69,21 @@ export const MULTI_REGION_RM_OVERRIDES: Record<string, readonly string[]> = {
 };
 
 /**
+ * "Домашній" регіон РМ — де ВОНА САМА продає (планує клієнтів, має план 1С).
+ * У всіх ІНШИХ регіонах вона показується лише як спостерігач — її особисті
+ * forecasts/gap_closures НЕ входять у brand-сумі, planning-readiness, regional
+ * статистику тих регіонів.
+ *
+ * Кейс Пашковської (2026-05-19): РМ Одеса+Миколаїв. Продає тільки в Одесі.
+ * У Миколаєві її $9863 finalized на ELLANSE летіли у brand-сумі що давало
+ * 277% «Запл.» (її дані у numerator, плану 1С на NLV у неї нема → 0 у
+ * denominator). Фільтр у adaptRegionData робить її невидимою для NLV.
+ */
+export const MULTI_REGION_RM_HOME: Record<string, string> = {
+  'rm.odessa@emet.in.ua': 'ODS',
+};
+
+/**
  * Чи дозволено сесії з даним логіном писати у систему планування коли
  * PLANNING_DISABLED=true.
  */

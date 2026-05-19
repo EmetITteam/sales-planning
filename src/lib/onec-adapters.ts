@@ -18,7 +18,7 @@ import type {
   OneCTraining,
   OneCManagerClientStats,
 } from './onec-types';
-import { ADMIN_LOGINS } from './feature-flags';
+import { ADMIN_LOGINS, MULTI_REGION_RM_HOME } from './feature-flags';
 import type {
   UserSession,
   Client1C,
@@ -271,6 +271,12 @@ export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
         // (включно з тими хто звільнений / у відпустці / без плану), у нас
         // вони показувались як "Хамуляк А. 0%" псуючи UI. Ховаємо їх.
         managers: reg.managers.filter(m => {
+          // RM продає лише у "домашньому" регіоні (MULTI_REGION_RM_HOME).
+          // У інших регіонах де вона РМ її особисті дані ігноруємо — інакше
+          // brand-сумі ламаються (Пашковська у NLV давала «Запл. 277%»).
+          const login = (m.managerLogin || '').toLowerCase().trim();
+          const rmHome = MULTI_REGION_RM_HOME[login];
+          if (rmHome && rmHome !== realCode) return false;
           const totalPlan = m.segments.reduce((a, s) => a + toNumber(s.planAmountUSD as number | string), 0);
           const totalFact = m.segments.reduce((a, s) => a + toNumber(s.factAmountUSD as number | string), 0);
           const totalPrev = toNumber(m.totalPrevMonthFact as number | string);
