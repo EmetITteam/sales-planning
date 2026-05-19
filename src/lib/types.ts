@@ -43,6 +43,13 @@ export interface UserSession {
   region: string;
   regionCode: string;
   managedUsers: string[]; // логіни підлеглих (для РМ/директора)
+  /**
+   * Дозвіл редагувати поле `stage` у формі планування ПІСЛЯ фіналізації.
+   * За замовчуванням false. Адмін вмикає для конкретних менеджерів у
+   * /admin/stage-edit-permissions. Не у JWT — fetch fresh з /api/auth/me
+   * при кожному mount, щоб toggle діяв одразу.
+   */
+  canEditStagesAfterFinalize?: boolean;
 }
 
 // === Сегменти (ТМ) ===

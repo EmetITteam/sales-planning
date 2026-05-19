@@ -133,6 +133,16 @@ export function PlanningForm({
   // Stage_comment поки теж заблоковано — інлайн-edit коментарів додамо окремим патчем.
   const lockEdit = readOnly || (isFinalized && !isAdmin) || (isWindowLocked && !isAdmin);
 
+  // 🆕 M9 (2026-05-19): per-manager дозвіл редагувати ETAP після фіналізації.
+  // Якщо admin поставив `users.can_edit_stages_after_finalize=true` цьому
+  // менеджеру — stage select лишається активним навіть коли `lockEdit=true`.
+  // Інші поля (амоунти, клієнти, тренінг) лишаються заблокованими.
+  const canEditStagesAfterFinalize = !!user?.canEditStagesAfterFinalize;
+  const stageUnlockedAfterFinalize = isFinalized && !isAdmin && canEditStagesAfterFinalize;
+  const lockStage = stageUnlockedAfterFinalize
+    ? readOnly || (isWindowLocked && !isAdmin)
+    : lockEdit;
+
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
   // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
   // У DEMO для PETARAN одразу пре-заповнюємо мок-showcase щоб бачити заповнену форму.
@@ -1242,7 +1252,9 @@ export function PlanningForm({
             <p className="text-[13px] text-emerald-800 mt-0.5">
               {isAdmin
                 ? 'Ви бачите план у режимі адміна — можете редагувати або розфіналізувати.'
-                : 'План заблокований для редагування сум і списку клієнтів. Для змін зверніться до адміністратора.'}
+                : stageUnlockedAfterFinalize
+                  ? '✏ Адмін надав дозвіл редагувати «Етап». Суми та список клієнтів заблоковані.'
+                  : 'План заблокований для редагування сум і списку клієнтів. Для змін зверніться до адміністратора.'}
               {finalizedBy && ` · Фіналізував: ${finalizedBy}`}
             </p>
           </div>
@@ -1507,9 +1519,9 @@ export function PlanningForm({
                   <Select
                     value={row.stage || undefined}
                     onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v)}
-                    disabled={lockEdit}
+                    disabled={lockStage}
                   >
-                    <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
+                    <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockStage}>
                       <SelectValue placeholder="Обрати" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1653,9 +1665,9 @@ export function PlanningForm({
                       <Select
                         value={row.stage || undefined}
                         onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v)}
-                        disabled={lockEdit}
+                        disabled={lockStage}
                       >
-                        <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
+                        <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockStage}>
                           <SelectValue placeholder="Обрати" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1888,9 +1900,9 @@ export function PlanningForm({
                     <Select
                       value={row.stage || undefined}
                       onValueChange={(v) => updateGap(i, 'stage', v)}
-                      disabled={lockEdit}
+                      disabled={lockStage}
                     >
-                      <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
+                      <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockStage}>
                         <SelectValue placeholder="Обрати" />
                       </SelectTrigger>
                       <SelectContent>
@@ -2037,8 +2049,8 @@ export function PlanningForm({
                       <div className="flex items-center gap-2 mt-1">
                         <Select value={row.stage || undefined}
                           onValueChange={(v) => updateGap(i, 'stage', v)}
-                          disabled={lockEdit}>
-                          <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
+                          disabled={lockStage}>
+                          <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockStage}>
                             <SelectValue placeholder="Обрати" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2169,7 +2181,7 @@ export function PlanningForm({
                 Зберігаю...
               </>
             ) : (
-              <><Save className="h-4 w-4" /> {isFinalized && !isAdmin ? 'Зберегти коментарі' : 'Зберегти чернетку'}</>
+              <><Save className="h-4 w-4" /> {isFinalized && !isAdmin ? (stageUnlockedAfterFinalize ? 'Зберегти етапи + коментарі' : 'Зберегти коментарі') : 'Зберегти чернетку'}</>
             )}
           </Button>
           {!isFinalized && (

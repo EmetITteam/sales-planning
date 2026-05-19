@@ -193,9 +193,25 @@ export async function POST(request: NextRequest) {
   const finalRow = Array.isArray(finalRows) && finalRows.length > 0 ? finalRows[0] : null;
   const isFinalized = !!finalRow?.finalized_at;
   if (isFinalized && session.role !== 'admin') {
+    // 🆕 M9 (2026-05-19): per-manager дозвіл редагувати ETAP після фіналізації.
+    // Fetch flag з users — якщо ON, у filtered mode ще й приймаємо stage.
+    let allowStageEdit = false;
+    try {
+      const { data: permRows } = await supabase
+        .from('users')
+        .select('can_edit_stages_after_finalize')
+        .eq('login', uid);
+      if (Array.isArray(permRows) && permRows.length > 0) {
+        allowStageEdit = !!permRows[0].can_edit_stages_after_finalize;
+      }
+    } catch {
+      // Колонка не існує (M9 ще не applied) — мовчки false.
+    }
+
     // Filtered mode: тільки stage_comment + stage_done per existing row.
+    // Якщо allowStageEdit=true (M9) — ще й stage.
     // PATCH через direct REST (custom wrapper не має .update()).
-    type IncomingStage = { clientId1c?: string; stageComment?: string; stageDone?: boolean };
+    type IncomingStage = { clientId1c?: string; stage?: string; stageComment?: string; stageDone?: boolean };
     const fIncoming = (forecasts as IncomingStage[] | undefined ?? []);
     const gIncoming = (gapClosures as IncomingStage[] | undefined ?? []);
 
@@ -204,7 +220,7 @@ export async function POST(request: NextRequest) {
     if (!URL_BASE || !KEY) {
       return Response.json({ error: 'Supabase env missing' }, { status: 500 });
     }
-    const patchRow = async (table: string, clientId: string, stageComment: string | null, stageDone: boolean) => {
+    const patchRow = async (table: string, clientId: string, stageComment: string | null, stageDone: boolean, stage: string | undefined) => {
       // ⚠️ НЕ використовуємо URLSearchParams — він double-encode email %40 → %2540.
       const qs = [
         `period_id=eq.${pid}`,
@@ -213,10 +229,14 @@ export async function POST(request: NextRequest) {
         `client_id_1c=eq.${encodeURIComponent(clientId)}`,
       ].join('&');
       const u = `${URL_BASE}/rest/v1/${table}?${qs}`;
+      const payload: Record<string, unknown> = { stage_comment: stageComment, stage_done: stageDone };
+      // Stage пишемо тільки коли дозвіл є І значення передано (не undefined).
+      // Порожній '' валідне значення = «скинути етап».
+      if (allowStageEdit && stage !== undefined) payload.stage = stage;
       const r = await fetch(u, {
         method: 'PATCH',
         headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ stage_comment: stageComment, stage_done: stageDone }),
+        body: JSON.stringify(payload),
       });
       if (!r.ok) {
         const text = await r.text().catch(() => '');
@@ -229,13 +249,13 @@ export async function POST(request: NextRequest) {
     const updErrors: string[] = [];
     for (const row of fIncoming) {
       if (!row.clientId1c) continue;
-      const e = await patchRow('forecasts', row.clientId1c, row.stageComment ?? null, row.stageDone ?? false);
+      const e = await patchRow('forecasts', row.clientId1c, row.stageComment ?? null, row.stageDone ?? false, row.stage);
       if (e) updErrors.push(`forecasts ${row.clientId1c}: ${e}`);
       else updated++;
     }
     for (const row of gIncoming) {
       if (!row.clientId1c) continue;
-      const e = await patchRow('gap_closures', row.clientId1c, row.stageComment ?? null, row.stageDone ?? false);
+      const e = await patchRow('gap_closures', row.clientId1c, row.stageComment ?? null, row.stageDone ?? false, row.stage);
       if (e) updErrors.push(`gap_closures ${row.clientId1c}: ${e}`);
       else updated++;
     }
@@ -244,7 +264,7 @@ export async function POST(request: NextRequest) {
       console.error('[planning.POST finalized-filtered] errors:', { ...ctx, updErrors });
       return Response.json({ error: updErrors.join('; ') }, { status: 500 });
     }
-    return Response.json({ success: true, filteredFinalized: true, updated });
+    return Response.json({ success: true, filteredFinalized: true, allowStageEdit, updated });
   }
 
   // ---- 0. Pre-validate (підготувати рядки до інсерту) ----

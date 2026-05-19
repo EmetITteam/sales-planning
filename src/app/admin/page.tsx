@@ -70,6 +70,13 @@ export default function AdminPage() {
             title="Розфіналізація планів"
             description="Скасування фіналізації — кнопка «Розфіналізувати» доступна прямо у формі планування менеджера у режимі адміна."
           />
+          <AdminCard
+            href="/admin/stage-edit-permissions"
+            icon={<Settings2 className="h-4 w-4 text-amber-700" />}
+            title="Редагування етапу після фіналу"
+            description="Per-manager дозвіл міняти поле «Етап» (Дзвінок/Зустріч/Навчання) у формі планування навіть після фіналізації. Суми лишаються заблокованими."
+            ready
+          />
         </div>
       </main>
     </>
