@@ -79,6 +79,10 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
   const dynAmount = expectedForCompare - totalPrevFact;
   const dynBetter = dynAmount >= 0;
 
+  // % від плану що заплановано (тільки finalized). Trial → не показуємо.
+  const expectedPct = !isTrial && totalPlan > 0 ? (totalExpected / totalPlan) * 100 : 0;
+  const hasExpected = !isTrial && totalExpected > 0;
+
   return (
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
       {/* === DESKTOP === */}
@@ -107,6 +111,21 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
               <span className="text-muted-foreground/50 font-normal"> / </span>
               <span className="amount text-muted-foreground/70">{formatUSD(totalPlan)}</span>
             </p>
+          </div>
+          <div className="text-right min-w-[130px]">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Заплановано</p>
+            {hasExpected ? (
+              <>
+                <p className="text-[14px] font-bold font-mono leading-none mt-1.5 whitespace-nowrap">
+                  <span className="amount text-[#066aab]">{formatUSD(totalExpected)}</span>
+                </p>
+                <p className="text-[11px] font-bold leading-none mt-1 text-[#066aab]">
+                  {expectedPct.toFixed(1)}%
+                </p>
+              </>
+            ) : (
+              <p className="text-[12px] text-muted-foreground/40 leading-none mt-1.5">—</p>
+            )}
           </div>
           <div className="text-right min-w-[120px]">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Мин. міс.</p>
@@ -222,6 +241,14 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
                 </span>
               )}
             </div>
+            {hasExpected && (
+              <div className="text-[11px] mt-1">
+                <span className="text-muted-foreground">Запл. </span>
+                <span className="font-bold text-[#066aab] amount">{formatUSD(totalExpected)}</span>
+                <span className="text-muted-foreground/50"> · </span>
+                <span className="font-bold text-[#066aab]">{expectedPct.toFixed(1)}%</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
