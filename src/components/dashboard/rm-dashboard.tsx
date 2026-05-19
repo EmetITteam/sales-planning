@@ -484,6 +484,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   asOfDate={asOfDate}
                   onDrillDown={() => goToManager(m.login)}
                   onPlanBrand={(segCode) => goToManager(m.login, segCode)}
+                  planByLogin={planAgg?.byLogin ?? null}
                 />
               ))}
             </div>

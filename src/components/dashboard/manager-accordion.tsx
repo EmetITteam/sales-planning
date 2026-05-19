@@ -6,6 +6,7 @@ import { formatUSD, getTrafficLight, pctOf } from '@/lib/format';
 import { BrandRow } from './brand-row';
 import { useAppStore } from '@/lib/store';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
+import { isTrialManager } from '@/lib/trial-manager';
 import type { ManagerRegionData } from '@/lib/types';
 
 interface Props {
@@ -20,6 +21,12 @@ interface Props {
    * залишаються інформативними без кліку.
    */
   onPlanBrand?: (segmentCode: string) => void;
+  /**
+   * Зведення planning по логіну (з parent /api/planning/aggregate).
+   * Потрібно для «заплановане vs мин. факт» dyn та правильного % виконання.
+   * Без нього fallback на totalFact-prevFact (старий неправильний).
+   */
+  planByLogin?: Record<string, Record<string, { forecast: number; gap: number; finalized: boolean }>> | null;
 }
 
 function initials(fullName: string, login: string): string {
@@ -36,23 +43,40 @@ function initials(fullName: string, login: string): string {
  *
  * Дзеркало RegionAccordion але рівнем нижче (manager × segment замість region × segment).
  */
-export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPlanBrand }: Props) {
+export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPlanBrand, planByLogin }: Props) {
   const [expanded, setExpanded] = useState(false);
   // Lazy: тільки коли expanded — тягнемо план цього менеджера з Supabase.
   // Потрібно для синьої насічки «Запланований» на progress bar кожного бренду.
+  // Якщо parent передав planByLogin (rm-dashboard / director-dashboard) — викоремо
+  // звідти, додатковий fetch не робимо.
   const { currentPeriod } = useAppStore();
+  const skipLazyFetch = !!planByLogin;
   const { data: planAgg } = usePlanningAggregate(
     currentPeriod.id,
-    expanded && manager.login ? [manager.login] : null,
+    !skipLazyFetch && expanded && manager.login ? [manager.login] : null,
     currentPeriod.month,
   );
+  const effectiveByLogin = planByLogin ?? planAgg?.byLogin ?? null;
   const totalPlan = manager.segments.reduce((a, s) => a + s.planAmount, 0);
   const totalFact = manager.segments.reduce((a, s) => a + s.factAmount, 0);
   const totalPrevFact = manager.totalPrevMonthFact ?? 0;
-  const pct = pctOf(totalFact, totalPlan);
+
+  // Trial-новачок: 1С виставила $1 sentinel на КОЖЕН сегмент.
+  // Без обробки: $1143 / $9 = 12702% — Кравченко К. червоніє у списку.
+  const isTrial = isTrialManager(manager.segments.map(s => s.planAmount).filter(p => p > 0));
+  const pct = isTrial ? 0 : pctOf(totalFact, totalPlan);
   const tl = getTrafficLight(pct, calcPct);
   const dev = pct - calcPct;
-  const dynAmount = totalFact - totalPrevFact;
+
+  // Заплановане (ТІЛЬКИ finalized forecast + gap) — для порівняння vs мин. факт.
+  // Без planByLogin → fallback на totalFact (старий патерн, не показуємо стрілку).
+  const managerSegs = effectiveByLogin?.[manager.login] ?? {};
+  const totalExpected = Object.values(managerSegs).reduce((acc, s) => {
+    if (!s.finalized) return acc;
+    return acc + (s.forecast ?? 0) + (s.gap ?? 0);
+  }, 0);
+  const expectedForCompare = totalExpected > 0 ? totalExpected : totalFact;
+  const dynAmount = expectedForCompare - totalPrevFact;
   const dynBetter = dynAmount >= 0;
 
   return (
@@ -101,18 +125,31 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             )}
           </div>
           <div className="flex flex-col items-center gap-1 w-14">
-            <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
-              <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
-                style={{ width: `${Math.min(pct, 100)}%` }} />
-            </div>
-            <span className={`text-[11px] font-bold leading-none ${tl.color}`}>{pct.toFixed(1)}%</span>
-            <span className={`text-[10px] font-bold leading-none ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
-            </span>
+            {isTrial ? (
+              <>
+                <div className="w-14 h-2 rounded-full bg-slate-100" />
+                <span className="text-[11px] font-bold leading-none text-slate-500">—</span>
+              </>
+            ) : (
+              <>
+                <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
+                  <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+                    style={{ width: `${Math.min(pct, 100)}%` }} />
+                </div>
+                <span className={`text-[11px] font-bold leading-none ${tl.color}`}>{pct.toFixed(1)}%</span>
+                <span className={`text-[10px] font-bold leading-none ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
+                </span>
+              </>
+            )}
           </div>
           <div className="w-[100px]">
             <div className="h-[12px] leading-none mb-1.5" aria-hidden />
-            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
+            {isTrial ? (
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-slate-100 text-slate-600" title="1С виставила $1 sentinel — менеджер на випробувальному">Новачок</span>
+            ) : (
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
+            )}
           </div>
           <div>
             <div className="h-[12px] leading-none mb-1.5" aria-hidden />
@@ -140,7 +177,11 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <p className="text-[14px] font-bold truncate flex-1">{manager.name || manager.login}</p>
-              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
+              {isTrial ? (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase whitespace-nowrap bg-slate-100 text-slate-600">Новачок</span>
+              ) : (
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
+              )}
               <ChevronDown className={`h-4 w-4 text-muted-foreground/40 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
               <button
                 onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
@@ -152,16 +193,22 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             </div>
             <div className="flex items-center gap-2 mb-1.5 text-[11px]">
               <span className="text-muted-foreground truncate">{manager.login}</span>
-              <span className="text-muted-foreground/40">·</span>
-              <span className={`font-bold ${tl.color}`}>{pct.toFixed(1)}%</span>
-              <span className={`font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
-              </span>
+              {!isTrial && (
+                <>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span className={`font-bold ${tl.color}`}>{pct.toFixed(1)}%</span>
+                  <span className={`font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
+                  </span>
+                </>
+              )}
             </div>
-            <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mb-2">
-              <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
-                style={{ width: `${Math.min(pct, 100)}%` }} />
-            </div>
+            {!isTrial && (
+              <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mb-2">
+                <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+                  style={{ width: `${Math.min(pct, 100)}%` }} />
+              </div>
+            )}
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">
                 Факт <span className="font-bold text-foreground amount">{formatUSD(totalFact)}</span>
