@@ -1,0 +1,30 @@
+{
+  "stamp": "2026-05-19T19-03-45Z",
+  "takenAt": "2026-05-19T19:03:45.888Z",
+  "tables": {
+    "users": {
+      "rows": 26,
+      "totalReported": 26
+    },
+    "periods": {
+      "rows": 2,
+      "totalReported": 2
+    },
+    "forecasts": {
+      "rows": 3438,
+      "totalReported": 3438
+    },
+    "gap_closures": {
+      "rows": 6690,
+      "totalReported": 6690
+    },
+    "period_summaries": {
+      "rows": 173,
+      "totalReported": 173
+    },
+    "planning_snapshots": {
+      "rows": 20509,
+      "totalReported": 20509
+    }
+  }
+}
