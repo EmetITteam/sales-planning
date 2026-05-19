@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { pctOf } from '@/lib/format';
 import { BrandRow } from './brand-row';
 import { CategoryStatsTable } from './category-stats-table';
+import { SEGMENTS } from '@/lib/mock-data';
 import type { ManagerRegionData } from '@/lib/types';
 import type { CategoryStat, PlanCategoryKey } from '@/lib/use-planning-aggregate';
 import type { RegionStatsCategoryStat, RegionStatsCategory } from '@/lib/use-region-stats';
@@ -152,7 +153,16 @@ export function pivotBrandsByManager(managers: ManagerRegionData[]): BrandWithMa
       if (!segMap.has(s.segmentCode)) segMap.set(s.segmentCode, s.segmentName);
     }
   }
-  const segCodes = Array.from(segMap.keys());
+  // Сортуємо у канонічному порядку SEGMENTS (Petaran, Ellanse, EXOXE, ESSE,
+  // Neuramis, Neuronox, Vitaran, IUSE, Інші ТМ) — інакше Map insertion order
+  // залежить від того менеджера якого опрацювали першим, у різних регіонах
+  // вийде різний sort.
+  const orderIndex = new Map(SEGMENTS.map((s, i) => [s.code, i]));
+  const segCodes = Array.from(segMap.keys()).sort((a, b) => {
+    const ia = orderIndex.get(a) ?? 999;
+    const ib = orderIndex.get(b) ?? 999;
+    return ia - ib;
+  });
 
   return segCodes.map(segCode => {
     const segName = segMap.get(segCode) ?? segCode;

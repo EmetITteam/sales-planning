@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { pctOf } from '@/lib/format';
 import { BrandRow } from './brand-row';
 import { CategoryStatsTable } from './category-stats-table';
+import { SEGMENTS } from '@/lib/mock-data';
 import type { RegionAggregate } from '@/lib/region-aggregates';
 import type { CategoryStat, PlanCategoryKey } from '@/lib/use-planning-aggregate';
 import type { RegionStatsCategoryStat, RegionStatsCategory } from '@/lib/use-region-stats';
@@ -202,7 +203,13 @@ export function pivotBrandsByRegion(
   rawRegions: import('@/lib/types').RegionData[],
 ): BrandWithRegions[] {
   if (regionAggs.length === 0) return [];
-  const segmentCodes = regionAggs[0].segments.map(s => s.segmentCode);
+  // Сортуємо у канонічному порядку SEGMENTS (Petaran, Ellanse, EXOXE, ...)
+  // — інакше порядок брендів залежить від того яким їх повертає 1С Action 5,
+  // що дає різний sort на різних дашбордах.
+  const orderIndex = new Map(SEGMENTS.map((s, i) => [s.code, i]));
+  const segmentCodes = regionAggs[0].segments
+    .map(s => s.segmentCode)
+    .sort((a, b) => (orderIndex.get(a) ?? 999) - (orderIndex.get(b) ?? 999));
 
   return segmentCodes.map(segCode => {
     const segName = regionAggs[0].segments.find(s => s.segmentCode === segCode)?.segmentName ?? segCode;
