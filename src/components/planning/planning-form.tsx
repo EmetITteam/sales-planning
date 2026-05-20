@@ -974,7 +974,7 @@ export function PlanningForm({
 
   const categories: ClientCategorySummary[] = [
     { category: 'active', label: 'Активні клієнти', clientCount: activeForecastCount, expectedAmount: activeForecastSum, factAmount: activeFactSum, planCoveragePercent: pctOf(activeForecastSum, planAmount) },
-    { category: 'new', label: 'Нові клієнти по ТМ', clientCount: newGapActiveCount, expectedAmount: newPotentialSum, factAmount: newFactSum, planCoveragePercent: pctOf(newPotentialSum, planAmount) },
+    { category: 'new', label: 'Нові клієнти (категорія 1С)', clientCount: newGapActiveCount, expectedAmount: newPotentialSum, factAmount: newFactSum, planCoveragePercent: pctOf(newPotentialSum, planAmount) },
     { category: 'sleeping_lost', label: 'Активація (Сплячі, Втрачені, БЗ)', clientCount: sleepingGapActiveCount, expectedAmount: sleepingPotentialSum, factAmount: sleepingFactSum, planCoveragePercent: pctOf(sleepingPotentialSum, planAmount) },
   ];
   const totalCatClients = categories.reduce((s, c) => s + c.clientCount, 0);

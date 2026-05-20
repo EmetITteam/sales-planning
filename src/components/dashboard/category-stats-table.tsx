@@ -63,7 +63,7 @@ const CAT_META: Array<{
   { key: 'active',     label: 'Активні клієнти',          icon: Users,       iconClass: 'text-[#066aab]', bgClass: 'bg-[#e8f4fc]' },
   { key: 'activation', label: 'Активізація (Сплячі/Втрачені/БЗ)', icon: RefreshCw, iconClass: 'text-amber-600',  bgClass: 'bg-amber-50' },
   { key: 'unplanned',  label: 'Незаплановані', icon: AlertCircle, iconClass: 'text-fuchsia-600', bgClass: 'bg-fuchsia-50' },
-  { key: 'new',        label: 'Нові клієнти по ТМ',       icon: UserPlus,    iconClass: 'text-emerald-600', bgClass: 'bg-emerald-50' },
+  { key: 'new',        label: 'Нові клієнти (категорія 1С)', icon: UserPlus, iconClass: 'text-emerald-600', bgClass: 'bg-emerald-50' },
 ];
 
 export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Props) {
