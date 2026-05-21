@@ -53,6 +53,15 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background">
+        {/* Glass redesign — animated background mesh + floating blobs + noise.
+            Лежать за всім контентом (z-index: -2/-1). prefers-reduced-motion
+            вимикає анімацію через CSS. */}
+        <div className="glass-mesh" aria-hidden />
+        <div className="glass-blob glass-blob-a" aria-hidden />
+        <div className="glass-blob glass-blob-b" aria-hidden />
+        <div className="glass-blob glass-blob-c" aria-hidden />
+        <div className="glass-blob glass-blob-d" aria-hidden />
+        <div className="glass-noise" aria-hidden />
         <SessionBootstrap>
           <TooltipProvider>{children}</TooltipProvider>
         </SessionBootstrap>

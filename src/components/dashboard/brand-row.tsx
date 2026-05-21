@@ -93,8 +93,8 @@ export function BrandRow({
   return (
     <Wrapper
       onClick={onClick}
-      className={`group w-full text-left bg-white rounded-2xl p-3 md:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] ${
-        onClick && !readOnly ? 'hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer hover:-translate-y-px' : ''
+      className={`group w-full text-left glass-card p-3 md:p-4 ${
+        onClick && !readOnly ? 'hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] cursor-pointer hover:-translate-y-px' : ''
       } transition-all duration-200 ${isInactive ? 'opacity-50' : ''}`}
     >
       {/* === DESKTOP (xl+: 1280px і ширше): один рядок з 9 колонками ===

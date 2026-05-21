@@ -66,8 +66,8 @@
 }
 
 :root {
-  --background: #f4f7fb;
-  --foreground: #1c2434;
+  --background: #f8fbfd;
+  --foreground: #062a3d;
   --card: #ffffff;
   --card-foreground: #1c2434;
   --popover: #ffffff;
@@ -120,6 +120,79 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cfd4db; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #b0b7c8; }
+
+/* ============================================
+   GLASS REDESIGN — фундамент (Stage 1)
+   ============================================
+   Mesh-фон з 4 floating blob-ами + noise overlay + .glass-card utility.
+   Підключається на app-level — фоновий layer лежить за всім контентом. */
+
+.glass-mesh {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+    radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+    radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+    radial-gradient(at 20% 90%, #e0f7fa 0%, transparent 55%),
+    linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
+  pointer-events: none;
+}
+.glass-blob {
+  position: fixed; border-radius: 50%;
+  filter: blur(90px);
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.32;
+  animation: glass-drift 25s ease-in-out infinite;
+}
+.glass-blob-a { width: 520px; height: 520px; background: rgba(6, 106, 171, 0.35); top: -100px; left: -100px; animation-delay: 0s; }
+.glass-blob-b { width: 440px; height: 440px; background: rgba(91, 213, 188, 0.4); top: 30%; right: -80px; animation-delay: -8s; }
+.glass-blob-c { width: 380px; height: 380px; background: rgba(8, 128, 204, 0.3); bottom: -100px; left: 30%; animation-delay: -16s; }
+.glass-blob-d { width: 460px; height: 460px; background: rgba(45, 212, 191, 0.32); top: 60%; left: -120px; animation-delay: -4s; }
+@keyframes glass-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(80px, -60px) scale(1.1); }
+  50% { transform: translate(-40px, 100px) scale(0.95); }
+  75% { transform: translate(60px, 40px) scale(1.05); }
+}
+.glass-noise {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none;
+  opacity: 0.022;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-blob { animation: none; }
+}
+
+/* Glass card utility — застосовуй замість 'bg-white rounded-2xl shadow-...'
+   щоб картка стала frosted-glass. */
+.glass-card {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  box-shadow:
+    0 4px 20px rgba(6, 42, 61, 0.04),
+    0 8px 32px rgba(6, 42, 61, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.glass-card-soft {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 14px;
+}
+.glass-card-mini {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+}
 
 /* v2.1: режим "Сховати суми" — для оперативок (регіони не бачать суми один одного).
    Активується через <body data-hide-amounts="true"> у app-header.tsx.

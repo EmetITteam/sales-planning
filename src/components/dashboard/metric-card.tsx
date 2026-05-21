@@ -39,9 +39,9 @@ export function MetricCard({ icon, iconColor, label, value, caption, isAmount, i
   const sizeClass = iconSize === 'md' ? '[&>svg]:h-16 [&>svg]:w-16' : '[&>svg]:h-28 [&>svg]:w-28';
   const positionClass = iconSize === 'md' ? 'right-2' : 'right-3';
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden min-h-[110px] flex flex-col">
+    <div className="glass-card p-5 relative overflow-hidden min-h-[110px] flex flex-col transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]">
       {/* Watermark-іконка: справа, по центру вертикально, приглушена */}
-      <div className={`absolute ${positionClass} top-1/2 -translate-y-1/2 ${iconColor} opacity-10 pointer-events-none ${sizeClass}`}>
+      <div className={`absolute ${positionClass} top-1/2 -translate-y-1/2 ${iconColor} opacity-15 pointer-events-none ${sizeClass}`}>
         {icon}
       </div>
 
