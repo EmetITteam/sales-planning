@@ -1,20 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionBootstrap } from "@/components/layout/session-bootstrap";
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-sans",
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const jetbrains = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
+// ⚠️ next/font/google вимкнено 2026-05-21: після переходу на Vercel Pro
+// build не завантажував файли шрифтів у `/_next/static/media/`, у UI
+// з'являвся system fallback. Тепер шрифти включаємо напряму через
+// <link> до fonts.googleapis.com — менш оптимально (runtime request
+// замість preload), але працює гарантовано.
 
 export const metadata: Metadata = {
   title: "EMET | Планування продажів",
@@ -50,10 +43,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="uk"
-      className={`${jakarta.variable} ${jetbrains.variable} h-full antialiased`}
-    >
+    <html lang="uk" className="h-full antialiased">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-background">
         <SessionBootstrap>
           <TooltipProvider>{children}</TooltipProvider>
