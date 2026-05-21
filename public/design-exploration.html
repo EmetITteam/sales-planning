@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Exploration · Sales Planning · 5 варіантів</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@200;300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: #fafafa;
+  color: #0a0a0a;
+}
+.amount { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* === GLOBAL NAV === */
+.global-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid #e8e8e8;
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 24px;
+}
+.global-nav .brand {
+  font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.global-nav .brand-dot {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: linear-gradient(135deg, #066aab, #0880cc);
+  color: white; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.global-nav .links {
+  display: flex; gap: 4px; flex: 1;
+}
+.global-nav .links a {
+  padding: 6px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; color: #525252;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.global-nav .links a:hover { background: #f0f0f0; color: #0a0a0a; }
+.global-nav .meta { font-size: 11px; color: #737373; }
+
+/* === SECTION COMMON === */
+.section {
+  min-height: 100vh; padding: 100px 48px 48px;
+  display: flex; flex-direction: column; gap: 32px;
+}
+.section-header {
+  max-width: 1200px; margin: 0 auto; width: 100%;
+}
+.section-header .eyebrow {
+  display: inline-block;
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #737373;
+  margin-bottom: 8px;
+}
+.section-header h2 {
+  font-size: 42px; font-weight: 700; letter-spacing: -1px;
+  margin-bottom: 12px;
+}
+.section-header p { font-size: 15px; color: #525252; max-width: 720px; line-height: 1.6; }
+.section-header .tags {
+  display: flex; gap: 8px; margin-top: 16px;
+}
+.section-header .tags span {
+  font-size: 11px; font-weight: 600;
+  padding: 4px 10px; border-radius: 999px;
+  background: #f0f0f0; color: #525252;
+}
+.mockup-wrap {
+  max-width: 1200px; margin: 0 auto; width: 100%;
+}
+
+/* ====================================================
+   VARIANT 1: LINEAR-INSPIRED — dense, monochrome
+   ==================================================== */
+#v1 { background: #fcfcfc; }
+#v1 .mockup {
+  background: #ffffff; border-radius: 12px;
+  border: 1px solid #e6e6e6;
+  font-family: 'Inter', sans-serif;
+  padding: 24px;
+}
+#v1 .mockup-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding-bottom: 16px; border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 24px;
+}
+#v1 .mockup-header h3 {
+  font-size: 16px; font-weight: 600; letter-spacing: -0.2px;
+}
+#v1 .mockup-header .sub {
+  font-size: 12px; color: #737373; margin-top: 2px;
+}
+#v1 .kpi-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  border: 1px solid #f0f0f0; border-radius: 8px;
+  overflow: hidden;
+}
+#v1 .kpi-cell {
+  padding: 16px 20px;
+  border-right: 1px solid #f0f0f0;
+}
+#v1 .kpi-cell:last-child { border-right: 0; }
+#v1 .kpi-label {
+  font-size: 11px; color: #737373; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  margin-bottom: 8px;
+}
+#v1 .kpi-value {
+  font-size: 24px; font-weight: 600; letter-spacing: -0.5px;
+  font-family: 'JetBrains Mono', monospace;
+}
+#v1 .kpi-delta {
+  font-size: 12px; font-weight: 500; margin-top: 4px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+#v1 .kpi-delta.up { color: #16a34a; }
+#v1 .kpi-delta.down { color: #dc2626; }
+#v1 .brands-table {
+  margin-top: 24px;
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+#v1 .brands-table th {
+  text-align: left; padding: 8px 12px;
+  font-size: 11px; font-weight: 500; color: #737373;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  border-bottom: 1px solid #f0f0f0;
+}
+#v1 .brands-table th:nth-child(n+3) { text-align: right; }
+#v1 .brands-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #fafafa;
+}
+#v1 .brands-table td:nth-child(n+3) { text-align: right; font-family: 'JetBrains Mono', monospace; }
+#v1 .brands-table .brand-name { font-weight: 500; }
+#v1 .brands-table .bar {
+  position: relative; width: 100%; height: 4px;
+  background: #f0f0f0; border-radius: 2px; overflow: hidden;
+}
+#v1 .brands-table .bar > div {
+  height: 100%; background: #0a0a0a; border-radius: 2px;
+}
+#v1 .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; }
+#v1 .status-dot.green { background: #16a34a; }
+#v1 .status-dot.red { background: #dc2626; }
+
+/* ====================================================
+   VARIANT 2: STRIPE PREMIUM — whitespace, big numbers
+   ==================================================== */
+#v2 { background: #ffffff; }
+#v2 .mockup-bg {
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  border-radius: 24px;
+  padding: 56px 48px;
+  border: 1px solid #f0f0f0;
+}
+#v2 .hero-card {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px;
+  padding-bottom: 56px; border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 56px;
+}
+#v2 .hero-cell .eyebrow {
+  font-size: 12px; font-weight: 600; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  margin-bottom: 12px;
+}
+#v2 .hero-cell .big-number {
+  font-size: 64px; font-weight: 600; letter-spacing: -2.5px;
+  color: #0a2540;
+  line-height: 1;
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 12px;
+}
+#v2 .hero-cell .big-number sup {
+  font-size: 28px; font-weight: 500;
+  vertical-align: top; margin-right: 4px;
+  color: #6b7280;
+}
+#v2 .hero-cell .caption {
+  font-size: 14px; color: #6b7280; line-height: 1.5;
+}
+#v2 .hero-cell .delta {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 8px;
+  padding: 4px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: #ecfdf5; color: #065f46;
+}
+#v2 .brands-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+#v2 .brand-tile {
+  padding: 20px; border-radius: 16px;
+  background: #ffffff; border: 1px solid #f0f0f0;
+  transition: all 0.2s;
+}
+#v2 .brand-tile:hover {
+  border-color: #635bff;
+  box-shadow: 0 4px 20px rgba(99,91,255,0.08);
+}
+#v2 .brand-tile .name {
+  font-size: 14px; font-weight: 600; color: #0a2540;
+  margin-bottom: 4px;
+}
+#v2 .brand-tile .pct {
+  font-size: 32px; font-weight: 600; letter-spacing: -1px;
+  color: #0a2540; margin: 12px 0 8px;
+  font-family: 'Inter', sans-serif;
+}
+#v2 .brand-tile .meta {
+  font-size: 12px; color: #6b7280;
+  display: flex; justify-content: space-between;
+}
+#v2 .brand-tile .progress {
+  width: 100%; height: 6px; background: #f0f0f0; border-radius: 3px;
+  margin: 8px 0 12px;
+}
+#v2 .brand-tile .progress > div {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #635bff, #8b5cf6);
+}
+
+/* ====================================================
+   VARIANT 3: BENTO GRID — Apple/Vercel new-site style
+   ==================================================== */
+#v3 { background: #f5f5ee; }
+#v3 .bento {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, minmax(160px, auto));
+  gap: 16px;
+}
+#v3 .bento-card {
+  background: white; border-radius: 24px; padding: 24px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: transform 0.2s;
+}
+#v3 .bento-card:hover { transform: translateY(-2px); }
+#v3 .bento-plan {
+  grid-column: 1 / 3; grid-row: 1 / 2;
+  background: linear-gradient(135deg, #0a2540, #1a3a5c);
+  color: white;
+}
+#v3 .bento-plan .eyebrow {
+  font-size: 12px; color: rgba(255,255,255,0.7);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;
+}
+#v3 .bento-plan .num {
+  font-size: 56px; font-weight: 700; letter-spacing: -1.5px;
+  font-family: 'Manrope', sans-serif;
+}
+#v3 .bento-plan .meta { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 12px; }
+#v3 .bento-fact { grid-column: 3 / 4; grid-row: 1 / 2; background: #5bd5bc; color: #0a2540; }
+#v3 .bento-fact .eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 12px; }
+#v3 .bento-fact .num { font-size: 36px; font-weight: 700; letter-spacing: -1px; font-family: 'Manrope', sans-serif; }
+#v3 .bento-exec {
+  grid-column: 4 / 5; grid-row: 1 / 2;
+  background: #fbbf24; color: #422006;
+}
+#v3 .bento-exec .eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 12px; }
+#v3 .bento-exec .num { font-size: 48px; font-weight: 700; letter-spacing: -1.5px; font-family: 'Manrope', sans-serif; }
+#v3 .bento-brand {
+  grid-column: span 1; grid-row: span 1;
+  background: white;
+}
+#v3 .bento-brand .name { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+#v3 .bento-brand .pct { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; font-family: 'Manrope', sans-serif; }
+#v3 .bento-brand .bar { width: 100%; height: 4px; background: #f0f0e8; border-radius: 2px; margin-top: 12px; }
+#v3 .bento-brand .bar > div { height: 100%; background: #0a2540; border-radius: 2px; }
+#v3 .bento-brand .meta { font-size: 11px; color: #737373; margin-top: 8px; display: flex; justify-content: space-between; }
+#v3 .bento-status {
+  grid-column: 1 / 3; grid-row: 3 / 4;
+  background: white;
+  display: flex; align-items: center; gap: 16px;
+}
+#v3 .bento-status .ring {
+  width: 100px; height: 100px; border-radius: 50%;
+  background: conic-gradient(#5bd5bc 0deg 350deg, #f0f0e8 350deg 360deg);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+#v3 .bento-status .ring::before {
+  content: ''; position: absolute;
+  width: 80px; height: 80px; border-radius: 50%;
+  background: white;
+}
+#v3 .bento-status .ring-text {
+  position: relative; font-size: 24px; font-weight: 700; font-family: 'Manrope', sans-serif;
+}
+
+/* ====================================================
+   VARIANT 4: DARK NATIVE — Vercel/Linear dark
+   ==================================================== */
+#v4 { background: #050505; color: white; }
+#v4 .section-header h2 { color: white; }
+#v4 .section-header p { color: #a3a3a3; }
+#v4 .section-header .tags span { background: #1f1f1f; color: #d4d4d4; }
+#v4 .mockup {
+  background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
+  border: 1px solid #1f1f1f; border-radius: 12px;
+  padding: 32px;
+  font-family: 'Inter', sans-serif;
+}
+#v4 .kpi-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  background: #1f1f1f;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+#v4 .kpi-cell {
+  background: #0a0a0a; padding: 20px 24px;
+}
+#v4 .kpi-cell .label {
+  font-size: 11px; color: #737373; text-transform: uppercase;
+  letter-spacing: 0.5px; font-weight: 500; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+#v4 .kpi-cell .label::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: #5bd5bc; box-shadow: 0 0 8px #5bd5bc;
+}
+#v4 .kpi-cell .val {
+  font-size: 28px; font-weight: 600; letter-spacing: -0.5px;
+  font-family: 'JetBrains Mono', monospace;
+  color: white;
+}
+#v4 .kpi-cell .sub { font-size: 12px; color: #737373; margin-top: 4px; }
+#v4 .kpi-cell .delta { font-size: 12px; font-weight: 500; }
+#v4 .kpi-cell .delta.up { color: #5bd5bc; }
+#v4 .kpi-cell .delta.down { color: #f87171; }
+
+#v4 .brands {
+  border: 1px solid #1f1f1f; border-radius: 12px; overflow: hidden;
+}
+#v4 .brand-row-v4 {
+  display: grid; grid-template-columns: 140px 1fr 80px 100px 100px 80px;
+  align-items: center; gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #1f1f1f;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
+#v4 .brand-row-v4:last-child { border-bottom: 0; }
+#v4 .brand-row-v4:hover { background: #0a0a0a; }
+#v4 .brand-row-v4 .name { color: white; font-family: 'Inter', sans-serif; font-weight: 500; }
+#v4 .brand-row-v4 .bar {
+  height: 6px; background: #1f1f1f; border-radius: 3px;
+  position: relative; overflow: visible;
+}
+#v4 .brand-row-v4 .bar .fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #5bd5bc, #4ade80);
+  box-shadow: 0 0 8px rgba(91,213,188,0.4);
+}
+#v4 .brand-row-v4 .bar .marker {
+  position: absolute; top: -2px; bottom: -2px; width: 2px;
+  background: #fbbf24;
+}
+#v4 .brand-row-v4 .pct { color: #5bd5bc; font-weight: 600; }
+#v4 .brand-row-v4 .pct.bad { color: #f87171; }
+
+/* ====================================================
+   VARIANT 5: GLASS MORPHISM — 2026 trend
+   ==================================================== */
+#v5 {
+  background: linear-gradient(135deg, #ddd6fe 0%, #e0e7ff 30%, #ccfbf1 60%, #fef3c7 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+#v5::before, #v5::after {
+  content: ''; position: absolute;
+  width: 600px; height: 600px; border-radius: 50%;
+  filter: blur(120px);
+  z-index: 0;
+}
+#v5::before { background: rgba(99,91,255,0.4); top: 10%; left: 5%; }
+#v5::after { background: rgba(91,213,188,0.4); bottom: 10%; right: 5%; }
+#v5 .section-header, #v5 .mockup-wrap { position: relative; z-index: 1; }
+#v5 .glass {
+  background: rgba(255,255,255,0.35);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(31,38,135,0.1);
+  padding: 28px;
+}
+#v5 .hero-glass {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  margin-bottom: 16px;
+}
+#v5 .hero-glass .cell {
+  background: rgba(255,255,255,0.35);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 20px; padding: 24px;
+}
+#v5 .hero-glass .label {
+  font-size: 11px; font-weight: 700; color: #1e1b4b;
+  text-transform: uppercase; letter-spacing: 1.2px;
+  opacity: 0.65; margin-bottom: 12px;
+}
+#v5 .hero-glass .val {
+  font-size: 36px; font-weight: 700; letter-spacing: -1px;
+  color: #1e1b4b; font-family: 'Manrope', sans-serif;
+}
+#v5 .hero-glass .sub { font-size: 12px; color: #1e1b4b; opacity: 0.7; margin-top: 8px; }
+#v5 .brands-glass {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+#v5 .brands-glass .item {
+  background: rgba(255,255,255,0.35);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 20px; padding: 20px;
+}
+#v5 .brands-glass .item .name { font-size: 13px; font-weight: 600; color: #1e1b4b; }
+#v5 .brands-glass .item .pct {
+  font-size: 32px; font-weight: 700; letter-spacing: -1px;
+  color: #1e1b4b; font-family: 'Manrope', sans-serif;
+  margin: 8px 0;
+}
+#v5 .brands-glass .item .bar {
+  width: 100%; height: 8px;
+  background: rgba(30,27,75,0.1); border-radius: 4px;
+  overflow: hidden;
+}
+#v5 .brands-glass .item .bar > div {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, #635bff, #5bd5bc);
+}
+#v5 .brands-glass .item .meta {
+  font-size: 11px; color: #1e1b4b; opacity: 0.7;
+  display: flex; justify-content: space-between; margin-top: 10px;
+}
+
+/* === FOOTER === */
+.foot {
+  padding: 48px; text-align: center; background: #0a0a0a; color: #a3a3a3;
+  font-size: 13px;
+}
+.foot p { margin-bottom: 8px; }
+.foot strong { color: white; }
+</style>
+</head>
+<body>
+
+<nav class="global-nav">
+  <div class="brand">
+    <div class="brand-dot">SP</div>
+    <span>Design Exploration</span>
+  </div>
+  <div class="links">
+    <a href="#v1">1. Linear</a>
+    <a href="#v2">2. Stripe</a>
+    <a href="#v3">3. Bento</a>
+    <a href="#v4">4. Dark</a>
+    <a href="#v5">5. Glass</a>
+  </div>
+  <div class="meta">Sales Planning · реальні цифри Травень 2026</div>
+</nav>
+
+<!-- ====================================================
+     VARIANT 1: LINEAR-INSPIRED
+     ==================================================== -->
+<section id="v1" class="section">
+  <div class="section-header">
+    <span class="eyebrow">Варіант 1 · Linear / Notion / Anthropic Console</span>
+    <h2>Density-first · Monochrome</h2>
+    <p>Інформаційна щільність на першому місці. Менше декорацій — більше даних на екран. Один акцентний колір (наш EMET blue), всі дані бачимо одразу без скролу. Підходить для людей які цілий день дивляться у дашборд (директор, РМ).</p>
+    <div class="tags">
+      <span>Inter</span>
+      <span>Mono-numbers</span>
+      <span>Single accent</span>
+      <span>Information dense</span>
+      <span>No shadows</span>
+    </div>
+  </div>
+
+  <div class="mockup-wrap">
+    <div class="mockup">
+      <div class="mockup-header">
+        <div>
+          <h3>Огляд по компанії</h3>
+          <div class="sub">8 регіонів · 20 менеджерів · Травень 2026 · 21 робочий день</div>
+        </div>
+        <div style="font-size:11px;color:#737373;">Updated 17.05 18:42</div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi-cell">
+          <div class="kpi-label">План компанії</div>
+          <div class="kpi-value">$1,049,925</div>
+          <div class="kpi-delta" style="color:#737373;">Заплановано $1,086,207</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kpi-label">Факт</div>
+          <div class="kpi-value">$581,710</div>
+          <div class="kpi-delta up">↑ +$61,731 vs мин.міс.</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kpi-label">Виконання</div>
+          <div class="kpi-value">55.4%</div>
+          <div class="kpi-delta up">+3.0% vs норма</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kpi-label">Заплановано %</div>
+          <div class="kpi-value">103.5%</div>
+          <div class="kpi-delta" style="color:#737373;">Прогноз 105.8%</div>
+        </div>
+      </div>
+
+      <table class="brands-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Бренд</th>
+            <th>Виконання</th>
+            <th>План</th>
+            <th>Факт</th>
+            <th style="width:25%;">Прогрес</th>
+            <th>Δ vs норма</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="status-dot red"></span></td>
+            <td class="brand-name">Petaran</td>
+            <td>20.9%</td>
+            <td>$4,825</td>
+            <td>$1,008</td>
+            <td><div class="bar"><div style="width:20.9%;background:#dc2626;"></div></div></td>
+            <td style="color:#dc2626;">−31.5%</td>
+          </tr>
+          <tr>
+            <td><span class="status-dot green"></span></td>
+            <td class="brand-name">Ellanse</td>
+            <td>57.0%</td>
+            <td>$6,131</td>
+            <td>$3,494</td>
+            <td><div class="bar"><div style="width:57%;"></div></div></td>
+            <td style="color:#16a34a;">+4.6%</td>
+          </tr>
+          <tr>
+            <td><span class="status-dot green"></span></td>
+            <td class="brand-name">EXOXE</td>
+            <td>78.9%</td>
+            <td>$1,521</td>
+            <td>$1,200</td>
+            <td><div class="bar"><div style="width:78.9%;"></div></div></td>
+            <td style="color:#16a34a;">+26.5%</td>
+          </tr>
+          <tr>
+            <td><span class="status-dot red"></span></td>
+            <td class="brand-name">ESSE</td>
+            <td>43.4%</td>
+            <td>$2,582</td>
+            <td>$1,121</td>
+            <td><div class="bar"><div style="width:43.4%;background:#dc2626;"></div></div></td>
+            <td style="color:#dc2626;">−9.0%</td>
+          </tr>
+          <tr>
+            <td><span class="status-dot red"></span></td>
+            <td class="brand-name">Neuramis</td>
+            <td>22.4%</td>
+            <td>$3,873</td>
+            <td>$868</td>
+            <td><div class="bar"><div style="width:22.4%;background:#dc2626;"></div></div></td>
+            <td style="color:#dc2626;">−30.0%</td>
+          </tr>
+          <tr>
+            <td><span class="status-dot green"></span></td>
+            <td class="brand-name">Neuronox</td>
+            <td>76.9%</td>
+            <td>$5,204</td>
+            <td>$4,000</td>
+            <td><div class="bar"><div style="width:76.9%;"></div></div></td>
+            <td style="color:#16a34a;">+24.5%</td>
+          </tr>
+          <tr>
+            <td><span class="status-dot green"></span></td>
+            <td class="brand-name">Vitaran</td>
+            <td>61.8%</td>
+            <td>$24,471</td>
+            <td>$15,115</td>
+            <td><div class="bar"><div style="width:61.8%;"></div></div></td>
+            <td style="color:#16a34a;">+9.4%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+     VARIANT 2: STRIPE PREMIUM
+     ==================================================== -->
+<section id="v2" class="section">
+  <div class="section-header">
+    <span class="eyebrow">Варіант 2 · Stripe / Linear marketing / Apple</span>
+    <h2>Premium · Whitespace</h2>
+    <p>Багато повітря, великі красиві числа, м'які градієнти. «Executive feel» — впізнавана естетика преміум B2B продуктів (Stripe Dashboard). Підходить для презентацій директорам, інвесторам, зовнішнім аудиторіям.</p>
+    <div class="tags">
+      <span>Big numbers</span>
+      <span>Whitespace</span>
+      <span>Soft gradients</span>
+      <span>Executive feel</span>
+    </div>
+  </div>
+
+  <div class="mockup-wrap">
+    <div class="mockup-bg">
+      <div class="hero-card">
+        <div class="hero-cell">
+          <div class="eyebrow">План компанії · Травень 2026</div>
+          <div class="big-number"><sup>$</sup>1,049,925</div>
+          <div class="caption">Розподілено на 8 регіонів · 20 активних менеджерів<br>21 робочий день у місяці</div>
+        </div>
+        <div class="hero-cell">
+          <div class="eyebrow">Факт станом на 17 травня</div>
+          <div class="big-number"><sup>$</sup>581,710</div>
+          <div class="caption">55.4% від плану · норма дня 52.4%</div>
+          <div class="delta">↑ +$61,731 краще за минулий місяць</div>
+        </div>
+        <div class="hero-cell">
+          <div class="eyebrow">Прогноз кінця місяця</div>
+          <div class="big-number" style="color:#635bff;">105.8<sup style="font-size:32px;color:#635bff;">%</sup></div>
+          <div class="caption">Темп: $1.11M очікувано · переплан +$60K</div>
+          <div class="delta">↑ Y2Y зростання заплановане</div>
+        </div>
+      </div>
+
+      <div class="brands-grid">
+        <div class="brand-tile">
+          <div class="name">Vitaran</div>
+          <div class="pct">61.8%</div>
+          <div class="progress"><div style="width:61.8%;"></div></div>
+          <div class="meta">
+            <span>План $24,471</span>
+            <span>Факт $15,115</span>
+          </div>
+        </div>
+        <div class="brand-tile">
+          <div class="name">EXOXE</div>
+          <div class="pct">78.9%</div>
+          <div class="progress"><div style="width:78.9%;"></div></div>
+          <div class="meta">
+            <span>План $1,521</span>
+            <span>Факт $1,200</span>
+          </div>
+        </div>
+        <div class="brand-tile">
+          <div class="name">Neuronox</div>
+          <div class="pct">76.9%</div>
+          <div class="progress"><div style="width:76.9%;"></div></div>
+          <div class="meta">
+            <span>План $5,204</span>
+            <span>Факт $4,000</span>
+          </div>
+        </div>
+        <div class="brand-tile">
+          <div class="name">Ellanse</div>
+          <div class="pct">57.0%</div>
+          <div class="progress"><div style="width:57%;"></div></div>
+          <div class="meta">
+            <span>План $6,131</span>
+            <span>Факт $3,494</span>
+          </div>
+        </div>
+        <div class="brand-tile">
+          <div class="name">ESSE</div>
+          <div class="pct" style="color:#dc2626;">43.4%</div>
+          <div class="progress"><div style="width:43.4%;background:linear-gradient(90deg,#dc2626,#f87171);"></div></div>
+          <div class="meta">
+            <span>План $2,582</span>
+            <span>Факт $1,121</span>
+          </div>
+        </div>
+        <div class="brand-tile">
+          <div class="name">Neuramis</div>
+          <div class="pct" style="color:#dc2626;">22.4%</div>
+          <div class="progress"><div style="width:22.4%;background:linear-gradient(90deg,#dc2626,#f87171);"></div></div>
+          <div class="meta">
+            <span>План $3,873</span>
+            <span>Факт $868</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+     VARIANT 3: BENTO GRID
+     ==================================================== -->
+<section id="v3" class="section">
+  <div class="section-header">
+    <span class="eyebrow">Варіант 3 · Apple новий стиль / Vercel landing / Bento</span>
+    <h2>Bento Grid · Personality</h2>
+    <p>Мікс різнорозмірних карток у grid. Кожна картка має «характер» — колір, акцент, розмір залежно від важливості. Сучасний 2024-2026 тренд (Apple iPad сайти, Vercel landing). Найбільш «modern» з усіх варіантів, але і найбільш ризикований — не всім подобається.</p>
+    <div class="tags">
+      <span>Manrope</span>
+      <span>Mixed sizes</span>
+      <span>Bold colors</span>
+      <span>2024-2026 trend</span>
+    </div>
+  </div>
+
+  <div class="mockup-wrap">
+    <div class="bento">
+      <div class="bento-card bento-plan">
+        <div class="eyebrow">План компанії · Травень</div>
+        <div class="num">$1.05M</div>
+        <div class="meta">21 робочий день · 8 регіонів · 20 менеджерів</div>
+        <div style="margin-top: 24px; font-size: 13px; opacity: 0.6;">Заплановано: $1.08M (103.5%)</div>
+      </div>
+      <div class="bento-card bento-fact">
+        <div class="eyebrow">Факт</div>
+        <div class="num">$582K</div>
+        <div style="font-size: 13px; margin-top: 12px; opacity: 0.7;">+$61.7K vs минулий</div>
+      </div>
+      <div class="bento-card bento-exec">
+        <div class="eyebrow">Виконання</div>
+        <div class="num">55.4%</div>
+        <div style="font-size: 13px; margin-top: 12px; opacity: 0.7;">+3.0% vs норма</div>
+      </div>
+
+      <div class="bento-card bento-brand">
+        <div class="name">Vitaran</div>
+        <div class="pct">61.8%</div>
+        <div class="bar"><div style="width:61.8%;"></div></div>
+        <div class="meta"><span>$24K план</span><span>$15K факт</span></div>
+      </div>
+      <div class="bento-card bento-brand">
+        <div class="name">EXOXE</div>
+        <div class="pct">78.9%</div>
+        <div class="bar"><div style="width:78.9%;"></div></div>
+        <div class="meta"><span>$1.5K план</span><span>$1.2K факт</span></div>
+      </div>
+      <div class="bento-card bento-brand">
+        <div class="name">Neuronox</div>
+        <div class="pct">76.9%</div>
+        <div class="bar"><div style="width:76.9%;"></div></div>
+        <div class="meta"><span>$5.2K план</span><span>$4.0K факт</span></div>
+      </div>
+      <div class="bento-card bento-brand">
+        <div class="name">Ellanse</div>
+        <div class="pct">57.0%</div>
+        <div class="bar"><div style="width:57%;"></div></div>
+        <div class="meta"><span>$6.1K план</span><span>$3.5K факт</span></div>
+      </div>
+
+      <div class="bento-card bento-status">
+        <div class="ring">
+          <div class="ring-text">95%</div>
+        </div>
+        <div>
+          <div style="font-size: 12px; color: #737373; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 8px;">Готовність планування</div>
+          <div style="font-size: 18px; font-weight: 600; color: #0a2540;">18 з 20 менеджерів</div>
+          <div style="font-size: 13px; color: #525252; margin-top: 4px;">2 у роботі · 1 новачок</div>
+        </div>
+      </div>
+      <div class="bento-card bento-brand" style="grid-column: span 2;">
+        <div class="name">Клієнти — факт купівель</div>
+        <div style="display: flex; gap: 24px; margin-top: 16px;">
+          <div>
+            <div style="font-size: 32px; font-weight: 700; font-family: Manrope; letter-spacing: -1px;">811<span style="font-size: 18px; opacity: 0.4;"> / 2288</span></div>
+            <div style="font-size: 11px; color: #737373; text-transform: uppercase; letter-spacing: 1px;">Активні</div>
+          </div>
+          <div>
+            <div style="font-size: 32px; font-weight: 700; font-family: Manrope; letter-spacing: -1px;">116<span style="font-size: 18px; opacity: 0.4;"> / 4002</span></div>
+            <div style="font-size: 11px; color: #737373; text-transform: uppercase; letter-spacing: 1px;">Сплячі</div>
+          </div>
+          <div>
+            <div style="font-size: 32px; font-weight: 700; font-family: Manrope; letter-spacing: -1px;">20<span style="font-size: 18px; opacity: 0.4;"> / 135</span></div>
+            <div style="font-size: 11px; color: #737373; text-transform: uppercase; letter-spacing: 1px;">Нові</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+     VARIANT 4: DARK NATIVE
+     ==================================================== -->
+<section id="v4" class="section">
+  <div class="section-header">
+    <span class="eyebrow">Варіант 4 · Vercel / Linear dark / Bloomberg terminal</span>
+    <h2>Dark Native · Tech-forward</h2>
+    <p>Темна тема за замовчуванням. Високий контраст білого тексту на майже-чорному. EMET-mint як акцент із світлим glow-ефектом. Виглядає «технічно і серйозно», як Bloomberg-термінал чи Linear. Менш напружує очі при роботі цілий день.</p>
+    <div class="tags">
+      <span>Dark by default</span>
+      <span>EMET mint glow</span>
+      <span>High contrast</span>
+      <span>Terminal feel</span>
+    </div>
+  </div>
+
+  <div class="mockup-wrap">
+    <div class="mockup">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+          <h3 style="font-size: 18px; font-weight: 600; color: white;">Огляд по компанії</h3>
+          <div style="font-size: 12px; color: #737373; margin-top: 2px;">8 регіонів · 20 менеджерів · Травень 2026</div>
+        </div>
+        <div style="font-size: 11px; color: #5bd5bc; font-family: 'JetBrains Mono', monospace;">● LIVE 17.05 18:42</div>
+      </div>
+
+      <div class="kpi-strip">
+        <div class="kpi-cell">
+          <div class="label">План</div>
+          <div class="val">$1,049,925</div>
+          <div class="sub">21 робочий день</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="label">Факт</div>
+          <div class="val">$581,710</div>
+          <div class="delta up">+$61,731 vs мин.</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="label">Виконання</div>
+          <div class="val">55.4%</div>
+          <div class="delta up">+3.0% vs норма</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="label">Заплановано</div>
+          <div class="val">103.5%</div>
+          <div class="sub">прогноз 105.8%</div>
+        </div>
+      </div>
+
+      <div class="brands">
+        <div class="brand-row-v4">
+          <span class="name">Petaran</span>
+          <div class="bar"><div class="fill" style="width:20.9%;background:linear-gradient(90deg,#f87171,#fb7185);box-shadow:0 0 8px rgba(248,113,113,0.4);"></div><div class="marker" style="left:52.4%;"></div></div>
+          <span class="pct bad">20.9%</span>
+          <span style="color:#a3a3a3;">$4,825</span>
+          <span style="color:#a3a3a3;">$1,008</span>
+          <span style="color:#f87171;font-size:12px;">−31.5%</span>
+        </div>
+        <div class="brand-row-v4">
+          <span class="name">Ellanse</span>
+          <div class="bar"><div class="fill" style="width:57%;"></div><div class="marker" style="left:52.4%;"></div></div>
+          <span class="pct">57.0%</span>
+          <span style="color:#a3a3a3;">$6,131</span>
+          <span style="color:#a3a3a3;">$3,494</span>
+          <span style="color:#5bd5bc;font-size:12px;">+4.6%</span>
+        </div>
+        <div class="brand-row-v4">
+          <span class="name">EXOXE</span>
+          <div class="bar"><div class="fill" style="width:78.9%;"></div><div class="marker" style="left:52.4%;"></div></div>
+          <span class="pct">78.9%</span>
+          <span style="color:#a3a3a3;">$1,521</span>
+          <span style="color:#a3a3a3;">$1,200</span>
+          <span style="color:#5bd5bc;font-size:12px;">+26.5%</span>
+        </div>
+        <div class="brand-row-v4">
+          <span class="name">ESSE</span>
+          <div class="bar"><div class="fill" style="width:43.4%;background:linear-gradient(90deg,#f87171,#fb7185);box-shadow:0 0 8px rgba(248,113,113,0.4);"></div><div class="marker" style="left:52.4%;"></div></div>
+          <span class="pct bad">43.4%</span>
+          <span style="color:#a3a3a3;">$2,582</span>
+          <span style="color:#a3a3a3;">$1,121</span>
+          <span style="color:#f87171;font-size:12px;">−9.0%</span>
+        </div>
+        <div class="brand-row-v4">
+          <span class="name">Neuramis</span>
+          <div class="bar"><div class="fill" style="width:22.4%;background:linear-gradient(90deg,#f87171,#fb7185);box-shadow:0 0 8px rgba(248,113,113,0.4);"></div><div class="marker" style="left:52.4%;"></div></div>
+          <span class="pct bad">22.4%</span>
+          <span style="color:#a3a3a3;">$3,873</span>
+          <span style="color:#a3a3a3;">$868</span>
+          <span style="color:#f87171;font-size:12px;">−30.0%</span>
+        </div>
+        <div class="brand-row-v4">
+          <span class="name">Neuronox</span>
+          <div class="bar"><div class="fill" style="width:76.9%;"></div><div class="marker" style="left:52.4%;"></div></div>
+          <span class="pct">76.9%</span>
+          <span style="color:#a3a3a3;">$5,204</span>
+          <span style="color:#a3a3a3;">$4,000</span>
+          <span style="color:#5bd5bc;font-size:12px;">+24.5%</span>
+        </div>
+        <div class="brand-row-v4">
+          <span class="name">Vitaran</span>
+          <div class="bar"><div class="fill" style="width:61.8%;"></div><div class="marker" style="left:52.4%;"></div></div>
+          <span class="pct">61.8%</span>
+          <span style="color:#a3a3a3;">$24,471</span>
+          <span style="color:#a3a3a3;">$15,115</span>
+          <span style="color:#5bd5bc;font-size:12px;">+9.4%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+     VARIANT 5: GLASS MORPHISM
+     ==================================================== -->
+<section id="v5" class="section">
+  <div class="section-header">
+    <span class="eyebrow">Варіант 5 · 2026 design trend · Apple Vision Pro / Arc Browser</span>
+    <h2>Glass Morphism · Spatial</h2>
+    <p>Frosted glass картки на градієнтному фоні. Сучасний 2026 тренд (Apple Vision Pro, Arc Browser, новий macOS). Виглядає «спатіально», як у фільмі. Дуже сильне візуальне враження, але треба готовність команди до незвичного UI.</p>
+    <div class="tags">
+      <span>Frosted glass</span>
+      <span>Gradient mesh</span>
+      <span>2026 trend</span>
+      <span>High visual impact</span>
+    </div>
+  </div>
+
+  <div class="mockup-wrap">
+    <div class="hero-glass">
+      <div class="cell">
+        <div class="label">План компанії</div>
+        <div class="val">$1.05M</div>
+        <div class="sub">21 робочий день · травень 2026</div>
+      </div>
+      <div class="cell">
+        <div class="label">Факт</div>
+        <div class="val">$582K</div>
+        <div class="sub">↑ +$61K vs минулий</div>
+      </div>
+      <div class="cell">
+        <div class="label">Виконання</div>
+        <div class="val">55.4%</div>
+        <div class="sub">+3.0% vs норма</div>
+      </div>
+      <div class="cell">
+        <div class="label">Прогноз</div>
+        <div class="val">105.8%</div>
+        <div class="sub">переплан очікується</div>
+      </div>
+    </div>
+
+    <div class="brands-glass">
+      <div class="item">
+        <div class="name">Vitaran</div>
+        <div class="pct">61.8%</div>
+        <div class="bar"><div style="width:61.8%;"></div></div>
+        <div class="meta"><span>$24.4K план</span><span>$15.1K факт</span></div>
+      </div>
+      <div class="item">
+        <div class="name">EXOXE</div>
+        <div class="pct">78.9%</div>
+        <div class="bar"><div style="width:78.9%;"></div></div>
+        <div class="meta"><span>$1.5K план</span><span>$1.2K факт</span></div>
+      </div>
+      <div class="item">
+        <div class="name">Neuronox</div>
+        <div class="pct">76.9%</div>
+        <div class="bar"><div style="width:76.9%;"></div></div>
+        <div class="meta"><span>$5.2K план</span><span>$4.0K факт</span></div>
+      </div>
+      <div class="item">
+        <div class="name">Ellanse</div>
+        <div class="pct">57.0%</div>
+        <div class="bar"><div style="width:57%;"></div></div>
+        <div class="meta"><span>$6.1K план</span><span>$3.5K факт</span></div>
+      </div>
+      <div class="item">
+        <div class="name">ESSE</div>
+        <div class="pct" style="color:#991b1b;">43.4%</div>
+        <div class="bar"><div style="width:43.4%;background:linear-gradient(90deg,#dc2626,#ef4444);"></div></div>
+        <div class="meta"><span>$2.6K план</span><span>$1.1K факт</span></div>
+      </div>
+      <div class="item">
+        <div class="name">Neuramis</div>
+        <div class="pct" style="color:#991b1b;">22.4%</div>
+        <div class="bar"><div style="width:22.4%;background:linear-gradient(90deg,#dc2626,#ef4444);"></div></div>
+        <div class="meta"><span>$3.9K план</span><span>$868 факт</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================
+     COMPARISON FOOTER
+     ==================================================== -->
+<section style="background: #ffffff; padding: 80px 48px; border-top: 1px solid #e6e6e6;">
+  <div style="max-width: 1200px; margin: 0 auto;">
+    <h2 style="font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 32px;">Порівняння — який підходить EMET?</h2>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <thead>
+        <tr style="border-bottom: 2px solid #e6e6e6;">
+          <th style="text-align:left; padding: 12px;">Варіант</th>
+          <th style="text-align:left; padding: 12px;">Сильна сторона</th>
+          <th style="text-align:left; padding: 12px;">Кому підійде</th>
+          <th style="text-align:center; padding: 12px;">Ризик</th>
+          <th style="text-align:center; padding: 12px;">Зусилля</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 16px 12px; font-weight: 600;">1. Linear (density)</td>
+          <td style="padding: 16px 12px; color: #525252;">Максимум даних на екран, серйозно</td>
+          <td style="padding: 16px 12px; color: #525252;">Директор, РМ — щоденне використання</td>
+          <td style="padding: 16px 12px; text-align: center;">🟢 Низький</td>
+          <td style="padding: 16px 12px; text-align: center;">2-3 дні</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 16px 12px; font-weight: 600;">2. Stripe (premium)</td>
+          <td style="padding: 16px 12px; color: #525252;">Преміум-feel для презентацій</td>
+          <td style="padding: 16px 12px; color: #525252;">Інвестори, керівництво, презентації</td>
+          <td style="padding: 16px 12px; text-align: center;">🟢 Низький</td>
+          <td style="padding: 16px 12px; text-align: center;">3-4 дні</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 16px 12px; font-weight: 600;">3. Bento (modern)</td>
+          <td style="padding: 16px 12px; color: #525252;">Сучасний, кожна картка з характером</td>
+          <td style="padding: 16px 12px; color: #525252;">Якщо хочеться «wow»-фактор</td>
+          <td style="padding: 16px 12px; text-align: center;">🟡 Середній</td>
+          <td style="padding: 16px 12px; text-align: center;">4-5 днів</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 16px 12px; font-weight: 600;">4. Dark (terminal)</td>
+          <td style="padding: 16px 12px; color: #525252;">Не напружує очі, виглядає серйозно</td>
+          <td style="padding: 16px 12px; color: #525252;">Якщо менеджери цілий день дивляться</td>
+          <td style="padding: 16px 12px; text-align: center;">🟡 Середній</td>
+          <td style="padding: 16px 12px; text-align: center;">5-7 днів (контент адаптувати)</td>
+        </tr>
+        <tr>
+          <td style="padding: 16px 12px; font-weight: 600;">5. Glass (2026)</td>
+          <td style="padding: 16px 12px; color: #525252;">Дуже сучасно, візуально вражає</td>
+          <td style="padding: 16px 12px; color: #525252;">Якщо команда готова до незвичного UI</td>
+          <td style="padding: 16px 12px; text-align: center;">🔴 Високий (читабельність)</td>
+          <td style="padding: 16px 12px; text-align: center;">5-6 днів</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top: 48px; padding: 24px; background: #fafafa; border-radius: 16px; border-left: 4px solid #066aab;">
+      <div style="font-size: 11px; font-weight: 700; color: #066aab; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Моя рекомендація</div>
+      <p style="font-size: 15px; line-height: 1.6;">
+        Для EMET — <strong>Варіант 1 (Linear-inspired)</strong> або <strong>Варіант 4 (Dark)</strong>.<br>
+        Поточний UI вже близький до Stripe-style — оновлення дасть свіжість але не змінить парадигму.<br>
+        Варіант 3 (Bento) і 5 (Glass) — гарні для презентацій, але у щоденній роботі швидко набриднуть.
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="foot">
+  <p><strong>Sales Planning · Design Exploration</strong></p>
+  <p>5 варіантів сучасних дашбордів на основі реальних даних EMET</p>
+  <p style="margin-top: 16px;">Згенеровано Claude · 2026-05-21</p>
+</div>
+
+</body>
+</html>
