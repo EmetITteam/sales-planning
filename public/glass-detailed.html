@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glass Morphism · Sales Planning · Detailed Exploration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root {
+  --ink: #0f0a3d;
+  --ink-soft: rgba(15, 10, 61, 0.75);
+  --ink-muted: rgba(15, 10, 61, 0.55);
+  --ink-faded: rgba(15, 10, 61, 0.35);
+  --accent: #635bff;
+  --accent2: #5bd5bc;
+  --warn: #fb923c;
+  --bad: #e11d48;
+  --good: #10b981;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Manrope', sans-serif;
+  background: #f0e7ff;
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+.amount, .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* ====================================================
+   ANIMATED GRADIENT MESH BACKGROUND
+   ==================================================== */
+.mesh-bg {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(at 20% 20%, #ddd6fe 0%, transparent 50%),
+    radial-gradient(at 80% 30%, #ccfbf1 0%, transparent 50%),
+    radial-gradient(at 60% 80%, #fef3c7 0%, transparent 50%),
+    radial-gradient(at 20% 90%, #fce7f3 0%, transparent 50%),
+    linear-gradient(135deg, #ede9fe 0%, #ccfbf1 50%, #fef3c7 100%);
+}
+
+/* Floating blobs that slowly drift */
+.blob {
+  position: fixed; border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.6;
+  animation: blob-drift 25s ease-in-out infinite;
+}
+.blob.a { width: 520px; height: 520px; background: rgba(99,91,255,0.5); top: -100px; left: -100px; animation-delay: 0s; }
+.blob.b { width: 440px; height: 440px; background: rgba(91,213,188,0.5); top: 30%; right: -80px; animation-delay: -8s; }
+.blob.c { width: 380px; height: 380px; background: rgba(251,146,60,0.4); bottom: -100px; left: 30%; animation-delay: -16s; }
+.blob.d { width: 460px; height: 460px; background: rgba(236,72,153,0.35); top: 60%; left: -120px; animation-delay: -4s; }
+
+@keyframes blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(80px, -60px) scale(1.1); }
+  50% { transform: translate(-40px, 100px) scale(0.95); }
+  75% { transform: translate(60px, 40px) scale(1.05); }
+}
+
+/* Subtle noise texture overlay for realistic frosted glass */
+.noise {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Mouse spotlight — follows cursor with soft glow */
+.spotlight {
+  position: fixed;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.5) 0%, transparent 70%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  mix-blend-mode: overlay;
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+body:hover .spotlight { opacity: 1; }
+
+/* ====================================================
+   GLASS COMPONENT BASE
+   ==================================================== */
+.glass {
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 24px;
+  box-shadow:
+    0 8px 32px rgba(31, 38, 135, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.glass-soft {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 16px;
+}
+
+/* ====================================================
+   NAV
+   ==================================================== */
+.nav {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 100;
+  padding: 12px 24px;
+  display: flex; gap: 24px; align-items: center;
+  border-radius: 999px;
+}
+.nav .brand { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.nav .brand-icon {
+  width: 24px; height: 24px; border-radius: 8px;
+  background: linear-gradient(135deg, #635bff, #5bd5bc);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 11px; font-weight: 800;
+}
+.nav .links { display: flex; gap: 8px; font-size: 12px; }
+.nav .links a {
+  padding: 6px 14px; border-radius: 999px;
+  color: var(--ink-soft); text-decoration: none;
+  font-weight: 600; transition: all 0.2s;
+}
+.nav .links a:hover { background: rgba(255,255,255,0.5); color: var(--ink); }
+.nav .live {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--ink-soft);
+}
+.nav .live::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: #10b981; box-shadow: 0 0 8px #10b981;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* ====================================================
+   PAGE LAYOUT
+   ==================================================== */
+.page {
+  padding: 120px 32px 64px;
+  max-width: 1280px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.hero-title {
+  margin-bottom: 56px;
+  text-align: center;
+}
+.hero-title .eyebrow {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+}
+.hero-title h1 {
+  font-size: 56px; font-weight: 200; letter-spacing: -2px;
+  line-height: 1; color: var(--ink);
+}
+.hero-title h1 b {
+  font-weight: 700;
+  background: linear-gradient(135deg, #635bff 0%, #5bd5bc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero-title p {
+  font-size: 16px; color: var(--ink-muted); margin-top: 16px;
+  max-width: 580px; margin-left: auto; margin-right: auto; line-height: 1.6;
+}
+
+/* ====================================================
+   KPI HERO CARDS — with all the bells and whistles
+   ==================================================== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.kpi-card {
+  padding: 28px;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: default;
+  overflow: hidden;
+  /* For 3D tilt */
+  transform-style: preserve-3d;
+}
+.kpi-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.4), transparent 60%);
+  opacity: 0; transition: opacity 0.3s;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.kpi-card:hover::before { opacity: 1; }
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 20px 60px rgba(31, 38, 135, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.kpi-card .label {
+  font-size: 11px; font-weight: 700;
+  color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: 1.3px;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.kpi-card .label .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+.kpi-card .label .dot.green { background: var(--good); box-shadow: 0 0 6px var(--good); }
+.kpi-card .label .dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+.kpi-card .label .dot.mint { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+
+.kpi-card .value {
+  font-size: 40px; font-weight: 700; letter-spacing: -1.2px;
+  color: var(--ink); line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-card .value sup {
+  font-size: 22px; font-weight: 500;
+  vertical-align: top; margin-right: 2px;
+  color: var(--ink-muted);
+}
+.kpi-card .sub {
+  font-size: 13px; color: var(--ink-soft); margin-top: 10px;
+}
+.kpi-card .delta {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 12px;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+  font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-card .delta.warn { background: rgba(251, 146, 60, 0.2); color: #c2410c; }
+
+/* Mini sparkline */
+.spark {
+  width: 100%; height: 32px;
+  margin-top: 16px;
+  opacity: 0.8;
+}
+.spark path { fill: none; stroke-width: 2; stroke-linecap: round; }
+.spark .line { stroke: var(--accent); }
+.spark .fill { fill: rgba(99, 91, 255, 0.15); stroke: none; }
+.spark .line.good { stroke: var(--good); }
+.spark .line.good ~ .fill, .spark .fill.good { fill: rgba(16, 185, 129, 0.18); }
+.spark .line.warn { stroke: var(--warn); }
+.spark .line.warn ~ .fill, .spark .fill.warn { fill: rgba(251, 146, 60, 0.15); }
+
+/* Ambient color glow per card based on performance */
+.kpi-card.ambient-good {
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(16, 185, 129, 0.12));
+}
+.kpi-card.ambient-warn {
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(251, 146, 60, 0.12));
+}
+.kpi-card.ambient-bad {
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(225, 29, 72, 0.12));
+}
+
+/* ====================================================
+   SECTION HEADER (between groups)
+   ==================================================== */
+.section-title {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 24px;
+  padding: 0 4px;
+}
+.section-title h2 {
+  font-size: 28px; font-weight: 600; letter-spacing: -0.8px;
+  color: var(--ink);
+}
+.section-title .meta {
+  font-size: 12px; color: var(--ink-muted);
+  display: flex; align-items: center; gap: 12px;
+}
+.section-title .meta::before {
+  content: ''; height: 1px; width: 40px;
+  background: var(--ink-faded);
+}
+
+/* ====================================================
+   BRAND CARDS — full Glass treatment
+   ==================================================== */
+.brands {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  margin-bottom: 48px;
+}
+
+.brand-card {
+  padding: 24px;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  overflow: hidden;
+}
+.brand-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.5), transparent 50%);
+  opacity: 0; transition: opacity 0.3s;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.brand-card:hover::before { opacity: 1; }
+.brand-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.brand-card .header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.brand-card .name {
+  font-size: 16px; font-weight: 700; color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+}
+.brand-card .name .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+.brand-card .status {
+  font-size: 10px; font-weight: 700;
+  padding: 4px 10px; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: 1px;
+  background: rgba(16, 185, 129, 0.2); color: #065f46;
+  backdrop-filter: blur(8px);
+}
+.brand-card .status.warn { background: rgba(251, 146, 60, 0.2); color: #9a3412; }
+.brand-card .status.bad { background: rgba(225, 29, 72, 0.2); color: #9f1239; }
+
+.brand-card .big {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-bottom: 16px;
+}
+.brand-card .pct {
+  font-size: 40px; font-weight: 700; letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.brand-card .dev { font-size: 13px; font-weight: 600; }
+.brand-card .dev.good { color: var(--good); }
+.brand-card .dev.bad { color: var(--bad); }
+
+.brand-card .bar-wrap {
+  position: relative;
+  width: 100%; height: 10px;
+  background: rgba(15, 10, 61, 0.08);
+  border-radius: 5px;
+  margin-bottom: 14px;
+  overflow: visible;
+}
+.brand-card .bar {
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #635bff, #5bd5bc);
+  box-shadow: 0 0 8px rgba(99, 91, 255, 0.3);
+  position: relative;
+  transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.brand-card .bar.bad {
+  background: linear-gradient(90deg, #e11d48, #fb7185);
+  box-shadow: 0 0 8px rgba(225, 29, 72, 0.3);
+}
+.brand-card .marker {
+  position: absolute; top: -3px; bottom: -3px; width: 2px;
+  background: var(--ink); opacity: 0.6;
+  border-radius: 1px;
+}
+
+.brand-card .footer {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 12px;
+}
+.brand-card .footer strong { color: var(--ink); font-weight: 700; }
+
+.brand-card .spark-mini {
+  width: 100%; height: 24px;
+  margin-top: 12px;
+  opacity: 0.7;
+}
+
+/* Ambient glow per brand based on performance */
+.brand-card.glow-good {
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(16, 185, 129, 0.1));
+}
+.brand-card.glow-bad {
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(225, 29, 72, 0.1));
+}
+.brand-card.glow-good::after {
+  content: ''; position: absolute; inset: -2px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 70% 30%, rgba(16, 185, 129, 0.3), transparent 60%);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(20px);
+}
+.brand-card.glow-good:hover::after { opacity: 1; }
+.brand-card.glow-bad::after {
+  content: ''; position: absolute; inset: -2px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 70% 30%, rgba(225, 29, 72, 0.3), transparent 60%);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(20px);
+}
+.brand-card.glow-bad:hover::after { opacity: 1; }
+
+/* ====================================================
+   MANAGER CHIPS — magnetic hover
+   ==================================================== */
+.managers-wrap { margin-bottom: 48px; }
+.managers {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.manager-chip {
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 14px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+.manager-chip:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.5);
+}
+.manager-chip .avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, #635bff, #5bd5bc);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.manager-chip .info { flex: 1; min-width: 0; }
+.manager-chip .name { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.manager-chip .meta { font-size: 11px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.manager-chip .pct {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.manager-chip .pct.good { color: var(--good); }
+.manager-chip .pct.bad { color: var(--bad); }
+.manager-chip .pct.warn { color: var(--warn); }
+
+/* ====================================================
+   FEATURE LIST — what's in the demo
+   ==================================================== */
+.features {
+  margin-top: 80px;
+  padding: 40px;
+}
+.features h2 {
+  font-size: 28px; font-weight: 600; letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+.features .lead {
+  font-size: 14px; color: var(--ink-muted); margin-bottom: 32px;
+}
+.features ol {
+  list-style: none; counter-reset: feature-num;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+}
+.features li {
+  counter-increment: feature-num;
+  padding: 16px 20px 16px 56px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.features li::before {
+  content: counter(feature-num, decimal-leading-zero);
+  position: absolute; left: 16px; top: 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  background: rgba(99, 91, 255, 0.12);
+  padding: 4px 6px; border-radius: 6px;
+}
+.features li b {
+  font-size: 13px; font-weight: 700;
+  display: block; margin-bottom: 4px;
+}
+.features li span {
+  font-size: 12px; color: var(--ink-muted); line-height: 1.5;
+}
+
+.cta {
+  margin-top: 64px;
+  padding: 48px;
+  text-align: center;
+}
+.cta h2 {
+  font-size: 32px; font-weight: 600; letter-spacing: -0.8px;
+  margin-bottom: 12px;
+}
+.cta p { font-size: 14px; color: var(--ink-muted); margin-bottom: 24px; }
+.cta-btn {
+  display: inline-block;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #635bff, #5bd5bc);
+  color: white; font-weight: 700;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(99, 91, 255, 0.3);
+  transition: transform 0.2s;
+}
+.cta-btn:hover { transform: translateY(-2px) scale(1.03); }
+
+/* ====================================================
+   REVEAL ON SCROLL
+   ==================================================== */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* Stagger delays */
+.reveal:nth-child(1) { transition-delay: 0s; }
+.reveal:nth-child(2) { transition-delay: 0.05s; }
+.reveal:nth-child(3) { transition-delay: 0.1s; }
+.reveal:nth-child(4) { transition-delay: 0.15s; }
+.reveal:nth-child(5) { transition-delay: 0.2s; }
+.reveal:nth-child(6) { transition-delay: 0.25s; }
+.reveal:nth-child(7) { transition-delay: 0.3s; }
+.reveal:nth-child(8) { transition-delay: 0.35s; }
+.reveal:nth-child(9) { transition-delay: 0.4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .blob, .nav .live::before { animation: none; }
+  .reveal { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Background mesh + floating blobs -->
+<div class="mesh-bg"></div>
+<div class="blob a"></div>
+<div class="blob b"></div>
+<div class="blob c"></div>
+<div class="blob d"></div>
+<div class="noise"></div>
+<div class="spotlight" id="spotlight"></div>
+
+<!-- Nav -->
+<nav class="nav glass">
+  <div class="brand">
+    <div class="brand-icon">SP</div>
+    <span>EMET · Sales Planning</span>
+  </div>
+  <div class="links">
+    <a href="#kpi">Огляд</a>
+    <a href="#brands">Бренди</a>
+    <a href="#managers">Менеджери</a>
+    <a href="#features">Фішки</a>
+  </div>
+  <div class="live">LIVE · 21.05 21:30</div>
+</nav>
+
+<main class="page">
+
+  <!-- HERO TITLE -->
+  <div class="hero-title">
+    <span class="eyebrow">Design exploration · Glass Morphism deep dive</span>
+    <h1>Sales Planning<br><b>у скляному стилі</b></h1>
+    <p>Frosted glass, рухомі градієнти, 3D-нахил карток, ambient glow по даним, sparklines, count-up чисел і spotlight за мишкою. Усе на справжніх травневих цифрах EMET.</p>
+  </div>
+
+  <!-- KPI HERO -->
+  <section id="kpi">
+    <div class="section-title reveal">
+      <h2>Огляд по компанії</h2>
+      <div class="meta">8 регіонів · 20 менеджерів · 21 робочий день</div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card glass ambient-good reveal">
+        <div class="label"><span class="dot"></span>План компанії</div>
+        <div class="value"><sup>$</sup><span class="counter" data-target="1049925">0</span></div>
+        <div class="sub">Заплановано: $1,086,207 (103.5%)</div>
+        <svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none">
+          <path class="fill" d="M0,20 L10,18 L20,22 L30,15 L40,12 L50,16 L60,10 L70,8 L80,12 L90,6 L100,4 L100,32 L0,32 Z"/>
+          <path class="line" d="M0,20 L10,18 L20,22 L30,15 L40,12 L50,16 L60,10 L70,8 L80,12 L90,6 L100,4"/>
+        </svg>
+      </div>
+
+      <div class="kpi-card glass ambient-good reveal">
+        <div class="label"><span class="dot green"></span>Факт</div>
+        <div class="value"><sup>$</sup><span class="counter" data-target="581710">0</span></div>
+        <div class="delta">↑ +$61,731 vs минулий</div>
+        <svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none">
+          <path class="fill good" d="M0,28 L10,25 L20,26 L30,20 L40,18 L50,15 L60,12 L70,14 L80,10 L90,8 L100,6 L100,32 L0,32 Z"/>
+          <path class="line good" d="M0,28 L10,25 L20,26 L30,20 L40,18 L50,15 L60,12 L70,14 L80,10 L90,8 L100,6"/>
+        </svg>
+      </div>
+
+      <div class="kpi-card glass ambient-good reveal">
+        <div class="label"><span class="dot mint"></span>Виконання</div>
+        <div class="value"><span class="counter" data-target="55.4" data-suffix="%">0</span></div>
+        <div class="sub">Норма: 52.4% · прогноз 105.8%</div>
+        <div class="delta">+3.0% vs норма</div>
+      </div>
+
+      <div class="kpi-card glass ambient-warn reveal">
+        <div class="label"><span class="dot warn"></span>Готовність плану</div>
+        <div class="value"><span class="counter" data-target="95" data-suffix="%">0</span></div>
+        <div class="sub">18 фіналізували · 2 у роботі</div>
+        <div class="delta warn">1 новачок</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BRANDS -->
+  <section id="brands">
+    <div class="section-title reveal">
+      <h2>Торгові марки</h2>
+      <div class="meta">7 активних брендів</div>
+    </div>
+
+    <div class="brands">
+      <div class="brand-card glass glow-bad reveal">
+        <div class="header">
+          <div class="name"><span class="dot" style="color:#e11d48;background:#e11d48;"></span>Petaran</div>
+          <span class="status bad">Відставання</span>
+        </div>
+        <div class="big">
+          <span class="pct">20.9%</span>
+          <span class="dev bad">−31.5%</span>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar bad" data-width="20.9"></div>
+          <div class="marker" style="left: 52.4%;"></div>
+        </div>
+        <div class="footer">
+          <span>План <strong>$4,825</strong></span>
+          <span>Факт <strong>$1,008</strong></span>
+        </div>
+      </div>
+
+      <div class="brand-card glass glow-good reveal">
+        <div class="header">
+          <div class="name"><span class="dot" style="color:#10b981;background:#10b981;"></span>Ellanse</div>
+          <span class="status">В плані</span>
+        </div>
+        <div class="big">
+          <span class="pct">57.0%</span>
+          <span class="dev good">+4.6%</span>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar" data-width="57"></div>
+          <div class="marker" style="left: 52.4%;"></div>
+        </div>
+        <div class="footer">
+          <span>План <strong>$6,131</strong></span>
+          <span>Факт <strong>$3,494</strong></span>
+        </div>
+      </div>
+
+      <div class="brand-card glass glow-good reveal">
+        <div class="header">
+          <div class="name"><span class="dot" style="color:#10b981;background:#10b981;"></span>EXOXE</div>
+          <span class="status">В плані</span>
+        </div>
+        <div class="big">
+          <span class="pct">78.9%</span>
+          <span class="dev good">+26.5%</span>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar" data-width="78.9"></div>
+          <div class="marker" style="left: 52.4%;"></div>
+        </div>
+        <div class="footer">
+          <span>План <strong>$1,521</strong></span>
+          <span>Факт <strong>$1,200</strong></span>
+        </div>
+      </div>
+
+      <div class="brand-card glass glow-bad reveal">
+        <div class="header">
+          <div class="name"><span class="dot" style="color:#e11d48;background:#e11d48;"></span>ESSE</div>
+          <span class="status bad">Відставання</span>
+        </div>
+        <div class="big">
+          <span class="pct">43.4%</span>
+          <span class="dev bad">−9.0%</span>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar bad" data-width="43.4"></div>
+          <div class="marker" style="left: 52.4%;"></div>
+        </div>
+        <div class="footer">
+          <span>План <strong>$2,582</strong></span>
+          <span>Факт <strong>$1,121</strong></span>
+        </div>
+      </div>
+
+      <div class="brand-card glass glow-bad reveal">
+        <div class="header">
+          <div class="name"><span class="dot" style="color:#e11d48;background:#e11d48;"></span>Neuramis</div>
+          <span class="status bad">Відставання</span>
+        </div>
+        <div class="big">
+          <span class="pct">22.4%</span>
+          <span class="dev bad">−30.0%</span>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar bad" data-width="22.4"></div>
+          <div class="marker" style="left: 52.4%;"></div>
+        </div>
+        <div class="footer">
+          <span>План <strong>$3,873</strong></span>
+          <span>Факт <strong>$868</strong></span>
+        </div>
+      </div>
+
+      <div class="brand-card glass glow-good reveal">
+        <div class="header">
+          <div class="name"><span class="dot" style="color:#10b981;background:#10b981;"></span>Neuronox</div>
+          <span class="status">В плані</span>
+        </div>
+        <div class="big">
+          <span class="pct">76.9%</span>
+          <span class="dev good">+24.5%</span>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar" data-width="76.9"></div>
+          <div class="marker" style="left: 52.4%;"></div>
+        </div>
+        <div class="footer">
+          <span>План <strong>$5,204</strong></span>
+          <span>Факт <strong>$4,000</strong></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MANAGERS -->
+  <section id="managers" class="managers-wrap">
+    <div class="section-title reveal">
+      <h2>Менеджери Києва</h2>
+      <div class="meta">6 активних</div>
+    </div>
+
+    <div class="managers">
+      <div class="manager-chip glass reveal">
+        <div class="avatar">БО</div>
+        <div class="info">
+          <div class="name">Бойко Ольга</div>
+          <div class="meta">Запл. $75,782 · Факт $50,480</div>
+        </div>
+        <div class="pct good">66.6%</div>
+      </div>
+      <div class="manager-chip glass reveal">
+        <div class="avatar">СВ</div>
+        <div class="info">
+          <div class="name">Селиванова Вікторія</div>
+          <div class="meta">Запл. $96,722 · Факт $71,404</div>
+        </div>
+        <div class="pct good">73.8%</div>
+      </div>
+      <div class="manager-chip glass reveal">
+        <div class="avatar">МА</div>
+        <div class="info">
+          <div class="name">Мігашко Анна</div>
+          <div class="meta">Запл. $89,952 · Факт $58,590</div>
+        </div>
+        <div class="pct good">65.1%</div>
+      </div>
+      <div class="manager-chip glass reveal">
+        <div class="avatar">НК</div>
+        <div class="info">
+          <div class="name">Некова Катерина</div>
+          <div class="meta">Запл. $52,814 · Факт $32,126</div>
+        </div>
+        <div class="pct good">60.8%</div>
+      </div>
+      <div class="manager-chip glass reveal">
+        <div class="avatar">СЮ</div>
+        <div class="info">
+          <div class="name">Свідзинська Юлія</div>
+          <div class="meta">Запл. $86,566 · Факт $39,132</div>
+        </div>
+        <div class="pct bad">45.2%</div>
+      </div>
+      <div class="manager-chip glass reveal">
+        <div class="avatar">КК</div>
+        <div class="info">
+          <div class="name">Кравченко Катерина</div>
+          <div class="meta">Новачок · план на випробуванні</div>
+        </div>
+        <div class="pct" style="color: var(--ink-muted);">—</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE LIST -->
+  <section id="features" class="features glass">
+    <h2>Усе що тут є — і що ще можна додати</h2>
+    <p class="lead">Список фішечок у цьому демо + пропозиції що ще зробити. Ти кажеш які подобаються — я їх застосую у production.</p>
+    <ol>
+      <li>
+        <b>Animated gradient mesh</b>
+        <span>4 кольорові blob-и повільно дрейфують на фоні (25-секундний цикл). Створює відчуття «живої» поверхні. Зараз працює.</span>
+      </li>
+      <li>
+        <b>Mouse spotlight</b>
+        <span>Soft light плями слідує за курсором, mix-blend-mode: overlay. Привітна, не заважає читати. Зараз працює.</span>
+      </li>
+      <li>
+        <b>3D tilt cards</b>
+        <span>KPI картки нахиляються на 4-6° залежно від позиції миші (parallax). Зараз працює.</span>
+      </li>
+      <li>
+        <b>Count-up animation</b>
+        <span>Числа $1,049,925 і 55.4% анімуються з 0 до значення при першому показі (800мс). Зараз працює.</span>
+      </li>
+      <li>
+        <b>Ambient color glow</b>
+        <span>Кожна картка має м'який кольоровий halo який відповідає її стану (зелений / помаранчевий / червоний). Зараз працює.</span>
+      </li>
+      <li>
+        <b>Staggered reveal</b>
+        <span>При scroll-у картки з'являються по черзі (50мс delay між сусідніми) як хвиля. Зараз працює.</span>
+      </li>
+      <li>
+        <b>Progress bar fill animation</b>
+        <span>Прогрес-бари заповнюються з 0% до цільового значення (1.5с easing). Зараз працює.</span>
+      </li>
+      <li>
+        <b>Sparklines у KPI</b>
+        <span>Мінімалістичні графіки трендів під кожним KPI. Зараз працює.</span>
+      </li>
+      <li>
+        <b>Pulsing LIVE indicator</b>
+        <span>Зелена точка у nav-бару пульсує — натяк що дані оновлюються real-time. Зараз працює.</span>
+      </li>
+      <li>
+        <b>Noise texture</b>
+        <span>SVG-фільтр шуму поверх усього (opacity 2.5%) — додає realism «матового скла». Зараз працює.</span>
+      </li>
+      <li>
+        <b>Magnetic hover</b>
+        <span>Картки «тягнуться» до курсору (cursor-aware highlight на gradient).</span>
+      </li>
+      <li>
+        <b>Refraction edge effect</b>
+        <span>На краях карток - тонкий прісмовий ефект як на справжньому склі (потребує WebGL або SVG-filter).</span>
+      </li>
+      <li>
+        <b>Click ripple</b>
+        <span>Material-style хвилька при кліку. Можна додати — ~20 рядків JS.</span>
+      </li>
+      <li>
+        <b>Aurora background</b>
+        <span>Полярне сяйво (анімовані стрічки кольору) як ще варіант фону. Більш кінематографічно.</span>
+      </li>
+      <li>
+        <b>Live data pulse</b>
+        <span>Коли цифра оновлюється — короткий «спалах» рамки картки. Дає feedback «дані щойно зайшли».</span>
+      </li>
+      <li>
+        <b>Sound feedback</b>
+        <span>Дуже тихий click при hover/select (опційно, on/off у settings). Subtle тактильність.</span>
+      </li>
+      <li>
+        <b>Particle bokeh</b>
+        <span>Кілька floating світлових точок як в OS X. Заспокоює очі.</span>
+      </li>
+      <li>
+        <b>Dark mode glass</b>
+        <span>Та сама естетика але на темному фоні — глибокий navy/teal градієнт замість світлого.</span>
+      </li>
+      <li>
+        <b>Drag-to-reorder cards</b>
+        <span>Менеджер може перетягувати картки KPI у своєму порядку (зберігається у localStorage).</span>
+      </li>
+      <li>
+        <b>Live trend on hover</b>
+        <span>При наведенні на KPI з'являється великий tooltip-графік за 30 днів.</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta glass">
+    <h2>Який вкус подобається?</h2>
+    <p>Скажи які фішечки лишаємо, які прибираємо, які додаємо ще — а я перенесу у production-дашборд.</p>
+    <a class="cta-btn" href="#kpi">Подивитись ще раз ↑</a>
+  </div>
+
+</main>
+
+<script>
+// ====================================================
+// MOUSE SPOTLIGHT
+// ====================================================
+const spotlight = document.getElementById('spotlight');
+document.addEventListener('mousemove', (e) => {
+  spotlight.style.left = e.clientX + 'px';
+  spotlight.style.top = e.clientY + 'px';
+});
+
+// ====================================================
+// 3D CARD TILT + MOUSE-AWARE HIGHLIGHT
+// ====================================================
+document.querySelectorAll('.kpi-card, .brand-card').forEach(card => {
+  card.addEventListener('mousemove', (e) => {
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const xPct = (x / rect.width) * 100;
+    const yPct = (y / rect.height) * 100;
+
+    // For highlight gradient
+    card.style.setProperty('--mouse-x', xPct + '%');
+    card.style.setProperty('--mouse-y', yPct + '%');
+
+    // For 3D tilt
+    const rotX = ((y - rect.height / 2) / rect.height) * -6;
+    const rotY = ((x - rect.width / 2) / rect.width) * 6;
+    card.style.transform = `translateY(-4px) perspective(800px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = '';
+  });
+});
+
+// ====================================================
+// COUNT-UP NUMBERS
+// ====================================================
+function animateCount(el, target, duration = 1200, suffix = '') {
+  const start = performance.now();
+  const isFloat = target % 1 !== 0;
+  function tick(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    // ease-out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = target * eased;
+    if (isFloat) {
+      el.textContent = current.toFixed(1) + suffix;
+    } else {
+      el.textContent = Math.floor(current).toLocaleString('en-US') + suffix;
+    }
+    if (progress < 1) requestAnimationFrame(tick);
+    else el.textContent = (isFloat ? target.toFixed(1) : target.toLocaleString('en-US')) + suffix;
+  }
+  requestAnimationFrame(tick);
+}
+
+// ====================================================
+// PROGRESS BAR FILL ANIMATION
+// ====================================================
+function animateBars() {
+  document.querySelectorAll('.bar[data-width]').forEach(bar => {
+    const target = parseFloat(bar.dataset.width);
+    bar.style.width = '0%';
+    setTimeout(() => {
+      bar.style.width = target + '%';
+    }, 100);
+  });
+}
+
+// ====================================================
+// REVEAL ON SCROLL (Intersection Observer)
+// ====================================================
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      // Trigger count-up when card visible
+      entry.target.querySelectorAll('.counter').forEach(counter => {
+        if (!counter.dataset.animated) {
+          counter.dataset.animated = '1';
+          const target = parseFloat(counter.dataset.target);
+          const suffix = counter.dataset.suffix || '';
+          animateCount(counter, target, 1200, suffix);
+        }
+      });
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.15 });
+reveals.forEach(el => observer.observe(el));
+
+// Trigger bar animations on visible
+const barObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.querySelectorAll('.bar[data-width]').forEach(bar => {
+        const target = parseFloat(bar.dataset.width);
+        setTimeout(() => bar.style.width = target + '%', 200);
+      });
+      barObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.15 });
+document.querySelectorAll('.brands').forEach(el => barObserver.observe(el));
+
+// Initial state for bars
+document.querySelectorAll('.bar[data-width]').forEach(bar => {
+  bar.style.width = '0%';
+});
+</script>
+
+</body>
+</html>
