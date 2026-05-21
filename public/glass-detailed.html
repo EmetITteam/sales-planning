@@ -9,21 +9,22 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
 :root {
-  --ink: #0f0a3d;
-  --ink-soft: rgba(15, 10, 61, 0.75);
-  --ink-muted: rgba(15, 10, 61, 0.55);
-  --ink-faded: rgba(15, 10, 61, 0.35);
-  --accent: #635bff;
+  /* EMET palette — deep navy ink + EMET blue + mint */
+  --ink: #062a3d;
+  --ink-soft: rgba(6, 42, 61, 0.78);
+  --ink-muted: rgba(6, 42, 61, 0.58);
+  --ink-faded: rgba(6, 42, 61, 0.38);
+  --accent: #066aab;
   --accent2: #5bd5bc;
   --warn: #fb923c;
   --bad: #e11d48;
-  --good: #10b981;
+  --good: #14b8a6;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
   font-family: 'Manrope', sans-serif;
-  background: #f0e7ff;
+  background: #e0f2fe;
   color: var(--ink);
   min-height: 100vh;
   overflow-x: hidden;
@@ -37,26 +38,26 @@ body {
 .mesh-bg {
   position: fixed; inset: 0; z-index: -2;
   background:
-    radial-gradient(at 20% 20%, #ddd6fe 0%, transparent 50%),
+    radial-gradient(at 20% 20%, #cffafe 0%, transparent 50%),
     radial-gradient(at 80% 30%, #ccfbf1 0%, transparent 50%),
-    radial-gradient(at 60% 80%, #fef3c7 0%, transparent 50%),
-    radial-gradient(at 20% 90%, #fce7f3 0%, transparent 50%),
-    linear-gradient(135deg, #ede9fe 0%, #ccfbf1 50%, #fef3c7 100%);
+    radial-gradient(at 60% 80%, #dbeafe 0%, transparent 50%),
+    radial-gradient(at 20% 90%, #a5f3fc 0%, transparent 50%),
+    linear-gradient(135deg, #e0f2fe 0%, #ccfbf1 50%, #cffafe 100%);
 }
 
-/* Floating blobs that slowly drift */
+/* Floating blobs — EMET palette: deep blue + mint + sky */
 .blob {
   position: fixed; border-radius: 50%;
   filter: blur(80px);
   z-index: -1;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.55;
   animation: blob-drift 25s ease-in-out infinite;
 }
-.blob.a { width: 520px; height: 520px; background: rgba(99,91,255,0.5); top: -100px; left: -100px; animation-delay: 0s; }
-.blob.b { width: 440px; height: 440px; background: rgba(91,213,188,0.5); top: 30%; right: -80px; animation-delay: -8s; }
-.blob.c { width: 380px; height: 380px; background: rgba(251,146,60,0.4); bottom: -100px; left: 30%; animation-delay: -16s; }
-.blob.d { width: 460px; height: 460px; background: rgba(236,72,153,0.35); top: 60%; left: -120px; animation-delay: -4s; }
+.blob.a { width: 520px; height: 520px; background: rgba(6, 106, 171, 0.45); top: -100px; left: -100px; animation-delay: 0s; }
+.blob.b { width: 440px; height: 440px; background: rgba(91, 213, 188, 0.5); top: 30%; right: -80px; animation-delay: -8s; }
+.blob.c { width: 380px; height: 380px; background: rgba(8, 128, 204, 0.4); bottom: -100px; left: 30%; animation-delay: -16s; }
+.blob.d { width: 460px; height: 460px; background: rgba(45, 212, 191, 0.4); top: 60%; left: -120px; animation-delay: -4s; }
 
 @keyframes blob-drift {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -123,7 +124,7 @@ body:hover .spotlight { opacity: 1; }
 .nav .brand { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .nav .brand-icon {
   width: 24px; height: 24px; border-radius: 8px;
-  background: linear-gradient(135deg, #635bff, #5bd5bc);
+  background: linear-gradient(135deg, #066aab, #5bd5bc);
   display: flex; align-items: center; justify-content: center;
   color: white; font-size: 11px; font-weight: 800;
 }
@@ -140,7 +141,7 @@ body:hover .spotlight { opacity: 1; }
 }
 .nav .live::before {
   content: ''; width: 8px; height: 8px; border-radius: 50%;
-  background: #10b981; box-shadow: 0 0 8px #10b981;
+  background: #14b8a6; box-shadow: 0 0 8px #14b8a6;
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -180,7 +181,7 @@ body:hover .spotlight { opacity: 1; }
 }
 .hero-title h1 b {
   font-weight: 700;
-  background: linear-gradient(135deg, #635bff 0%, #5bd5bc 100%);
+  background: linear-gradient(135deg, #066aab 0%, #5bd5bc 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -257,8 +258,8 @@ body:hover .spotlight { opacity: 1; }
   display: inline-flex; align-items: center; gap: 4px;
   margin-top: 12px;
   padding: 4px 10px; border-radius: 999px;
-  background: rgba(16, 185, 129, 0.18);
-  color: #047857;
+  background: rgba(20, 184, 166, 0.18);
+  color: #115e59;
   font-size: 11px; font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -272,15 +273,15 @@ body:hover .spotlight { opacity: 1; }
 }
 .spark path { fill: none; stroke-width: 2; stroke-linecap: round; }
 .spark .line { stroke: var(--accent); }
-.spark .fill { fill: rgba(99, 91, 255, 0.15); stroke: none; }
+.spark .fill { fill: rgba(6, 106, 171, 0.15); stroke: none; }
 .spark .line.good { stroke: var(--good); }
-.spark .line.good ~ .fill, .spark .fill.good { fill: rgba(16, 185, 129, 0.18); }
+.spark .line.good ~ .fill, .spark .fill.good { fill: rgba(20, 184, 166, 0.18); }
 .spark .line.warn { stroke: var(--warn); }
 .spark .line.warn ~ .fill, .spark .fill.warn { fill: rgba(251, 146, 60, 0.15); }
 
 /* Ambient color glow per card based on performance */
 .kpi-card.ambient-good {
-  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(16, 185, 129, 0.12));
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(20, 184, 166, 0.12));
 }
 .kpi-card.ambient-warn {
   background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(251, 146, 60, 0.12));
@@ -355,7 +356,7 @@ body:hover .spotlight { opacity: 1; }
   font-size: 10px; font-weight: 700;
   padding: 4px 10px; border-radius: 999px;
   text-transform: uppercase; letter-spacing: 1px;
-  background: rgba(16, 185, 129, 0.2); color: #065f46;
+  background: rgba(20, 184, 166, 0.2); color: #115e59;
   backdrop-filter: blur(8px);
 }
 .brand-card .status.warn { background: rgba(251, 146, 60, 0.2); color: #9a3412; }
@@ -385,8 +386,8 @@ body:hover .spotlight { opacity: 1; }
 .brand-card .bar {
   height: 100%;
   border-radius: 5px;
-  background: linear-gradient(90deg, #635bff, #5bd5bc);
-  box-shadow: 0 0 8px rgba(99, 91, 255, 0.3);
+  background: linear-gradient(90deg, #066aab, #5bd5bc);
+  box-shadow: 0 0 8px rgba(6, 106, 171, 0.3);
   position: relative;
   transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -416,7 +417,7 @@ body:hover .spotlight { opacity: 1; }
 
 /* Ambient glow per brand based on performance */
 .brand-card.glow-good {
-  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(16, 185, 129, 0.1));
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(20, 184, 166, 0.1));
 }
 .brand-card.glow-bad {
   background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(225, 29, 72, 0.1));
@@ -424,7 +425,7 @@ body:hover .spotlight { opacity: 1; }
 .brand-card.glow-good::after {
   content: ''; position: absolute; inset: -2px;
   border-radius: inherit;
-  background: radial-gradient(circle at 70% 30%, rgba(16, 185, 129, 0.3), transparent 60%);
+  background: radial-gradient(circle at 70% 30%, rgba(20, 184, 166, 0.3), transparent 60%);
   opacity: 0; transition: opacity 0.3s;
   pointer-events: none;
   z-index: -1;
@@ -461,7 +462,7 @@ body:hover .spotlight { opacity: 1; }
 }
 .manager-chip .avatar {
   width: 36px; height: 36px; border-radius: 50%;
-  background: linear-gradient(135deg, #635bff, #5bd5bc);
+  background: linear-gradient(135deg, #066aab, #5bd5bc);
   display: flex; align-items: center; justify-content: center;
   color: white; font-size: 12px; font-weight: 700;
   flex-shrink: 0;
@@ -509,7 +510,7 @@ body:hover .spotlight { opacity: 1; }
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px; font-weight: 700;
   color: var(--accent);
-  background: rgba(99, 91, 255, 0.12);
+  background: rgba(6, 106, 171, 0.12);
   padding: 4px 6px; border-radius: 6px;
 }
 .features li b {
@@ -533,12 +534,12 @@ body:hover .spotlight { opacity: 1; }
 .cta-btn {
   display: inline-block;
   padding: 14px 32px;
-  background: linear-gradient(135deg, #635bff, #5bd5bc);
+  background: linear-gradient(135deg, #066aab, #5bd5bc);
   color: white; font-weight: 700;
   border-radius: 999px;
   text-decoration: none;
   font-size: 14px;
-  box-shadow: 0 8px 24px rgba(99, 91, 255, 0.3);
+  box-shadow: 0 8px 24px rgba(6, 106, 171, 0.3);
   transition: transform 0.2s;
 }
 .cta-btn:hover { transform: translateY(-2px) scale(1.03); }
@@ -679,7 +680,7 @@ body:hover .spotlight { opacity: 1; }
 
       <div class="brand-card glass glow-good reveal">
         <div class="header">
-          <div class="name"><span class="dot" style="color:#10b981;background:#10b981;"></span>Ellanse</div>
+          <div class="name"><span class="dot" style="color:#14b8a6;background:#14b8a6;"></span>Ellanse</div>
           <span class="status">В плані</span>
         </div>
         <div class="big">
@@ -698,7 +699,7 @@ body:hover .spotlight { opacity: 1; }
 
       <div class="brand-card glass glow-good reveal">
         <div class="header">
-          <div class="name"><span class="dot" style="color:#10b981;background:#10b981;"></span>EXOXE</div>
+          <div class="name"><span class="dot" style="color:#14b8a6;background:#14b8a6;"></span>EXOXE</div>
           <span class="status">В плані</span>
         </div>
         <div class="big">
@@ -755,7 +756,7 @@ body:hover .spotlight { opacity: 1; }
 
       <div class="brand-card glass glow-good reveal">
         <div class="header">
-          <div class="name"><span class="dot" style="color:#10b981;background:#10b981;"></span>Neuronox</div>
+          <div class="name"><span class="dot" style="color:#14b8a6;background:#14b8a6;"></span>Neuronox</div>
           <span class="status">В плані</span>
         </div>
         <div class="big">
