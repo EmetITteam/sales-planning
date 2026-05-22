@@ -544,51 +544,8 @@ body {
     </div>
   </div>
 
-  <!-- TOP/BOTTOM full-width -->
-  <div class="row-tb">
-    <div class="tb-wrap glass">
-      <h3>Менеджери у Представництвах — лідери та аутсайдери</h3>
-      <p class="sub">За % виконання плану (травень 2026)</p>
-      <div class="tb-cols">
-        <div class="tb-col">
-          <h4 class="good">🏆 ТОП-3</h4>
-          <div class="tb-item">
-            <span class="num">1</span>
-            <div class="info"><div class="name">Лопушанська Світлана</div><div class="meta">Миколаєв · план $11K</div></div>
-            <span class="pct good">100%</span>
-          </div>
-          <div class="tb-item">
-            <span class="num">2</span>
-            <div class="info"><div class="name">Фиголь Іветта</div><div class="meta">Вінниця · план $63K</div></div>
-            <span class="pct good">88.8%</span>
-          </div>
-          <div class="tb-item">
-            <span class="num">3</span>
-            <div class="info"><div class="name">Бойко Ольга</div><div class="meta">Київ · план $76K</div></div>
-            <span class="pct good">85.9%</span>
-          </div>
-        </div>
-        <div class="tb-col">
-          <h4 class="bad">⚠️ Худші 3</h4>
-          <div class="tb-item">
-            <span class="num">1</span>
-            <div class="info"><div class="name">Кравченко Катерина</div><div class="meta">Київ · новачок</div></div>
-            <span class="pct bad">—</span>
-          </div>
-          <div class="tb-item">
-            <span class="num">2</span>
-            <div class="info"><div class="name">Свідзинська Юлія</div><div class="meta">Київ · план $87K</div></div>
-            <span class="pct bad">45.2%</span>
-          </div>
-          <div class="tb-item">
-            <span class="num">3</span>
-            <div class="info"><div class="name">Клименко Марина</div><div class="meta">Миколаєв · план $42K</div></div>
-            <span class="pct bad">46.7%</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- TOP/BOTTOM: приховано тимчасово, додамо пізніше -->
+  <!-- розділ виглядав красиво але користувач вирішила що поки не треба -->
 
   <!-- HEATMAP — 6 rows × 9 brands -->
   <div class="sec-title">
@@ -699,13 +656,22 @@ body {
     </div>
   </div>
 
-  <!-- ACCORDION — 2 рівні всередині Представництв -->
+  <!-- ACCORDION — з табами між «підрозділи → бренди» та «бренди → підрозділи» -->
   <div class="sec-title">
-    <h2>📋 Деталізація по підрозділах</h2>
-    <span class="meta">Представництва → регіон → бренд</span>
+    <h2>📋 Деталізація</h2>
+    <span class="meta">Перемкни режим: drill зверху по підрозділам або по брендам</span>
   </div>
 
-  <div class="accordion-list">
+  <div style="display: flex; gap: 4px; background: rgba(255,255,255,0.6); padding: 4px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.5); width: fit-content; margin-bottom: 16px;">
+    <button data-tab="by-div" class="tab-btn active" style="padding: 8px 18px; border-radius: 999px; font-size: 12px; font-weight: 600; color: white; background: linear-gradient(135deg, #066aab, #0880cc); border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(6,106,171,0.25);">
+      Підрозділи → бренди
+    </button>
+    <button data-tab="by-brand" class="tab-btn" style="padding: 8px 18px; border-radius: 999px; font-size: 12px; font-weight: 600; color: rgba(6,42,61,0.7); background: transparent; border: none; cursor: pointer;">
+      Бренди → підрозділи
+    </button>
+  </div>
+
+  <div id="view-by-div" class="accordion-list">
     <!-- Представництва (expanded showing regions) -->
     <div class="acc-row glass expanded">
       <div class="acc-row-header">
@@ -897,13 +863,201 @@ body {
     </div>
   </div>
 
+  <!-- VIEW 2: Бренди → Підрозділи -->
+  <div id="view-by-brand" class="accordion-list" style="display: none;">
+    <!-- Vitaran (експандована для прикладу) -->
+    <div class="acc-row glass expanded">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Vitaran<span class="badge">найбільший</span></span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$315,591</strong> / $357,450</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:88.3%;"></div></div>
+        <span class="acc-pct">88.3%</span>
+        <span class="acc-dev good">+35.9%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+      <div class="acc-body">
+        <div class="acc-region glass-soft">
+          <div class="acc-region-header">
+            <span class="chev">▶</span>
+            <span class="acc-name">Представництва<span class="badge">8 регіонів</span></span>
+            <span class="acc-status">В плані</span>
+            <div class="acc-numbers"><strong>$315,591</strong> / $357,450</div>
+            <div class="acc-bar-wrap"><div class="acc-bar" style="width:88.3%;"></div></div>
+            <span class="acc-pct">88.3%</span>
+            <span class="acc-dev good">+35.9%</span>
+            <span style="text-align:center;">›</span>
+          </div>
+        </div>
+        <div class="acc-region glass-soft">
+          <div class="acc-region-header">
+            <span class="chev">▶</span>
+            <span class="acc-name">Лазерхауз</span>
+            <span class="acc-status">В плані</span>
+            <div class="acc-numbers"><strong>$4K</strong> / $4K</div>
+            <div class="acc-bar-wrap"><div class="acc-bar" style="width:100%;"></div></div>
+            <span class="acc-pct">108%</span>
+            <span class="acc-dev good">+55.6%</span>
+            <span style="text-align:center;">›</span>
+          </div>
+        </div>
+        <div class="acc-region glass-soft" style="opacity: 0.7;">
+          <div class="acc-region-header">
+            <span class="chev">▶</span>
+            <span class="acc-name">Колл-центр</span>
+            <span class="acc-status na">Без факту</span>
+            <div class="acc-numbers">— / $0</div>
+            <div class="acc-bar-wrap"><div class="acc-bar na" style="width:100%;"></div></div>
+            <span class="acc-pct na">н/д</span>
+            <span class="acc-dev na">—</span>
+            <span style="text-align:center;">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Neuronox -->
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Neuronox</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$212,190</strong> / $230,988</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:91.9%;"></div></div>
+        <span class="acc-pct">91.9%</span>
+        <span class="acc-dev good">+39.5%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <!-- Ellanse -->
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Ellanse</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$74,076</strong> / $102,859</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:72%;"></div></div>
+        <span class="acc-pct">72.0%</span>
+        <span class="acc-dev good">+19.6%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <!-- IUSE -->
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">IUSE</span>
+        <span class="acc-status warn">Норма</span>
+        <div class="acc-numbers"><strong>$43,745</strong> / $95,366</div>
+        <div class="acc-bar-wrap"><div class="acc-bar warn" style="width:45.9%;"></div></div>
+        <span class="acc-pct warn">45.9%</span>
+        <span class="acc-dev bad">−6.5%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <!-- Neuramis -->
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Neuramis</span>
+        <span class="acc-status warn">Норма</span>
+        <div class="acc-numbers"><strong>$40,579</strong> / $70,080</div>
+        <div class="acc-bar-wrap"><div class="acc-bar warn" style="width:57.9%;"></div></div>
+        <span class="acc-pct warn">57.9%</span>
+        <span class="acc-dev good">+5.5%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <!-- Petaran -->
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Petaran<span class="badge" style="background:rgba(225,29,72,0.15);color:#9f1239;">провал</span></span>
+        <span class="acc-status bad">Відставання</span>
+        <div class="acc-numbers"><strong>$29,281</strong> / $103,089</div>
+        <div class="acc-bar-wrap"><div class="acc-bar bad" style="width:28.4%;"></div></div>
+        <span class="acc-pct bad">28.4%</span>
+        <span class="acc-dev bad">−24.0%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <!-- ESSE -->
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">ESSE</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$25,255</strong> / $41,888</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:60.3%;"></div></div>
+        <span class="acc-pct">60.3%</span>
+        <span class="acc-dev good">+7.9%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <!-- EXOXE -->
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">EXOXE</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$25,214</strong> / $33,801</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:74.6%;"></div></div>
+        <span class="acc-pct">74.6%</span>
+        <span class="acc-dev good">+22.2%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <!-- Інші ТМ -->
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Інші ТМ</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$22,497</strong> / $30,421</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:74%;"></div></div>
+        <span class="acc-pct">74.0%</span>
+        <span class="acc-dev good">+21.6%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+  </div>
+
   <div class="note">
     <p><b>⚠️ Що чекаємо від Андрія (1С):</b> для 4 підрозділів (Колл-центр, Адасса, Чугуй, Хайленко) Action 5 не повертає факт. Потрібен прапор <code>includeAll=true</code> або новий <code>getCompanyData</code>. Поки що ці рядки на дашборді показуються як <b>н/д</b>.</p>
+  </div>
+
+  <div class="note" style="background: rgba(6,106,171,0.08); border-color: rgba(6,106,171,0.3); color: #075985;">
+    <p><b>🔐 Доступ:</b> у production-версії — окрема admin-сторінка <code>/admin/dashboard-permissions</code> де ти галочками вибираєш кому з юзерів показувати цю вкладку (за замовч. — тільки admin). Аналогічно до уже існуючої <code>/admin/stage-edit-permissions</code>. Нова колонка <code>can_view_company_overview</code> у БД.</p>
   </div>
 
 </div>
 
 <script>
+// Tab switcher (підрозділи ↔ бренди)
+document.querySelectorAll('[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-tab]').forEach(b => {
+      b.style.background = 'transparent';
+      b.style.color = 'rgba(6,42,61,0.7)';
+      b.style.boxShadow = 'none';
+    });
+    btn.style.background = 'linear-gradient(135deg, #066aab, #0880cc)';
+    btn.style.color = 'white';
+    btn.style.boxShadow = '0 2px 8px rgba(6,106,171,0.25)';
+    const tab = btn.dataset.tab;
+    document.getElementById('view-by-div').style.display = tab === 'by-div' ? 'flex' : 'none';
+    document.getElementById('view-by-brand').style.display = tab === 'by-brand' ? 'flex' : 'none';
+  });
+});
+
 // Toggle accordion (Представництва level)
 document.querySelectorAll('.acc-row > .acc-row-header').forEach(h => {
   h.addEventListener('click', () => h.parentElement.classList.toggle('expanded'));
