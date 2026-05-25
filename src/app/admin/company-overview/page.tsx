@@ -65,8 +65,10 @@ const GROUP_LABEL: Record<DivisionDetails['groupKey'], string> = {
   'call-center': 'Колл-центр',
   laserhouse: 'Лазерхауз',
   adassa: 'Адасса',
-  'distributor-chuguy': 'Чугуй (Полтава)',
-  'distributor-haylenko': 'Хайленко (Чернівці)',
+  // Прізвища дистрибуторів (Чугуй / Хайленко) лишаються тільки у groupKey
+  // як внутрішній id. У UI показуємо регіони.
+  'distributor-chuguy': 'Полтава',
+  'distributor-haylenko': 'Чернівці',
 };
 
 // Format helpers
@@ -366,22 +368,33 @@ export default function CompanyOverviewPage() {
               </div>
             </div>
 
-            {/* 3 DONUT CHARTS */}
+            {/* 3 DONUT CHARTS — рахуються на filteredDivisions, ховаються якщо
+                нема сенсу (наприклад «Регіони у Представництвах» при фільтрі
+                «Колл-центр»). Дистрибутори (Чугуй+Хайленко) у donut 2 — одна
+                група «Дистрибутори». */}
             {(() => {
-              // Donut 1: розподіл факту між регіонами всередині Представництв
-              const reps = (data?.divisions ?? []).filter(d => d.groupKey === 'representations');
-              const regionsTotalFact = reps.reduce((s, d) => s + d.totalFact, 0);
               const tealPalette = ['#066aab', '#0880cc', '#5bd5bc', '#14b8a6', '#0d9488', '#0e7490', '#67e8f9', '#a7f3d0'];
+              const mixedPalette = ['#066aab', '#fb923c', '#fbbf24', '#a855f7', '#5bd5bc'];
+              const brandPalette = ['#066aab', '#0880cc', '#5bd5bc', '#14b8a6', '#0d9488', '#fb923c', '#fbbf24', '#a855f7', '#ec4899'];
+
+              // Donut 1: регіони у Представництвах (тільки якщо у фільтрі є Представництва)
+              const reps = filteredDivisions.filter(d => d.groupKey === 'representations');
+              const regionsTotalFact = reps.reduce((s, d) => s + d.totalFact, 0);
               const repsSegments = reps
                 .filter(d => d.totalFact > 0)
                 .sort((a, b) => b.totalFact - a.totalFact)
                 .map((d, i) => ({ name: d.divisionName, value: d.totalFact, color: tealPalette[i % tealPalette.length] }));
 
-              // Donut 2: розподіл плану між підрозділами (6 груп)
-              const mixedPalette = ['#066aab', '#fb923c', '#fbbf24', '#a855f7', '#5bd5bc', '#ec4899'];
+              // Donut 2: підрозділи у компанії (Чугуй+Хайленко = одна «Дистрибутори»)
+              // 5 груп замість 6 у legend.
               const divisionSegments: { name: string; value: number; color: string }[] = [];
+              const distributorsPlanSum = filteredDivisions
+                .filter(d => d.groupKey === 'distributor-chuguy' || d.groupKey === 'distributor-haylenko')
+                .reduce((s, d) => s + d.totalPlan, 0);
               for (const groupKey of GROUP_ORDER) {
-                const divs = (data?.divisions ?? []).filter(d => d.groupKey === groupKey);
+                // Пропускаємо чугуй+хайленко окремо — додаємо одну сумарну запис нижче
+                if (groupKey === 'distributor-chuguy' || groupKey === 'distributor-haylenko') continue;
+                const divs = filteredDivisions.filter(d => d.groupKey === groupKey);
                 const groupPlan = divs.reduce((s, d) => s + d.totalPlan, 0);
                 if (groupPlan > 0) {
                   divisionSegments.push({
@@ -391,11 +404,18 @@ export default function CompanyOverviewPage() {
                   });
                 }
               }
+              if (distributorsPlanSum > 0) {
+                divisionSegments.push({
+                  name: 'Дистрибутори',
+                  value: distributorsPlanSum,
+                  color: mixedPalette[divisionSegments.length % mixedPalette.length],
+                });
+              }
               const divTotalPlan = divisionSegments.reduce((s, x) => s + x.value, 0);
 
-              // Donut 3: розподіл факту між брендами (по всіх divisions)
+              // Donut 3: бренди (у фільтрованому наповненні)
               const brandFactMap = new Map<string, number>();
-              for (const d of data?.divisions ?? []) {
+              for (const d of filteredDivisions) {
                 for (const [code, seg] of Object.entries(d.segments)) {
                   if (d.hasFact && seg.fact > 0) {
                     brandFactMap.set(code, (brandFactMap.get(code) || 0) + seg.fact);
@@ -407,38 +427,64 @@ export default function CompanyOverviewPage() {
                 .map(([code, value], i) => ({
                   name: BRAND_NAMES[code] || code,
                   value,
-                  color: ['#066aab', '#0880cc', '#5bd5bc', '#14b8a6', '#0d9488', '#fb923c', '#fbbf24', '#a855f7', '#ec4899'][i % 9],
+                  color: brandPalette[i % brandPalette.length],
                 }));
               const brandTotalFact = brandSegments.reduce((s, x) => s + x.value, 0);
 
               const fmtUsdLegend = (_v: number, pct: number) => pct.toFixed(1) + '%';
 
+              // Donut показуємо тільки коли:
+              // - має >1 сегмент (один-в-цілому коло без сенсу)
+              // - АБО ровно 1 але із сумою > 0 (наочно покаже одну сегментну окружність)
+              const show1 = repsSegments.length > 1;
+              const show2 = divisionSegments.length > 1;
+              const show3 = brandSegments.length > 1;
+              const visibleCount = [show1, show2, show3].filter(Boolean).length;
+
+              if (visibleCount === 0) {
+                return (
+                  <div className="glass-card p-5 text-center text-[12px] text-muted-foreground">
+                    Для обраного фільтру donut-діаграми не показуються — недостатньо даних для порівняння (потрібно ≥ 2 сегменти).
+                  </div>
+                );
+              }
+
+              const gridCols = visibleCount === 1 ? 'grid-cols-1'
+                : visibleCount === 2 ? 'grid-cols-1 lg:grid-cols-2'
+                : 'grid-cols-1 lg:grid-cols-3';
+
               return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                  <DonutChart
-                    title="Регіони у Представництвах"
-                    subtitle={`Частка кожного у факті (${fmtUSD(regionsTotalFact)})`}
-                    centerLabel={fmtUSDCompact(regionsTotalFact)}
-                    centerSub="факт"
-                    segments={repsSegments}
-                    formatValue={fmtUsdLegend}
-                  />
-                  <DonutChart
-                    title="Підрозділи у компанії"
-                    subtitle={`Частка кожного у плані (${fmtUSD(divTotalPlan)})`}
-                    centerLabel={fmtUSDCompact(divTotalPlan)}
-                    centerSub="план"
-                    segments={divisionSegments}
-                    formatValue={fmtUsdLegend}
-                  />
-                  <DonutChart
-                    title="Бренди у компанії"
-                    subtitle={`Частка кожного у факті (${fmtUSD(brandTotalFact)})`}
-                    centerLabel={fmtUSDCompact(brandTotalFact)}
-                    centerSub="факт"
-                    segments={brandSegments}
-                    formatValue={fmtUsdLegend}
-                  />
+                <div className={`grid ${gridCols} gap-3`}>
+                  {show1 && (
+                    <DonutChart
+                      title="Регіони у Представництвах"
+                      subtitle={`Частка кожного у факті (${fmtUSD(regionsTotalFact)})`}
+                      centerLabel={fmtUSDCompact(regionsTotalFact)}
+                      centerSub="факт"
+                      segments={repsSegments}
+                      formatValue={fmtUsdLegend}
+                    />
+                  )}
+                  {show2 && (
+                    <DonutChart
+                      title="Підрозділи у компанії"
+                      subtitle={`Частка кожного у плані (${fmtUSD(divTotalPlan)})`}
+                      centerLabel={fmtUSDCompact(divTotalPlan)}
+                      centerSub="план"
+                      segments={divisionSegments}
+                      formatValue={fmtUsdLegend}
+                    />
+                  )}
+                  {show3 && (
+                    <DonutChart
+                      title="Бренди у компанії"
+                      subtitle={`Частка кожного у факті (${fmtUSD(brandTotalFact)})`}
+                      centerLabel={fmtUSDCompact(brandTotalFact)}
+                      centerSub="факт"
+                      segments={brandSegments}
+                      formatValue={fmtUsdLegend}
+                    />
+                  )}
                 </div>
               );
             })()}

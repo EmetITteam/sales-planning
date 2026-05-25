@@ -95,7 +95,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
         expanded={expanded}
       />
       {expanded && (
-        <div className="px-3 md:px-5 py-3 space-y-3 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-3 md:px-5 py-3 space-y-3 bg-white/30 backdrop-blur-md border-t border-white/40">
           {/* Розклад по категоріях клієнтів — перед списком менеджерів */}
           {(planCategoriesForBrand || factCategoriesForBrand || categoriesLoading) && (
             <CategoryStatsTable

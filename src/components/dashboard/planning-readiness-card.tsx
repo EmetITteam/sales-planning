@@ -295,7 +295,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
 
       {/* Expanded — список регіонів */}
       {expanded && (
-        <div className="px-5 pb-4 pt-3 space-y-2 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-5 pb-4 pt-3 space-y-2 bg-white/30 backdrop-blur-md border-t border-white/40">
           {stats.map(r => {
             const s = regionStatusColor(r.managersFinalized + r.managersTrial, r.managersPartial, r.totalManagers);
             const isRegionExpanded = expandedRegions.has(r.regionName);

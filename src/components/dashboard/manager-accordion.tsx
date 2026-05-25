@@ -255,7 +255,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
 
       {/* Розгорнутий список 9 BrandRow — клік на бренд → планування manager × brand */}
       {expanded && (
-        <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-3 md:px-5 pb-4 space-y-1.5 bg-white/30 backdrop-blur-md border-t border-white/40">
           {manager.segments.map(seg => {
             // ТІЛЬКИ фіналізовані плани цього менеджера у цьому бренді.
             const segPlan = planAgg?.byLogin[manager.login]?.[seg.segmentCode];

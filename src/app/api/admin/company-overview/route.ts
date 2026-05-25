@@ -89,8 +89,10 @@ const DISPLAY_NAMES: Record<DivisionGroup, string> = {
   'call-center': 'Колл-центр',
   laserhouse: 'Лазерхауз',
   adassa: 'Адасса',
-  'distributor-chuguy': 'Чугуй (Полтава)',
-  'distributor-haylenko': 'Хайленко (Чернівці)',
+  // У UI показуємо без прізвищ дистрибуторів — просто назви регіонів.
+  // Імена (Чугуй / Хайленко) лишаються тільки у внутрішніх groupKey.
+  'distributor-chuguy': 'Полтава',
+  'distributor-haylenko': 'Чернівці',
 };
 
 export async function GET(request: NextRequest) {
