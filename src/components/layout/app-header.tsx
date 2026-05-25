@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { useAppStore } from '@/lib/store';
+import { useGlassHover } from '@/hooks/use-glass-hover';
 import { apiLogout } from '@/lib/auth-client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +50,8 @@ export function AppHeader() {
   const { user, setUser, liveMode, setLiveMode, activeView, setActiveView } = useAppStore();
   const { mutate } = useSWRConfig();
   const router = useRouter();
+  // Cursor-following gradient на всіх glass-card. Один document listener.
+  useGlassHover();
   const handleLogout = async () => {
     // Спершу серверна частина — clear HttpOnly cookie. Потім локальний state.
     await apiLogout();

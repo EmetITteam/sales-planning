@@ -91,7 +91,28 @@ interface CompanyOverviewResponse {
   totalFact: number;
   totalPrevFact: number;
   divisionsWithoutFact: string[];  // displayNames
+  /** Канонічні підрозділи (13 шт) яких НЕМАЄ у плані поточного періоду —
+   *  показуємо у hero «Підрозділи не в плані» коли filter='all'. */
+  divisionsNotInPlan: string[];
 }
+
+/** Канонічний список 13 підрозділів — реперний для перевірки «хто в плані».
+ *  Назви точно як 1С повертає у Action 4 (перевірено diag-divisions.mjs). */
+const CANONICAL_DIVISIONS: { name: string; display: string }[] = [
+  { name: 'Київ', display: 'Київ' },
+  { name: 'Дніпро', display: 'Дніпро' },
+  { name: 'Одеса', display: 'Одеса' },
+  { name: 'Харків', display: 'Харків' },
+  { name: 'Запоріжжя', display: 'Запоріжжя' },
+  { name: 'Вінниця', display: 'Вінниця' },
+  { name: 'Миколаєв', display: 'Миколаєв' },
+  { name: 'Житомир', display: 'Житомир' },
+  { name: 'Коллцентр Call center лидогенерация', display: 'Колл-центр' },
+  { name: 'Лазерхауз*', display: 'Лазерхауз' },
+  { name: 'Адасса', display: 'Адасса' },
+  { name: 'Полтава*', display: 'Полтава' },
+  { name: 'Черновцы*', display: 'Чернівці' },
+];
 
 // Helper: zero clientStats baseline
 function emptyClientStats(): ClientCategoryStats {
@@ -350,6 +371,11 @@ export async function GET(request: NextRequest) {
     const divisionsWithoutFact = divisions
       .filter(d => !d.hasFact)
       .map(d => d.displayName);
+    // Канонічні 13 підрозділів МІНУС ті що приїхали з планом — ось хто без плану.
+    const planNames = new Set(divisions.map(d => d.divisionName));
+    const divisionsNotInPlan = CANONICAL_DIVISIONS
+      .filter(c => !planNames.has(c.name))
+      .map(c => c.display);
 
     const resp: CompanyOverviewResponse = {
       asOfDate: a5.data?.asOfDate ?? null,
@@ -359,6 +385,7 @@ export async function GET(request: NextRequest) {
       totalFact,
       totalPrevFact,
       divisionsWithoutFact,
+      divisionsNotInPlan,
     };
 
     return Response.json(resp);

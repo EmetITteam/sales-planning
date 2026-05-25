@@ -307,7 +307,7 @@ export function DirectorDashboard() {
           <Users className="h-5 w-5" />
         </div>
         <div className="flex-1">
-          <h2 className="text-lg font-bold">Огляд по компанії</h2>
+          <h2 className="text-lg font-bold">Огляд по представництвах</h2>
           <p className="text-[12px] text-muted-foreground">
             {company?.regionAggregates.length ?? 0} {(company?.regionAggregates.length ?? 0) === 1 ? 'регіон' : 'регіонів'}
             {' · '}{totalManagers} менеджерів · {periodLabel}
@@ -355,7 +355,7 @@ export function DirectorDashboard() {
             <MetricCard
               icon={<Target />}
               iconColor="text-[#066aab]"
-              label="План компанії"
+              label="План представництв"
               value={formatUSD(totalPlan)}
               isAmount
               caption={(() => {

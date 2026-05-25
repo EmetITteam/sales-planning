@@ -17,12 +17,24 @@ if (existsSync(envPath)) {
 }
 
 const auth = 'Basic ' + Buffer.from(`${process.env.ONEC_LOGIN}:${process.env.ONEC_PASSWORD}`).toString('base64');
-const r = await fetch(process.env.ONEC_BASE_URL, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', Authorization: auth },
-  body: JSON.stringify({ action: 'getRegionData', payload: { login: 'sdu@emet.in.ua', period: '2026-05', includeAll: true } }),
-});
-const d = await r.json();
+// Retry with delay якщо 1С session timeout
+let d, attempt = 0;
+while (attempt < 3) {
+  attempt++;
+  const r = await fetch(process.env.ONEC_BASE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: auth },
+    body: JSON.stringify({ action: 'getRegionData', payload: { login: 'sdu@emet.in.ua', period: '2026-05', includeAll: true } }),
+  });
+  const t = await r.text();
+  if (!t.trim() || t.startsWith('<')) {
+    console.error(`Attempt ${attempt}: HTTP ${r.status}, empty/XML body. Retrying in 10s...`);
+    await new Promise(r => setTimeout(r, 10000));
+    continue;
+  }
+  try { d = JSON.parse(t); break; } catch { console.error(`Attempt ${attempt}: parse failed`); }
+}
+if (!d) { console.error('Failed after retries'); process.exit(1); }
 
 if (d.status !== 'success') { console.error(d); process.exit(1); }
 

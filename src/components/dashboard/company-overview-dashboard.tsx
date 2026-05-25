@@ -58,6 +58,7 @@ interface CompanyOverviewData {
   totalFact: number;
   totalPrevFact: number;
   divisionsWithoutFact: string[];
+  divisionsNotInPlan?: string[];
 }
 
 const BRAND_CODES = SEGMENTS.map(s => s.code);
@@ -252,8 +253,28 @@ export function CompanyOverviewDashboard() {
   const factDelta = filteredTotalFact - filteredTotalPrevFact;
 
   const periodDate = new Date(`${period}-01T00:00:00`);
-  const calcPct = getMonthProgressPct(periodDate.getFullYear(), periodDate.getMonth(), now);
+  // asOfDate (Date) — для розрахунку робочих днів і норми. Якщо live — сьогодні;
+  // якщо фільтр історичний — weekEnd. Якщо weekEnd порожній — періодний місяць.
+  const asOfForCalc = useMemo(() => {
+    if (liveMode) return now;
+    const [py, pm, pd] = (currentPeriod.weekEnd || '').split('-').map(Number);
+    if (Number.isFinite(py) && Number.isFinite(pm) && Number.isFinite(pd)) return new Date(py, pm - 1, pd);
+    return now;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveMode, currentPeriod.weekEnd]);
+  const calcPct = getMonthProgressPct(periodDate.getFullYear(), periodDate.getMonth(), asOfForCalc);
+  // «Норма на ранок» = % робочих днів пройдено станом на ВЧОРА (asOf − 1). Дає
+  // baseline «що було на початку дня vs зараз».
+  const morningDate = useMemo(() => {
+    const d = new Date(asOfForCalc);
+    d.setDate(d.getDate() - 1);
+    return d;
+  }, [asOfForCalc]);
+  const morningPct = getMonthProgressPct(periodDate.getFullYear(), periodDate.getMonth(), morningDate);
   const deviation = totalPct - calcPct;
+  // Робочі дні — для 1-ї hero (passed / total)
+  const totalWD = getWorkingDaysInMonth(periodDate.getFullYear(), periodDate.getMonth());
+  const passedWD = getPassedWorkingDays(periodDate.getFullYear(), periodDate.getMonth(), asOfForCalc);
 
   if (!user) return null;
 
@@ -340,19 +361,21 @@ export function CompanyOverviewDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
               <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
                 <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
                 <span className="amount">{Math.round(filteredTotalPlan).toLocaleString('en-US')}</span>
               </p>
-              <p className="text-[11px] text-muted-foreground mt-3">{filteredDivisions.length} підрозділів · {periodDate.toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}</p>
+              <p className="text-[11px] text-muted-foreground mt-3">
+                {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
+              </p>
             </div>
 
             <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
               <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт {groupLabel}</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
@@ -369,12 +392,15 @@ export function CompanyOverviewDashboard() {
 
             <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
               <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Виконання</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">{fmtPct(totalPct)}</p>
-              <p className="text-[11px] text-muted-foreground mt-3">
-                Норма {now.getDate().toString().padStart(2, '0')}.{(now.getMonth() + 1).toString().padStart(2, '0')}: <span className="font-semibold text-foreground">{fmtPct(calcPct)}</span>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Норма на {asOfForCalc.getDate().toString().padStart(2, '0')}.{(asOfForCalc.getMonth() + 1).toString().padStart(2, '0')}: <span className="font-semibold text-foreground">{fmtPct(calcPct)}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Норма на ранок: <span className="font-semibold text-foreground">{fmtPct(morningPct)}</span>
               </p>
               <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${deviation >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
                 {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}% vs норма
@@ -382,10 +408,35 @@ export function CompanyOverviewDashboard() {
             </div>
 
             {(() => {
-              // Клієнтська 4-та картка релевантна тільки для Представництв і Колл-центру.
-              // Для Лазерхауз/Адасса/Дистрибуторів — 1С повертає sentinel-дані (2/1=200%).
-              // Якщо фільтр не той — показуємо «Робочі дні» замість клієнтів.
-              const isClientGroup = groupFilter === 'all' || groupFilter === 'representations' || groupFilter === 'call-center';
+              // 4-та hero — три режими:
+              //   filter='all' → «Підрозділи не в плані» (контроль повноти даних з 1С)
+              //   filter=reps/call-center → «Купивши клієнти» (бо є клієнтська база)
+              //   filter=Лазерхауз/Адасса/Дистрибутори → «Робочі дні» (клієнтських даних нема,
+              //     великої категорійної карти не показуємо)
+              if (groupFilter === 'all') {
+                const notInPlan = data.divisionsNotInPlan || [];
+                return (
+                  <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
+                      <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Підрозділи не в плані</p>
+                    </div>
+                    <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                      {notInPlan.length}
+                      <span className="text-[22px] font-medium text-muted-foreground"> / 13</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-3" title={notInPlan.join(', ')}>
+                      {notInPlan.length === 0 ? '— усі 13 підрозділів з планом' : notInPlan.join(', ')}
+                    </p>
+                    {notInPlan.length > 0 && (
+                      <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-100/70 text-orange-800">
+                        план не введено
+                      </span>
+                    )}
+                  </div>
+                );
+              }
+              const isClientGroup = groupFilter === 'representations' || groupFilter === 'call-center';
               if (!isClientGroup) {
                 // Робочі дні місяця: пройшло / всього
                 const py = periodDate.getFullYear();
@@ -396,7 +447,7 @@ export function CompanyOverviewDashboard() {
                 return (
                   <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7]" />
+                      <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7]" />
                       <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Робочі дні</p>
                     </div>
                     <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
@@ -427,7 +478,7 @@ export function CompanyOverviewDashboard() {
               return (
                 <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
+                    <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
                     <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Купивші клієнти {groupLabel}</p>
                   </div>
                   <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
@@ -498,7 +549,7 @@ export function CompanyOverviewDashboard() {
             return (
               <div className="glass-card p-6 transition-all">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
+                  <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
                   <h3 className="text-[14px] font-bold">
                     Клієнти-покупці по категоріях
                     {groupFilter === 'representations' && ' · Представництва'}
