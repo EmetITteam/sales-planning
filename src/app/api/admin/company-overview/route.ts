@@ -21,6 +21,11 @@ import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
 import { mapSegmentCode } from '@/lib/onec-adapters';
 import { isTrialBrandPlan } from '@/lib/trial-manager';
 
+// Без кешування — admin-дашборд має тягнути свіже з 1С (інакше «Оновити»
+// віддає Vercel-кеш і дані «затухають» — фак не міняється весь день).
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // === Мапінг 1С divisionName → наша group категорія ===
 // Назви беремо ТОЧНО як 1С повертає у Action 4 (перевірено diag-divisions.mjs).
 const REPRESENTATIONS = new Set([
@@ -48,6 +53,16 @@ function classifyDivision(name: string): DivisionGroup | null {
 // === Типи відповіді нашого endpoint ===
 interface SegmentTotals { plan: number; fact: number; prevFact: number; }
 interface ManagerSummary { login: string; name: string; totalPlan: number; totalFact: number; }
+/** Агрегат клієнтів по 5 категоріях. {total, bought} на категорію. */
+interface ClientCategoryStats {
+  active:   { total: number; bought: number };
+  sleeping: { total: number; bought: number };
+  lost:     { total: number; bought: number };
+  new:      { total: number; bought: number };
+  none:     { total: number; bought: number };
+  totalClients: number;
+  totalBought: number;
+}
 interface DivisionDetails {
   divisionName: string;        // як приходить з 1С
   groupKey: DivisionGroup;
@@ -61,6 +76,11 @@ interface DivisionDetails {
   /** Per-manager breakdown — використовується для donut «Менеджери Представництв».
    *  Заповнюється тільки для groupKey='representations' (для решти груп — пусто). */
   managers?: ManagerSummary[];
+  /** v2.5 Action 5 clientStats — агрегат купивших клієнтів по 5 категоріях.
+   *  Сума по всіх менеджерах підрозділу. Поточний місяць. */
+  clientStats?: ClientCategoryStats;
+  /** Те саме що clientStats, але за попередній місяць — для порівняння */
+  prevClientStats?: ClientCategoryStats;
 }
 interface CompanyOverviewResponse {
   asOfDate: string | null;
@@ -71,6 +91,34 @@ interface CompanyOverviewResponse {
   totalFact: number;
   totalPrevFact: number;
   divisionsWithoutFact: string[];  // displayNames
+}
+
+// Helper: zero clientStats baseline
+function emptyClientStats(): ClientCategoryStats {
+  return {
+    active: { total: 0, bought: 0 },
+    sleeping: { total: 0, bought: 0 },
+    lost: { total: 0, bought: 0 },
+    new: { total: 0, bought: 0 },
+    none: { total: 0, bought: 0 },
+    totalClients: 0,
+    totalBought: 0,
+  };
+}
+function toNum(v: unknown): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return Number(v) || 0;
+  return 0;
+}
+function accumulateClientStats(target: ClientCategoryStats, src: Record<string, unknown>): void {
+  for (const cat of ['active', 'sleeping', 'lost', 'new', 'none'] as const) {
+    const s = src[cat] as { total: unknown; bought: unknown } | undefined;
+    if (!s) continue;
+    target[cat].total  += toNum(s.total);
+    target[cat].bought += toNum(s.bought);
+  }
+  target.totalClients += toNum(src.totalClients);
+  target.totalBought  += toNum(src.totalBought);
 }
 
 // === Helper: виклик до 1С ===
@@ -127,19 +175,27 @@ export async function GET(request: NextRequest) {
   const lastDay = new Date(y, m, 0).getDate();
   const dateTo = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
+  // Попередній місяць (для порівняння clientStats)
+  const prevDate = new Date(y, m - 2, 1);  // m-2 бо m тут 1-based
+  const prevPeriod = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
   try {
-    // === Fetch обидва Action паралельно ===
+    // === Fetch паралельно — план + факт поточного + факт попереднього (для клієнт-stats vs мин.міс) ===
     // includeAll: true — каже 1С повернути ВСІ підрозділи (Колл-центр, Адасса,
     // Чугуй, Хайленко) ігноруючи фільтр по менеджерах. Доступне ТІЛЬКИ admin —
-    // у цьому endpoint вже є гард role==='admin' вище. Поки 1С не реалізував,
-    // прапор ігнорується (стара поведінка). Спека: docs/SPEC_ACTION5_INCLUDE_ALL.md
-    const [a4, a5] = await Promise.all([
+    // у цьому endpoint вже є гард role==='admin' вище.
+    const [a4, a5, a5prev] = await Promise.all([
       callOnec('getRegistryPlans', { dateFrom, dateTo }),
       callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period, includeAll: true }),
+      // Попередній місяць — лише для порівняння clientStats. Якщо впаде —
+      // продовжуємо без prev (картка просто не покаже delta).
+      callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period: prevPeriod, includeAll: true })
+        .catch(() => ({ status: 'error' as const, message: 'prev month fetch failed' })),
     ]);
 
     if (a4.status !== 'success') throw new Error(`Action 4: ${a4.message || 'unknown error'}`);
     if (a5.status !== 'success') throw new Error(`Action 5: ${a5.message || 'unknown error'}`);
+    // a5prev може бути error — продовжимо без prev clientStats
 
     // === Aggregate plans (Action 4) по divisionName + segmentCode ===
     // Кожен план — це divisionName + managerLogin + segmentCode + planAmountUSD.
@@ -160,17 +216,20 @@ export async function GET(request: NextRequest) {
     }
 
     // === Aggregate fact (Action 5) по regionName + segmentCode + manager ===
+    // + Aggregate clientStats per division (v2.5 Action 5 — купивши клієнти по 5 категоріях)
     const factAgg = new Map<string, {
       segments: Map<string, { fact: number; prevFact: number }>;
       managerCount: number;
       // Per-manager breakdown — для donut «Менеджери Представництв»
       managers: Map<string, ManagerSummary>;
+      // Сумарні клієнт-категорії по підрозділу (сума всіх менеджерів)
+      clientStats: ClientCategoryStats;
     }>();
     for (const reg of a5.data?.regions ?? []) {
       const regName = String(reg.regionName || '').trim();
       if (!regName) continue;
       if (!factAgg.has(regName)) {
-        factAgg.set(regName, { segments: new Map(), managerCount: 0, managers: new Map() });
+        factAgg.set(regName, { segments: new Map(), managerCount: 0, managers: new Map(), clientStats: emptyClientStats() });
       }
       const slot = factAgg.get(regName)!;
       slot.managerCount += Array.isArray(reg.managers) ? reg.managers.length : 0;
@@ -195,6 +254,10 @@ export async function GET(request: NextRequest) {
             });
           }
         }
+        // ClientStats v2.5 — кількість купивших клієнтів по 5 категоріях
+        if (mgr.clientStats) {
+          accumulateClientStats(slot.clientStats, mgr.clientStats as Record<string, unknown>);
+        }
         for (const seg of mgr.segments ?? []) {
           const segCode = mapSegmentCode(String(seg.segmentCode || ''));
           const fact = Number(seg.factAmountUSD || 0);
@@ -203,6 +266,23 @@ export async function GET(request: NextRequest) {
           const s = slot.segments.get(segCode)!;
           s.fact += fact;
           s.prevFact += prevFact;
+        }
+      }
+    }
+
+    // === Prev month clientStats — окремо агрегуємо з a5prev ===
+    // Тільки clientStats (segments/managers вже маємо у поточному).
+    const prevClientStatsAgg = new Map<string, ClientCategoryStats>();
+    if (a5prev.status === 'success') {
+      for (const reg of a5prev.data?.regions ?? []) {
+        const regName = String(reg.regionName || '').trim();
+        if (!regName) continue;
+        if (!prevClientStatsAgg.has(regName)) prevClientStatsAgg.set(regName, emptyClientStats());
+        const slot = prevClientStatsAgg.get(regName)!;
+        for (const mgr of reg.managers ?? []) {
+          if (mgr.clientStats) {
+            accumulateClientStats(slot, mgr.clientStats as Record<string, unknown>);
+          }
         }
       }
     }
@@ -246,6 +326,8 @@ export async function GET(request: NextRequest) {
         managers: groupKey === 'representations' && factSlot
           ? Array.from(factSlot.managers.values())
           : [],
+        clientStats: factSlot?.clientStats,
+        prevClientStats: prevClientStatsAgg.get(divName),
       });
     }
 

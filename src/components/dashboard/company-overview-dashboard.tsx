@@ -27,6 +27,15 @@ const HEADERS_JSON = {
 
 interface SegmentTotals { plan: number; fact: number; prevFact: number; }
 interface ManagerSummary { login: string; name: string; totalPlan: number; totalFact: number; }
+interface ClientCategoryStats {
+  active:   { total: number; bought: number };
+  sleeping: { total: number; bought: number };
+  lost:     { total: number; bought: number };
+  new:      { total: number; bought: number };
+  none:     { total: number; bought: number };
+  totalClients: number;
+  totalBought: number;
+}
 interface DivisionDetails {
   divisionName: string;
   groupKey: 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributor-chuguy' | 'distributor-haylenko';
@@ -38,6 +47,8 @@ interface DivisionDetails {
   hasFact: boolean;
   managerCount: number;
   managers?: ManagerSummary[];
+  clientStats?: ClientCategoryStats;
+  prevClientStats?: ClientCategoryStats;
 }
 interface CompanyOverviewData {
   asOfDate: string | null;
@@ -100,14 +111,18 @@ export function CompanyOverviewDashboard() {
   const { data, error, isLoading, mutate } = useSWR<CompanyOverviewData>(
     user ? `company-overview-${period}-${user.login}` : null,
     async () => {
+      // cache: 'no-store' — бо інакше браузер/Vercel CDN може віддавати
+      // стару відповідь і кнопка «Оновити» не приводить до повторного
+      // звернення до 1С (дані «затухають»).
       const r = await fetch(`/api/admin/company-overview?period=${period}`, {
         credentials: 'include',
+        cache: 'no-store',
         headers: HEADERS_JSON,
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
       return r.json();
     },
-    { revalidateOnFocus: false },
+    { revalidateOnFocus: false, dedupingInterval: 0 },
   );
 
   const filteredDivisions = useMemo(() => {
@@ -350,18 +365,125 @@ export function CompanyOverviewDashboard() {
               </span>
             </div>
 
-            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Клієнти-покупці · Представництва</p>
-              </div>
-              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none text-muted-foreground">—</p>
-              <p className="text-[11px] text-muted-foreground mt-3">купивших цього місяця по категоріях</p>
-              <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100/70 text-amber-800">
-                в розробці · потрібна агрегація з 1С
-              </span>
-            </div>
+            {(() => {
+              // Aggregating clientStats з усіх відфільтрованих підрозділів
+              const agg = filteredDivisions.reduce((a, d) => {
+                if (d.clientStats) {
+                  a.totalBought  += d.clientStats.totalBought;
+                  a.totalClients += d.clientStats.totalClients;
+                  a.active   += d.clientStats.active.bought;
+                  a.sleeping += d.clientStats.sleeping.bought;
+                  a.lost     += d.clientStats.lost.bought;
+                  a.new      += d.clientStats.new.bought;
+                  a.none     += d.clientStats.none.bought;
+                }
+                if (d.prevClientStats) {
+                  a.prevTotalBought += d.prevClientStats.totalBought;
+                }
+                return a;
+              }, { totalBought: 0, totalClients: 0, prevTotalBought: 0, active: 0, sleeping: 0, lost: 0, new: 0, none: 0 });
+              const deltaBought = agg.totalBought - agg.prevTotalBought;
+              return (
+                <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
+                    <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Купивші клієнти {groupLabel}</p>
+                  </div>
+                  <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                    {agg.totalBought}
+                    {agg.totalClients > 0 && (
+                      <span className="text-[22px] font-medium text-muted-foreground"> / {agg.totalClients}</span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-3">
+                    {agg.totalClients > 0
+                      ? `${((agg.totalBought / agg.totalClients) * 100).toFixed(1)}% активність клієнтської бази`
+                      : 'немає даних з 1С'}
+                  </p>
+                  {agg.prevTotalBought > 0 && (
+                    <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${deltaBought >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                      {deltaBought >= 0 ? '↑' : '↓'} {Math.abs(deltaBought)} клієнтів vs мин.міс.
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
+
+          {/* Велика інформаційна карта: купивші клієнти по 5 категоріях × vs минулий місяць */}
+          {(() => {
+            const agg = filteredDivisions.reduce((a, d) => {
+              if (d.clientStats) {
+                a.cur.active.total   += d.clientStats.active.total;    a.cur.active.bought   += d.clientStats.active.bought;
+                a.cur.sleeping.total += d.clientStats.sleeping.total;  a.cur.sleeping.bought += d.clientStats.sleeping.bought;
+                a.cur.lost.total     += d.clientStats.lost.total;      a.cur.lost.bought     += d.clientStats.lost.bought;
+                a.cur.new.total      += d.clientStats.new.total;       a.cur.new.bought      += d.clientStats.new.bought;
+                a.cur.none.total     += d.clientStats.none.total;      a.cur.none.bought     += d.clientStats.none.bought;
+                a.cur.totalClients   += d.clientStats.totalClients;    a.cur.totalBought     += d.clientStats.totalBought;
+              }
+              if (d.prevClientStats) {
+                a.prev.active.bought   += d.prevClientStats.active.bought;
+                a.prev.sleeping.bought += d.prevClientStats.sleeping.bought;
+                a.prev.lost.bought     += d.prevClientStats.lost.bought;
+                a.prev.new.bought      += d.prevClientStats.new.bought;
+                a.prev.none.bought     += d.prevClientStats.none.bought;
+                a.prev.totalBought     += d.prevClientStats.totalBought;
+              }
+              return a;
+            }, {
+              cur: { active: {total:0,bought:0}, sleeping:{total:0,bought:0}, lost:{total:0,bought:0}, new:{total:0,bought:0}, none:{total:0,bought:0}, totalClients:0, totalBought:0 },
+              prev: { active:{bought:0}, sleeping:{bought:0}, lost:{bought:0}, new:{bought:0}, none:{bought:0}, totalBought:0 },
+            });
+
+            const hasAnyData = agg.cur.totalClients > 0;
+            if (!hasAnyData) return null;
+            const hasPrev = agg.prev.totalBought > 0;
+            const cats = [
+              { key: 'active',   label: 'Активні',  color: '#10b981', curT: agg.cur.active.total,   curB: agg.cur.active.bought,   prevB: agg.prev.active.bought },
+              { key: 'sleeping', label: 'Сплячі',   color: '#fb923c', curT: agg.cur.sleeping.total, curB: agg.cur.sleeping.bought, prevB: agg.prev.sleeping.bought },
+              { key: 'new',      label: 'Нові',     color: '#0880cc', curT: agg.cur.new.total,      curB: agg.cur.new.bought,      prevB: agg.prev.new.bought },
+              { key: 'lost',     label: 'Втрачені', color: '#94a3b8', curT: agg.cur.lost.total,     curB: agg.cur.lost.bought,     prevB: agg.prev.lost.bought },
+              { key: 'none',     label: 'Без закупок', color: '#cbd5e1', curT: agg.cur.none.total, curB: agg.cur.none.bought,     prevB: agg.prev.none.bought },
+            ];
+            return (
+              <div className="glass-card p-6 transition-all">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
+                  <h3 className="text-[14px] font-bold">Клієнти-покупці по категоріях · {groupLabel}</h3>
+                </div>
+                <p className="text-[11px] text-muted-foreground mb-4">
+                  Скільки клієнтів кожної категорії купили хоча б щось цього місяця.
+                  {hasPrev ? ' Поряд — кількість за минулий місяць.' : ' Дані за минулий місяць недоступні.'}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {cats.map(c => {
+                    const pct = c.curT > 0 ? (c.curB / c.curT) * 100 : 0;
+                    const delta = c.curB - c.prevB;
+                    return (
+                      <div key={c.key} className="glass-card-soft p-4 flex flex-col">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                          <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{c.label}</span>
+                        </div>
+                        <p className="text-[24px] font-bold tabular-nums leading-none">
+                          {c.curB}
+                          {c.curT > 0 && <span className="text-[14px] font-medium text-muted-foreground"> / {c.curT}</span>}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {c.curT > 0 ? `${pct.toFixed(1)}% купили` : 'нема в базі'}
+                        </p>
+                        {hasPrev && (
+                          <span className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold self-start ${delta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                            {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)} vs {agg.prev.totalBought > 0 ? `мин.міс ($${c.prevB})` : 'мин.міс'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {(() => {
             const tealPalette = ['#066aab', '#0880cc', '#5bd5bc', '#14b8a6', '#0d9488', '#0e7490', '#67e8f9', '#a7f3d0'];
