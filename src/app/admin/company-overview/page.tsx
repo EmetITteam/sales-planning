@@ -6,24 +6,80 @@
  * Read-only візуалізація план/факт по всій компанії включно з не-планувальними
  * підрозділами (Колл-центр, Лазерхауз, Адасса, Чугуй=Полтава, Хайленко=Чернівці).
  *
- * Структура (узгоджена 2026-05-21 на preview-v2):
+ * Структура:
  *  - Hero (4 cards): план / факт / % виконання / без факту
- *  - Filters: період + група підрозділів
- *  - 3 Donut: регіони у Представництвах · підрозділи у компанії · бренди
  *  - Heatmap: 6 рядків (Підрозділи) × 9 колонок (Бренди)
  *  - Accordion: 2 режими (Підрозділи→бренди ⇄ Бренди→підрозділи)
  *
- * Доступ: тільки role === 'admin' (інакше redirect на /).
+ * Доступ: тільки role === 'admin'.
  *
- * 🚧 Скелет — компоненти будуть додаватись по черзі. Поки заглушки + ссилки.
+ * 🚧 MVP — поки без 3 donut-діаграм і period filter. Додамо у наступному коміті.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import useSWR from 'swr';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
-import { ArrowLeft, Building2, Wrench } from 'lucide-react';
+import { SEGMENTS } from '@/lib/mock-data';
+import { ArrowLeft, Building2, RefreshCw } from 'lucide-react';
+
+const HEADERS_JSON = {
+  'Content-Type': 'application/json',
+  'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '',
+};
+
+interface SegmentTotals { plan: number; fact: number; prevFact: number; }
+interface DivisionDetails {
+  divisionName: string;
+  groupKey: 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributor-chuguy' | 'distributor-haylenko';
+  displayName: string;
+  segments: Record<string, SegmentTotals>;
+  totalPlan: number;
+  totalFact: number;
+  totalPrevFact: number;
+  hasFact: boolean;
+  managerCount: number;
+}
+interface CompanyOverviewData {
+  asOfDate: string | null;
+  prevMonthAsOfDate: string | null;
+  divisions: DivisionDetails[];
+  totalPlan: number;
+  totalFact: number;
+  totalPrevFact: number;
+  divisionsWithoutFact: string[];
+}
+
+const BRAND_CODES = SEGMENTS.map(s => s.code);
+const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
+
+const GROUP_ORDER: DivisionDetails['groupKey'][] = [
+  'representations', 'call-center', 'laserhouse', 'adassa', 'distributor-chuguy', 'distributor-haylenko',
+];
+const GROUP_LABEL: Record<DivisionDetails['groupKey'], string> = {
+  representations: 'Представництва',
+  'call-center': 'Колл-центр',
+  laserhouse: 'Лазерхауз',
+  adassa: 'Адасса',
+  'distributor-chuguy': 'Чугуй (Полтава)',
+  'distributor-haylenko': 'Хайленко (Чернівці)',
+};
+
+// Format helpers
+const fmtUSD = (v: number) => '$' + Math.round(v).toLocaleString('en-US');
+const fmtPct = (v: number) => v.toFixed(1) + '%';
+
+// Heatmap color class for percentage
+function heatColor(pct: number | null): string {
+  if (pct === null) return 'bg-slate-100/60 text-slate-500';
+  if (pct >= 100) return 'bg-teal-400/55 text-teal-900';
+  if (pct >= 80) return 'bg-teal-300/35 text-teal-800';
+  if (pct >= 60) return 'bg-lime-300/30 text-lime-800';
+  if (pct >= 40) return 'bg-orange-300/30 text-orange-800';
+  return 'bg-rose-300/35 text-rose-800';
+}
 
 export default function CompanyOverviewPage() {
   const router = useRouter();
@@ -33,17 +89,125 @@ export default function CompanyOverviewPage() {
     if (user && user.role !== 'admin') router.replace('/');
   }, [user, router]);
 
+  // Current month default
+  const now = new Date();
+  const defaultPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [period] = useState(defaultPeriod);
+  const [accordionMode, setAccordionMode] = useState<'by-div' | 'by-brand'>('by-div');
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  const { data, error, isLoading, mutate } = useSWR<CompanyOverviewData>(
+    user?.role === 'admin' ? `company-overview-${period}` : null,
+    async () => {
+      const r = await fetch(`/api/admin/company-overview?period=${period}`, {
+        credentials: 'include',
+        headers: HEADERS_JSON,
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      return r.json();
+    },
+    { revalidateOnFocus: false },
+  );
+
   if (!user) return null;
   if (user.role !== 'admin') return null;
+
+  // Heatmap rows: aggregated по groupKey
+  // Представництва — сума по 8 регіонах; інші — кожен як один рядок
+  const heatmapRows: Array<{
+    key: string; label: string; subLabel: string;
+    segments: Record<string, { plan: number; fact: number; hasFact: boolean }>;
+  }> = [];
+  if (data) {
+    for (const groupKey of GROUP_ORDER) {
+      const divsInGroup = data.divisions.filter(d => d.groupKey === groupKey);
+      if (divsInGroup.length === 0) continue;
+      const aggregated: Record<string, { plan: number; fact: number; hasFact: boolean }> = {};
+      for (const code of BRAND_CODES) {
+        let plan = 0, fact = 0, anyHasFact = false;
+        for (const d of divsInGroup) {
+          const seg = d.segments[code];
+          if (seg) {
+            plan += seg.plan;
+            fact += seg.fact;
+            if (d.hasFact && seg.fact > 0) anyHasFact = true;
+          }
+        }
+        aggregated[code] = { plan, fact, hasFact: anyHasFact };
+      }
+      heatmapRows.push({
+        key: groupKey,
+        label: GROUP_LABEL[groupKey],
+        subLabel: groupKey === 'representations'
+          ? `${divsInGroup.length} регіонів`
+          : `${divsInGroup.reduce((s, d) => s + d.managerCount, 0)} менедж.`,
+        segments: aggregated,
+      });
+    }
+  }
+
+  // Build group-aggregated divisions for accordion-by-div
+  const groupsForAccordion: Array<{
+    key: string; label: string; isRepresentations: boolean;
+    children: DivisionDetails[];
+    totalPlan: number; totalFact: number; hasFact: boolean;
+  }> = [];
+  if (data) {
+    for (const groupKey of GROUP_ORDER) {
+      const divs = data.divisions.filter(d => d.groupKey === groupKey);
+      if (divs.length === 0) continue;
+      groupsForAccordion.push({
+        key: groupKey,
+        label: GROUP_LABEL[groupKey],
+        isRepresentations: groupKey === 'representations',
+        children: divs,
+        totalPlan: divs.reduce((s, d) => s + d.totalPlan, 0),
+        totalFact: divs.reduce((s, d) => s + d.totalFact, 0),
+        hasFact: divs.some(d => d.hasFact),
+      });
+    }
+  }
+
+  // Build brand-first accordion data: aggregate по brand → group → division
+  const brandsForAccordion: Array<{
+    code: string; name: string;
+    totalPlan: number; totalFact: number;
+    byGroup: Array<{ groupKey: string; label: string; plan: number; fact: number; hasFact: boolean; }>;
+  }> = [];
+  if (data) {
+    for (const code of BRAND_CODES) {
+      let totalPlan = 0, totalFact = 0;
+      const byGroup: Array<{ groupKey: string; label: string; plan: number; fact: number; hasFact: boolean }> = [];
+      for (const groupKey of GROUP_ORDER) {
+        const divs = data.divisions.filter(d => d.groupKey === groupKey);
+        let plan = 0, fact = 0, hasFact = false;
+        for (const d of divs) {
+          const seg = d.segments[code];
+          if (seg) { plan += seg.plan; fact += seg.fact; if (d.hasFact && seg.fact > 0) hasFact = true; }
+        }
+        if (plan > 0 || fact > 0) {
+          byGroup.push({ groupKey, label: GROUP_LABEL[groupKey as DivisionDetails['groupKey']], plan, fact, hasFact });
+          totalPlan += plan; totalFact += fact;
+        }
+      }
+      brandsForAccordion.push({ code, name: BRAND_NAMES[code] || code, totalPlan, totalFact, byGroup });
+    }
+    // Sort by totalFact desc (largest first)
+    brandsForAccordion.sort((a, b) => b.totalFact - a.totalFact);
+  }
+
+  const totalPct = data && data.totalPlan > 0
+    ? (data.totalFact / Math.max(data.divisions.filter(d => d.hasFact).reduce((s, d) => s + d.totalPlan, 0), 1)) * 100
+    : 0;
+  const noFactCount = data?.divisionsWithoutFact.length ?? 0;
+  const totalCount = data?.divisions.length ?? 0;
+  const factDelta = data ? data.totalFact - data.totalPrevFact : 0;
 
   return (
     <>
       <AppHeader />
       <main className="p-5 max-w-[1400px] mx-auto space-y-6">
-        <Link
-          href="/admin"
-          className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-        >
+        <Link href="/admin" className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <ArrowLeft className="h-4 w-4" /> Назад до адмін-панелі
         </Link>
 
@@ -51,42 +215,240 @@ export default function CompanyOverviewPage() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#5bd5bc] text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
             <Building2 className="h-5 w-5" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-bold">Огляд компанії</h1>
             <p className="text-[12px] text-muted-foreground">
-              Усі 13 підрозділів — план/факт без фільтра по плануванню. Read-only.
+              Усі підрозділи · план/факт без фільтра по плануванню · травень 2026 · read-only
             </p>
           </div>
+          <button onClick={() => mutate()} className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors">
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Оновити
+          </button>
         </div>
 
-        {/* 🚧 Заглушка — поетапно будуть додаватись справжні компоненти.
-            Поки що нагадує що це WIP і ссилається на preview. */}
-        <div className="glass-card p-12 text-center space-y-4">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-amber-50/60 backdrop-blur-md border border-amber-200/70 items-center justify-center">
-            <Wrench className="h-6 w-6 text-amber-700" />
+        {error && (
+          <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700">
+            Помилка завантаження: {String(error.message || error)}
           </div>
-          <div>
-            <p className="text-[15px] font-bold">Сторінка у розробці</p>
-            <p className="text-[13px] text-muted-foreground max-w-md mx-auto mt-1">
-              Компоненти будуть додаватись поетапно. Доступ — лише admin.
-              Поки що подивись прев'ю-макет як це буде виглядати.
-            </p>
+        )}
+
+        {isLoading && !data && (
+          <div className="glass-card p-12 text-center">
+            <RefreshCw className="h-6 w-6 animate-spin text-[#066aab] mx-auto mb-3" />
+            <p className="text-[13px] text-muted-foreground">Збираємо дані з 1С (план + факт)…</p>
           </div>
-          <div className="flex gap-3 justify-center pt-2">
-            <a
-              href="/admin-overview-preview-v2.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white text-[13px] font-semibold hover:from-[#055a91] hover:to-[#0775bb] transition-all shadow-md shadow-blue-500/20"
-            >
-              Відкрити preview макет ↗
-            </a>
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-2">
-            Контент скелета:<br />
-            Hero (4 cards) · Filters (період + група) · 3 Donut · Heatmap (6×9) · Accordion (2 режими)
-          </p>
-        </div>
+        )}
+
+        {data && (
+          <>
+            {/* HERO */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="glass-card p-5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">План компанії</p>
+                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none amount">{fmtUSD(data.totalPlan)}</p>
+                <p className="text-[11px] text-muted-foreground mt-2">{totalCount} підрозділів</p>
+              </div>
+              <div className="glass-card p-5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Факт</p>
+                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none amount">{fmtUSD(data.totalFact)}</p>
+                <p className={`text-[11px] mt-2 font-semibold ${factDelta >= 0 ? 'text-teal-700' : 'text-rose-600'}`}>
+                  {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс.
+                </p>
+              </div>
+              <div className="glass-card p-5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Виконання</p>
+                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none">{fmtPct(totalPct)}</p>
+                <p className="text-[11px] text-muted-foreground mt-2">з {fmtUSD(data.divisions.filter(d => d.hasFact).reduce((s, d) => s + d.totalPlan, 0))} активних</p>
+              </div>
+              <div className="glass-card p-5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Без факту</p>
+                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none">{noFactCount} / {totalCount}</p>
+                <p className="text-[11px] text-muted-foreground mt-2 truncate">
+                  {data.divisionsWithoutFact.length > 0 ? data.divisionsWithoutFact.join(', ') : 'усі є'}
+                </p>
+              </div>
+            </div>
+
+            {/* HEATMAP */}
+            <div className="glass-card p-5">
+              <div className="mb-3">
+                <h3 className="text-[14px] font-bold">Теплова карта · Підрозділ × Бренд</h3>
+                <p className="text-[11px] text-muted-foreground">Колір = % виконання плану. Сірий = немає факту з 1С.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-separate border-spacing-1 text-[11px]">
+                  <thead>
+                    <tr>
+                      <th className="text-left p-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold whitespace-nowrap">Підрозділ</th>
+                      {BRAND_CODES.map(code => (
+                        <th key={code} className="p-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{BRAND_NAMES[code]}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {heatmapRows.map(row => (
+                      <tr key={row.key}>
+                        <td className="text-left p-2 font-bold text-[12px] whitespace-nowrap">
+                          {row.label}
+                          <div className="text-[9px] text-muted-foreground font-medium">{row.subLabel}</div>
+                        </td>
+                        {BRAND_CODES.map(code => {
+                          const seg = row.segments[code];
+                          if (!seg || (seg.plan === 0 && seg.fact === 0)) {
+                            return <td key={code} className={`rounded-lg p-2 text-center ${heatColor(null)}`}><span className="text-[10px] font-medium">—</span></td>;
+                          }
+                          const hasFact = seg.hasFact || seg.fact > 0;
+                          const pct = hasFact && seg.plan > 0 ? (seg.fact / seg.plan) * 100 : null;
+                          return (
+                            <td key={code} className={`rounded-lg p-2 text-center min-h-[44px] font-mono font-bold ${heatColor(pct)}`}>
+                              <div className="text-[11px]">{pct !== null ? fmtPct(pct) : 'н/д'}</div>
+                              {hasFact && (
+                                <div className="text-[9px] opacity-75 mt-0.5 font-medium">{fmtUSD(seg.fact)}/{fmtUSD(seg.plan)}</div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex gap-4 mt-3 text-[10px] text-muted-foreground flex-wrap">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-400/55" /> &gt;100%</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-300/35" /> 80-100%</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-lime-300/30" /> 60-80%</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-orange-300/30" /> 40-60%</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-rose-300/35" /> &lt;40%</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-100/60" /> н/д</span>
+              </div>
+            </div>
+
+            {/* ACCORDION з toggle */}
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-[16px] font-bold">Деталізація</h2>
+                <div className="flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-auto">
+                  <button
+                    onClick={() => { setAccordionMode('by-div'); setExpandedKey(null); }}
+                    className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all ${accordionMode === 'by-div' ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow' : 'text-muted-foreground'}`}
+                  >
+                    Підрозділи → бренди
+                  </button>
+                  <button
+                    onClick={() => { setAccordionMode('by-brand'); setExpandedKey(null); }}
+                    className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all ${accordionMode === 'by-brand' ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow' : 'text-muted-foreground'}`}
+                  >
+                    Бренди → підрозділи
+                  </button>
+                </div>
+              </div>
+
+              {accordionMode === 'by-div' && (
+                <div className="space-y-2">
+                  {groupsForAccordion.map(g => {
+                    const isExpanded = expandedKey === g.key;
+                    const pct = g.hasFact && g.totalPlan > 0 ? (g.totalFact / g.totalPlan) * 100 : null;
+                    return (
+                      <div key={g.key} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
+                        <button
+                          onClick={() => setExpandedKey(isExpanded ? null : g.key)}
+                          className="w-full grid grid-cols-[20px_1fr_120px_140px_80px_60px] gap-3 items-center text-left"
+                        >
+                          <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                          <span className="font-bold text-[14px]">{g.label} {g.isRepresentations && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-[#066aab]/10 text-[#066aab] px-2 py-0.5 rounded-full">{g.children.length} регіонів</span>}</span>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full text-center ${g.hasFact ? 'bg-teal-100/70 text-teal-800' : 'bg-slate-100/70 text-slate-600'}`}>
+                            {g.hasFact ? 'З фактом' : 'Без факту'}
+                          </span>
+                          <span className="font-mono tabular-nums text-[12px] text-right">
+                            {g.hasFact ? <><strong>{fmtUSD(g.totalFact)}</strong> / </> : '— / '}
+                            <span className="text-muted-foreground">{fmtUSD(g.totalPlan)}</span>
+                          </span>
+                          <span className={`text-[13px] font-bold tabular-nums text-right ${pct === null ? 'text-slate-400' : pct >= 80 ? 'text-teal-700' : pct >= 60 ? 'text-lime-700' : pct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                            {pct !== null ? fmtPct(pct) : 'н/д'}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground text-right">›</span>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2">
+                            {g.children.map(d => {
+                              const childPct = d.hasFact && d.totalPlan > 0 ? (d.totalFact / d.totalPlan) * 100 : null;
+                              return (
+                                <div key={d.divisionName} className="glass-card-soft p-3 grid grid-cols-[1fr_120px_140px_70px] gap-3 items-center">
+                                  <span className="text-[13px] font-semibold">
+                                    {g.isRepresentations ? d.divisionName : d.displayName}
+                                  </span>
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full text-center ${d.hasFact ? 'bg-teal-100/70 text-teal-800' : 'bg-slate-100/70 text-slate-600'}`}>
+                                    {d.hasFact ? 'З фактом' : 'Без факту'}
+                                  </span>
+                                  <span className="font-mono tabular-nums text-[11px] text-right">
+                                    {d.hasFact ? <><strong>{fmtUSD(d.totalFact)}</strong> / </> : '— / '}
+                                    <span className="text-muted-foreground">{fmtUSD(d.totalPlan)}</span>
+                                  </span>
+                                  <span className={`text-[12px] font-bold tabular-nums text-right ${childPct === null ? 'text-slate-400' : childPct >= 80 ? 'text-teal-700' : childPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                    {childPct !== null ? fmtPct(childPct) : 'н/д'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {accordionMode === 'by-brand' && (
+                <div className="space-y-2">
+                  {brandsForAccordion.map(b => {
+                    const isExpanded = expandedKey === b.code;
+                    const pct = b.totalPlan > 0 ? (b.totalFact / b.totalPlan) * 100 : null;
+                    return (
+                      <div key={b.code} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
+                        <button
+                          onClick={() => setExpandedKey(isExpanded ? null : b.code)}
+                          className="w-full grid grid-cols-[20px_1fr_140px_80px_60px] gap-3 items-center text-left"
+                        >
+                          <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                          <span className="font-bold text-[14px]">{b.name}</span>
+                          <span className="font-mono tabular-nums text-[12px] text-right">
+                            <strong>{fmtUSD(b.totalFact)}</strong>
+                            <span className="text-muted-foreground"> / {fmtUSD(b.totalPlan)}</span>
+                          </span>
+                          <span className={`text-[13px] font-bold tabular-nums text-right ${pct === null ? 'text-slate-400' : pct >= 80 ? 'text-teal-700' : pct >= 60 ? 'text-lime-700' : pct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                            {pct !== null ? fmtPct(pct) : 'н/д'}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground text-right">›</span>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2">
+                            {b.byGroup.map(g => {
+                              const groupPct = g.hasFact && g.plan > 0 ? (g.fact / g.plan) * 100 : null;
+                              return (
+                                <div key={g.groupKey} className="glass-card-soft p-3 grid grid-cols-[1fr_140px_70px] gap-3 items-center">
+                                  <span className="text-[13px] font-semibold">{g.label}</span>
+                                  <span className="font-mono tabular-nums text-[11px] text-right">
+                                    {g.hasFact ? <><strong>{fmtUSD(g.fact)}</strong> / </> : '— / '}
+                                    <span className="text-muted-foreground">{fmtUSD(g.plan)}</span>
+                                  </span>
+                                  <span className={`text-[12px] font-bold tabular-nums text-right ${groupPct === null ? 'text-slate-400' : groupPct >= 80 ? 'text-teal-700' : groupPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                    {groupPct !== null ? fmtPct(groupPct) : 'н/д'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </main>
     </>
   );

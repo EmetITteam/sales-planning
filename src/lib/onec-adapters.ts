@@ -93,7 +93,7 @@ const SEGMENT_CODE_MAP: Record<string, string> = {
   'ДРУГИЕТМ': 'OTHER',
 };
 
-function mapSegmentCode(code: string): string {
+export function mapSegmentCode(code: string): string {
   return SEGMENT_CODE_MAP[code] ?? code;
 }
 
