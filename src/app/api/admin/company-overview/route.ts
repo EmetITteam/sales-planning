@@ -46,16 +46,20 @@ function classifyDivision(name: string): DivisionGroup | null {
 
 // === Типи відповіді нашого endpoint ===
 interface SegmentTotals { plan: number; fact: number; prevFact: number; }
+interface ManagerSummary { login: string; name: string; totalPlan: number; totalFact: number; }
 interface DivisionDetails {
   divisionName: string;        // як приходить з 1С
   groupKey: DivisionGroup;
-  displayName: string;         // для UI («Чугуй (Полтава)», «Колл-центр»...)
+  displayName: string;         // для UI («Полтава», «Колл-центр»...)
   segments: Record<string, SegmentTotals>;  // segmentCode → totals
   totalPlan: number;
   totalFact: number;
   totalPrevFact: number;
   hasFact: boolean;            // true якщо Action 5 повернув цей підрозділ
   managerCount: number;
+  /** Per-manager breakdown — використовується для donut «Менеджери Представництв».
+   *  Заповнюється тільки для groupKey='representations' (для решти груп — пусто). */
+  managers?: ManagerSummary[];
 }
 interface CompanyOverviewResponse {
   asOfDate: string | null;
@@ -124,9 +128,13 @@ export async function GET(request: NextRequest) {
 
   try {
     // === Fetch обидва Action паралельно ===
+    // includeAll: true — каже 1С повернути ВСІ підрозділи (Колл-центр, Адасса,
+    // Чугуй, Хайленко) ігноруючи фільтр по менеджерах. Доступне ТІЛЬКИ admin —
+    // у цьому endpoint вже є гард role==='admin' вище. Поки 1С не реалізував,
+    // прапор ігнорується (стара поведінка). Спека: docs/SPEC_ACTION5_INCLUDE_ALL.md
     const [a4, a5] = await Promise.all([
       callOnec('getRegistryPlans', { dateFrom, dateTo }),
-      callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period }),
+      callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period, includeAll: true }),
     ]);
 
     if (a4.status !== 'success') throw new Error(`Action 4: ${a4.message || 'unknown error'}`);
@@ -146,15 +154,42 @@ export async function GET(request: NextRequest) {
       seg.set(segCode, (seg.get(segCode) || 0) + amt);
     }
 
-    // === Aggregate fact (Action 5) по regionName + segmentCode ===
-    const factAgg = new Map<string, { segments: Map<string, { fact: number; prevFact: number }>; managerCount: number }>();
+    // === Aggregate fact (Action 5) по regionName + segmentCode + manager ===
+    const factAgg = new Map<string, {
+      segments: Map<string, { fact: number; prevFact: number }>;
+      managerCount: number;
+      // Per-manager breakdown — для donut «Менеджери Представництв»
+      managers: Map<string, ManagerSummary>;
+    }>();
     for (const reg of a5.data?.regions ?? []) {
       const regName = String(reg.regionName || '').trim();
       if (!regName) continue;
-      if (!factAgg.has(regName)) factAgg.set(regName, { segments: new Map(), managerCount: 0 });
+      if (!factAgg.has(regName)) {
+        factAgg.set(regName, { segments: new Map(), managerCount: 0, managers: new Map() });
+      }
       const slot = factAgg.get(regName)!;
       slot.managerCount += Array.isArray(reg.managers) ? reg.managers.length : 0;
       for (const mgr of reg.managers ?? []) {
+        const mgrLogin = String(mgr.managerLogin || '').toLowerCase().trim();
+        const mgrName = String(mgr.managerName || mgrLogin || '');
+        const mgrTotalPlan = Number(mgr.totalPlan || 0);
+        const mgrTotalFact = Number(mgr.totalFact || 0);
+        // Тримаємо суму факту/плану per manager (накопичуємо якщо менеджер
+        // з'являється у кількох регіонах — наприклад мульти-region РМ).
+        if (mgrLogin) {
+          const existing = slot.managers.get(mgrLogin);
+          if (existing) {
+            existing.totalPlan += mgrTotalPlan;
+            existing.totalFact += mgrTotalFact;
+          } else {
+            slot.managers.set(mgrLogin, {
+              login: mgrLogin,
+              name: mgrName,
+              totalPlan: mgrTotalPlan,
+              totalFact: mgrTotalFact,
+            });
+          }
+        }
         for (const seg of mgr.segments ?? []) {
           const segCode = mapSegmentCode(String(seg.segmentCode || ''));
           const fact = Number(seg.factAmountUSD || 0);
@@ -201,6 +236,11 @@ export async function GET(request: NextRequest) {
         totalPrevFact,
         hasFact: !!factSlot && totalFact > 0,
         managerCount: factSlot?.managerCount ?? 0,
+        // Заповнюємо managers тільки для Представництв — для frontend donut
+        // «Менеджери Представництв». Решта груп — порожній масив щоб тип сходився.
+        managers: groupKey === 'representations' && factSlot
+          ? Array.from(factSlot.managers.values())
+          : [],
       });
     }
 
