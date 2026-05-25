@@ -17,7 +17,7 @@ import useSWR from 'swr';
 import { useAppStore } from '@/lib/store';
 import { DonutChart } from '@/components/dashboard/donut-chart';
 import { SEGMENTS } from '@/lib/mock-data';
-import { getMonthProgressPct } from '@/lib/working-days';
+import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { Building2, RefreshCw, Zap } from 'lucide-react';
 
 const HEADERS_JSON = {
@@ -101,6 +101,13 @@ export function CompanyOverviewDashboard() {
   const period = liveMode
     ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     : currentPeriod.month.slice(0, 7);
+  // asOfDate — дата зрізу. У live-режимі — сьогодні. Інакше — weekEnd
+  // з обраного періоду (наприклад 17.05 коли вибрано «01.05 — 17.05»).
+  // Передається у 1С — щоб реально отримати дані станом на ту дату, а
+  // не «сьогодні», як було досі.
+  const asOfDate = liveMode
+    ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    : (currentPeriod.weekEnd || '');
 
   const [accordionMode, setAccordionMode] = useState<'by-div' | 'by-brand'>('by-div');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
@@ -109,12 +116,14 @@ export function CompanyOverviewDashboard() {
   const [groupFilter, setGroupFilter] = useState<'all' | 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributors'>('all');
 
   const { data, error, isLoading, mutate } = useSWR<CompanyOverviewData>(
-    user ? `company-overview-${period}-${user.login}` : null,
+    user ? `company-overview-${period}-${asOfDate}-${user.login}` : null,
     async () => {
       // cache: 'no-store' — бо інакше браузер/Vercel CDN може віддавати
       // стару відповідь і кнопка «Оновити» не приводить до повторного
       // звернення до 1С (дані «затухають»).
-      const r = await fetch(`/api/admin/company-overview?period=${period}`, {
+      const qs = new URLSearchParams({ period });
+      if (asOfDate) qs.set('asOfDate', asOfDate);
+      const r = await fetch(`/api/admin/company-overview?${qs.toString()}`, {
         credentials: 'include',
         cache: 'no-store',
         headers: HEADERS_JSON,
@@ -260,9 +269,16 @@ export function CompanyOverviewDashboard() {
             Усі підрозділи · план/факт без фільтра по плануванню · read-only
           </p>
         </div>
-        <button onClick={() => mutate()} className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors">
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Оновити
-        </button>
+        <div className="flex items-center gap-3">
+          {data?.asOfDate && (
+            <span className="text-[10px] text-muted-foreground" title={`Зріз даних з 1С: ${data.asOfDate}`}>
+              станом на {data.asOfDate}
+            </span>
+          )}
+          <button onClick={() => mutate(undefined, { revalidate: true })} className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors">
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Оновити
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -366,8 +382,33 @@ export function CompanyOverviewDashboard() {
             </div>
 
             {(() => {
-              // Aggregating clientStats з усіх відфільтрованих підрозділів
-              const agg = filteredDivisions.reduce((a, d) => {
+              // Клієнтська 4-та картка релевантна тільки для Представництв і Колл-центру.
+              // Для Лазерхауз/Адасса/Дистрибуторів — 1С повертає sentinel-дані (2/1=200%).
+              // Якщо фільтр не той — показуємо «Робочі дні» замість клієнтів.
+              const isClientGroup = groupFilter === 'all' || groupFilter === 'representations' || groupFilter === 'call-center';
+              if (!isClientGroup) {
+                // Робочі дні місяця: пройшло / всього
+                const py = periodDate.getFullYear();
+                const pm = periodDate.getMonth();
+                const totalWD = getWorkingDaysInMonth(py, pm);
+                const passedWD = getPassedWorkingDays(py, pm, now);
+                const remainingWD = Math.max(0, totalWD - passedWD);
+                return (
+                  <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7]" />
+                      <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Робочі дні</p>
+                    </div>
+                    <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                      {passedWD} <span className="text-[22px] font-medium text-muted-foreground">/ {totalWD}</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-3">{remainingWD > 0 ? `лишилось ${remainingWD} ${remainingWD === 1 ? 'день' : remainingWD < 5 ? 'дні' : 'днів'} до кінця` : 'місяць завершено'}</p>
+                  </div>
+                );
+              }
+              // Тільки reps+call-center дані для клієнтської картки
+              const clientDivs = filteredDivisions.filter(d => d.groupKey === 'representations' || d.groupKey === 'call-center');
+              const agg = clientDivs.reduce((a, d) => {
                 if (d.clientStats) {
                   a.totalBought  += d.clientStats.totalBought;
                   a.totalClients += d.clientStats.totalClients;
@@ -410,9 +451,18 @@ export function CompanyOverviewDashboard() {
             })()}
           </div>
 
-          {/* Велика інформаційна карта: купивші клієнти по 5 категоріях × vs минулий місяць */}
-          {(() => {
-            const agg = filteredDivisions.reduce((a, d) => {
+          {/* Велика інформаційна карта: купивші клієнти по 5 категоріях × vs минулий місяць.
+              Показуємо ТІЛЬКИ для груп з реальною клієнтською базою —
+              Представництва і Колл-центр. Для Лазерхауз/Адасса/Дистрибуторів
+              дані з 1С сумбурні (наприклад «2/1 = 200%»), категорійна логіка
+              не застосовується. */}
+          {(groupFilter === 'all' || groupFilter === 'representations' || groupFilter === 'call-center') && (() => {
+            // Враховуємо ТІЛЬКИ Представництва і Колл-центр (інші підрозділи мають
+            // sentinel-дані типу 2/1=200% які не мають сенсу у розрізі категорій).
+            const clientDivs = filteredDivisions.filter(d =>
+              d.groupKey === 'representations' || d.groupKey === 'call-center'
+            );
+            const agg = clientDivs.reduce((a, d) => {
               if (d.clientStats) {
                 a.cur.active.total   += d.clientStats.active.total;    a.cur.active.bought   += d.clientStats.active.bought;
                 a.cur.sleeping.total += d.clientStats.sleeping.total;  a.cur.sleeping.bought += d.clientStats.sleeping.bought;
@@ -449,7 +499,12 @@ export function CompanyOverviewDashboard() {
               <div className="glass-card p-6 transition-all">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
-                  <h3 className="text-[14px] font-bold">Клієнти-покупці по категоріях · {groupLabel}</h3>
+                  <h3 className="text-[14px] font-bold">
+                    Клієнти-покупці по категоріях
+                    {groupFilter === 'representations' && ' · Представництва'}
+                    {groupFilter === 'call-center' && ' · Колл-центр'}
+                    {groupFilter === 'all' && ' · Представництва + Колл-центр'}
+                  </h3>
                 </div>
                 <p className="text-[11px] text-muted-foreground mb-4">
                   Скільки клієнтів кожної категорії купили хоча б щось цього місяця.
@@ -465,12 +520,11 @@ export function CompanyOverviewDashboard() {
                           <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
                           <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{c.label}</span>
                         </div>
-                        <p className="text-[24px] font-bold tabular-nums leading-none">
+                        <p className="text-[28px] font-bold tabular-nums leading-none">
                           {c.curB}
-                          {c.curT > 0 && <span className="text-[14px] font-medium text-muted-foreground"> / {c.curT}</span>}
                         </p>
                         <p className="text-[10px] text-muted-foreground mt-1">
-                          {c.curT > 0 ? `${pct.toFixed(1)}% купили` : 'нема в базі'}
+                          {c.curT > 0 ? `${pct.toFixed(1)}% купили` : 'купили'}
                         </p>
                         {hasPrev && (
                           <span className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold self-start ${delta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>

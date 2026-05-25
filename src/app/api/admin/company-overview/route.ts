@@ -158,14 +158,22 @@ export async function GET(request: NextRequest) {
   }
 
   // Period: ?period=YYYY-MM (default — поточний місяць)
+  // asOfDate: ?asOfDate=YYYY-MM-DD (опц. — дата зрізу, передаємо в 1С для
+  //   історичних знімків; інакше 1С дає на сьогодні).
   const { searchParams } = request.nextUrl;
   const periodParam = searchParams.get('period');
+  const asOfDateParam = searchParams.get('asOfDate');
   let period: string;
   if (periodParam && /^\d{4}-\d{2}$/.test(periodParam)) {
     period = periodParam;
   } else {
     const now = new Date();
     period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+  // Валідуємо asOfDate і що він всередині period. Якщо невалідний — ігноруємо.
+  let asOfDate: string | null = null;
+  if (asOfDateParam && /^\d{4}-\d{2}-\d{2}$/.test(asOfDateParam) && asOfDateParam.startsWith(period)) {
+    asOfDate = asOfDateParam;
   }
 
   // Period bounds для Action 4
@@ -184,9 +192,13 @@ export async function GET(request: NextRequest) {
     // includeAll: true — каже 1С повернути ВСІ підрозділи (Колл-центр, Адасса,
     // Чугуй, Хайленко) ігноруючи фільтр по менеджерах. Доступне ТІЛЬКИ admin —
     // у цьому endpoint вже є гард role==='admin' вище.
+    // asOfDate передаємо у 1С — щоб історичні знімки (вибраний тиждень) реально
+    // повертали те що було на ту дату, а не на сьогодні.
+    const currentPayload: Record<string, unknown> = { login: DIRECTOR_PROXY_LOGIN, period, includeAll: true };
+    if (asOfDate) currentPayload.asOfDate = asOfDate;
     const [a4, a5, a5prev] = await Promise.all([
       callOnec('getRegistryPlans', { dateFrom, dateTo }),
-      callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period, includeAll: true }),
+      callOnec('getRegionData', currentPayload),
       // Попередній місяць — лише для порівняння clientStats. Якщо впаде —
       // продовжуємо без prev (картка просто не покаже delta).
       callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period: prevPeriod, includeAll: true })
