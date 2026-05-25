@@ -504,7 +504,7 @@ export function CompanyOverviewDashboard() {
                 <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
-                    <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Купивші клієнти {groupLabel}</p>
+                    <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Покупці місяця · {groupLabel}</p>
                   </div>
                   <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
                     {agg.totalBought}
