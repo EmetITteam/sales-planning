@@ -195,8 +195,12 @@
 }
 
 /* Cursor-following highlight для glass-card (preview шаблон з glass-detailed.html).
-   --mouse-x / --mouse-y виставляє useGlassHover хук у JS. */
-.glass-card { position: relative; overflow: hidden; transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s cubic-bezier(0.16,1,0.3,1); }
+   --mouse-x / --mouse-y виставляє useGlassHover хук у JS.
+   isolation: isolate створює окремий stacking context — ::before з z-index:-1
+   лишається ВСЕРЕДИНІ картки (не за самим .glass-card фоном) і ПІД контентом.
+   Не чіпаємо position/z-index дочерних елементів — щоб absolute-icons у
+   MetricCard працювали як було. */
+.glass-card { position: relative; isolation: isolate; transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s cubic-bezier(0.16,1,0.3,1); }
 .glass-card::before {
   content: '';
   position: absolute; inset: 0;
@@ -205,6 +209,7 @@
   transition: opacity 0.3s;
   border-radius: inherit;
   pointer-events: none;
+  z-index: -1;
 }
 .glass-card:hover::before { opacity: 1; }
 .glass-card:hover {
@@ -212,9 +217,9 @@
     0 20px 60px rgba(31, 38, 135, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
-.glass-card > * { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) {
   .glass-card, .glass-card::before { transition: none; }
+  .pulse-dot { animation: none; }
 }
 
 /* Pulsing dot для hero-картки індикатора + LIVE/online badge.

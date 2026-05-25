@@ -174,7 +174,7 @@ export function BrandExpandedDetails({
   ];
 
   return (
-    <div className="bg-slate-50/60 rounded-2xl border border-[#e8ebf4] px-4 py-3 mt-1">
+    <div className="glass-card-soft px-4 py-3 mt-1">
       {planLoading ? (
         <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />

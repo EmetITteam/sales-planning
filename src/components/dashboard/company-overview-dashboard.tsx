@@ -414,23 +414,33 @@ export function CompanyOverviewDashboard() {
               //   filter=Лазерхауз/Адасса/Дистрибутори → «Робочі дні» (клієнтських даних нема,
               //     великої категорійної карти не показуємо)
               if (groupFilter === 'all') {
-                const notInPlan = data.divisionsNotInPlan || [];
+                // Підрозділи що ВІДСТАЮТЬ від норми (pct < calcPct) — не виконують план.
+                // Бере всі divisions з планом > 0; рахує їх pct і порівнює з нормою.
+                const behind = filteredDivisions
+                  .filter(d => d.totalPlan > 0)
+                  .map(d => {
+                    const pct = d.hasFact ? (d.totalFact / d.totalPlan) * 100 : 0;
+                    return { name: d.displayName, pct };
+                  })
+                  .filter(x => x.pct < calcPct)
+                  .sort((a, b) => a.pct - b.pct);
+                const behindNames = behind.map(b => b.name);
                 return (
                   <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
-                      <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Підрозділи не в плані</p>
+                      <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Відстають від плану</p>
                     </div>
                     <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                      {notInPlan.length}
-                      <span className="text-[22px] font-medium text-muted-foreground"> / 13</span>
+                      {behind.length}
+                      <span className="text-[22px] font-medium text-muted-foreground"> / {filteredDivisions.filter(d => d.totalPlan > 0).length}</span>
                     </p>
-                    <p className="text-[11px] text-muted-foreground mt-3" title={notInPlan.join(', ')}>
-                      {notInPlan.length === 0 ? '— усі 13 підрозділів з планом' : notInPlan.join(', ')}
+                    <p className="text-[11px] text-muted-foreground mt-3 line-clamp-2" title={behindNames.join(', ')}>
+                      {behind.length === 0 ? '— усі тримають темп' : behindNames.join(', ')}
                     </p>
-                    {notInPlan.length > 0 && (
+                    {behind.length > 0 && (
                       <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-100/70 text-orange-800">
-                        план не введено
+                        відстають vs норма {fmtPct(calcPct)}
                       </span>
                     )}
                   </div>

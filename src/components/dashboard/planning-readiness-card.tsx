@@ -220,7 +220,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
       {/* Header */}
       <div
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
@@ -315,7 +315,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                       return next;
                     });
                   }}
-                  className="w-full grid grid-cols-[20px_1fr_220px_100px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left"
+                  className="w-full grid grid-cols-[20px_1fr_220px_100px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-white/40 text-left"
                 >
                   <span className={`w-2.5 h-2.5 rounded-full shadow-sm ${dotClass[s]}`} />
                   <span className="text-[14px] font-bold">{r.regionName}</span>

@@ -88,7 +88,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
       {/* === DESKTOP === */}
       <div
         onClick={() => setExpanded(!expanded)}
-        className="hidden md:flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        className="hidden md:flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[12px] font-bold text-[#066aab] shrink-0">

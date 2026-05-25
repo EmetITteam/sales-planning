@@ -47,7 +47,10 @@ export function MetricCard({ icon, iconColor, label, value, caption, isAmount, i
 
       {/* Контент: label прибитий до верху, value+caption центруються в решті простору */}
       <div className="relative flex-1 flex flex-col">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
+        <div className="flex items-center gap-2">
+          <span className={`pulse-dot w-1.5 h-1.5 rounded-full ${iconColor.replace('text-', 'bg-')} shadow-[0_0_6px_currentColor] ${iconColor}`} />
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
+        </div>
         <div className="flex-1 flex flex-col justify-center mt-2">
           <div className={`text-[24px] font-extrabold tracking-tight tabular-nums leading-none ${isAmount ? 'amount' : ''}`}>
             {value}

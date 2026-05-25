@@ -179,7 +179,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
       {/* === DESKTOP/TABLET (md+): grid layout як у BrandRow, з drill-down chevron === */}
       <div
         onClick={() => setExpanded(!expanded)}
-        className="hidden xl:block px-3 md:px-4 py-3 md:py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        className="hidden xl:block px-3 md:px-4 py-3 md:py-4 cursor-pointer hover:bg-white/40 transition-colors"
       >
         {/* Row 1: name+icon | badge | factPct+dev | progress | plan | fact | menagers | мин.міс | chevron | drill-down */}
         <div className="grid grid-cols-[180px_95px_115px_minmax(160px,1fr)_85px_85px_70px_170px_20px_28px] gap-3 items-center">
@@ -310,7 +310,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
       {/* === MID-TABLET (md..lg-xl): спрощений stacked layout, без grid === */}
       <div
         onClick={() => setExpanded(!expanded)}
-        className="hidden md:block xl:hidden px-4 py-3 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        className="hidden md:block xl:hidden px-4 py-3 cursor-pointer hover:bg-white/40 transition-colors"
       >
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
@@ -436,7 +436,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
       {/* Розгорнутий блок: спочатку зведена таблиця по категоріях клієнтів,
           потім список брендів цього регіону */}
       {expanded && (
-        <div className="px-3 md:px-5 pb-4 pt-3 space-y-3 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-3 md:px-5 pb-4 pt-3 space-y-3 bg-white/30 backdrop-blur-md border-t border-white/40">
           <CategoryStatsTable
             plan={aggregatedPlan}
             fact={aggregatedFact}
