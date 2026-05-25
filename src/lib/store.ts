@@ -157,7 +157,11 @@ export const useAppStore = create<AppState>()(
               .toISOString().slice(0, 10)
           : '';
         const isWholeMonth = persistedWeekEnd === lastDayOfPersistedMonth;
-        const stale = persistedMonth !== defaultMonth || persistedWeekEnd > today || isWholeMonth;
+        // Якщо з моменту persisted пройшла нова неділя — користувач очікує
+        // що фільтр автоматично «доїде» до неї (типовий понеділковий перегляд).
+        // Без цієї перевірки persisted=01.05-17.05 застрягав би навіть на 25.05.
+        const hasNewerSunday = persistedWeekEnd < def.weekEnd;
+        const stale = persistedMonth !== defaultMonth || persistedWeekEnd > today || isWholeMonth || hasNewerSunday;
         return stale ? { ...merged, currentPeriod: def } : merged;
       },
     },

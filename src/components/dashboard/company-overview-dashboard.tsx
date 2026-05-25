@@ -18,7 +18,7 @@ import { useAppStore } from '@/lib/store';
 import { DonutChart } from '@/components/dashboard/donut-chart';
 import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct } from '@/lib/working-days';
-import { Building2, RefreshCw } from 'lucide-react';
+import { Building2, RefreshCw, Zap } from 'lucide-react';
 
 const HEADERS_JSON = {
   'Content-Type': 'application/json',
@@ -26,6 +26,7 @@ const HEADERS_JSON = {
 };
 
 interface SegmentTotals { plan: number; fact: number; prevFact: number; }
+interface ManagerSummary { login: string; name: string; totalPlan: number; totalFact: number; }
 interface DivisionDetails {
   divisionName: string;
   groupKey: 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributor-chuguy' | 'distributor-haylenko';
@@ -36,6 +37,7 @@ interface DivisionDetails {
   totalPrevFact: number;
   hasFact: boolean;
   managerCount: number;
+  managers?: ManagerSummary[];
 }
 interface CompanyOverviewData {
   asOfDate: string | null;
@@ -80,27 +82,15 @@ function heatColor(pct: number | null): string {
 }
 
 export function CompanyOverviewDashboard() {
-  const { user } = useAppStore();
+  const { user, currentPeriod, liveMode } = useAppStore();
 
   const now = new Date();
-  const defaultPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const [period, setPeriod] = useState(defaultPeriod);
+  // Period беремо з глобального стору (той самий що у шапці). Live-режим = поточний місяць.
+  // Без локального state — щоб уникнути двох паралельних фільтрів.
+  const period = liveMode
+    ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    : currentPeriod.month.slice(0, 7);
 
-  const availablePeriods = useMemo(() => {
-    const out: { value: string; label: string }[] = [];
-    const monthNames = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
-                        'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
-    for (let i = 0; i < 3; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = i === 0
-        ? `${monthNames[d.getMonth()]} ${d.getFullYear()} (поточний)`
-        : `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-      out.push({ value: v, label });
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const [accordionMode, setAccordionMode] = useState<'by-div' | 'by-brand'>('by-div');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [groupFilter, setGroupFilter] = useState<'all' | 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributors'>('all');
@@ -253,24 +243,19 @@ export function CompanyOverviewDashboard() {
 
       {data && (
         <>
-          {/* Фільтри Період + Група — в одному ряду (як preview) */}
-          <div className="glass-card-soft p-3 flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Період</span>
-              {availablePeriods.map(p => (
-                <button
-                  key={p.value}
-                  onClick={() => { setPeriod(p.value); setExpandedKey(null); }}
-                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
-                    period === p.value
-                      ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
-                      : 'bg-white/60 backdrop-blur-md border border-white/50 text-muted-foreground hover:bg-white/90 hover:text-foreground'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+          {/* Контекст періоду (із шапки) + фільтр Група.
+              Період БЕРЕМО з глобального PeriodFilter у шапці — не дублюємо тут. */}
+          <div className="glass-card-soft p-3 flex items-center gap-3 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-white/50 text-[12px] font-semibold text-foreground">
+              {liveMode ? (
+                <>
+                  <Zap className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                  <span className="uppercase tracking-wider text-[10px] font-bold text-amber-700">LIVE</span>
+                  <span className="text-muted-foreground">·</span>
+                </>
+              ) : null}
+              {new Date(`${period}-01T00:00:00`).toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' })}
+            </span>
             <div className="flex-1" />
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Група</span>
