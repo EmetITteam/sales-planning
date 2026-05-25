@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import Link from 'next/link';
-import { Shield, Lock, Clock, Settings2, ArrowLeft } from 'lucide-react';
+import { Shield, Lock, Clock, Settings2, ArrowLeft, Building2 } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -75,6 +75,13 @@ export default function AdminPage() {
             icon={<Settings2 className="h-4 w-4 text-amber-700" />}
             title="Редагування етапу після фіналу"
             description="Per-manager дозвіл міняти поле «Етап» (Дзвінок/Зустріч/Навчання) у формі планування навіть після фіналізації. Суми лишаються заблокованими."
+            ready
+          />
+          <AdminCard
+            href="/admin/company-overview"
+            icon={<Building2 className="h-4 w-4 text-[#066aab]" />}
+            title="Огляд компанії"
+            description="Уся компанія — план/факт по 13 підрозділах (включно з Колл-центр, Лазерхауз, Адасса, Чугуй, Хайленко). Heatmap бренд×підрозділ + donut-діаграми. Read-only."
             ready
           />
         </div>
