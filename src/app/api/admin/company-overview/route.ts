@@ -19,6 +19,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
 import { mapSegmentCode } from '@/lib/onec-adapters';
+import { isTrialBrandPlan } from '@/lib/trial-manager';
 
 // === Мапінг 1С divisionName → наша group категорія ===
 // Назви беремо ТОЧНО як 1С повертає у Action 4 (перевірено diag-divisions.mjs).
@@ -143,12 +144,16 @@ export async function GET(request: NextRequest) {
     // === Aggregate plans (Action 4) по divisionName + segmentCode ===
     // Кожен план — це divisionName + managerLogin + segmentCode + planAmountUSD.
     // Сумуємо по managerLogin у межах (division, segment).
+    // ⚠️ Ігноруємо $1 sentinel (trial-новачок без реального плану) — інакше
+    // факт $950 / план $1 = 95000% і Адасса показує план $8,487 замість $1,686
+    // (8 sentinel-планів + 1 реальний Vitaran).
     const planAgg = new Map<string, Map<string, number>>(); // div → seg → planSum
     for (const p of a4.data?.plans ?? []) {
       const divName = String(p.divisionName || '').trim();
       const segCode = mapSegmentCode(String(p.segmentCode || ''));
       const amt = Number(p.planAmountUSD || 0);
       if (!divName || !segCode) continue;
+      if (isTrialBrandPlan(amt)) continue;  // sentinel — НЕ додаємо
       if (!planAgg.has(divName)) planAgg.set(divName, new Map());
       const seg = planAgg.get(divName)!;
       seg.set(segCode, (seg.get(segCode) || 0) + amt);

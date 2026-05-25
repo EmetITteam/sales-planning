@@ -93,6 +93,8 @@ export function CompanyOverviewDashboard() {
 
   const [accordionMode, setAccordionMode] = useState<'by-div' | 'by-brand'>('by-div');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  // Друга глибина: для Представництв розкриваємо регіон у бренди. Key = регіонaName.
+  const [expandedSubKey, setExpandedSubKey] = useState<string | null>(null);
   const [groupFilter, setGroupFilter] = useState<'all' | 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributors'>('all');
 
   const { data, error, isLoading, mutate } = useSWR<CompanyOverviewData>(
@@ -196,6 +198,19 @@ export function CompanyOverviewDashboard() {
     brandsForAccordion.sort((a, b) => b.totalFact - a.totalFact);
   }
 
+  // Контекстний суфікс для hero-карток («План усієї компанії», «План Колл-центру» тощо).
+  // Міняється разом з фільтром Група — щоб число у картці відповідало підпису.
+  const groupLabel = (() => {
+    switch (groupFilter) {
+      case 'all': return 'усієї компанії';
+      case 'representations': return 'Представництв';
+      case 'call-center': return 'Колл-центру';
+      case 'laserhouse': return 'Лазерхаузу';
+      case 'adassa': return 'Адасси';
+      case 'distributors': return 'Дистрибуторів';
+    }
+  })();
+
   const filteredTotalPlan = filteredDivisions.reduce((s, d) => s + d.totalPlan, 0);
   const filteredTotalFact = filteredDivisions.reduce((s, d) => s + d.totalFact, 0);
   const filteredTotalPrevFact = filteredDivisions.reduce((s, d) => s + d.totalPrevFact, 0);
@@ -282,12 +297,13 @@ export function CompanyOverviewDashboard() {
             </div>
           </div>
 
-          {/* Hero — у preview-стилі: colored dot у label, великий $ з sup, delta pills */}
+          {/* Hero — у preview-стилі: colored dot у label, великий $ з sup, delta pills.
+              Підписи (План X, Факт X) міняються разом з фільтром Група. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
               <div className="flex items-center gap-2 mb-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План усієї компанії</p>
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
                 <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
@@ -299,7 +315,7 @@ export function CompanyOverviewDashboard() {
             <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
               <div className="flex items-center gap-2 mb-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт</p>
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт {groupLabel}</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
                 <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
@@ -560,11 +576,10 @@ export function CompanyOverviewDashboard() {
 
             {accordionMode === 'by-div' && (
               <div className="space-y-2">
-                {/* Заголовки колонок — щоб числа $X / $Y / Z% мали значення без здогадок */}
-                <div className="grid grid-cols-[20px_1fr_100px_180px_80px_60px] gap-3 items-center px-4 text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
+                {/* Заголовки колонок верхнього рівня */}
+                <div className="grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center px-4 text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
                   <span />
                   <span>Підрозділ</span>
-                  <span className="text-center">Без факту</span>
                   <span className="text-right">Факт / План</span>
                   <span className="text-right">Виконан.</span>
                   <span />
@@ -575,14 +590,14 @@ export function CompanyOverviewDashboard() {
                   return (
                     <div key={g.key} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
                       <button
-                        onClick={() => setExpandedKey(isExpanded ? null : g.key)}
-                        className="w-full grid grid-cols-[20px_1fr_100px_180px_80px_60px] gap-3 items-center text-left"
+                        onClick={() => { setExpandedKey(isExpanded ? null : g.key); setExpandedSubKey(null); }}
+                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left"
                       >
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                        <span className="font-bold text-[14px]">{g.label} {g.isRepresentations && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-[#066aab]/10 text-[#066aab] px-2 py-0.5 rounded-full">{g.children.length} регіонів</span>}</span>
-                        {/* З ФАКТОМ - прибрано (зрозуміло по сумі); показуємо тільки коли НЕМАЄ факту */}
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full text-center ${g.hasFact ? '' : 'bg-slate-100/70 text-slate-600'}`}>
-                          {g.hasFact ? '' : 'Без факту'}
+                        <span className="font-bold text-[14px]">
+                          {g.label}
+                          {g.isRepresentations && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-[#066aab]/10 text-[#066aab] px-2 py-0.5 rounded-full">{g.children.length} регіонів</span>}
+                          {!g.hasFact && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-slate-100/70 text-slate-600 px-2 py-0.5 rounded-full">Без факту</span>}
                         </span>
                         <span className="font-mono tabular-nums text-[12px] text-right">
                           {g.hasFact ? <><strong>{fmtUSD(g.totalFact)}</strong> / </> : '— / '}
@@ -595,31 +610,88 @@ export function CompanyOverviewDashboard() {
                       </button>
 
                       {isExpanded && (
-                        <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2">
+                        <div className="mt-3 pt-3 border-t border-slate-200/60">
                           {g.isRepresentations ? (
-                            // Представництва: розкриваємо у 8 регіонів (як було)
-                            g.children.map(d => {
-                              const childPct = d.hasFact && d.totalPlan > 0 ? (d.totalFact / d.totalPlan) * 100 : null;
-                              return (
-                                <div key={d.divisionName} className="glass-card-soft p-3 grid grid-cols-[1fr_100px_180px_70px] gap-3 items-center">
-                                  <span className="text-[13px] font-semibold">{d.divisionName}</span>
-                                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full text-center ${d.hasFact ? '' : 'bg-slate-100/70 text-slate-600'}`}>
-                                    {d.hasFact ? '' : 'Без факту'}
-                                  </span>
-                                  <span className="font-mono tabular-nums text-[11px] text-right">
-                                    {d.hasFact ? <><strong>{fmtUSD(d.totalFact)}</strong> / </> : '— / '}
-                                    <span className="text-muted-foreground">{fmtUSD(d.totalPlan)}</span>
-                                  </span>
-                                  <span className={`text-[12px] font-bold tabular-nums text-right ${childPct === null ? 'text-slate-400' : childPct >= 80 ? 'text-teal-700' : childPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
-                                    {childPct !== null ? fmtPct(childPct) : 'н/д'}
-                                  </span>
-                                </div>
-                              );
-                            })
+                            // Представництва: 8 регіонів + кожен розкривається у бренди
+                            <>
+                              <div className="grid grid-cols-[16px_1fr_70px_180px_70px] gap-3 items-center px-3 text-[9px] uppercase tracking-wider text-muted-foreground font-bold mb-2">
+                                <span />
+                                <span>Регіон</span>
+                                <span className="text-right">% групи</span>
+                                <span className="text-right">Факт / План</span>
+                                <span className="text-right">Виконан.</span>
+                              </div>
+                              <div className="space-y-2">
+                                {g.children
+                                  .slice()
+                                  .sort((a, b) => b.totalFact - a.totalFact)
+                                  .map(d => {
+                                  const childPct = d.hasFact && d.totalPlan > 0 ? (d.totalFact / d.totalPlan) * 100 : null;
+                                  const shareOfGroup = g.totalFact > 0 ? (d.totalFact / g.totalFact) * 100 : 0;
+                                  const subKey = `${g.key}:${d.divisionName}`;
+                                  const isSubExpanded = expandedSubKey === subKey;
+                                  // Бренди цього регіону з планом
+                                  const regionBrands = Object.entries(d.segments)
+                                    .filter(([_, s]) => s.plan > 0)
+                                    .sort((a, b) => b[1].fact - a[1].fact);
+                                  return (
+                                    <div key={d.divisionName} className={`glass-card-soft transition-all ${isSubExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
+                                      <button
+                                        onClick={() => setExpandedSubKey(isSubExpanded ? null : subKey)}
+                                        className="w-full p-3 grid grid-cols-[16px_1fr_70px_180px_70px] gap-3 items-center text-left"
+                                      >
+                                        <span className={`text-[11px] text-muted-foreground transition-transform ${isSubExpanded ? 'rotate-90' : ''}`}>▶</span>
+                                        <span className="text-[13px] font-semibold">{d.divisionName}</span>
+                                        <span className="font-mono tabular-nums text-[12px] text-right font-bold text-[#066aab]">
+                                          {d.hasFact ? fmtPct(shareOfGroup) : '—'}
+                                        </span>
+                                        <span className="font-mono tabular-nums text-[11px] text-right">
+                                          {d.hasFact ? <><strong>{fmtUSD(d.totalFact)}</strong> / </> : '— / '}
+                                          <span className="text-muted-foreground">{fmtUSD(d.totalPlan)}</span>
+                                        </span>
+                                        <span className={`text-[12px] font-bold tabular-nums text-right ${childPct === null ? 'text-slate-400' : childPct >= 80 ? 'text-teal-700' : childPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                          {childPct !== null ? fmtPct(childPct) : 'н/д'}
+                                        </span>
+                                      </button>
+                                      {isSubExpanded && (
+                                        <div className="px-3 pb-3 pt-1 border-t border-slate-200/60">
+                                          <div className="grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center px-3 text-[9px] uppercase tracking-wider text-muted-foreground font-bold mb-2 mt-2">
+                                            <span>Бренд</span>
+                                            <span className="text-right">% регіону</span>
+                                            <span className="text-right">Факт / План</span>
+                                            <span className="text-right">Виконан.</span>
+                                          </div>
+                                          <div className="space-y-1.5">
+                                            {regionBrands.length === 0 ? (
+                                              <div className="text-[12px] text-muted-foreground text-center py-2">Немає брендів з планом</div>
+                                            ) : regionBrands.map(([code, s]) => {
+                                              const brandPct = s.plan > 0 ? (s.fact / s.plan) * 100 : null;
+                                              const shareOfRegion = d.totalFact > 0 ? (s.fact / d.totalFact) * 100 : 0;
+                                              return (
+                                                <div key={code} className="bg-white/40 rounded-lg p-2.5 grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center">
+                                                  <span className="text-[12px] font-medium">{BRAND_NAMES[code] || code}</span>
+                                                  <span className="font-mono tabular-nums text-[11px] text-right font-bold text-[#066aab]">
+                                                    {s.fact > 0 ? fmtPct(shareOfRegion) : '—'}
+                                                  </span>
+                                                  <span className="font-mono tabular-nums text-[11px] text-right">
+                                                    <strong>{fmtUSD(s.fact)}</strong> / <span className="text-muted-foreground">{fmtUSD(s.plan)}</span>
+                                                  </span>
+                                                  <span className={`text-[11px] font-bold tabular-nums text-right ${brandPct === null ? 'text-slate-400' : brandPct >= 80 ? 'text-teal-700' : brandPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                                    {brandPct !== null ? fmtPct(brandPct) : 'н/д'}
+                                                  </span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
                           ) : (
-                            // Не-представництва (Колл-центр, Лазерхауз, Адасса, Полтава, Чернівці):
-                            // розкриваємо у бренди (тільки ті де є план — щоб не плодити порожні).
-                            // Агрегуємо сегменти з усіх children (зазвичай 1, але буває агрегація як «Дистрибутори»).
+                            // Не-представництва: бренди підрозділу + % внеску у факт підрозділу
                             (() => {
                               const brandAgg = new Map<string, { plan: number; fact: number }>();
                               for (const d of g.children) {
@@ -632,25 +704,41 @@ export function CompanyOverviewDashboard() {
                                 }
                               }
                               const brandRows = Array.from(brandAgg.entries())
-                                .filter(([_, s]) => s.plan > 0)  // ховаємо бренди без плану
+                                .filter(([_, s]) => s.plan > 0)
                                 .sort((a, b) => b[1].fact - a[1].fact);
                               if (brandRows.length === 0) {
                                 return <div className="text-[12px] text-muted-foreground text-center py-2">Немає брендів з планом</div>;
                               }
-                              return brandRows.map(([code, s]) => {
-                                const segPct = s.plan > 0 ? (s.fact / s.plan) * 100 : null;
-                                return (
-                                  <div key={code} className="glass-card-soft p-3 grid grid-cols-[1fr_180px_70px] gap-3 items-center">
-                                    <span className="text-[13px] font-semibold">{BRAND_NAMES[code] || code}</span>
-                                    <span className="font-mono tabular-nums text-[11px] text-right">
-                                      <strong>{fmtUSD(s.fact)}</strong> / <span className="text-muted-foreground">{fmtUSD(s.plan)}</span>
-                                    </span>
-                                    <span className={`text-[12px] font-bold tabular-nums text-right ${segPct === null ? 'text-slate-400' : segPct >= 80 ? 'text-teal-700' : segPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
-                                      {segPct !== null ? fmtPct(segPct) : 'н/д'}
-                                    </span>
+                              return (
+                                <>
+                                  <div className="grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center px-3 text-[9px] uppercase tracking-wider text-muted-foreground font-bold mb-2">
+                                    <span>Бренд</span>
+                                    <span className="text-right">% підрозділу</span>
+                                    <span className="text-right">Факт / План</span>
+                                    <span className="text-right">Виконан.</span>
                                   </div>
-                                );
-                              });
+                                  <div className="space-y-2">
+                                    {brandRows.map(([code, s]) => {
+                                      const segPct = s.plan > 0 ? (s.fact / s.plan) * 100 : null;
+                                      const shareOfDiv = g.totalFact > 0 ? (s.fact / g.totalFact) * 100 : 0;
+                                      return (
+                                        <div key={code} className="glass-card-soft p-3 grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center">
+                                          <span className="text-[13px] font-semibold">{BRAND_NAMES[code] || code}</span>
+                                          <span className="font-mono tabular-nums text-[12px] text-right font-bold text-[#066aab]">
+                                            {s.fact > 0 ? fmtPct(shareOfDiv) : '—'}
+                                          </span>
+                                          <span className="font-mono tabular-nums text-[11px] text-right">
+                                            <strong>{fmtUSD(s.fact)}</strong> / <span className="text-muted-foreground">{fmtUSD(s.plan)}</span>
+                                          </span>
+                                          <span className={`text-[12px] font-bold tabular-nums text-right ${segPct === null ? 'text-slate-400' : segPct >= 80 ? 'text-teal-700' : segPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                            {segPct !== null ? fmtPct(segPct) : 'н/д'}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </>
+                              );
                             })()
                           )}
                         </div>
