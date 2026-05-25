@@ -141,9 +141,9 @@ export function CompanyOverviewDashboard() {
       heatmapRows.push({
         key: groupKey,
         label: GROUP_LABEL[groupKey],
-        subLabel: groupKey === 'representations'
-          ? `${divsInGroup.length} регіонів`
-          : `${divsInGroup.reduce((s, d) => s + d.managerCount, 0)} менедж.`,
+        // Лазерхауз/Адасса/Полтава/Чернівці — у Action 5 синтетичні менеджери,
+        // показ "1 менедж." вводить в оману. Не виводимо subLabel для не-представництв.
+        subLabel: groupKey === 'representations' ? `${divsInGroup.length} регіонів` : '',
         segments: aggregated,
       });
     }
@@ -327,20 +327,16 @@ export function CompanyOverviewDashboard() {
               </span>
             </div>
 
-            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
+            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
               <div className="flex items-center gap-2 mb-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Без факту</p>
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Клієнти-покупці · Представництва</p>
               </div>
-              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">{filteredWithoutFact.length} <span className="text-[22px] font-medium text-muted-foreground">/ {filteredDivisions.length}</span></p>
-              <p className="text-[11px] text-muted-foreground mt-3 truncate" title={filteredWithoutFact.join(', ')}>
-                {filteredWithoutFact.length > 0 ? filteredWithoutFact.join(', ') : '— усі з фактом'}
-              </p>
-              {filteredWithoutFact.length > 0 && (
-                <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-100/70 text-orange-800">
-                  1С не повертає факт
-                </span>
-              )}
+              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none text-muted-foreground">—</p>
+              <p className="text-[11px] text-muted-foreground mt-3">купивших цього місяця по категоріях</p>
+              <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100/70 text-amber-800">
+                в розробці · потрібна агрегація з 1С
+              </span>
             </div>
           </div>
 
@@ -356,30 +352,58 @@ export function CompanyOverviewDashboard() {
               .sort((a, b) => b.totalFact - a.totalFact)
               .map((d, i) => ({ name: d.divisionName, value: d.totalFact, color: tealPalette[i % tealPalette.length] }));
 
-            const divisionSegments: { name: string; value: number; color: string }[] = [];
-            const distributorsPlanSum = filteredDivisions
-              .filter(d => d.groupKey === 'distributor-chuguy' || d.groupKey === 'distributor-haylenko')
-              .reduce((s, d) => s + d.totalPlan, 0);
-            for (const groupKey of GROUP_ORDER) {
-              if (groupKey === 'distributor-chuguy' || groupKey === 'distributor-haylenko') continue;
-              const divs = filteredDivisions.filter(d => d.groupKey === groupKey);
-              const groupPlan = divs.reduce((s, d) => s + d.totalPlan, 0);
-              if (groupPlan > 0) {
+            // Donut «Підрозділи у компанії» — будуємо по ФАКТУ (не плану).
+            // План йде у subtitle як база для % виконання.
+            // При filter=distributors — розщеплюємо Полтаву та Чернівці окремими
+            // сегментами (інакше один сегмент «Дистрибутори» = немає donut).
+            const divisionSegments: { name: string; value: number; plan: number; color: string }[] = [];
+            if (groupFilter === 'distributors') {
+              for (const distKey of ['distributor-chuguy', 'distributor-haylenko'] as const) {
+                const divs = filteredDivisions.filter(d => d.groupKey === distKey);
+                const fact = divs.reduce((s, d) => s + d.totalFact, 0);
+                const plan = divs.reduce((s, d) => s + d.totalPlan, 0);
+                if (fact > 0) {
+                  divisionSegments.push({
+                    name: GROUP_LABEL[distKey],  // «Полтава» / «Чернівці»
+                    value: fact,
+                    plan,
+                    color: mixedPalette[divisionSegments.length % mixedPalette.length],
+                  });
+                }
+              }
+            } else {
+              const distributorsFactSum = filteredDivisions
+                .filter(d => d.groupKey === 'distributor-chuguy' || d.groupKey === 'distributor-haylenko')
+                .reduce((s, d) => s + d.totalFact, 0);
+              const distributorsPlanSum = filteredDivisions
+                .filter(d => d.groupKey === 'distributor-chuguy' || d.groupKey === 'distributor-haylenko')
+                .reduce((s, d) => s + d.totalPlan, 0);
+              for (const groupKey of GROUP_ORDER) {
+                if (groupKey === 'distributor-chuguy' || groupKey === 'distributor-haylenko') continue;
+                const divs = filteredDivisions.filter(d => d.groupKey === groupKey);
+                const groupFact = divs.reduce((s, d) => s + d.totalFact, 0);
+                const groupPlan = divs.reduce((s, d) => s + d.totalPlan, 0);
+                if (groupFact > 0) {
+                  divisionSegments.push({
+                    name: GROUP_LABEL[groupKey],
+                    value: groupFact,
+                    plan: groupPlan,
+                    color: mixedPalette[divisionSegments.length % mixedPalette.length],
+                  });
+                }
+              }
+              if (distributorsFactSum > 0) {
                 divisionSegments.push({
-                  name: GROUP_LABEL[groupKey],
-                  value: groupPlan,
+                  name: 'Дистрибутори',
+                  value: distributorsFactSum,
+                  plan: distributorsPlanSum,
                   color: mixedPalette[divisionSegments.length % mixedPalette.length],
                 });
               }
             }
-            if (distributorsPlanSum > 0) {
-              divisionSegments.push({
-                name: 'Дистрибутори',
-                value: distributorsPlanSum,
-                color: mixedPalette[divisionSegments.length % mixedPalette.length],
-              });
-            }
-            const divTotalPlan = divisionSegments.reduce((s, x) => s + x.value, 0);
+            const divTotalFact = divisionSegments.reduce((s, x) => s + x.value, 0);
+            const divTotalPlanSum = divisionSegments.reduce((s, x) => s + x.plan, 0);
+            const divPct = divTotalPlanSum > 0 ? (divTotalFact / divTotalPlanSum) * 100 : 0;
 
             const brandFactMap = new Map<string, number>();
             for (const d of filteredDivisions) {
@@ -431,10 +455,10 @@ export function CompanyOverviewDashboard() {
                 )}
                 {show2 && (
                   <DonutChart
-                    title="Підрозділи у компанії"
-                    subtitle={`Частка кожного у плані (${fmtUSD(divTotalPlan)})`}
-                    centerLabel={fmtUSDCompact(divTotalPlan)}
-                    centerSub="план"
+                    title={groupFilter === 'distributors' ? 'Дистрибутори' : 'Підрозділи у компанії'}
+                    subtitle={`Частка кожного у факті (${fmtUSD(divTotalFact)}) · виконання ${divPct.toFixed(1)}% плану`}
+                    centerLabel={fmtUSDCompact(divTotalFact)}
+                    centerSub="факт"
                     segments={divisionSegments}
                     formatValue={fmtUsdLegend}
                   />
@@ -459,42 +483,51 @@ export function CompanyOverviewDashboard() {
               <p className="text-[11px] text-muted-foreground">Колір = % виконання плану. Сірий = немає факту з 1С.</p>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full border-separate border-spacing-1 text-[11px]">
-                <thead>
-                  <tr>
-                    <th className="text-left p-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold whitespace-nowrap">Підрозділ</th>
-                    {BRAND_CODES.map(code => (
-                      <th key={code} className="p-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{BRAND_NAMES[code]}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {heatmapRows.map(row => (
-                    <tr key={row.key}>
-                      <td className="text-left p-2 font-bold text-[12px] whitespace-nowrap">
-                        {row.label}
-                        <div className="text-[9px] text-muted-foreground font-medium">{row.subLabel}</div>
-                      </td>
-                      {BRAND_CODES.map(code => {
-                        const seg = row.segments[code];
-                        if (!seg || (seg.plan === 0 && seg.fact === 0)) {
-                          return <td key={code} className={`rounded-lg p-2 text-center ${heatColor(null)}`}><span className="text-[10px] font-medium">—</span></td>;
-                        }
-                        const hasFact = seg.hasFact || seg.fact > 0;
-                        const pct = hasFact && seg.plan > 0 ? (seg.fact / seg.plan) * 100 : null;
-                        return (
-                          <td key={code} className={`rounded-lg p-2 text-center min-h-[44px] font-mono font-bold ${heatColor(pct)}`}>
-                            <div className="text-[11px]">{pct !== null ? fmtPct(pct) : 'н/д'}</div>
-                            {hasFact && (
-                              <div className="text-[9px] opacity-75 mt-0.5 font-medium">{fmtUSD(seg.fact)}/{fmtUSD(seg.plan)}</div>
-                            )}
+              {(() => {
+                // Показуємо тільки бренди де є план хоча б в одному рядку
+                // (інакше для Колл-центру було б 6 порожніх «—» колонок).
+                const activeBrandCodes = BRAND_CODES.filter(code =>
+                  heatmapRows.some(row => (row.segments[code]?.plan ?? 0) > 0 || (row.segments[code]?.fact ?? 0) > 0)
+                );
+                return (
+                  <table className="w-full border-separate border-spacing-1 text-[11px]">
+                    <thead>
+                      <tr>
+                        <th className="text-left p-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold whitespace-nowrap">Підрозділ</th>
+                        {activeBrandCodes.map(code => (
+                          <th key={code} className="p-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{BRAND_NAMES[code]}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {heatmapRows.map(row => (
+                        <tr key={row.key}>
+                          <td className="text-left p-2 font-bold text-[12px] whitespace-nowrap">
+                            {row.label}
+                            {row.subLabel && <div className="text-[9px] text-muted-foreground font-medium">{row.subLabel}</div>}
                           </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          {activeBrandCodes.map(code => {
+                            const seg = row.segments[code];
+                            if (!seg || (seg.plan === 0 && seg.fact === 0)) {
+                              return <td key={code} className={`rounded-lg p-2 text-center ${heatColor(null)}`}><span className="text-[10px] font-medium">—</span></td>;
+                            }
+                            const hasFact = seg.hasFact || seg.fact > 0;
+                            const pct = hasFact && seg.plan > 0 ? (seg.fact / seg.plan) * 100 : null;
+                            return (
+                              <td key={code} className={`rounded-lg p-2 text-center min-h-[44px] font-mono font-bold ${heatColor(pct)}`}>
+                                <div className="text-[11px]">{pct !== null ? fmtPct(pct) : 'н/д'}</div>
+                                {hasFact && (
+                                  <div className="text-[9px] opacity-75 mt-0.5 font-medium">{fmtUSD(seg.fact)}/{fmtUSD(seg.plan)}</div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
             <div className="flex gap-4 mt-3 text-[10px] text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-400/55" /> &gt;100%</span>
@@ -527,6 +560,15 @@ export function CompanyOverviewDashboard() {
 
             {accordionMode === 'by-div' && (
               <div className="space-y-2">
+                {/* Заголовки колонок — щоб числа $X / $Y / Z% мали значення без здогадок */}
+                <div className="grid grid-cols-[20px_1fr_100px_180px_80px_60px] gap-3 items-center px-4 text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
+                  <span />
+                  <span>Підрозділ</span>
+                  <span className="text-center">Без факту</span>
+                  <span className="text-right">Факт / План</span>
+                  <span className="text-right">Виконан.</span>
+                  <span />
+                </div>
                 {groupsForAccordion.map(g => {
                   const isExpanded = expandedKey === g.key;
                   const pct = g.hasFact && g.totalPlan > 0 ? (g.totalFact / g.totalPlan) * 100 : null;
@@ -534,12 +576,13 @@ export function CompanyOverviewDashboard() {
                     <div key={g.key} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
                       <button
                         onClick={() => setExpandedKey(isExpanded ? null : g.key)}
-                        className="w-full grid grid-cols-[20px_1fr_120px_140px_80px_60px] gap-3 items-center text-left"
+                        className="w-full grid grid-cols-[20px_1fr_100px_180px_80px_60px] gap-3 items-center text-left"
                       >
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                         <span className="font-bold text-[14px]">{g.label} {g.isRepresentations && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-[#066aab]/10 text-[#066aab] px-2 py-0.5 rounded-full">{g.children.length} регіонів</span>}</span>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full text-center ${g.hasFact ? 'bg-teal-100/70 text-teal-800' : 'bg-slate-100/70 text-slate-600'}`}>
-                          {g.hasFact ? 'З фактом' : 'Без факту'}
+                        {/* З ФАКТОМ - прибрано (зрозуміло по сумі); показуємо тільки коли НЕМАЄ факту */}
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full text-center ${g.hasFact ? '' : 'bg-slate-100/70 text-slate-600'}`}>
+                          {g.hasFact ? '' : 'Без факту'}
                         </span>
                         <span className="font-mono tabular-nums text-[12px] text-right">
                           {g.hasFact ? <><strong>{fmtUSD(g.totalFact)}</strong> / </> : '— / '}
@@ -553,26 +596,63 @@ export function CompanyOverviewDashboard() {
 
                       {isExpanded && (
                         <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2">
-                          {g.children.map(d => {
-                            const childPct = d.hasFact && d.totalPlan > 0 ? (d.totalFact / d.totalPlan) * 100 : null;
-                            return (
-                              <div key={d.divisionName} className="glass-card-soft p-3 grid grid-cols-[1fr_120px_140px_70px] gap-3 items-center">
-                                <span className="text-[13px] font-semibold">
-                                  {g.isRepresentations ? d.divisionName : d.displayName}
-                                </span>
-                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full text-center ${d.hasFact ? 'bg-teal-100/70 text-teal-800' : 'bg-slate-100/70 text-slate-600'}`}>
-                                  {d.hasFact ? 'З фактом' : 'Без факту'}
-                                </span>
-                                <span className="font-mono tabular-nums text-[11px] text-right">
-                                  {d.hasFact ? <><strong>{fmtUSD(d.totalFact)}</strong> / </> : '— / '}
-                                  <span className="text-muted-foreground">{fmtUSD(d.totalPlan)}</span>
-                                </span>
-                                <span className={`text-[12px] font-bold tabular-nums text-right ${childPct === null ? 'text-slate-400' : childPct >= 80 ? 'text-teal-700' : childPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
-                                  {childPct !== null ? fmtPct(childPct) : 'н/д'}
-                                </span>
-                              </div>
-                            );
-                          })}
+                          {g.isRepresentations ? (
+                            // Представництва: розкриваємо у 8 регіонів (як було)
+                            g.children.map(d => {
+                              const childPct = d.hasFact && d.totalPlan > 0 ? (d.totalFact / d.totalPlan) * 100 : null;
+                              return (
+                                <div key={d.divisionName} className="glass-card-soft p-3 grid grid-cols-[1fr_100px_180px_70px] gap-3 items-center">
+                                  <span className="text-[13px] font-semibold">{d.divisionName}</span>
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full text-center ${d.hasFact ? '' : 'bg-slate-100/70 text-slate-600'}`}>
+                                    {d.hasFact ? '' : 'Без факту'}
+                                  </span>
+                                  <span className="font-mono tabular-nums text-[11px] text-right">
+                                    {d.hasFact ? <><strong>{fmtUSD(d.totalFact)}</strong> / </> : '— / '}
+                                    <span className="text-muted-foreground">{fmtUSD(d.totalPlan)}</span>
+                                  </span>
+                                  <span className={`text-[12px] font-bold tabular-nums text-right ${childPct === null ? 'text-slate-400' : childPct >= 80 ? 'text-teal-700' : childPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                    {childPct !== null ? fmtPct(childPct) : 'н/д'}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            // Не-представництва (Колл-центр, Лазерхауз, Адасса, Полтава, Чернівці):
+                            // розкриваємо у бренди (тільки ті де є план — щоб не плодити порожні).
+                            // Агрегуємо сегменти з усіх children (зазвичай 1, але буває агрегація як «Дистрибутори»).
+                            (() => {
+                              const brandAgg = new Map<string, { plan: number; fact: number }>();
+                              for (const d of g.children) {
+                                for (const [code, s] of Object.entries(d.segments)) {
+                                  if (s.plan === 0 && s.fact === 0) continue;
+                                  const cur = brandAgg.get(code) || { plan: 0, fact: 0 };
+                                  cur.plan += s.plan;
+                                  cur.fact += s.fact;
+                                  brandAgg.set(code, cur);
+                                }
+                              }
+                              const brandRows = Array.from(brandAgg.entries())
+                                .filter(([_, s]) => s.plan > 0)  // ховаємо бренди без плану
+                                .sort((a, b) => b[1].fact - a[1].fact);
+                              if (brandRows.length === 0) {
+                                return <div className="text-[12px] text-muted-foreground text-center py-2">Немає брендів з планом</div>;
+                              }
+                              return brandRows.map(([code, s]) => {
+                                const segPct = s.plan > 0 ? (s.fact / s.plan) * 100 : null;
+                                return (
+                                  <div key={code} className="glass-card-soft p-3 grid grid-cols-[1fr_180px_70px] gap-3 items-center">
+                                    <span className="text-[13px] font-semibold">{BRAND_NAMES[code] || code}</span>
+                                    <span className="font-mono tabular-nums text-[11px] text-right">
+                                      <strong>{fmtUSD(s.fact)}</strong> / <span className="text-muted-foreground">{fmtUSD(s.plan)}</span>
+                                    </span>
+                                    <span className={`text-[12px] font-bold tabular-nums text-right ${segPct === null ? 'text-slate-400' : segPct >= 80 ? 'text-teal-700' : segPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                      {segPct !== null ? fmtPct(segPct) : 'н/д'}
+                                    </span>
+                                  </div>
+                                );
+                              });
+                            })()
+                          )}
                         </div>
                       )}
                     </div>
@@ -583,14 +663,24 @@ export function CompanyOverviewDashboard() {
 
             {accordionMode === 'by-brand' && (
               <div className="space-y-2">
-                {brandsForAccordion.map(b => {
+                {/* Заголовки колонок */}
+                <div className="grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center px-4 text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
+                  <span />
+                  <span>Бренд</span>
+                  <span className="text-right">Факт / План</span>
+                  <span className="text-right">Виконан.</span>
+                  <span />
+                </div>
+                {brandsForAccordion
+                  .filter(b => b.totalPlan > 0)  // ховаємо бренди без плану
+                  .map(b => {
                   const isExpanded = expandedKey === b.code;
                   const pct = b.totalPlan > 0 ? (b.totalFact / b.totalPlan) * 100 : null;
                   return (
                     <div key={b.code} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
                       <button
                         onClick={() => setExpandedKey(isExpanded ? null : b.code)}
-                        className="w-full grid grid-cols-[20px_1fr_140px_80px_60px] gap-3 items-center text-left"
+                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left"
                       >
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                         <span className="font-bold text-[14px]">{b.name}</span>
@@ -605,23 +695,39 @@ export function CompanyOverviewDashboard() {
                       </button>
 
                       {isExpanded && (
-                        <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2">
-                          {b.byGroup.map(g => {
-                            const groupPct = g.hasFact && g.plan > 0 ? (g.fact / g.plan) * 100 : null;
-                            return (
-                              <div key={g.groupKey} className="glass-card-soft p-3 grid grid-cols-[1fr_140px_70px] gap-3 items-center">
-                                <span className="text-[13px] font-semibold">{g.label}</span>
-                                <span className="font-mono tabular-nums text-[11px] text-right">
-                                  {g.hasFact ? <><strong>{fmtUSD(g.fact)}</strong> / </> : '— / '}
-                                  <span className="text-muted-foreground">{fmtUSD(g.plan)}</span>
-                                </span>
-                                <span className={`text-[12px] font-bold tabular-nums text-right ${groupPct === null ? 'text-slate-400' : groupPct >= 80 ? 'text-teal-700' : groupPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
-                                  {groupPct !== null ? fmtPct(groupPct) : 'н/д'}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <>
+                          {/* Заголовки nested-таблиці з % внеску підрозділу */}
+                          <div className="mt-3 pt-3 border-t border-slate-200/60">
+                            <div className="grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center px-3 text-[9px] uppercase tracking-wider text-muted-foreground font-bold mb-2">
+                              <span>Підрозділ</span>
+                              <span className="text-right">% бренду</span>
+                              <span className="text-right">Факт / План</span>
+                              <span className="text-right">Виконан.</span>
+                            </div>
+                            <div className="space-y-2">
+                              {b.byGroup.map(g => {
+                                const groupPct = g.hasFact && g.plan > 0 ? (g.fact / g.plan) * 100 : null;
+                                const shareOfBrand = b.totalFact > 0 ? (g.fact / b.totalFact) * 100 : 0;
+                                return (
+                                  <div key={g.groupKey} className="glass-card-soft p-3 grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center">
+                                    <span className="text-[13px] font-semibold">{g.label}</span>
+                                    {/* % внеску підрозділу у загальний факт бренду — щоб бачити хто головний драйвер */}
+                                    <span className="font-mono tabular-nums text-[12px] text-right font-bold text-[#066aab]">
+                                      {g.hasFact ? fmtPct(shareOfBrand) : '—'}
+                                    </span>
+                                    <span className="font-mono tabular-nums text-[11px] text-right">
+                                      {g.hasFact ? <><strong>{fmtUSD(g.fact)}</strong> / </> : '— / '}
+                                      <span className="text-muted-foreground">{fmtUSD(g.plan)}</span>
+                                    </span>
+                                    <span className={`text-[12px] font-bold tabular-nums text-right ${groupPct === null ? 'text-slate-400' : groupPct >= 80 ? 'text-teal-700' : groupPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                      {groupPct !== null ? fmtPct(groupPct) : 'н/д'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
                       )}
                     </div>
                   );
