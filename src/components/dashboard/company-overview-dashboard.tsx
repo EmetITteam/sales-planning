@@ -291,7 +291,7 @@ export function CompanyOverviewDashboard() {
         <div className="flex-1">
           <h1 className="text-lg font-bold">Огляд компанії</h1>
           <p className="text-[12px] text-muted-foreground">
-            Усі підрозділи · план/факт без фільтра по плануванню · read-only
+            План / факт по всіх підрозділах компанії
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -421,8 +421,7 @@ export function CompanyOverviewDashboard() {
               //   filter=Лазерхауз/Адасса/Дистрибутори → «Робочі дні» (клієнтських даних нема,
               //     великої категорійної карти не показуємо)
               if (groupFilter === 'all') {
-                // Підрозділи що ВІДСТАЮТЬ від норми (pct < calcPct) — не виконують план.
-                // Біля кожного показуємо delta (на скільки % відстає від норми).
+                // Підрозділи що ВІДСТАЮТЬ від норми (pct < calcPct).
                 const behind = filteredDivisions
                   .filter(d => d.totalPlan > 0)
                   .map(d => {
@@ -430,21 +429,21 @@ export function CompanyOverviewDashboard() {
                     return { name: d.displayName, pct, delta: pct - calcPct };
                   })
                   .filter(x => x.delta < 0)
-                  .sort((a, b) => a.delta - b.delta);  // найвідсталіші зверху
+                  .sort((a, b) => a.delta - b.delta);
+                const totalDivs = filteredDivisions.filter(d => d.totalPlan > 0).length;
                 return (
-                  <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
-                    <div className="flex items-center gap-2 mb-3">
+                  <div className="glass-card p-5 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
+                    <div className="flex items-center gap-2 mb-2">
                       <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
-                      <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Відстають від плану</p>
+                      <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold flex-1">Відстають від плану</p>
+                      <span className="text-[20px] font-bold tabular-nums leading-none">
+                        {behind.length}<span className="text-[13px] font-medium text-muted-foreground">/{totalDivs}</span>
+                      </span>
                     </div>
-                    <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                      {behind.length}
-                      <span className="text-[22px] font-medium text-muted-foreground"> / {filteredDivisions.filter(d => d.totalPlan > 0).length}</span>
-                    </p>
                     {behind.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground mt-3">— усі тримають темп</p>
+                      <p className="text-[11px] text-muted-foreground">— усі тримають темп</p>
                     ) : (
-                      <div className="mt-3 flex flex-col gap-0.5 max-h-[120px] overflow-y-auto pr-1">
+                      <div className="flex flex-col gap-0.5 max-h-[150px] overflow-y-auto pr-1">
                         {behind.map(b => (
                           <div key={b.name} className="flex items-center justify-between text-[11px] gap-2">
                             <span className="text-muted-foreground truncate">{b.name}</span>
@@ -452,11 +451,6 @@ export function CompanyOverviewDashboard() {
                           </div>
                         ))}
                       </div>
-                    )}
-                    {behind.length > 0 && (
-                      <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-100/70 text-orange-800">
-                        норма {fmtPct(calcPct)}
-                      </span>
                     )}
                   </div>
                 );
