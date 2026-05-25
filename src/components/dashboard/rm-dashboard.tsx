@@ -255,7 +255,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
 
   // === Error state ===
   const errorBanner = error ? (
-    <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
+    <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700 flex items-center gap-2">
       <span>Помилка 1С (getRegionData): {error}</span>
       <button onClick={refetch} className="ml-auto font-semibold underline hover:no-underline">
         Спробувати ще
@@ -359,7 +359,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
       </button>
 
       {loading && !region && (
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-12 text-center">
+        <div className="glass-card p-12 text-center">
           <div className="inline-flex flex-col items-center gap-3">
             <RefreshCw className="h-6 w-6 animate-spin text-[#066aab]" />
             <p className="text-[13px] font-medium text-muted-foreground">Завантажуємо дані регіону…</p>
@@ -367,7 +367,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         </div>
       )}
       {noRegion && (
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-3">
+        <div className="glass-card p-8 text-center space-y-3">
           <p className="text-[15px] font-bold">Дані регіону не знайдено</p>
           <p className="text-[13px] text-muted-foreground">
             1С не повернула жодного регіону для логіну <span className="font-mono">{user?.login}</span>.

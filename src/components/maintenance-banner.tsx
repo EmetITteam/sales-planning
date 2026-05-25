@@ -20,8 +20,8 @@ export function MaintenanceBanner() {
   const isLocked = FEATURES.PLANNING_DISABLED && !isPlanningWritesAllowed(user?.login);
   if (!isLocked) return null;
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-      <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+    <div className="bg-amber-50/55 backdrop-blur-xl border border-amber-200/70 rounded-2xl p-4 flex items-start gap-3 shadow-[0_4px_20px_rgba(120,53,15,0.04)]">
+      <div className="w-9 h-9 rounded-xl bg-amber-100/80 backdrop-blur-sm flex items-center justify-center shrink-0">
         <Lock className="h-4 w-4 text-amber-700" />
       </div>
       <div className="flex-1">

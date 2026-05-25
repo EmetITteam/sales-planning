@@ -393,12 +393,12 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     return (
       <div className="space-y-4">
         {isViewing && (
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50/60 backdrop-blur-md border border-amber-200/70 text-[13px] text-amber-800">
             <span className="font-semibold">👁 Перегляд менеджера:</span>
             <span className="font-bold">{targetUserName || targetUserLogin}</span>
           </div>
         )}
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-2">
+        <div className="glass-card p-8 text-center space-y-2">
           <p className="text-[15px] font-bold text-foreground">У 1С не знайдено закріплених клієнтів</p>
           <p className="text-[13px] text-muted-foreground max-w-md mx-auto">
             Логін <span className="font-mono font-semibold">{effectiveLogin}</span> не має жодного клієнта у регістрі планування 1С.
@@ -418,7 +418,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       <MaintenanceBanner />
       <WindowLockBanner />
       {isViewing && (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50/60 backdrop-blur-md border border-amber-200/70 text-[13px] text-amber-800">
           <span className="font-semibold">👁 Перегляд менеджера:</span>
           <span className="font-bold">{targetUserName || targetUserLogin}</span>
           <span className="ml-auto text-[11px] text-amber-700">
@@ -445,7 +445,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           if (clientsError) refetchClients();
         };
         return (
-          <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
+          <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700 flex items-center gap-2">
             <span>Помилка 1С: {sources.join('; ')}</span>
             <button onClick={retryAll} className="ml-auto font-semibold underline hover:no-underline">
               Спробувати ще
