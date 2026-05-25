@@ -172,28 +172,35 @@ export function CompanyOverviewDashboard() {
     }
   }
 
+  // brandsForAccordion: для кожного бренду — список ПІДРОЗДІЛІВ (не груп) де його продають.
+  // Раніше Vitaran у Представництвах показувався одним рядком «Представництва $332K»,
+  // а має бути 8 рядків (Київ, Одеса, Дніпро...). Тут byDivision — плоский список.
   const brandsForAccordion: Array<{
     code: string; name: string;
     totalPlan: number; totalFact: number;
-    byGroup: Array<{ groupKey: string; label: string; plan: number; fact: number; hasFact: boolean; }>;
+    byDivision: Array<{ divisionName: string; displayName: string; groupKey: string; plan: number; fact: number; hasFact: boolean; }>;
   }> = [];
   if (data) {
     for (const code of BRAND_CODES) {
       let totalPlan = 0, totalFact = 0;
-      const byGroup: Array<{ groupKey: string; label: string; plan: number; fact: number; hasFact: boolean }> = [];
-      for (const groupKey of GROUP_ORDER) {
-        const divs = filteredDivisions.filter(d => d.groupKey === groupKey);
-        let plan = 0, fact = 0, hasFact = false;
-        for (const d of divs) {
-          const seg = d.segments[code];
-          if (seg) { plan += seg.plan; fact += seg.fact; if (d.hasFact && seg.fact > 0) hasFact = true; }
-        }
-        if (plan > 0 || fact > 0) {
-          byGroup.push({ groupKey, label: GROUP_LABEL[groupKey as DivisionDetails['groupKey']], plan, fact, hasFact });
-          totalPlan += plan; totalFact += fact;
-        }
+      const byDivision: Array<{ divisionName: string; displayName: string; groupKey: string; plan: number; fact: number; hasFact: boolean }> = [];
+      for (const d of filteredDivisions) {
+        const seg = d.segments[code];
+        if (!seg) continue;
+        if (seg.plan === 0 && seg.fact === 0) continue;
+        byDivision.push({
+          divisionName: d.divisionName,
+          displayName: d.groupKey === 'representations' ? d.divisionName : d.displayName,
+          groupKey: d.groupKey,
+          plan: seg.plan,
+          fact: seg.fact,
+          hasFact: d.hasFact && seg.fact > 0,
+        });
+        totalPlan += seg.plan;
+        totalFact += seg.fact;
       }
-      brandsForAccordion.push({ code, name: BRAND_NAMES[code] || code, totalPlan, totalFact, byGroup });
+      byDivision.sort((a, b) => b.fact - a.fact);
+      brandsForAccordion.push({ code, name: BRAND_NAMES[code] || code, totalPlan, totalFact, byDivision });
     }
     brandsForAccordion.sort((a, b) => b.totalFact - a.totalFact);
   }
@@ -481,7 +488,16 @@ export function CompanyOverviewDashboard() {
                 )}
                 {show3 && (
                   <DonutChart
-                    title="Бренди у компанії"
+                    title={(() => {
+                      switch (groupFilter) {
+                        case 'all': return 'Бренди у компанії';
+                        case 'representations': return 'Бренди у Представництвах';
+                        case 'call-center': return 'Бренди у Колл-центрі';
+                        case 'laserhouse': return 'Бренди у Лазерхаузі';
+                        case 'adassa': return 'Бренди в Адассі';
+                        case 'distributors': return 'Бренди у Дистрибуторів';
+                      }
+                    })()}
                     subtitle={`Частка кожного у факті (${fmtUSD(brandTotalFact)})`}
                     centerLabel={fmtUSDCompact(brandTotalFact)}
                     centerSub="факт"
@@ -527,12 +543,14 @@ export function CompanyOverviewDashboard() {
                             if (!seg || (seg.plan === 0 && seg.fact === 0)) {
                               return <td key={code} className={`rounded-lg p-2 text-center ${heatColor(null)}`}><span className="text-[10px] font-medium">—</span></td>;
                             }
-                            const hasFact = seg.hasFact || seg.fact > 0;
-                            const pct = hasFact && seg.plan > 0 ? (seg.fact / seg.plan) * 100 : null;
+                            // Якщо план є — рахуємо % (навіть якщо факту 0 → 0.0%).
+                            // Раніше вимагали hasFact=true → 8 брендів Адасси показувались «н/д»
+                            // хоча плани реально існують і факту реально нема (=0% виконання).
+                            const pct = seg.plan > 0 ? (seg.fact / seg.plan) * 100 : null;
                             return (
                               <td key={code} className={`rounded-lg p-2 text-center min-h-[44px] font-mono font-bold ${heatColor(pct)}`}>
                                 <div className="text-[11px]">{pct !== null ? fmtPct(pct) : 'н/д'}</div>
-                                {hasFact && (
+                                {seg.plan > 0 && (
                                   <div className="text-[9px] opacity-75 mt-0.5 font-medium">{fmtUSD(seg.fact)}/{fmtUSD(seg.plan)}</div>
                                 )}
                               </td>
@@ -793,22 +811,21 @@ export function CompanyOverviewDashboard() {
                               <span className="text-right">Виконан.</span>
                             </div>
                             <div className="space-y-2">
-                              {b.byGroup.map(g => {
-                                const groupPct = g.hasFact && g.plan > 0 ? (g.fact / g.plan) * 100 : null;
-                                const shareOfBrand = b.totalFact > 0 ? (g.fact / b.totalFact) * 100 : 0;
+                              {b.byDivision.map(d => {
+                                const divPct = d.plan > 0 ? (d.fact / d.plan) * 100 : null;
+                                const shareOfBrand = b.totalFact > 0 ? (d.fact / b.totalFact) * 100 : 0;
                                 return (
-                                  <div key={g.groupKey} className="glass-card-soft p-3 grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center">
-                                    <span className="text-[13px] font-semibold">{g.label}</span>
+                                  <div key={d.divisionName} className="glass-card-soft p-3 grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center">
+                                    <span className="text-[13px] font-semibold">{d.displayName}</span>
                                     {/* % внеску підрозділу у загальний факт бренду — щоб бачити хто головний драйвер */}
                                     <span className="font-mono tabular-nums text-[12px] text-right font-bold text-[#066aab]">
-                                      {g.hasFact ? fmtPct(shareOfBrand) : '—'}
+                                      {d.fact > 0 ? fmtPct(shareOfBrand) : '—'}
                                     </span>
                                     <span className="font-mono tabular-nums text-[11px] text-right">
-                                      {g.hasFact ? <><strong>{fmtUSD(g.fact)}</strong> / </> : '— / '}
-                                      <span className="text-muted-foreground">{fmtUSD(g.plan)}</span>
+                                      <strong>{fmtUSD(d.fact)}</strong> / <span className="text-muted-foreground">{fmtUSD(d.plan)}</span>
                                     </span>
-                                    <span className={`text-[12px] font-bold tabular-nums text-right ${groupPct === null ? 'text-slate-400' : groupPct >= 80 ? 'text-teal-700' : groupPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
-                                      {groupPct !== null ? fmtPct(groupPct) : 'н/д'}
+                                    <span className={`text-[12px] font-bold tabular-nums text-right ${divPct === null ? 'text-slate-400' : divPct >= 80 ? 'text-teal-700' : divPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
+                                      {divPct !== null ? fmtPct(divPct) : 'н/д'}
                                     </span>
                                   </div>
                                 );

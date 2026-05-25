@@ -52,6 +52,8 @@
 
 ## 2. Tech stack
 
+Підсумок: ми пишемо на TypeScript, у Next.js обгортці, для React UI, з Supabase БД, на Vercel хостингу. Усе нативно інтегровано.
+
 | Шар | Технологія | Версія | Примітка |
 |---|---|---|---|
 | Framework | Next.js | 16.2.2 | App Router, Turbopack у dev, **webpack у prod** (`next build --webpack`) |

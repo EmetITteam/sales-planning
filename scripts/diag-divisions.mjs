@@ -45,6 +45,19 @@ const dateFrom = `${y}-${m}-01`;
 const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
 const dateTo = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
 
+console.log(`\n=== ДЕТАЛЬ: Адасса plans (поточний місяць) ===`);
+const a4debug = await callOnec('getRegistryPlans', { dateFrom, dateTo });
+if (a4debug.status === 'success') {
+  const ada = a4debug.data.plans.filter(p => p.divisionName === 'Адасса');
+  let total = 0;
+  for (const p of ada) {
+    const amt = Number(p.planAmountUSD || 0);
+    total += amt;
+    console.log(`  ${(p.managerLogin || '(no login)').padEnd(30)} segCode='${p.segmentCode}' segName='${p.segmentName}' = $${amt.toFixed(2)}`);
+  }
+  console.log(`  → Адасса TOTAL plans=${ada.length}, sum=$${total.toFixed(2)}`);
+}
+
 console.log(`\n=== Action 4: getRegistryPlans (${dateFrom} … ${dateTo}) ===`);
 const a4 = await callOnec('getRegistryPlans', { dateFrom, dateTo });
 if (a4.status === 'success' && Array.isArray(a4.data?.plans)) {
