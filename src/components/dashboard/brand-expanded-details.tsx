@@ -195,7 +195,7 @@ export function BrandExpandedDetails({
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {baseCards.map(c => (
-              <div key={c.key} className="bg-white rounded-xl p-3 border border-slate-100">
+              <div key={c.key} className="glass-card-mini p-3">
                 <div className={`flex items-center gap-2 mb-2 ${c.color}`}>
                   <div className={`w-7 h-7 rounded-lg ${c.bg} flex items-center justify-center`}>
                     <c.icon className="h-3.5 w-3.5" />
@@ -215,7 +215,7 @@ export function BrandExpandedDetails({
               </div>
             ))}
             {/* Незаплановані — окрема картка з розбивкою */}
-            <div className="bg-white rounded-xl p-3 border border-fuchsia-100">
+            <div className="glass-card-mini p-3 border-fuchsia-100/60">
               <div className="flex items-center gap-2 mb-2 text-fuchsia-700">
                 <div className="w-7 h-7 rounded-lg bg-fuchsia-50 flex items-center justify-center">
                   <Sparkles className="h-3.5 w-3.5" />

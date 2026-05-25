@@ -1244,8 +1244,8 @@ export function PlanningForm({
 
       {/* Finalized banner — Пакет А Етап 2 (2026-05-13) */}
       {isFinalized && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+        <div className="bg-emerald-50/55 backdrop-blur-xl border border-emerald-200/70 rounded-2xl p-4 flex items-start gap-3 shadow-[0_4px_20px_rgba(6,95,70,0.04)]">
+          <div className="w-9 h-9 rounded-xl bg-emerald-100/80 backdrop-blur-sm flex items-center justify-center shrink-0">
             <Check className="h-4 w-4 text-emerald-700" />
           </div>
           <div className="flex-1">
@@ -1294,7 +1294,7 @@ export function PlanningForm({
             { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
           ];
           return metrics.map(m => (
-            <div key={m.label} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
+            <div key={m.label} className="glass-card p-4 relative overflow-hidden">
               <div className="flex items-center gap-2.5 mb-2">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br ${m.grad} text-white`}>{m.icon}</div>
                 {m.badge && (
@@ -1314,7 +1314,7 @@ export function PlanningForm({
       </div>
 
       {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
           <h3 className="text-[14px] font-bold">Дані по клієнтах по ТМ</h3>
           {clientsLoading && (
@@ -1417,7 +1417,7 @@ export function PlanningForm({
         {/* Bulk action bar — fixed над save bar щоб не треба було скролити
             нагору для кнопки видалення при довгих списках. */}
         {!lockEdit && selectedForecasts.size > 0 && (
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50 border-2 border-rose-300 shadow-2xl">
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50/85 backdrop-blur-xl border-2 border-rose-300/80 shadow-[0_10px_40px_rgba(159,18,57,0.18)]">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedForecasts.size}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedForecasts(new Set())}
@@ -1457,7 +1457,7 @@ export function PlanningForm({
         </div>
 
         {clientsLoading && sortedForecasts.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground bg-white rounded-2xl border border-[#e8ebf4]">
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground glass-card border border-[#e8ebf4]/50">
             <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1474,7 +1474,7 @@ export function PlanningForm({
           {sortedForecasts.map((row) => {
             const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
             return (
-              <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
+              <div key={row.clientId1c} className={`glass-card overflow-hidden transition-all duration-200 ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
                 {/* === DESKTOP (md+) === */}
                 <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                   {/* Чекбокс multi-select (тільки для незавершених) */}
@@ -1787,7 +1787,7 @@ export function PlanningForm({
         </div>
 
         {clientsLoading && gapClosures.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground bg-white rounded-2xl border border-[#e8ebf4]">
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground glass-card border border-[#e8ebf4]/50">
             <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1797,7 +1797,7 @@ export function PlanningForm({
         )}
         {/* Bulk action bar для gap-closures — fixed над save bar */}
         {!lockEdit && selectedGaps.size > 0 && (
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50 border-2 border-rose-300 shadow-2xl">
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50/85 backdrop-blur-xl border-2 border-rose-300/80 shadow-[0_10px_40px_rgba(159,18,57,0.18)]">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedGaps.size}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedGaps(new Set())}
@@ -1847,7 +1847,7 @@ export function PlanningForm({
               const hasFact = row.factAmount > 0;
               const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
               return (
-                <div key={row.clientId1c || `idx-${i}`} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
+                <div key={row.clientId1c || `idx-${i}`} className={`glass-card overflow-hidden ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
                   {/* === DESKTOP (md+) === */}
                   <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                     {/* Чекбокс multi-select */}
@@ -2133,7 +2133,7 @@ export function PlanningForm({
       </div>
 
       {/* Дії для закриття */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 py-3 border-b border-[#e2e7ef]">
           <h3 className="text-[14px] font-bold">Дії для закриття розриву</h3>
         </div>
