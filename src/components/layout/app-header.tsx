@@ -46,7 +46,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function AppHeader() {
-  const { user, setUser, liveMode, setLiveMode } = useAppStore();
+  const { user, setUser, liveMode, setLiveMode, activeView, setActiveView } = useAppStore();
   const { mutate } = useSWRConfig();
   const router = useRouter();
   const handleLogout = async () => {
@@ -124,6 +124,32 @@ export function AppHeader() {
           <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
             LIVE · {new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}
           </span>
+        )}
+
+        {/* View toggle — для admin завжди, для решти — за canViewCompanyOverview */}
+        {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
+          <div className="hidden md:flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2">
+            <button
+              onClick={() => setActiveView('planning')}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+                activeView === 'planning'
+                  ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Планування
+            </button>
+            <button
+              onClick={() => setActiveView('company-overview')}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+                activeView === 'company-overview'
+                  ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Огляд компанії
+            </button>
+          </div>
         )}
 
         <div className="flex-1" />

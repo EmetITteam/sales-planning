@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { LoginForm } from '@/components/login/login-form';
 import { AppHeader } from '@/components/layout/app-header';
@@ -13,13 +12,9 @@ import { CompanyOverviewDashboard } from '@/components/dashboard/company-overvie
 export default function Home() {
   const user = useAppStore((s) => s.user);
   const bootstrapped = useAppStore((s) => s.bootstrapped);
-  // Bootstrap робиться у SessionBootstrap (root layout). Тут лише чекаємо
-  // прапорець — щоб не блимати login form-ою для залогінених юзерів.
-
-  // Toggle режиму: основний дашборд (за роллю) vs «Огляд компанії».
-  // Для admin зараз. Згодом — для будь-яких юзерів з canViewCompanyOverview=true
-  // (буде у Phase 2 — нова колонка users + adminська сторінка дозволів).
-  const [activeView, setActiveView] = useState<'dashboard' | 'company-overview'>('dashboard');
+  // Toggle planning ↔ company-overview контролюється у AppHeader.
+  // Активна view зберігається у Zustand store.
+  const activeView = useAppStore((s) => s.activeView);
 
   if (!bootstrapped) {
     return (
@@ -33,9 +28,9 @@ export default function Home() {
     return <LoginForm />;
   }
 
-  // Toggle бачать: admin (завжди) + юзери з canViewCompanyOverview=true
-  // (вмикається admin-ом у /admin/company-overview-permissions)
-  const showOverviewToggle = user.role === 'admin' || user.canViewCompanyOverview === true;
+  // Toggle бачать: admin (завжди) + юзери з canViewCompanyOverview=true.
+  // Для решти — байдуже що у store, рендеримо звичайний дашборд.
+  const canViewOverview = user.role === 'admin' || user.canViewCompanyOverview === true;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -43,34 +38,7 @@ export default function Home() {
       <main className="flex-1 p-4 md:p-6 max-w-[1400px] mx-auto w-full space-y-4">
         <InstallPrompt />
 
-        {showOverviewToggle && (
-          <div className="flex justify-center">
-            <div className="flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50">
-              <button
-                onClick={() => setActiveView('dashboard')}
-                className={`px-5 py-2 rounded-full text-[13px] font-semibold transition-all ${
-                  activeView === 'dashboard'
-                    ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Дашборд
-              </button>
-              <button
-                onClick={() => setActiveView('company-overview')}
-                className={`px-5 py-2 rounded-full text-[13px] font-semibold transition-all ${
-                  activeView === 'company-overview'
-                    ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Огляд компанії
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeView === 'company-overview' && showOverviewToggle ? (
+        {activeView === 'company-overview' && canViewOverview ? (
           <CompanyOverviewDashboard />
         ) : (
           <>

@@ -253,82 +253,109 @@ export function CompanyOverviewDashboard() {
 
       {data && (
         <>
-          <div className="glass-card-soft p-3 flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Період</span>
-            {availablePeriods.map(p => (
-              <button
-                key={p.value}
-                onClick={() => { setPeriod(p.value); setExpandedKey(null); }}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
-                  period === p.value
-                    ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
-                    : 'bg-white/60 backdrop-blur-md border border-white/50 text-muted-foreground hover:bg-white/90 hover:text-foreground'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="glass-card-soft p-3 flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Група</span>
-            {([
-              ['all', 'Усі підрозділи'],
-              ['representations', 'Представництва'],
-              ['call-center', 'Колл-центр'],
-              ['laserhouse', 'Лазерхауз'],
-              ['adassa', 'Адасса'],
-              ['distributors', 'Дистрибутори'],
-            ] as const).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => { setGroupFilter(key); setExpandedKey(null); }}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
-                  groupFilter === key
-                    ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
-                    : 'bg-white/60 backdrop-blur-md border border-white/50 text-muted-foreground hover:bg-white/90 hover:text-foreground'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="glass-card p-5">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">План</p>
-              <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none amount">{fmtUSD(filteredTotalPlan)}</p>
-              <p className="text-[11px] text-muted-foreground mt-2">{filteredDivisions.length} підрозділів</p>
+          {/* Фільтри Період + Група — в одному ряду (як preview) */}
+          <div className="glass-card-soft p-3 flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Період</span>
+              {availablePeriods.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => { setPeriod(p.value); setExpandedKey(null); }}
+                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+                    period === p.value
+                      ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                      : 'bg-white/60 backdrop-blur-md border border-white/50 text-muted-foreground hover:bg-white/90 hover:text-foreground'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
-            <div className="glass-card p-5">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Факт</p>
-              <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none amount">{fmtUSD(filteredTotalFact)}</p>
-              {filteredTotalPrevFact > 0 ? (
-                <p className={`text-[11px] mt-2 font-semibold ${factDelta >= 0 ? 'text-teal-700' : 'text-rose-600'}`}>
-                  {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс. ({fmtUSD(filteredTotalPrevFact)})
-                </p>
-              ) : (
-                <p className="text-[11px] text-muted-foreground mt-2">мин.міс. факту нема</p>
+            <div className="flex-1" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Група</span>
+              {([
+                ['all', 'Усі підрозділи'],
+                ['representations', 'Представництва'],
+                ['call-center', 'Колл-центр'],
+                ['laserhouse', 'Лазерхауз'],
+                ['adassa', 'Адасса'],
+                ['distributors', 'Дистрибутори'],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => { setGroupFilter(key); setExpandedKey(null); }}
+                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+                    groupFilter === key
+                      ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                      : 'bg-white/60 backdrop-blur-md border border-white/50 text-muted-foreground hover:bg-white/90 hover:text-foreground'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Hero — у preview-стилі: colored dot у label, великий $ з sup, delta pills */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План усієї компанії</p>
+              </div>
+              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
+                <span className="amount">{Math.round(filteredTotalPlan).toLocaleString('en-US')}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-3">{filteredDivisions.length} підрозділів · {periodDate.toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}</p>
+            </div>
+
+            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт</p>
+              </div>
+              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
+                <span className="amount">{Math.round(filteredTotalFact).toLocaleString('en-US')}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-3">по підрозділах де є факт</p>
+              {filteredTotalPrevFact > 0 && (
+                <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${factDelta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                  {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс.
+                </span>
               )}
             </div>
-            <div className="glass-card p-5">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Виконання</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none">{fmtPct(totalPct)}</p>
-                <p className={`text-[12px] font-bold ${deviation >= 0 ? 'text-teal-700' : 'text-rose-600'}`}>
-                  {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}%
-                </p>
+
+            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Виконання</p>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-2">
-                Норма на {now.getDate().toString().padStart(2, '0')}.{(now.getMonth() + 1).toString().padStart(2, '0')}: <span className="font-semibold text-foreground">{fmtPct(calcPct)}</span>
+              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">{fmtPct(totalPct)}</p>
+              <p className="text-[11px] text-muted-foreground mt-3">
+                Норма {now.getDate().toString().padStart(2, '0')}.{(now.getMonth() + 1).toString().padStart(2, '0')}: <span className="font-semibold text-foreground">{fmtPct(calcPct)}</span>
               </p>
+              <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${deviation >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}% vs норма
+              </span>
             </div>
-            <div className="glass-card p-5">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Без факту</p>
-              <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none">{filteredWithoutFact.length} / {filteredDivisions.length}</p>
-              <p className="text-[11px] text-muted-foreground mt-2 truncate" title={filteredWithoutFact.join(', ')}>
+
+            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Без факту</p>
+              </div>
+              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">{filteredWithoutFact.length} <span className="text-[22px] font-medium text-muted-foreground">/ {filteredDivisions.length}</span></p>
+              <p className="text-[11px] text-muted-foreground mt-3 truncate" title={filteredWithoutFact.join(', ')}>
                 {filteredWithoutFact.length > 0 ? filteredWithoutFact.join(', ') : '— усі з фактом'}
               </p>
+              {filteredWithoutFact.length > 0 && (
+                <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-100/70 text-orange-800">
+                  1С не повертає факт
+                </span>
+              )}
             </div>
           </div>
 
