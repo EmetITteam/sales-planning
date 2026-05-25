@@ -102,7 +102,7 @@ function AdminCard({ icon, title, description, ready, href }: {
   return (
     <Wrapper
       {...wrapperProps}
-      className={`block bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] ${ready ? 'hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all cursor-pointer' : ''}`}
+      className={`block glass-card p-5 ${ready ? 'hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all cursor-pointer' : ''}`}
     >
       <div className="flex items-center gap-2.5 mb-2">
         <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">{icon}</div>

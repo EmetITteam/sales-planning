@@ -85,7 +85,7 @@ export function AppHeader() {
   const initials = user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border/50">
+    <header className="sticky top-0 z-50 bg-white/55 backdrop-blur-xl backdrop-saturate-150 border-b border-white/50 shadow-[0_4px_24px_rgba(6,42,61,0.04)]">
       <div className="flex h-[56px] items-center gap-4 px-5">
         {/* Logo: EMET-знак + назва продукту */}
         <div className="flex items-center gap-2.5">
@@ -108,8 +108,8 @@ export function AppHeader() {
           onClick={() => setLiveMode(!liveMode)}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all cursor-pointer ${
             liveMode
-              ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-sm'
-              : 'bg-white border-[#e2e7ef] text-muted-foreground hover:border-amber-200 hover:text-amber-700'
+              ? 'bg-amber-50/70 backdrop-blur-md border-amber-300/70 text-amber-700 shadow-sm'
+              : 'bg-white/60 backdrop-blur-md border-white/50 text-muted-foreground hover:border-amber-200 hover:text-amber-700'
           }`}
           title={liveMode ? 'Перейти на звітний фільтр' : 'Перегляд "на сьогодні" (read-only)'}
         >

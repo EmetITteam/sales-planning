@@ -110,7 +110,7 @@ export default function AdminStageEditPermissionsPage() {
           </div>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-[12px] text-amber-800">
+        <div className="bg-amber-50/60 backdrop-blur-md border border-amber-200/70 rounded-2xl px-4 py-3 text-[12px] text-amber-800">
           <p className="font-semibold">Як це працює:</p>
           <ul className="mt-1 space-y-0.5 list-disc list-inside">
             <li>Галочка ON → менеджер у формі бачить розблокований dropdown «Етап»</li>
@@ -119,7 +119,7 @@ export default function AdminStageEditPermissionsPage() {
           </ul>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <div className="px-4 py-3 border-b border-[#f0f2f8] flex items-center gap-3">
             <Search className="h-4 w-4 text-muted-foreground/60 shrink-0" />
             <Input

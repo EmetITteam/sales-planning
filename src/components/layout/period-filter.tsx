@@ -37,7 +37,7 @@ export function PeriodFilter() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#e2e7ef] hover:border-[#066aab]/30 hover:shadow-sm transition-all cursor-pointer"
+        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/60 backdrop-blur-md border border-white/50 hover:border-[#066aab]/30 hover:bg-white/80 transition-all cursor-pointer"
       >
         <Calendar className="h-4 w-4 text-[#066aab]" />
         <span className="text-[13px] font-semibold text-foreground">{currentLabel}</span>
@@ -47,7 +47,7 @@ export function PeriodFilter() {
       {open && (
         <>
           {/* Dropdown */}
-          <div className="absolute top-full mt-2 left-0 z-50 w-[320px] bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] border border-[#e2e7ef] overflow-hidden">
+          <div className="absolute top-full mt-2 left-0 z-50 w-[320px] glass-card overflow-hidden shadow-[0_8px_40px_rgba(6,42,61,0.12)]">
             {/* Month selector */}
             <div className="px-4 py-3 border-b border-[#e2e7ef]">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Місяць</p>

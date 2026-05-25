@@ -147,7 +147,7 @@ export default function AdminPlanningLocksPage() {
         </div>
 
         {/* Window-days settings */}
-        <section className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <section className="glass-card p-5">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-8 h-8 rounded-xl bg-[#e8f4fc] flex items-center justify-center"><Clock className="h-4 w-4 text-[#066aab]" /></div>
             <h2 className="text-[14px] font-bold">Графік планування</h2>
@@ -187,7 +187,7 @@ export default function AdminPlanningLocksPage() {
         </section>
 
         {/* Month selector */}
-        <section className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <section className="glass-card p-5">
           <div className="flex items-center gap-3">
             <label className="text-[12px] font-medium text-muted-foreground">Місяць</label>
             <Input
@@ -200,7 +200,7 @@ export default function AdminPlanningLocksPage() {
         </section>
 
         {/* New lock form */}
-        <section className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <section className="glass-card p-5">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center"><Plus className="h-4 w-4 text-rose-700" /></div>
             <h2 className="text-[14px] font-bold">Додати лок</h2>
@@ -255,7 +255,7 @@ export default function AdminPlanningLocksPage() {
         </section>
 
         {/* Locks list */}
-        <section className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <section className="glass-card p-5">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-8 h-8 rounded-xl bg-[#e8f4fc] flex items-center justify-center"><Settings2 className="h-4 w-4 text-[#066aab]" /></div>
             <h2 className="text-[14px] font-bold">Активні локи · {month.slice(0, 7)}</h2>
