@@ -16,13 +16,14 @@
  * 🚧 MVP — поки без 3 donut-діаграм і period filter. Додамо у наступному коміті.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import { SEGMENTS } from '@/lib/mock-data';
+import { getMonthProgressPct } from '@/lib/working-days';
 import { ArrowLeft, Building2, RefreshCw } from 'lucide-react';
 
 const HEADERS_JSON = {
@@ -95,6 +96,7 @@ export default function CompanyOverviewPage() {
   const [period] = useState(defaultPeriod);
   const [accordionMode, setAccordionMode] = useState<'by-div' | 'by-brand'>('by-div');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [groupFilter, setGroupFilter] = useState<'all' | 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributors'>('all');
 
   const { data, error, isLoading, mutate } = useSWR<CompanyOverviewData>(
     user?.role === 'admin' ? `company-overview-${period}` : null,
@@ -109,6 +111,17 @@ export default function CompanyOverviewPage() {
     { revalidateOnFocus: false },
   );
 
+  // Filter divisions по обраній групі (всі обчислення нижче — на filteredDivisions).
+  // 'distributors' = Чугуй + Хайленко (2 підрозділи в одну групу).
+  const filteredDivisions = useMemo(() => {
+    if (!data) return [];
+    if (groupFilter === 'all') return data.divisions;
+    if (groupFilter === 'distributors') {
+      return data.divisions.filter(d => d.groupKey === 'distributor-chuguy' || d.groupKey === 'distributor-haylenko');
+    }
+    return data.divisions.filter(d => d.groupKey === groupFilter);
+  }, [data, groupFilter]);
+
   if (!user) return null;
   if (user.role !== 'admin') return null;
 
@@ -120,7 +133,7 @@ export default function CompanyOverviewPage() {
   }> = [];
   if (data) {
     for (const groupKey of GROUP_ORDER) {
-      const divsInGroup = data.divisions.filter(d => d.groupKey === groupKey);
+      const divsInGroup = filteredDivisions.filter(d => d.groupKey === groupKey);
       if (divsInGroup.length === 0) continue;
       const aggregated: Record<string, { plan: number; fact: number; hasFact: boolean }> = {};
       for (const code of BRAND_CODES) {
@@ -154,7 +167,7 @@ export default function CompanyOverviewPage() {
   }> = [];
   if (data) {
     for (const groupKey of GROUP_ORDER) {
-      const divs = data.divisions.filter(d => d.groupKey === groupKey);
+      const divs = filteredDivisions.filter(d => d.groupKey === groupKey);
       if (divs.length === 0) continue;
       groupsForAccordion.push({
         key: groupKey,
@@ -179,7 +192,7 @@ export default function CompanyOverviewPage() {
       let totalPlan = 0, totalFact = 0;
       const byGroup: Array<{ groupKey: string; label: string; plan: number; fact: number; hasFact: boolean }> = [];
       for (const groupKey of GROUP_ORDER) {
-        const divs = data.divisions.filter(d => d.groupKey === groupKey);
+        const divs = filteredDivisions.filter(d => d.groupKey === groupKey);
         let plan = 0, fact = 0, hasFact = false;
         for (const d of divs) {
           const seg = d.segments[code];
@@ -196,12 +209,20 @@ export default function CompanyOverviewPage() {
     brandsForAccordion.sort((a, b) => b.totalFact - a.totalFact);
   }
 
-  const totalPct = data && data.totalPlan > 0
-    ? (data.totalFact / Math.max(data.divisions.filter(d => d.hasFact).reduce((s, d) => s + d.totalPlan, 0), 1)) * 100
-    : 0;
-  const noFactCount = data?.divisionsWithoutFact.length ?? 0;
-  const totalCount = data?.divisions.length ?? 0;
-  const factDelta = data ? data.totalFact - data.totalPrevFact : 0;
+  // Hero aggregates на основі FILTERED divisions
+  const filteredTotalPlan = filteredDivisions.reduce((s, d) => s + d.totalPlan, 0);
+  const filteredTotalFact = filteredDivisions.reduce((s, d) => s + d.totalFact, 0);
+  const filteredTotalPrevFact = filteredDivisions.reduce((s, d) => s + d.totalPrevFact, 0);
+  const filteredActivePlan = filteredDivisions.filter(d => d.hasFact).reduce((s, d) => s + d.totalPlan, 0);
+  const filteredWithoutFact = filteredDivisions.filter(d => !d.hasFact).map(d => d.displayName);
+
+  const totalPct = filteredActivePlan > 0 ? (filteredTotalFact / filteredActivePlan) * 100 : 0;
+  const factDelta = filteredTotalFact - filteredTotalPrevFact;
+
+  // Норма календаря (% робочих днів минулих) — для порівняння виконання
+  const periodDate = new Date(`${period}-01T00:00:00`);
+  const calcPct = getMonthProgressPct(periodDate.getFullYear(), periodDate.getMonth(), now);
+  const deviation = totalPct - calcPct;
 
   return (
     <>
@@ -241,30 +262,66 @@ export default function CompanyOverviewPage() {
 
         {data && (
           <>
-            {/* HERO */}
+            {/* GROUP FILTER */}
+            <div className="glass-card-soft p-3 flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Група</span>
+              {([
+                ['all', 'Усі підрозділи'],
+                ['representations', 'Представництва'],
+                ['call-center', 'Колл-центр'],
+                ['laserhouse', 'Лазерхауз'],
+                ['adassa', 'Адасса'],
+                ['distributors', 'Дистрибутори'],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => { setGroupFilter(key); setExpandedKey(null); }}
+                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+                    groupFilter === key
+                      ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                      : 'bg-white/60 backdrop-blur-md border border-white/50 text-muted-foreground hover:bg-white/90 hover:text-foreground'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* HERO — на основі filtered divisions */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="glass-card p-5">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">План компанії</p>
-                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none amount">{fmtUSD(data.totalPlan)}</p>
-                <p className="text-[11px] text-muted-foreground mt-2">{totalCount} підрозділів</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">План</p>
+                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none amount">{fmtUSD(filteredTotalPlan)}</p>
+                <p className="text-[11px] text-muted-foreground mt-2">{filteredDivisions.length} підрозділів</p>
               </div>
               <div className="glass-card p-5">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Факт</p>
-                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none amount">{fmtUSD(data.totalFact)}</p>
-                <p className={`text-[11px] mt-2 font-semibold ${factDelta >= 0 ? 'text-teal-700' : 'text-rose-600'}`}>
-                  {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс.
-                </p>
+                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none amount">{fmtUSD(filteredTotalFact)}</p>
+                {filteredTotalPrevFact > 0 ? (
+                  <p className={`text-[11px] mt-2 font-semibold ${factDelta >= 0 ? 'text-teal-700' : 'text-rose-600'}`}>
+                    {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс. (${fmtUSD(filteredTotalPrevFact)})
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-2">мин.міс. факту нема</p>
+                )}
               </div>
               <div className="glass-card p-5">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Виконання</p>
-                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none">{fmtPct(totalPct)}</p>
-                <p className="text-[11px] text-muted-foreground mt-2">з {fmtUSD(data.divisions.filter(d => d.hasFact).reduce((s, d) => s + d.totalPlan, 0))} активних</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none">{fmtPct(totalPct)}</p>
+                  <p className={`text-[12px] font-bold ${deviation >= 0 ? 'text-teal-700' : 'text-rose-600'}`}>
+                    {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}%
+                  </p>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Норма на {now.getDate().toString().padStart(2, '0')}.{(now.getMonth() + 1).toString().padStart(2, '0')}: <span className="font-semibold text-foreground">{fmtPct(calcPct)}</span>
+                </p>
               </div>
               <div className="glass-card p-5">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Без факту</p>
-                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none">{noFactCount} / {totalCount}</p>
-                <p className="text-[11px] text-muted-foreground mt-2 truncate">
-                  {data.divisionsWithoutFact.length > 0 ? data.divisionsWithoutFact.join(', ') : 'усі є'}
+                <p className="text-[24px] font-extrabold tracking-tight tabular-nums leading-none">{filteredWithoutFact.length} / {filteredDivisions.length}</p>
+                <p className="text-[11px] text-muted-foreground mt-2 truncate" title={filteredWithoutFact.join(', ')}>
+                  {filteredWithoutFact.length > 0 ? filteredWithoutFact.join(', ') : '— усі з фактом'}
                 </p>
               </div>
             </div>
