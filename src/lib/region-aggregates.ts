@@ -10,6 +10,7 @@
 
 import type { RegionData, ManagerSegmentData, ClientCategoryStats } from './types';
 import { SEGMENTS } from './mock-data';
+import { isTrialBrandPlan } from './trial-manager';
 
 /** Порожній агрегат клієнтів — стартова точка для reduce. */
 function emptyClientStats(): ClientCategoryStats {
@@ -106,11 +107,15 @@ export function aggregateRegion(region: RegionData): RegionAggregate {
     for (const s of m.segments) {
       const agg = bySeg.get(s.segmentCode);
       if (!agg) continue; // невідомий сегмент — пропускаємо
-      agg.planAmount += s.planAmount;
+      // $1 sentinel (trial-новачок без реального плану) НЕ додаємо у план.
+      // Інакше факт $950 / план $1 = 95000% і Адасса показує "+$9" зайвих.
+      // Узгоджено з Company Overview backend (route.ts).
+      const planToAdd = isTrialBrandPlan(s.planAmount) ? 0 : s.planAmount;
+      agg.planAmount += planToAdd;
       agg.factAmount += s.factAmount;
       agg.prevMonthFactAmount += s.prevMonthFactAmount ?? 0;
       agg.prevMonthPlanAmount += s.prevMonthPlanAmount ?? 0;
-      if (s.planAmount > 0) agg.managerCount += 1;
+      if (planToAdd > 0) agg.managerCount += 1;
     }
   }
 

@@ -275,6 +275,10 @@ export function CompanyOverviewDashboard() {
   // Робочі дні — для 1-ї hero (passed / total)
   const totalWD = getWorkingDaysInMonth(periodDate.getFullYear(), periodDate.getMonth());
   const passedWD = getPassedWorkingDays(periodDate.getFullYear(), periodDate.getMonth(), asOfForCalc);
+  // Прогноз (темп): екстраполюємо поточний факт на весь місяць — fact * (totalWD / passedWD).
+  // Це дає очікуваний % виконання у кінці місяця при поточному темпі продажів.
+  const forecastFact = passedWD > 0 ? filteredTotalFact * (totalWD / passedWD) : 0;
+  const forecastPct = filteredActivePlan > 0 ? (forecastFact / filteredActivePlan) * 100 : 0;
 
   if (!user) return null;
 
@@ -402,6 +406,9 @@ export function CompanyOverviewDashboard() {
               <p className="text-[11px] text-muted-foreground">
                 Норма на ранок: <span className="font-semibold text-foreground">{fmtPct(morningPct)}</span>
               </p>
+              <p className="text-[11px] text-muted-foreground">
+                Прогноз (темп): <span className={`font-semibold ${forecastPct >= 100 ? 'text-teal-700' : forecastPct >= 80 ? 'text-amber-600' : 'text-rose-700'}`}>{fmtPct(forecastPct)}</span>
+              </p>
               <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${deviation >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
                 {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}% vs норма
               </span>
@@ -415,16 +422,15 @@ export function CompanyOverviewDashboard() {
               //     великої категорійної карти не показуємо)
               if (groupFilter === 'all') {
                 // Підрозділи що ВІДСТАЮТЬ від норми (pct < calcPct) — не виконують план.
-                // Бере всі divisions з планом > 0; рахує їх pct і порівнює з нормою.
+                // Біля кожного показуємо delta (на скільки % відстає від норми).
                 const behind = filteredDivisions
                   .filter(d => d.totalPlan > 0)
                   .map(d => {
                     const pct = d.hasFact ? (d.totalFact / d.totalPlan) * 100 : 0;
-                    return { name: d.displayName, pct };
+                    return { name: d.displayName, pct, delta: pct - calcPct };
                   })
-                  .filter(x => x.pct < calcPct)
-                  .sort((a, b) => a.pct - b.pct);
-                const behindNames = behind.map(b => b.name);
+                  .filter(x => x.delta < 0)
+                  .sort((a, b) => a.delta - b.delta);  // найвідсталіші зверху
                 return (
                   <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
                     <div className="flex items-center gap-2 mb-3">
@@ -435,12 +441,21 @@ export function CompanyOverviewDashboard() {
                       {behind.length}
                       <span className="text-[22px] font-medium text-muted-foreground"> / {filteredDivisions.filter(d => d.totalPlan > 0).length}</span>
                     </p>
-                    <p className="text-[11px] text-muted-foreground mt-3 line-clamp-2" title={behindNames.join(', ')}>
-                      {behind.length === 0 ? '— усі тримають темп' : behindNames.join(', ')}
-                    </p>
+                    {behind.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground mt-3">— усі тримають темп</p>
+                    ) : (
+                      <div className="mt-3 flex flex-col gap-0.5 max-h-[120px] overflow-y-auto pr-1">
+                        {behind.map(b => (
+                          <div key={b.name} className="flex items-center justify-between text-[11px] gap-2">
+                            <span className="text-muted-foreground truncate">{b.name}</span>
+                            <span className="font-bold tabular-nums text-rose-700 shrink-0">{b.delta.toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {behind.length > 0 && (
                       <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-100/70 text-orange-800">
-                        відстають vs норма {fmtPct(calcPct)}
+                        норма {fmtPct(calcPct)}
                       </span>
                     )}
                   </div>
