@@ -22,6 +22,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
+import { DonutChart } from '@/components/dashboard/donut-chart';
 import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct } from '@/lib/working-days';
 import { ArrowLeft, Building2, RefreshCw } from 'lucide-react';
@@ -70,6 +71,11 @@ const GROUP_LABEL: Record<DivisionDetails['groupKey'], string> = {
 
 // Format helpers
 const fmtUSD = (v: number) => '$' + Math.round(v).toLocaleString('en-US');
+const fmtUSDCompact = (v: number) => {
+  if (v >= 1_000_000) return '$' + (v / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (v >= 1_000) return '$' + Math.round(v / 1_000) + 'K';
+  return '$' + Math.round(v);
+};
 const fmtPct = (v: number) => v.toFixed(1) + '%';
 
 // Heatmap color class for percentage
@@ -93,7 +99,23 @@ export default function CompanyOverviewPage() {
   // Current month default
   const now = new Date();
   const defaultPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const [period] = useState(defaultPeriod);
+  const [period, setPeriod] = useState(defaultPeriod);
+
+  // Available periods: current + 2 previous months (1С повертає по місяцях)
+  const availablePeriods = useMemo(() => {
+    const out: { value: string; label: string }[] = [];
+    const monthNames = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
+                        'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = i === 0
+        ? `${monthNames[d.getMonth()]} ${d.getFullYear()} (поточний)`
+        : `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      out.push({ value: v, label });
+    }
+    return out;
+  }, [now]);
   const [accordionMode, setAccordionMode] = useState<'by-div' | 'by-brand'>('by-div');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [groupFilter, setGroupFilter] = useState<'all' | 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributors'>('all');
@@ -262,6 +284,24 @@ export default function CompanyOverviewPage() {
 
         {data && (
           <>
+            {/* PERIOD FILTER */}
+            <div className="glass-card-soft p-3 flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Період</span>
+              {availablePeriods.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => { setPeriod(p.value); setExpandedKey(null); }}
+                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+                    period === p.value
+                      ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                      : 'bg-white/60 backdrop-blur-md border border-white/50 text-muted-foreground hover:bg-white/90 hover:text-foreground'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
             {/* GROUP FILTER */}
             <div className="glass-card-soft p-3 flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Група</span>
@@ -325,6 +365,83 @@ export default function CompanyOverviewPage() {
                 </p>
               </div>
             </div>
+
+            {/* 3 DONUT CHARTS */}
+            {(() => {
+              // Donut 1: розподіл факту між регіонами всередині Представництв
+              const reps = (data?.divisions ?? []).filter(d => d.groupKey === 'representations');
+              const regionsTotalFact = reps.reduce((s, d) => s + d.totalFact, 0);
+              const tealPalette = ['#066aab', '#0880cc', '#5bd5bc', '#14b8a6', '#0d9488', '#0e7490', '#67e8f9', '#a7f3d0'];
+              const repsSegments = reps
+                .filter(d => d.totalFact > 0)
+                .sort((a, b) => b.totalFact - a.totalFact)
+                .map((d, i) => ({ name: d.divisionName, value: d.totalFact, color: tealPalette[i % tealPalette.length] }));
+
+              // Donut 2: розподіл плану між підрозділами (6 груп)
+              const mixedPalette = ['#066aab', '#fb923c', '#fbbf24', '#a855f7', '#5bd5bc', '#ec4899'];
+              const divisionSegments: { name: string; value: number; color: string }[] = [];
+              for (const groupKey of GROUP_ORDER) {
+                const divs = (data?.divisions ?? []).filter(d => d.groupKey === groupKey);
+                const groupPlan = divs.reduce((s, d) => s + d.totalPlan, 0);
+                if (groupPlan > 0) {
+                  divisionSegments.push({
+                    name: GROUP_LABEL[groupKey],
+                    value: groupPlan,
+                    color: mixedPalette[divisionSegments.length % mixedPalette.length],
+                  });
+                }
+              }
+              const divTotalPlan = divisionSegments.reduce((s, x) => s + x.value, 0);
+
+              // Donut 3: розподіл факту між брендами (по всіх divisions)
+              const brandFactMap = new Map<string, number>();
+              for (const d of data?.divisions ?? []) {
+                for (const [code, seg] of Object.entries(d.segments)) {
+                  if (d.hasFact && seg.fact > 0) {
+                    brandFactMap.set(code, (brandFactMap.get(code) || 0) + seg.fact);
+                  }
+                }
+              }
+              const brandSegments = Array.from(brandFactMap.entries())
+                .sort((a, b) => b[1] - a[1])
+                .map(([code, value], i) => ({
+                  name: BRAND_NAMES[code] || code,
+                  value,
+                  color: ['#066aab', '#0880cc', '#5bd5bc', '#14b8a6', '#0d9488', '#fb923c', '#fbbf24', '#a855f7', '#ec4899'][i % 9],
+                }));
+              const brandTotalFact = brandSegments.reduce((s, x) => s + x.value, 0);
+
+              const fmtUsdLegend = (_v: number, pct: number) => pct.toFixed(1) + '%';
+
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <DonutChart
+                    title="Регіони у Представництвах"
+                    subtitle={`Частка кожного у факті (${fmtUSD(regionsTotalFact)})`}
+                    centerLabel={fmtUSDCompact(regionsTotalFact)}
+                    centerSub="факт"
+                    segments={repsSegments}
+                    formatValue={fmtUsdLegend}
+                  />
+                  <DonutChart
+                    title="Підрозділи у компанії"
+                    subtitle={`Частка кожного у плані (${fmtUSD(divTotalPlan)})`}
+                    centerLabel={fmtUSDCompact(divTotalPlan)}
+                    centerSub="план"
+                    segments={divisionSegments}
+                    formatValue={fmtUsdLegend}
+                  />
+                  <DonutChart
+                    title="Бренди у компанії"
+                    subtitle={`Частка кожного у факті (${fmtUSD(brandTotalFact)})`}
+                    centerLabel={fmtUSDCompact(brandTotalFact)}
+                    centerSub="факт"
+                    segments={brandSegments}
+                    formatValue={fmtUsdLegend}
+                  />
+                </div>
+              );
+            })()}
 
             {/* HEATMAP */}
             <div className="glass-card p-5">
