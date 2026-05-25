@@ -50,6 +50,12 @@ export interface UserSession {
    * при кожному mount, щоб toggle діяв одразу.
    */
   canEditStagesAfterFinalize?: boolean;
+  /**
+   * Дозвіл бачити сторінку «Огляд компанії» на головній (toggle поряд з основним
+   * дашбордом). Admin завжди бачить незалежно від цього флага. Інші юзери —
+   * тільки якщо admin вмикнув їм у /admin/company-overview-permissions.
+   */
+  canViewCompanyOverview?: boolean;
 }
 
 // === Сегменти (ТМ) ===

@@ -84,6 +84,13 @@ export default function AdminPage() {
             description="Уся компанія — план/факт по 13 підрозділах (включно з Колл-центр, Лазерхауз, Адасса, Чугуй, Хайленко). Heatmap бренд×підрозділ + donut-діаграми. Read-only."
             ready
           />
+          <AdminCard
+            href="/admin/company-overview-permissions"
+            icon={<Building2 className="h-4 w-4 text-[#066aab]" />}
+            title="Доступ до «Огляду компанії»"
+            description="Кому показувати toggle «Дашборд / Огляд компанії» на головній сторінці. Admin завжди має доступ. Інші юзери — за галочкою."
+            ready
+          />
         </div>
       </main>
     </>

@@ -33,7 +33,9 @@ export default function Home() {
     return <LoginForm />;
   }
 
-  const showOverviewToggle = user.role === 'admin';
+  // Toggle бачать: admin (завжди) + юзери з canViewCompanyOverview=true
+  // (вмикається admin-ом у /admin/company-overview-permissions)
+  const showOverviewToggle = user.role === 'admin' || user.canViewCompanyOverview === true;
 
   return (
     <div className="min-h-screen flex flex-col">
