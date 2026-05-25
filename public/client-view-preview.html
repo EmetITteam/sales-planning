@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client view · Manager dashboard · Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root {
+  --ink: #062a3d;
+  --ink-soft: rgba(6,42,61,0.78);
+  --ink-muted: rgba(6,42,61,0.58);
+  --ink-faded: rgba(6,42,61,0.38);
+  --accent: #066aab;
+  --accent2: #5bd5bc;
+  --good: #14b8a6;
+  --warn: #fb923c;
+  --bad: #e11d48;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: #f8fbfd;
+  color: var(--ink);
+  min-height: 100vh;
+  position: relative;
+}
+.amount { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+.mesh-bg {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+    radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+    radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+    radial-gradient(at 20% 90%, #e0f7fa 0%, transparent 55%),
+    linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
+}
+.glass {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(6,42,61,0.04), 0 8px 32px rgba(6,42,61,0.04), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.glass-soft {
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.55);
+  border-radius: 16px;
+}
+
+.page-wrap { max-width: 1280px; margin: 0 auto; padding: 32px; }
+
+.sec-title {
+  margin: 48px 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(6,42,61,0.08);
+}
+.sec-title h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.sec-title p { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
+.sec-title .pill {
+  display: inline-block;
+  padding: 4px 12px; border-radius: 999px;
+  background: rgba(6,106,171,0.12); color: var(--accent);
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  margin-left: 8px;
+}
+
+/* Mock hero (compact) */
+.hero {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  margin-bottom: 16px;
+}
+.hero .card { padding: 16px 20px; }
+.hero .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-muted); font-weight: 700; }
+.hero .val { font-size: 24px; font-weight: 800; letter-spacing: -0.8px; margin-top: 4px; }
+.hero .sub { font-size: 11px; color: var(--ink-muted); margin-top: 4px; }
+
+/* TOGGLE */
+.toggle-row {
+  display: flex; gap: 4px;
+  padding: 4px;
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.55);
+  border-radius: 999px;
+  width: fit-content;
+}
+.toggle-btn {
+  padding: 8px 18px; border-radius: 999px;
+  font-size: 13px; font-weight: 600;
+  color: var(--ink-soft); cursor: pointer;
+  background: transparent; border: none;
+  font-family: inherit;
+}
+.toggle-btn.active {
+  background: linear-gradient(135deg, #066aab, #0880cc);
+  color: white;
+  box-shadow: 0 3px 10px rgba(6,106,171,0.25);
+}
+
+/* Placement A: after hero */
+.placement-a-wrap { margin-bottom: 24px; display: flex; justify-content: center; }
+
+/* Placement B: header right */
+.placement-b-wrap {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.placement-b-wrap h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+
+/* Category group */
+.cat-group { margin-bottom: 32px; }
+.cat-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255,255,255,0.55);
+}
+.cat-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+.cat-header h3 { font-size: 14px; font-weight: 700; }
+.cat-header .meta { font-size: 11px; color: var(--ink-muted); font-weight: 600; }
+.cat-active .dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.cat-sleeping .dot { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+.cat-new .dot { background: var(--good); box-shadow: 0 0 6px var(--good); }
+.cat-lost .dot { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+.cat-none .dot { background: #94a3b8; }
+
+/* CLIENT ROW */
+.client-list { display: flex; flex-direction: column; gap: 8px; }
+.client-row {
+  padding: 14px 18px;
+  transition: all 0.2s;
+}
+.client-row.expanded { border-color: rgba(6,106,171,0.3); }
+.client-row.completed { opacity: 0.6; }
+
+.client-header {
+  display: grid;
+  grid-template-columns: 20px 1.6fr 130px 140px 100px 80px 20px;
+  gap: 12px; align-items: center;
+  cursor: pointer;
+}
+.client-header .chev {
+  color: var(--ink-muted); font-size: 13px;
+  transition: transform 0.2s;
+}
+.client-row.expanded .chev { transform: rotate(90deg); }
+.client-name {
+  font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.client-name .cat-badge {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 2px 8px; border-radius: 999px;
+}
+.client-name .cat-badge.active { background: rgba(6,106,171,0.12); color: var(--accent); }
+.client-name .cat-badge.sleeping { background: rgba(251,146,60,0.18); color: #9a3412; }
+.client-name .cat-badge.new { background: rgba(20,184,166,0.18); color: #115e59; }
+.client-name .cat-badge.lost { background: rgba(225,29,72,0.15); color: #9f1239; }
+.client-name .cat-badge.none { background: rgba(148,163,184,0.18); color: #475569; }
+.client-last { font-size: 11px; color: var(--ink-muted); margin-top: 2px; font-weight: 500; }
+
+.client-nums {
+  text-align: right; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+  font-size: 12px; color: var(--ink-soft);
+}
+.client-nums strong { color: var(--ink); font-weight: 700; font-size: 13px; }
+
+.client-bar {
+  width: 100%; height: 5px;
+  background: rgba(6,42,61,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.client-bar > div {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #066aab, #5bd5bc);
+}
+.client-pct { font-weight: 700; font-size: 13px; text-align: right; }
+.client-pct.good { color: var(--good); }
+.client-pct.bad { color: var(--bad); }
+
+.client-completed {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 8px; border-radius: 999px;
+  text-align: center; justify-content: center;
+}
+.client-completed.full { background: rgba(20,184,166,0.18); color: #115e59; }
+.client-completed.partial { background: rgba(251,146,60,0.18); color: #9a3412; }
+.client-completed.none { background: rgba(225,29,72,0.12); color: #9f1239; }
+
+/* EXPANDED: brand list */
+.brand-list {
+  display: none;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid rgba(6,42,61,0.08);
+  gap: 4px;
+}
+.client-row.expanded .brand-list { display: flex; flex-direction: column; }
+
+.brand-item {
+  display: grid;
+  grid-template-columns: 28px 1fr 120px 120px 90px 24px;
+  gap: 12px; align-items: center;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.45);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.5);
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.brand-item:hover {
+  background: rgba(255,255,255,0.7);
+  transform: translateY(-1px);
+}
+.brand-item .ico {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, #066aab, #5bd5bc);
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800;
+}
+.brand-item .nm { font-size: 13px; font-weight: 600; }
+.brand-item .nums {
+  text-align: right; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+  font-size: 12px; color: var(--ink-soft);
+}
+.brand-item .nums strong { color: var(--ink); font-weight: 700; }
+.brand-item .nums .lbl-mini {
+  display: block; font-size: 9px; color: var(--ink-faded); text-transform: uppercase; letter-spacing: 0.6px;
+  font-weight: 600;
+}
+.brand-item .status {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  font-size: 14px;
+}
+.brand-item .status.done { background: rgba(20,184,166,0.2); color: var(--good); }
+.brand-item .status.todo { background: rgba(148,163,184,0.18); color: #94a3b8; }
+.brand-item .arr { color: var(--ink-faded); font-size: 14px; }
+
+/* Note */
+.note {
+  margin-top: 32px; padding: 16px 20px;
+  background: rgba(6,106,171,0.08);
+  border: 1px solid rgba(6,106,171,0.3);
+  border-radius: 14px;
+  font-size: 12px; color: #075985; line-height: 1.5;
+}
+.note b { font-weight: 700; }
+.note ul { margin: 8px 0 0 16px; padding: 0; }
+.note li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="mesh-bg"></div>
+
+<div class="page-wrap">
+
+  <!-- ========== ВАРІАНТ A: переключатель ПІСЛЯ Hero ========== -->
+  <div class="sec-title">
+    <h2>📍 Варіант A: переключатель ПІСЛЯ Hero <span class="pill">recommended</span></h2>
+    <p>Hero лишається загальним зведенням. Переключатель — окремий «вибір режиму перегляду» того що нижче. Hero + перемикання локально не конфліктують.</p>
+  </div>
+
+  <!-- mock hero -->
+  <div class="hero">
+    <div class="card glass">
+      <div class="lbl">План місяця</div>
+      <div class="val amount">$54,968</div>
+      <div class="sub">Травень 2026 · 21 робочий день</div>
+    </div>
+    <div class="card glass">
+      <div class="lbl">Факт</div>
+      <div class="val amount">$30,201</div>
+      <div class="sub">Мин. міс.: $54,913</div>
+    </div>
+    <div class="card glass">
+      <div class="lbl">Виконання</div>
+      <div class="val">54.9%</div>
+      <div class="sub">Норма: 52.4% · +2.6%</div>
+    </div>
+    <div class="card glass">
+      <div class="lbl">Клієнти</div>
+      <div class="val">152</div>
+      <div class="sub">з планом: 24</div>
+    </div>
+  </div>
+
+  <!-- переключатель — РІВНО ПО ЦЕНТРУ після Hero -->
+  <div class="placement-a-wrap">
+    <div class="toggle-row">
+      <button class="toggle-btn">Бренди</button>
+      <button class="toggle-btn active">Клієнти</button>
+    </div>
+  </div>
+
+  <!-- CLIENT VIEW SAMPLE -->
+
+  <!-- Active клієнти -->
+  <div class="cat-group">
+    <div class="cat-header cat-active">
+      <span class="dot"></span>
+      <h3>Активні клієнти</h3>
+      <span class="meta">14 з планом</span>
+    </div>
+    <div class="client-list">
+
+      <!-- Client expanded -->
+      <div class="client-row glass expanded">
+        <div class="client-header">
+          <span class="chev">▶</span>
+          <div>
+            <div class="client-name">
+              Андрущук (Недолуга) Катерина Миколаївна
+              <span class="cat-badge active">Активна</span>
+            </div>
+            <div class="client-last">Ост. покупка: 15.03.2026 · $378</div>
+          </div>
+          <span class="client-completed partial">2/4 ⓘ</span>
+          <div class="client-nums">
+            <div><strong>$315</strong> / $520</div>
+            <div class="client-bar" style="margin-top: 4px;"><div style="width:60.6%"></div></div>
+          </div>
+          <div></div>
+          <span class="client-pct good">60.6%</span>
+          <span style="color: var(--ink-faded); text-align: right;">›</span>
+        </div>
+        <div class="brand-list">
+          <div class="brand-item">
+            <div class="ico">P</div>
+            <span class="nm">Petaran</span>
+            <span class="nums"><span class="lbl-mini">План</span><strong>$120</strong></span>
+            <span class="nums"><span class="lbl-mini">Факт</span><strong style="color: var(--good);">$135</strong></span>
+            <span class="status done" title="Etap виконано">✓</span>
+            <span class="arr">›</span>
+          </div>
+          <div class="brand-item">
+            <div class="ico" style="background: linear-gradient(135deg, #14b8a6, #5bd5bc);">N</div>
+            <span class="nm">Neuronox</span>
+            <span class="nums"><span class="lbl-mini">План</span><strong>$180</strong></span>
+            <span class="nums"><span class="lbl-mini">Факт</span><strong style="color: var(--good);">$180</strong></span>
+            <span class="status done">✓</span>
+            <span class="arr">›</span>
+          </div>
+          <div class="brand-item">
+            <div class="ico" style="background: linear-gradient(135deg, #fb923c, #fbbf24);">E</div>
+            <span class="nm">Ellanse</span>
+            <span class="nums"><span class="lbl-mini">План</span><strong>$110</strong></span>
+            <span class="nums"><span class="lbl-mini">Факт</span><strong style="color: var(--ink-muted);">$0</strong></span>
+            <span class="status todo" title="Etap ще не виконано">○</span>
+            <span class="arr">›</span>
+          </div>
+          <div class="brand-item">
+            <div class="ico" style="background: linear-gradient(135deg, #a855f7, #ec4899);">V</div>
+            <span class="nm">Vitaran</span>
+            <span class="nums"><span class="lbl-mini">План</span><strong>$110</strong></span>
+            <span class="nums"><span class="lbl-mini">Факт</span><strong style="color: var(--ink-muted);">$0</strong></span>
+            <span class="status todo">○</span>
+            <span class="arr">›</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Client collapsed -->
+      <div class="client-row glass">
+        <div class="client-header">
+          <span class="chev">▶</span>
+          <div>
+            <div class="client-name">
+              Гімішлі (Аріх) Анастасія Миколаївна
+              <span class="cat-badge active">Активна</span>
+            </div>
+            <div class="client-last">Ост. покупка: 17.02.2026 · $252</div>
+          </div>
+          <span class="client-completed partial">1/3</span>
+          <div class="client-nums">
+            <div><strong>$160</strong> / $400</div>
+            <div class="client-bar" style="margin-top: 4px;"><div style="width:40%"></div></div>
+          </div>
+          <div></div>
+          <span class="client-pct bad">40.0%</span>
+          <span style="color: var(--ink-faded); text-align: right;">›</span>
+        </div>
+      </div>
+
+      <div class="client-row glass">
+        <div class="client-header">
+          <span class="chev">▶</span>
+          <div>
+            <div class="client-name">
+              Данішевський Андрій
+              <span class="cat-badge active">Активний</span>
+            </div>
+            <div class="client-last">Ост. покупка: 09.04.2026 · $595</div>
+          </div>
+          <span class="client-completed none">0/2</span>
+          <div class="client-nums">
+            <div><strong>$0</strong> / $350</div>
+            <div class="client-bar" style="margin-top: 4px;"><div style="width:0%"></div></div>
+          </div>
+          <div></div>
+          <span class="client-pct bad">0%</span>
+          <span style="color: var(--ink-faded); text-align: right;">›</span>
+        </div>
+      </div>
+
+      <div class="client-row glass">
+        <div class="client-header">
+          <span class="chev">▶</span>
+          <div>
+            <div class="client-name">
+              Жушма (Рудченко) Катерина
+              <span class="cat-badge active">Активна</span>
+            </div>
+            <div class="client-last">Ост. покупка: 13.05.2026 · $270</div>
+          </div>
+          <span class="client-completed partial">2/4</span>
+          <div class="client-nums">
+            <div><strong>$420</strong> / $680</div>
+            <div class="client-bar" style="margin-top: 4px;"><div style="width:61.8%"></div></div>
+          </div>
+          <div></div>
+          <span class="client-pct good">61.8%</span>
+          <span style="color: var(--ink-faded); text-align: right;">›</span>
+        </div>
+      </div>
+
+      <!-- Completed client (greyed out, at bottom of category) -->
+      <div class="client-row glass completed">
+        <div class="client-header">
+          <span class="chev">▶</span>
+          <div>
+            <div class="client-name">
+              Калина Ольга Сергіївна
+              <span class="cat-badge active">Активна</span>
+            </div>
+            <div class="client-last">Ост. покупка: 15.03.2026 · $378</div>
+          </div>
+          <span class="client-completed full">3/3 ✓</span>
+          <div class="client-nums">
+            <div><strong>$450</strong> / $450</div>
+            <div class="client-bar" style="margin-top: 4px;"><div style="width:100%"></div></div>
+          </div>
+          <div></div>
+          <span class="client-pct good">100%</span>
+          <span style="color: var(--ink-faded); text-align: right;">›</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Sleeping клієнти -->
+  <div class="cat-group">
+    <div class="cat-header cat-sleeping">
+      <span class="dot"></span>
+      <h3>Сплячі клієнти</h3>
+      <span class="meta">8 з планом</span>
+    </div>
+    <div class="client-list">
+      <div class="client-row glass">
+        <div class="client-header">
+          <span class="chev">▶</span>
+          <div>
+            <div class="client-name">
+              Артемова Ганна Олександрівна
+              <span class="cat-badge sleeping">Сплячий</span>
+            </div>
+            <div class="client-last">Ост. покупка: 17.01.2026 · $850</div>
+          </div>
+          <span class="client-completed none">0/2</span>
+          <div class="client-nums">
+            <div><strong>$0</strong> / $290</div>
+            <div class="client-bar" style="margin-top: 4px;"><div style="width:0%"></div></div>
+          </div>
+          <div></div>
+          <span class="client-pct bad">0%</span>
+          <span style="color: var(--ink-faded); text-align: right;">›</span>
+        </div>
+      </div>
+      <div class="client-row glass">
+        <div class="client-header">
+          <span class="chev">▶</span>
+          <div>
+            <div class="client-name">
+              Дзюба Олена
+              <span class="cat-badge sleeping">Сплячий</span>
+            </div>
+            <div class="client-last">Ост. покупка: 22.12.2025 · $420</div>
+          </div>
+          <span class="client-completed partial">1/2</span>
+          <div class="client-nums">
+            <div><strong>$180</strong> / $480</div>
+            <div class="client-bar" style="margin-top: 4px;"><div style="width:37.5%"></div></div>
+          </div>
+          <div></div>
+          <span class="client-pct bad">37.5%</span>
+          <span style="color: var(--ink-faded); text-align: right;">›</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Нові клієнти -->
+  <div class="cat-group">
+    <div class="cat-header cat-new">
+      <span class="dot"></span>
+      <h3>Нові клієнти</h3>
+      <span class="meta">2 з планом</span>
+    </div>
+    <div class="client-list">
+      <div class="client-row glass">
+        <div class="client-header">
+          <span class="chev">▶</span>
+          <div>
+            <div class="client-name">
+              Мельниченко Ірина
+              <span class="cat-badge new">Новий</span>
+            </div>
+            <div class="client-last">Ост. покупка: 02.05.2026 · $180</div>
+          </div>
+          <span class="client-completed partial">1/2</span>
+          <div class="client-nums">
+            <div><strong>$220</strong> / $440</div>
+            <div class="client-bar" style="margin-top: 4px;"><div style="width:50%"></div></div>
+          </div>
+          <div></div>
+          <span class="client-pct bad">50.0%</span>
+          <span style="color: var(--ink-faded); text-align: right;">›</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ВАРІАНТ B: переключатель ВГОРІ ========== -->
+  <div class="sec-title">
+    <h2>📍 Варіант B: переключатель ВГОРІ (заголовок + toggle справа)</h2>
+    <p>Toggle вище за Hero. Hero вже залежить від обраного режиму (для брендів — як зараз, для клієнтів — той самий + лічильник клієнтів виділяється).</p>
+  </div>
+
+  <div class="placement-b-wrap">
+    <h1>Менеджер: Бойко Ольга</h1>
+    <div class="toggle-row">
+      <button class="toggle-btn active">Бренди</button>
+      <button class="toggle-btn">Клієнти</button>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="card glass">
+      <div class="lbl">План місяця</div>
+      <div class="val amount">$54,968</div>
+      <div class="sub">Травень 2026 · 21 робочий день</div>
+    </div>
+    <div class="card glass">
+      <div class="lbl">Факт</div>
+      <div class="val amount">$30,201</div>
+      <div class="sub">Мин. міс.: $54,913</div>
+    </div>
+    <div class="card glass">
+      <div class="lbl">Виконання</div>
+      <div class="val">54.9%</div>
+      <div class="sub">Норма: 52.4% · +2.6%</div>
+    </div>
+    <div class="card glass">
+      <div class="lbl">Клієнти</div>
+      <div class="val">152</div>
+      <div class="sub">з планом: 24</div>
+    </div>
+  </div>
+
+  <p style="font-size: 12px; color: var(--ink-muted); margin-top: 16px; font-style: italic;">
+    ↑ Нижче далі йде список брендів або клієнтів — залежно від обраного режиму вгорі.
+  </p>
+
+  <!-- Note про логіку -->
+  <div class="note">
+    <p><b>Логіка деталей</b> (як я її зрозуміла):</p>
+    <ul>
+      <li><b>Показуємо тільки клієнтів з планом</b> — тих хто є у forecasts АБО gap_closures менеджера. У моку показано приклади.</li>
+      <li><b>Категорії з 1С</b>: Активний / Сплячий / Новий / Втрачений / БЗ. Кожна група — окремий блок.</li>
+      <li><b>Сортування</b>: всередині категорії — за алфавітом ПІБ. Клієнти у яких ВСІ бренди досягли плану (100% по кожному) — переїжджають у низ блоку (зі зменшеною прозорістю).</li>
+      <li><b>X/Y completed</b>: X = брендів де факт ≥ план, Y = всього брендів з планом для цього клієнта. Іконка ✓ якщо всі.</li>
+      <li><b>Колапс</b>: ПІБ + категорія + остання покупка + 2/4 completed + сума план/факт + % + ›</li>
+      <li><b>Експанд</b>: список брендів — назва, $план, $факт, ✓/○ (виконав запланований етап dзвінок/зустріч), › (клік → перехід у форму планування цього бренду для цього менеджера)</li>
+      <li><b>Колір факту по бренду</b>: зелений якщо ≥ план, нейтральний якщо &lt; план</li>
+      <li><b>Перехід по бренду</b> — клік на рядок бренду відкриває повну форму планування цього (manager × brand) — той самий drill-down що зараз на дашборді РМ є.</li>
+    </ul>
+    <p style="margin-top: 12px;"><b>Питання до тебе:</b> який варіант placement-у краще — A (toggle під Hero) чи B (toggle вгорі біля заголовку)?</p>
+  </div>
+
+</div>
+
+<script>
+document.querySelectorAll('.toggle-row').forEach(row => {
+  row.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      row.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+});
+document.querySelectorAll('.client-header').forEach(h => {
+  h.addEventListener('click', () => h.parentElement.classList.toggle('expanded'));
+});
+</script>
+</body>
+</html>
