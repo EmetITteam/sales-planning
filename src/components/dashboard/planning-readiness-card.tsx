@@ -188,7 +188,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
   const allFinalized = total.mgrFin + total.mgrTrial === total.mgrAll && total.mgrAll > 0 && total.mgrEmpty === 0 && total.mgrPartial === 0;
   if (allFinalized) {
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-3.5">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
             <ClipboardCheck className="h-5 w-5 text-emerald-600" />
@@ -216,7 +216,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
   const overallLabel = overallStatus === 'green' ? 'ГОТОВО' : overallStatus === 'amber' ? 'У РОБОТІ' : 'ВІДСТАВАННЯ';
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+    <div className="glass-card overflow-hidden">
       {/* Header */}
       <div
         onClick={() => setExpanded(!expanded)}
@@ -305,7 +305,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
             const rFinPct = allTrial ? 100 : Math.round((r.managersFinalized / rDenom) * 100);
             const rPartialPct = allTrial ? 0 : Math.round((r.managersPartial / rDenom) * 100);
             return (
-              <div key={r.regionName} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div key={r.regionName} className="glass-card overflow-hidden">
                 <button
                   onClick={() => {
                     setExpandedRegions(prev => {

@@ -84,7 +84,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
   const hasExpected = !isTrial && totalExpected > 0;
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+    <div className="glass-card overflow-hidden transition-all hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]">
       {/* === DESKTOP === */}
       <div
         onClick={() => setExpanded(!expanded)}
