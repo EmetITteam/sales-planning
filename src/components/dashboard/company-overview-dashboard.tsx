@@ -299,10 +299,43 @@ export function CompanyOverviewDashboard() {
       )}
 
       {isLoading && !data && (
-        <div className="glass-card p-12 text-center">
-          <RefreshCw className="h-6 w-6 animate-spin text-emet-blue mx-auto mb-3" />
-          <p className="text-[13px] text-muted-foreground">Збираємо дані з 1С (план + факт)…</p>
-        </div>
+        <>
+          {/* Layout-shaped skeleton — тримаємо просторову форму поки тягнеться 1С.
+              Замість generic spinner — повторюємо grid hero + filters + heatmap
+              щоб контент при появі не "стрибав". */}
+          <div className="glass-card-soft p-3 flex items-center gap-3 animate-pulse">
+            <div className="h-7 w-32 rounded-full bg-white/50" />
+            <div className="flex-1" />
+            <div className="h-7 w-24 rounded-full bg-white/50" />
+            <div className="h-7 w-32 rounded-full bg-white/50" />
+            <div className="h-7 w-32 rounded-full bg-white/50" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: i }}>
+                <div className="h-3 w-24 rounded bg-white/50 mb-3 animate-pulse" />
+                <div className="h-9 w-32 rounded bg-white/60 mb-3 animate-pulse" />
+                <div className="h-3 w-40 rounded bg-white/40 animate-pulse" />
+              </div>
+            ))}
+          </div>
+          <div className="glass-card p-6 animate-pulse">
+            <div className="h-4 w-48 rounded bg-white/50 mb-3" />
+            <div className="h-3 w-72 rounded bg-white/40 mb-4" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[0, 1, 2, 3, 4].map(i => (
+                <div key={i} className="glass-card-soft p-4">
+                  <div className="h-3 w-16 rounded bg-white/50 mb-2" />
+                  <div className="h-7 w-12 rounded bg-white/60 mb-2" />
+                  <div className="h-2.5 w-20 rounded bg-white/40" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground text-center mt-2">
+            Збираємо дані з 1С …
+          </p>
+        </>
       )}
 
       {data && (
