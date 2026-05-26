@@ -7,15 +7,17 @@ interface ClientStatsCardProps {
   stats: ClientCategoryStats;
   /** Якщо true і stats.totalClients=0 — показуємо скелет замість чисельних 0/0. */
   loading?: boolean;
+  /** Порядок появи у fade-stagger каскаді (за замовчуванням 3 — це 4-та картка hero-ряду). */
+  index?: number;
 }
 
-export function ClientStatsCard({ stats, loading = false }: ClientStatsCardProps) {
+export function ClientStatsCard({ stats, loading = false, index = 3 }: ClientStatsCardProps) {
   // Скелет лише коли реально ще нічого не отримали (totalClients=0). Якщо вже
   // є попередні дані (keepPreviousData) — показуємо їх, поки не оновляться.
   const showSkeleton = loading && stats.totalClients === 0;
   if (showSkeleton) {
     return (
-      <div className="glass-card p-3 md:p-4">
+      <div className="glass-card p-3 md:p-4 fade-stagger" style={{ ['--i' as string]: index }}>
         <div className="h-3 w-32 bg-[#f0f2f8] rounded animate-pulse mb-3" />
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
@@ -34,7 +36,7 @@ export function ClientStatsCard({ stats, loading = false }: ClientStatsCardProps
   }
 
   return (
-    <div className="glass-card p-3 md:p-4 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]">
+    <div className="glass-card p-3 md:p-4 fade-stagger transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]" style={{ ['--i' as string]: index }}>
       <p className="text-[11px] md:text-[12px] text-muted-foreground font-medium mb-2 leading-tight">Клієнти — факт купівель</p>
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-[12px]">
