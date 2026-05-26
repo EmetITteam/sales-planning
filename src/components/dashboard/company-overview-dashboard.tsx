@@ -64,7 +64,11 @@ function heatColor(pct: number | null): string {
 }
 
 export function CompanyOverviewDashboard() {
-  const { user, currentPeriod, liveMode } = useAppStore();
+  // Selectors замість деструктурування — підписка тільки на потрібні слайси
+  // (інакше будь-яка зміна store ре-рендерить важкий дашборд).
+  const user = useAppStore(s => s.user);
+  const currentPeriod = useAppStore(s => s.currentPeriod);
+  const liveMode = useAppStore(s => s.liveMode);
 
   const now = new Date();
   // Period беремо з глобального стору (той самий що у шапці). Live-режим = поточний місяць.
@@ -114,11 +118,15 @@ export function CompanyOverviewDashboard() {
     return data.divisions.filter(d => d.groupKey === groupFilter);
   }, [data, groupFilter]);
 
-  const heatmapRows: Array<{
-    key: string; label: string; subLabel: string;
-    segments: Record<string, { plan: number; fact: number; hasFact: boolean }>;
-  }> = [];
-  if (data) {
+  // Memoize важкі обчислення — інакше кожен accordion toggle перебудовує
+  // три великі структури (heatmapRows + groupsForAccordion + brandsForAccordion).
+  // При 8 регіонах × 9 брендів × 13 підрозділах = ~300 reduce-операцій на клік.
+  const heatmapRows = useMemo(() => {
+    const rows: Array<{
+      key: string; label: string; subLabel: string;
+      segments: Record<string, { plan: number; fact: number; hasFact: boolean }>;
+    }> = [];
+    if (!data) return rows;
     for (const groupKey of GROUP_ORDER) {
       const divsInGroup = filteredDivisions.filter(d => d.groupKey === groupKey);
       if (divsInGroup.length === 0) continue;
@@ -135,27 +143,27 @@ export function CompanyOverviewDashboard() {
         }
         aggregated[code] = { plan, fact, hasFact: anyHasFact };
       }
-      heatmapRows.push({
+      rows.push({
         key: groupKey,
         label: GROUP_LABEL[groupKey],
-        // Лазерхауз/Адасса/Полтава/Чернівці — у Action 5 синтетичні менеджери,
-        // показ "1 менедж." вводить в оману. Не виводимо subLabel для не-представництв.
         subLabel: groupKey === 'representations' ? `${divsInGroup.length} регіонів` : '',
         segments: aggregated,
       });
     }
-  }
+    return rows;
+  }, [data, filteredDivisions]);
 
-  const groupsForAccordion: Array<{
-    key: string; label: string; isRepresentations: boolean;
-    children: DivisionDetails[];
-    totalPlan: number; totalFact: number; hasFact: boolean;
-  }> = [];
-  if (data) {
+  const groupsForAccordion = useMemo(() => {
+    const rows: Array<{
+      key: string; label: string; isRepresentations: boolean;
+      children: DivisionDetails[];
+      totalPlan: number; totalFact: number; hasFact: boolean;
+    }> = [];
+    if (!data) return rows;
     for (const groupKey of GROUP_ORDER) {
       const divs = filteredDivisions.filter(d => d.groupKey === groupKey);
       if (divs.length === 0) continue;
-      groupsForAccordion.push({
+      rows.push({
         key: groupKey,
         label: GROUP_LABEL[groupKey],
         isRepresentations: groupKey === 'representations',
@@ -165,17 +173,17 @@ export function CompanyOverviewDashboard() {
         hasFact: divs.some(d => d.hasFact),
       });
     }
-  }
+    return rows;
+  }, [data, filteredDivisions]);
 
   // brandsForAccordion: для кожного бренду — список ПІДРОЗДІЛІВ (не груп) де його продають.
-  // Раніше Vitaran у Представництвах показувався одним рядком «Представництва $332K»,
-  // а має бути 8 рядків (Київ, Одеса, Дніпро...). Тут byDivision — плоский список.
-  const brandsForAccordion: Array<{
-    code: string; name: string;
-    totalPlan: number; totalFact: number;
-    byDivision: Array<{ divisionName: string; displayName: string; groupKey: string; plan: number; fact: number; hasFact: boolean; }>;
-  }> = [];
-  if (data) {
+  const brandsForAccordion = useMemo(() => {
+    const rows: Array<{
+      code: string; name: string;
+      totalPlan: number; totalFact: number;
+      byDivision: Array<{ divisionName: string; displayName: string; groupKey: string; plan: number; fact: number; hasFact: boolean; }>;
+    }> = [];
+    if (!data) return rows;
     for (const code of BRAND_CODES) {
       let totalPlan = 0, totalFact = 0;
       const byDivision: Array<{ divisionName: string; displayName: string; groupKey: string; plan: number; fact: number; hasFact: boolean }> = [];
@@ -195,10 +203,11 @@ export function CompanyOverviewDashboard() {
         totalFact += seg.fact;
       }
       byDivision.sort((a, b) => b.fact - a.fact);
-      brandsForAccordion.push({ code, name: BRAND_NAMES[code] || code, totalPlan, totalFact, byDivision });
+      rows.push({ code, name: BRAND_NAMES[code] || code, totalPlan, totalFact, byDivision });
     }
-    brandsForAccordion.sort((a, b) => b.totalFact - a.totalFact);
-  }
+    rows.sort((a, b) => b.totalFact - a.totalFact);
+    return rows;
+  }, [data, filteredDivisions]);
 
   // Контекстний суфікс для hero-карток («План усієї компанії», «План Колл-центру» тощо).
   // Міняється разом з фільтром Група — щоб число у картці відповідало підпису.
@@ -213,9 +222,12 @@ export function CompanyOverviewDashboard() {
     }
   })();
 
-  const filteredTotalPlan = filteredDivisions.reduce((s, d) => s + d.totalPlan, 0);
-  const filteredTotalFact = filteredDivisions.reduce((s, d) => s + d.totalFact, 0);
-  const filteredTotalPrevFact = filteredDivisions.reduce((s, d) => s + d.totalPrevFact, 0);
+  // Memoize aggregates щоб не пере-обчислювати при кожному ре-рендер.
+  const { filteredTotalPlan, filteredTotalFact, filteredTotalPrevFact } = useMemo(() => ({
+    filteredTotalPlan: filteredDivisions.reduce((s, d) => s + d.totalPlan, 0),
+    filteredTotalFact: filteredDivisions.reduce((s, d) => s + d.totalFact, 0),
+    filteredTotalPrevFact: filteredDivisions.reduce((s, d) => s + d.totalPrevFact, 0),
+  }), [filteredDivisions]);
   const filteredActivePlan = filteredDivisions.filter(d => d.hasFact).reduce((s, d) => s + d.totalPlan, 0);
   const filteredWithoutFact = filteredDivisions.filter(d => !d.hasFact).map(d => d.displayName);
 
