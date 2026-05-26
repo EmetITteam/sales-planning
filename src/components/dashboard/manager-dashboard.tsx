@@ -464,11 +464,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       {/* Hero metrics — компактні картки у стилі watermark */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
+          index={0}
+          valueSize="lg"
+          valuePrefix={isTrial ? undefined : '$'}
           icon={<Target />}
           iconColor="text-emet-blue"
           label="План місяця"
-          value={isTrial ? '—' : formatUSD(totalPlan)}
-          isAmount={!isTrial}
+          value={isTrial ? '—' : <span className="amount">{Math.round(totalPlan).toLocaleString('en-US')}</span>}
           caption={(() => {
             // Trial-новачок: 1С ще не виставила реальний план ($1 sentinel на кожен сегмент).
             // Не показуємо суму/факти/проценти — все одно безглузді.
@@ -494,11 +496,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           })()}
         />
         <MetricCard
+          index={1}
+          valueSize="lg"
+          valuePrefix="$"
           icon={<DollarSign />}
           iconColor="text-emerald-500"
           label="Факт"
-          value={formatUSD(totalFact)}
-          isAmount
+          value={<span className="amount">{Math.round(totalFact).toLocaleString('en-US')}</span>}
           caption={totalPrevFact > 0 && (() => {
             // Б.2: ЗАВЖДИ заплановане vs минулий факт (ТІЛЬКИ finalized).
             // Якщо план=$0 — dyn = -prevFact, наочно показує «у плані нічого нема».
@@ -525,6 +529,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           })()}
         />
         <MetricCard
+          index={2}
+          valueSize="lg"
           icon={isTrial ? <Target /> : (totalPct >= totalCalcPct ? <TrendingUp /> : <TrendingDown />)}
           iconColor={isTrial ? 'text-slate-400' : (totalPct >= totalCalcPct ? 'text-emerald-500' : 'text-rose-500')}
           label="Виконання"

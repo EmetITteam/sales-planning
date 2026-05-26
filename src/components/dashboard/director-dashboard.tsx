@@ -354,11 +354,13 @@ export function DirectorDashboard() {
           {/* Hero metrics — 4 картки (4-та = ClientStatsCard через Action 2 агрегат) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
+              index={0}
+              valueSize="lg"
+              valuePrefix="$"
               icon={<Target />}
               iconColor="text-emet-blue"
               label="План представництв"
-              value={formatUSD(totalPlan)}
-              isAmount
+              value={<span className="amount">{Math.round(totalPlan).toLocaleString('en-US')}</span>}
               caption={(() => {
                 // ТІЛЬКИ finalized — це реальне зобов'язання менеджерів.
                 // Чернетки до натискання «Фінальне збереження» не йдуть у звітність.
@@ -374,11 +376,13 @@ export function DirectorDashboard() {
               })()}
             />
             <MetricCard
+              index={1}
+              valueSize="lg"
+              valuePrefix="$"
               icon={<DollarSign />}
               iconColor="text-emerald-500"
               label="Факт"
-              value={formatUSD(totalFact)}
-              isAmount
+              value={<span className="amount">{Math.round(totalFact).toLocaleString('en-US')}</span>}
               caption={totalPrevFact > 0 ? (
                 <span className="space-y-0.5 block">
                   <span className="text-muted-foreground block">
@@ -396,6 +400,8 @@ export function DirectorDashboard() {
               ) : null}
             />
             <MetricCard
+              index={2}
+              valueSize="lg"
               icon={totalPct >= calcPctValue ? <TrendingUp /> : <TrendingDown />}
               iconColor={totalPct >= calcPctValue ? 'text-emerald-500' : 'text-rose-500'}
               label="Виконання"
