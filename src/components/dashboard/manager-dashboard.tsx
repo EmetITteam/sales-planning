@@ -545,10 +545,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           caption={isTrial ? (
             <p className="text-[11px] text-muted-foreground">Без реального плану відсотки не рахуються</p>
           ) : (
-            <div className="space-y-0.5">
-              <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
-              <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-              <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Запланований: <span className="font-semibold text-emet-blue">{formatPct(totalExpectedPct)}</span></p>
+            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+              <span className="text-muted-foreground">Норма на {asOfLabel}:</span>
+              <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(totalCalcPct)}</span>
+              <span className="text-muted-foreground">Норма на ранок:</span>
+              <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(morningPctValue)}</span>
+              <span className="text-muted-foreground">Прогноз (темп):</span>
+              <span className="font-semibold text-amber-600 tabular-nums text-right">{formatPct(totalForecastPct)}</span>
+              <span className="text-muted-foreground">Запланований:</span>
+              <span className="font-semibold text-emet-blue tabular-nums text-right">{formatPct(totalExpectedPct)}</span>
             </div>
           )}
         />

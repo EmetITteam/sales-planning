@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8">
-<title>Мої клієнти — v3c (наш стиль)</title>
+<title>Мої клієнти — v3c (наш стиль, v2)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +18,12 @@
     --muted: #7c879a;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased; }
+  html, body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: var(--fg); background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+  }
   body {
     background:
       radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
@@ -28,27 +33,9 @@
       linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
     min-height: 100dvh;
   }
-  .tabular { font-variant-numeric: tabular-nums; }
+  button { font-family: inherit; }
   .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
-
-  /* === Header === */
-  .app-header {
-    position: sticky; top: 0; z-index: 50;
-    background: rgba(255, 255, 255, 0.55);
-    -webkit-backdrop-filter: blur(24px) saturate(150%);
-    backdrop-filter: blur(24px) saturate(150%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 4px 24px rgba(6, 42, 61, 0.04);
-  }
-  .app-header-inner { display: flex; height: 56px; align-items: center; gap: 16px; padding: 0 20px; max-width: 1400px; margin: 0 auto; }
-  .logo { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
-  .logo img { width: 32px; height: 32px; object-fit: contain; }
-  .logo .accent { color: var(--emet-blue); }
-  .header-spacer { flex: 1; }
-  .user-chip { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.7); }
-  .user-chip .avatar { width: 28px; height: 28px; border-radius: 999px; background: var(--emet-50); color: var(--emet-blue); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
-  .user-chip .name { font-size: 12px; font-weight: 600; line-height: 1.1; }
-  .user-chip .role { font-size: 10px; color: var(--muted); line-height: 1.1; }
+  .tab { font-variant-numeric: tabular-nums; }
 
   /* === Glass-card === */
   .glass-card {
@@ -61,7 +48,6 @@
       0 4px 20px rgba(6, 42, 61, 0.04),
       0 8px 32px rgba(6, 42, 61, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    position: relative;
     transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s cubic-bezier(0.16,1,0.3,1);
   }
   .glass-card:hover {
@@ -71,10 +57,29 @@
       0 1px 2px rgba(6, 42, 61, 0.06),
       inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
-  .glass-soft { background: rgba(255,255,255,0.4); border-radius: 14px; border: 1px solid rgba(255,255,255,0.5); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 
-  /* === Layout === */
+  /* === Header === */
+  .app-header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 24px rgba(6, 42, 61, 0.04);
+  }
+  .app-header-inner { display: flex; height: 56px; align-items: center; gap: 16px; padding: 0 20px; max-width: 1400px; margin: 0 auto; }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .logo .emet-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--emet-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+  .logo .dot { color: var(--emet-blue); margin: 0 2px; }
+  .header-spacer { flex: 1; }
+  .user-chip { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.7); }
+  .user-chip .avatar { width: 28px; height: 28px; border-radius: 999px; background: var(--emet-50); color: var(--emet-blue); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+  .user-chip .name { font-size: 12px; font-weight: 600; line-height: 1.1; }
+  .user-chip .role { font-size: 10px; color: var(--muted); line-height: 1.1; }
+
   main { max-width: 1400px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* === Page title === */
   .page-title { display: flex; align-items: center; gap: 12px; }
   .page-title .icon-wrap { width: 40px; height: 40px; border-radius: 12px; background: var(--emet-blue); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(6,106,171,0.25); }
   .page-title h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
@@ -87,27 +92,35 @@
   .metric-card .wm svg { width: 112px; height: 112px; }
   .metric-card .label-row { display: flex; align-items: center; gap: 8px; }
   .metric-card .dot { width: 6px; height: 6px; border-radius: 999px; }
-  .metric-card .label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-  .metric-card .value { font-size: 36px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; margin-top: 14px; }
+  .metric-card .label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .metric-card .value { font-size: 36px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; margin-top: 14px; font-variant-numeric: tabular-nums; }
   .metric-card .value .sup { font-size: 22px; font-weight: 500; color: var(--muted); vertical-align: top; margin-right: 2px; }
+  .metric-card .value .frac { font-size: 22px; color: var(--muted); font-weight: 500; }
   .metric-card .caption { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.4; }
 
-  /* Color tokens for dots/icons */
-  .c-emet { color: var(--emet-blue); }
-  .bg-emet { background: var(--emet-blue); box-shadow: 0 0 6px var(--emet-blue); }
-  .c-emerald { color: #10b981; }
-  .bg-emerald { background: #10b981; box-shadow: 0 0 6px #10b981; }
-  .c-amber { color: #d97706; }
-  .bg-amber { background: #d97706; box-shadow: 0 0 6px #d97706; }
-  .c-rose { color: #e11d48; }
-  .bg-rose { background: #e11d48; box-shadow: 0 0 6px #e11d48; }
-  .c-violet { color: #8b5cf6; }
-  .bg-violet { background: #8b5cf6; box-shadow: 0 0 6px #8b5cf6; }
-  .c-orange { color: #f97316; }
-  .bg-orange { background: #f97316; box-shadow: 0 0 6px #f97316; }
+  /* Card 4 — категорійний список (замість великого value) */
+  .metric-card.cat-list .label-row { margin-bottom: 8px; }
+  .cat-list-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; position: relative; z-index: 1; }
+  .cat-list-row { display: grid; grid-template-columns: 8px 1fr auto; gap: 8px; align-items: center; font-size: 12px; }
+  .cat-list-row .cd { width: 6px; height: 6px; border-radius: 999px; }
+  .cat-list-row .nm { font-weight: 600; color: var(--fg); }
+  .cat-list-row .nb { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 12px; }
+  .cat-list-row .nb .small { color: var(--muted); font-weight: 500; font-size: 10px; }
 
-  /* === Filter pills === */
-  .filter-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
+  /* === Color tokens === */
+  .bg-emet { background: var(--emet-blue); box-shadow: 0 0 6px var(--emet-blue); }
+  .c-emet { color: var(--emet-blue); }
+  .bg-emerald { background: #10b981; box-shadow: 0 0 6px #10b981; }
+  .c-emerald { color: #10b981; }
+  .bg-amber { background: #d97706; box-shadow: 0 0 6px #d97706; }
+  .c-amber { color: #d97706; }
+  .bg-rose { background: #e11d48; box-shadow: 0 0 6px #e11d48; }
+  .c-rose { color: #e11d48; }
+  .bg-violet { background: #8b5cf6; box-shadow: 0 0 6px #8b5cf6; }
+  .c-violet { color: #8b5cf6; }
+
+  /* === Filter pills (наш round-dot стиль з shadow-glow) === */
+  .filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 4px 0; }
   .pill {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 8px 14px;
@@ -119,115 +132,140 @@
     transition: all 0.2s;
   }
   .pill:hover { background: rgba(255,255,255,0.7); transform: translateY(-1px); }
+  .pill .pill-dot { width: 8px; height: 8px; border-radius: 999px; }
   .pill.active { background: var(--emet-blue); color: white; border-color: var(--emet-blue); box-shadow: 0 4px 12px rgba(6,106,171,0.25); }
   .pill .count {
     font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px;
     padding: 1px 7px; border-radius: 999px;
-    background: rgba(255,255,255,0.6);
-    color: var(--fg);
+    background: rgba(6,106,171,0.08); color: var(--emet-blue);
+    font-variant-numeric: tabular-nums;
   }
   .pill.active .count { background: rgba(255,255,255,0.25); color: white; }
 
-  /* === Category section header === */
-  .cat-header { display: flex; align-items: center; gap: 12px; margin: 8px 4px 4px; }
-  .cat-header .cat-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-  .cat-header .cat-icon.active-bg { background: var(--emet-50); color: var(--emet-blue); }
-  .cat-header .cat-icon.sleeping-bg { background: #fef3c7; color: #d97706; }
-  .cat-header .cat-icon.new-bg { background: #d1fae5; color: #059669; }
-  .cat-header .cat-icon.lost-bg { background: #fee2e2; color: #e11d48; }
-  .cat-header h2 { font-size: 14px; font-weight: 700; letter-spacing: -0.005em; flex: 1; }
-  .cat-header .cat-stats { font-size: 11px; color: var(--muted); display: flex; gap: 14px; }
-  .cat-header .cat-stats strong { color: var(--fg); font-weight: 700; }
-  .cat-header .cat-stats .pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  /* === Category section header — без квадратиків, тільки текст з accent-крапкою === */
+  .cat-header {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 16px 4px 6px;
+  }
+  .cat-header .cat-dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .cat-header h2 { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+  .cat-header h2 .cnt { color: var(--muted); font-weight: 600; }
+  .cat-header .stats { flex: 1; display: flex; justify-content: flex-end; gap: 18px; font-size: 11px; color: var(--muted); align-items: baseline; }
+  .cat-header .stats .v { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--fg); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .cat-header .stats .pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-  /* === Client row (glass-card з brand-row pattern) === */
+  /* === Client accordion (повний клон manager-accordion) === */
   .clients-list { display: flex; flex-direction: column; gap: 8px; }
-  .client-row {
-    padding: 12px 14px;
+  .client { overflow: hidden; }
+  .client.completed { opacity: 0.85; }
+  .client-header {
+    width: 100%;
     display: grid;
-    grid-template-columns: 28px minmax(180px, 1.8fr) minmax(160px, 1fr) 110px 90px 90px 80px 18px;
+    grid-template-columns: 40px minmax(200px, 1.4fr) minmax(170px, 1fr) 130px 100px 80px 24px;
     gap: 14px;
     align-items: center;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
     cursor: pointer;
-    text-decoration: none;
-    color: inherit;
+    text-align: left;
+    transition: background 0.2s;
   }
-  .client-row .tl-dot { width: 10px; height: 10px; border-radius: 999px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin: 0 auto; }
-  .client-row .tl-dot.ok { background: #10b981; }
-  .client-row .tl-dot.warn { background: #f59e0b; }
-  .client-row .tl-dot.bad { background: #ef4444; }
-  .client-row .tl-dot.idle { background: #cbd5e1; }
-  .client-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .client-name .nm { font-size: 14px; font-weight: 700; letter-spacing: -0.005em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .client-name .meta { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-  .client-name .meta .city { display: inline-flex; align-items: center; gap: 3px; }
-  .client-name .meta .since { font-variant-numeric: tabular-nums; }
-  .brand-chips { display: flex; flex-wrap: nowrap; gap: 4px; min-width: 0; overflow: hidden; }
-  .brand-chip {
-    display: inline-flex; align-items: center;
-    padding: 2px 7px;
-    border-radius: 999px;
-    background: rgba(6,106,171,0.07);
+  .client-header:hover { background: rgba(255,255,255,0.4); }
+  .client-header:focus-visible { outline: 2px solid var(--emet-blue); outline-offset: -2px; border-radius: 20px; }
+  .avatar-init {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    background: var(--emet-50);
     color: var(--emet-blue);
-    font-size: 10px; font-weight: 700;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
   }
-  .brand-chip.more { background: rgba(124,135,154,0.1); color: var(--muted); }
-  .progress-cell { min-width: 0; }
-  .progress-bar { position: relative; width: 100%; height: 8px; border-radius: 999px; background: #f0f2f8; overflow: visible; }
-  .progress-bar .fill { position: absolute; inset-y: 0; left: 0; height: 100%; border-radius: 999px; background: linear-gradient(to right, var(--emet-blue), var(--emet-blue-light)); transition: width 0.4s; }
-  .progress-bar .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; border-radius: 999px; }
-  .progress-bar .mark.forecast { background: #f59e0b; }
-  .progress-bar .mark.expected { background: var(--emet-blue); }
-  .progress-label { font-size: 10px; color: var(--muted); margin-top: 4px; display: flex; gap: 8px; align-items: center; }
-  .progress-label .ok { color: #10b981; font-weight: 700; }
-  .progress-label .bad { color: #e11d48; font-weight: 700; }
-  .col-right { text-align: right; }
-  .col-right .ttl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
-  .col-right .val { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
-  .col-right .val .pct { font-size: 11px; color: var(--muted); font-weight: 600; }
-  .chevron { color: var(--muted); transition: transform 0.2s; }
-  .client-row:hover .chevron { transform: translateX(2px); color: var(--emet-blue); }
+  .client-info { min-width: 0; }
+  .client-info .nm { font-size: 14px; font-weight: 700; letter-spacing: -0.005em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .client-info .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .client-info .completed-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: rgba(16,185,129,0.15); color: #047857; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
 
-  /* Status badges */
-  .badge {
-    padding: 2px 8px;
+  .num-col { text-align: right; }
+  .num-col .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; line-height: 1; }
+  .num-col .val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 6px; line-height: 1; white-space: nowrap; }
+  .num-col .val .small { color: var(--muted); font-weight: 500; font-size: 11px; }
+  .num-col .pct { font-size: 11px; font-weight: 700; margin-top: 4px; line-height: 1; }
+  .num-col .pct.ok { color: #047857; }
+  .num-col .pct.warn { color: #b45309; }
+  .num-col .pct.bad { color: #b91c1c; }
+
+  .progress-mini {
+    width: 56px; height: 8px; border-radius: 999px; background: #f0f2f8; overflow: hidden;
+  }
+  .progress-mini .fill {
+    height: 100%; border-radius: 999px;
+    background: linear-gradient(to right, var(--emet-blue), var(--emet-blue-light));
+    transition: width 0.4s;
+  }
+  .progress-mini.ok .fill { background: linear-gradient(to right, #10b981, #34d399); }
+  .progress-mini.bad .fill { background: linear-gradient(to right, #ef4444, #f87171); }
+
+  .status-pill {
+    padding: 4px 10px;
     border-radius: 999px;
-    font-size: 9px; font-weight: 700;
+    font-size: 10px; font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    display: inline-flex;
+    white-space: nowrap;
+    display: inline-flex; align-items: center;
+  }
+  .status-pill.ok { background: rgba(16,185,129,0.15); color: #047857; }
+  .status-pill.warn { background: rgba(245,158,11,0.15); color: #b45309; }
+  .status-pill.bad { background: rgba(239,68,68,0.15); color: #b91c1c; }
+  .status-pill.idle { background: #f1f5f9; color: #64748b; }
+
+  .chev { color: var(--muted); transition: transform 0.3s; }
+  .client[data-open="true"] .chev { transform: rotate(180deg); }
+
+  /* === Expand panel — список брендів (BrandRow-стиль) === */
+  .client-expand {
+    display: none;
+    padding: 0 18px 14px;
+    border-top: 1px solid rgba(255,255,255,0.5);
+  }
+  .client[data-open="true"] .client-expand { display: block; }
+  .brand-rows {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 12px;
+  }
+  .brand-row {
+    display: grid;
+    grid-template-columns: 14px minmax(120px, 1.2fr) 90px 90px 90px 90px 90px;
+    gap: 12px;
     align-items: center;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.5);
   }
-  .badge.ok { background: rgba(16,185,129,0.15); color: #047857; }
-  .badge.warn { background: rgba(245,158,11,0.15); color: #b45309; }
-  .badge.bad { background: rgba(239,68,68,0.15); color: #b91c1c; }
-  .badge.idle { background: #f1f5f9; color: #64748b; }
+  .brand-row .tl-dot { width: 8px; height: 8px; border-radius: 999px; }
+  .brand-row .b-name { font-size: 13px; font-weight: 700; }
+  .brand-row .b-col { text-align: right; }
+  .brand-row .b-col .b-lb { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  .brand-row .b-col .b-vl { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .brand-row .b-col .b-vl.muted { color: var(--muted); font-weight: 500; }
 
-  /* Empty state */
-  .empty {
-    padding: 32px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 12px;
-    background: rgba(255,255,255,0.3);
-    border-radius: 14px;
-    border: 1px dashed rgba(124,135,154,0.3);
-  }
+  /* === Empty state === */
+  .empty { padding: 24px; text-align: center; color: var(--muted); font-size: 12px; background: rgba(255,255,255,0.3); border-radius: 14px; border: 1px dashed rgba(124,135,154,0.3); }
 
-  /* Fade-stagger animation */
+  /* === Anim === */
   @keyframes fade-stagger-in {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
   .fade-stagger { opacity: 0; animation: fade-stagger-in 500ms cubic-bezier(0.16,1,0.3,1) forwards; animation-delay: calc(var(--i, 0) * 60ms); }
 
-  /* Responsive */
   @media (max-width: 980px) {
     .hero-grid { grid-template-columns: repeat(2, 1fr); }
-    .client-row { grid-template-columns: 24px 1fr 90px 80px 16px; gap: 10px; }
-    .client-row > :nth-child(3), .client-row > :nth-child(5) { display: none; }
+    .client-header { grid-template-columns: 32px 1fr 100px 80px 20px; gap: 10px; padding: 12px 14px; }
+    .client-header > :nth-child(3) { display: none; } /* brand chips column hidden — collapse-hint only */
   }
 </style>
 </head>
@@ -235,10 +273,7 @@
 
 <header class="app-header">
   <div class="app-header-inner">
-    <div class="logo">
-      <span style="width:32px;height:32px;border-radius:6px;background:var(--emet-blue);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">E</span>
-      <span>Планування продажів <span style="color:var(--emet-blue);">•</span></span>
-    </div>
+    <div class="logo"><span class="emet-mark">E</span><span>Планування продажів<span class="dot">•</span></span></div>
     <div class="header-spacer"></div>
     <div class="user-chip">
       <div class="avatar">КЛ</div>
@@ -251,378 +286,496 @@
 </header>
 
 <main>
-  <!-- Page title -->
   <div class="page-title">
     <div class="icon-wrap">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     </div>
     <div>
       <h1>Мої клієнти</h1>
-      <div class="sub">Травень 2026 · згруповано по категоріях · алфавіт усередині</div>
+      <div class="sub">Травень 2026 · 42 клієнтів · згруповано по категоріях · виконані спускаються вниз</div>
     </div>
   </div>
 
-  <!-- Hero band — 4 MetricCard в нашому стилі -->
+  <!-- ============ HERO BAND ============ -->
   <div class="hero-grid">
+
+    <!-- 1. ПЛАН -->
     <div class="glass-card metric-card fade-stagger" style="--i:0;">
       <div class="wm c-emet">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
       </div>
-      <div class="label-row"><span class="dot bg-emet"></span><span class="label">Активні</span></div>
-      <div class="value tabular">23</div>
-      <div class="caption">з них <strong style="color:#047857;">18</strong> зробили закупки цього місяця · сер. чек <strong style="color:var(--fg);">$1,840</strong></div>
+      <div class="label-row"><span class="dot bg-emet"></span><span class="label">План місяця</span></div>
+      <div class="value"><span class="sup">$</span>61,600</div>
+      <div class="caption">42 клієнтів у плані · 5 брендів</div>
     </div>
 
+    <!-- 2. ФАКТ + СЕР.ЧЕК -->
     <div class="glass-card metric-card fade-stagger" style="--i:1;">
-      <div class="wm c-amber">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
+      <div class="wm c-emerald">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       </div>
-      <div class="label-row"><span class="dot bg-amber"></span><span class="label">Сплячі · 3 міс</span></div>
-      <div class="value tabular">11</div>
-      <div class="caption"><strong style="color:#b45309;">4</strong> повернулись з купівлею · реактивовані становлять <strong style="color:var(--fg);">$7,400</strong></div>
+      <div class="label-row"><span class="dot bg-emerald"></span><span class="label">Факт</span></div>
+      <div class="value"><span class="sup">$</span>45,180</div>
+      <div class="caption">сер. чек <strong class="mono" style="color:var(--fg);">$1,673</strong> · 27 угод · 73.3% від плану</div>
     </div>
 
+    <!-- 3. ВИКОНАЛИ ЗАПЛАНОВАНЕ -->
     <div class="glass-card metric-card fade-stagger" style="--i:2;">
       <div class="wm c-emerald">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       </div>
-      <div class="label-row"><span class="dot bg-emerald"></span><span class="label">Нові · 1С категорія</span></div>
-      <div class="value tabular">5</div>
-      <div class="caption">всі <strong style="color:#047857;">5</strong> зробили першу закупку · сер. чек <strong style="color:var(--fg);">$920</strong></div>
+      <div class="label-row"><span class="dot bg-emerald"></span><span class="label">Виконали план</span></div>
+      <div class="value">18<span class="frac"> / 42</span></div>
+      <div class="caption">43% клієнтів закрили місяць · решта 24 ще працює</div>
     </div>
 
-    <div class="glass-card metric-card fade-stagger" style="--i:3;">
+    <!-- 4. ПО КАТЕГОРІЯХ — список -->
+    <div class="glass-card metric-card cat-list fade-stagger" style="--i:3;">
       <div class="wm c-violet">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       </div>
-      <div class="label-row"><span class="dot bg-violet"></span><span class="label">Середній чек</span></div>
-      <div class="value tabular"><span class="sup">$</span>1,587</div>
-      <div class="caption">по всіх <strong style="color:var(--fg);">27 угодах</strong> · ↑ <strong style="color:#047857;">$143</strong> vs мин.міс.</div>
+      <div class="label-row"><span class="dot bg-violet"></span><span class="label">По категоріях</span></div>
+      <div class="cat-list-rows">
+        <div class="cat-list-row"><span class="cd bg-emet"></span><span class="nm">Активні</span><span class="nb">23<span class="small"> / 18 куп.</span></span></div>
+        <div class="cat-list-row"><span class="cd bg-amber"></span><span class="nm">Сплячі</span><span class="nb">11<span class="small"> / 4 куп.</span></span></div>
+        <div class="cat-list-row"><span class="cd bg-emerald"></span><span class="nm">Нові</span><span class="nb">5<span class="small"> / 5 куп.</span></span></div>
+        <div class="cat-list-row"><span class="cd bg-rose"></span><span class="nm">Втрачені</span><span class="nb">3<span class="small"> / 0 куп.</span></span></div>
+      </div>
     </div>
+
   </div>
 
-  <!-- Filter pills -->
+  <!-- ============ FILTER PILLS ============ -->
   <div class="filter-row">
-    <button class="pill active">Усі категорії <span class="count">39</span></button>
-    <button class="pill"><span class="dot bg-emet" style="width:6px;height:6px;"></span>Активні <span class="count">23</span></button>
-    <button class="pill"><span class="dot bg-amber" style="width:6px;height:6px;"></span>Сплячі <span class="count">11</span></button>
-    <button class="pill"><span class="dot bg-emerald" style="width:6px;height:6px;"></span>Нові <span class="count">5</span></button>
-    <button class="pill"><span class="dot bg-rose" style="width:6px;height:6px;"></span>Втрачені <span class="count">3</span></button>
+    <button class="pill active">Усі<span class="count">42</span></button>
+    <button class="pill"><span class="pill-dot bg-emet"></span>Активні<span class="count">23</span></button>
+    <button class="pill"><span class="pill-dot bg-amber"></span>Сплячі<span class="count">11</span></button>
+    <button class="pill"><span class="pill-dot bg-emerald"></span>Нові<span class="count">5</span></button>
+    <button class="pill"><span class="pill-dot bg-rose"></span>Втрачені<span class="count">3</span></button>
     <div style="flex:1;"></div>
-    <button class="pill" title="Сортування"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M11 18h2"/></svg> А → Я</button>
+    <button class="pill">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M11 18h2"/></svg>
+      Невиконані → виконані
+    </button>
   </div>
 
-  <!-- ============ АКТИВНІ ============ -->
+  <!-- ============================================================
+       АКТИВНІ
+       ============================================================ -->
   <div class="cat-header">
-    <div class="cat-icon active-bg">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-    </div>
-    <h2>Активні клієнти <span style="color:var(--muted); font-weight:600;">· 23</span></h2>
-    <div class="cat-stats">
-      <span>План <strong class="mono">$42,400</strong></span>
-      <span>Факт <strong class="mono">$33,180</strong></span>
+    <span class="cat-dot bg-emet"></span>
+    <h2>Активні <span class="cnt">· 23</span></h2>
+    <div class="stats">
+      <span>План <span class="v mono">$42,400</span></span>
+      <span>Факт <span class="v mono">$33,180</span></span>
       <span class="pct" style="color:#b45309;">78.3%</span>
     </div>
   </div>
   <div class="clients-list">
 
-    <a class="client-row glass-card fade-stagger" style="--i:0;" href="#">
-      <div class="tl-dot ok"></div>
-      <div class="client-name">
-        <div class="nm">Адасса · Дніпро</div>
-        <div class="meta"><span class="city">📍 Дніпро</span><span class="since">з 2022 · 8 закупок</span></div>
+    <!-- Невиконані спочатку -->
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">АД</div>
+        <div class="client-info">
+          <div class="nm">Адасса · Дніпро</div>
+          <div class="sub">Дніпро · з 2022 · 8 закупок</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$2,956<span class="small"> / $3,200</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:92%;"></div></div>
+        <div><span class="status-pill warn">Майже</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="brand-rows">
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#10b981;"></span>
+            <div class="b-name">Vitaran</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$1,200</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$1,180</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$590</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#047857;">є</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#047857;">98.3%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#10b981;"></span>
+            <div class="b-name">Neuronox</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$900</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$876</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$438</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#047857;">є</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#047857;">97.3%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#f59e0b;"></span>
+            <div class="b-name">Ellanse</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$600</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$500</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$500</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#b45309;">нема</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b45309;">83.3%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#ef4444;"></span>
+            <div class="b-name">Petaran</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$300</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#b91c1c;">нема</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b91c1c;">66.7%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#cbd5e1;"></span>
+            <div class="b-name">Restylane</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl muted">—</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#047857;">100%</div></div>
+          </div>
+        </div>
       </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Vitaran</span>
-        <span class="brand-chip">Neuronox</span>
-        <span class="brand-chip">Ellanse</span>
-        <span class="brand-chip more">+2</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:92%;"></div></div>
-        <div class="progress-label">Виконано <span class="ok">92.4%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$3,200</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$2,956</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$985</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    </div>
 
-    <a class="client-row glass-card fade-stagger" style="--i:1;" href="#">
-      <div class="tl-dot warn"></div>
-      <div class="client-name">
-        <div class="nm">Бьюті Стайл · Кам'янське</div>
-        <div class="meta"><span class="city">📍 Кам'янське</span><span class="since">з 2024 · 4 закупки</span></div>
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">БС</div>
+        <div class="client-info">
+          <div class="nm">Бьюті Стайл · Кам'янське</div>
+          <div class="sub">Кам'янське · з 2024 · 4 закупки</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$1,700<span class="small"> / $2,500</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:68%;"></div></div>
+        <div><span class="status-pill warn">У роботі</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="brand-rows">
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#10b981;"></span>
+            <div class="b-name">Petaran</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$1,500</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$1,200</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$1,200</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#047857;">є</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b45309;">80.0%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#f59e0b;"></span>
+            <div class="b-name">Neuramis</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$1,000</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$500</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$500</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#b45309;">нема</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b45309;">50.0%</div></div>
+          </div>
+        </div>
       </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Petaran</span>
-        <span class="brand-chip">Neuramis</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:68%;"></div></div>
-        <div class="progress-label">Виконано <span style="color:#b45309;font-weight:700;">68.0%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$2,500</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$1,700</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$850</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    </div>
 
-    <a class="client-row glass-card fade-stagger" style="--i:2;" href="#">
-      <div class="tl-dot ok"></div>
-      <div class="client-name">
-        <div class="nm">Дерма Клінік Жадан · Дніпро</div>
-        <div class="meta"><span class="city">📍 Дніпро</span><span class="since">з 2021 · 12 закупок</span></div>
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">КЛ</div>
+        <div class="client-info">
+          <div class="nm">Косметоцентр Лілея · Запоріжжя</div>
+          <div class="sub">Запоріжжя · з 2024 · 3 закупки</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$840<span class="small"> / $2,000</span></div>
+        </div>
+        <div class="progress-mini bad"><div class="fill" style="width:42%;"></div></div>
+        <div><span class="status-pill bad">Відстає</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="brand-rows">
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#f59e0b;"></span>
+            <div class="b-name">Neuramis</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$1,200</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$840</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$420</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#047857;">є</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b45309;">70.0%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#ef4444;"></span>
+            <div class="b-name">Vitaran</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$800</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$0</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl muted">—</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#b91c1c;">нема</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b91c1c;">0%</div></div>
+          </div>
+        </div>
       </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Vitaran</span>
-        <span class="brand-chip">Restylane</span>
-        <span class="brand-chip">Neuronox</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:104%; background: linear-gradient(to right, #10b981, #34d399);"></div></div>
-        <div class="progress-label">Виконано <span class="ok">104.2%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$4,800</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$5,002</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$1,667</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    </div>
 
-    <a class="client-row glass-card fade-stagger" style="--i:3;" href="#">
-      <div class="tl-dot ok"></div>
-      <div class="client-name">
-        <div class="nm">Естетика+ Дніпро</div>
-        <div class="meta"><span class="city">📍 Дніпро</span><span class="since">з 2023 · 6 закупок</span></div>
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">ЛД</div>
+        <div class="client-info">
+          <div class="nm">Лазерхауз · Дніпро Центр</div>
+          <div class="sub">Дніпро · з 2020 · 18 закупок</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$4,098<span class="small"> / $5,500</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:74%;"></div></div>
+        <div><span class="status-pill warn">У роботі</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 6 брендах</div>
       </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Vitaran</span>
-        <span class="brand-chip">Petaran</span>
-        <span class="brand-chip">Ellanse</span>
-        <span class="brand-chip more">+1</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:86%;"></div></div>
-        <div class="progress-label">Виконано <span class="ok">86.7%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$1,800</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$1,560</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$780</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    </div>
 
-    <a class="client-row glass-card fade-stagger" style="--i:4;" href="#">
-      <div class="tl-dot bad"></div>
-      <div class="client-name">
-        <div class="nm">Косметоцентр Лілея · Запоріжжя</div>
-        <div class="meta"><span class="city">📍 Запоріжжя</span><span class="since">з 2024 · 3 закупки</span></div>
-      </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Neuramis</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:42%; background: linear-gradient(to right, #ef4444, #f87171);"></div></div>
-        <div class="progress-label">Виконано <span class="bad">42.0%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$2,000</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$840</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$420</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    <!-- Розділювач: виконані спускаються вниз -->
+    <div style="display:flex; align-items:center; gap:10px; margin: 8px 4px 4px;">
+      <span style="height:1px; flex:1; background: rgba(124,135,154,0.2);"></span>
+      <span style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Виконали план</span>
+      <span style="height:1px; flex:1; background: rgba(124,135,154,0.2);"></span>
+    </div>
 
-    <a class="client-row glass-card fade-stagger" style="--i:5;" href="#">
-      <div class="tl-dot warn"></div>
-      <div class="client-name">
-        <div class="nm">Лазерхауз · Дніпро Центр</div>
-        <div class="meta"><span class="city">📍 Дніпро</span><span class="since">з 2020 · 18 закупок</span></div>
+    <!-- Виконав заплановане -->
+    <div class="client glass-card completed" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:rgba(16,185,129,0.15); color:#047857;">ДЖ</div>
+        <div class="client-info">
+          <div class="nm">Дерма Клінік Жадан · Дніпро</div>
+          <div class="sub">Дніпро · з 2021 · 12 закупок</div>
+          <span class="completed-tag">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Виконав заплановане
+          </span>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$5,002<span class="small"> / $4,800</span></div>
+        </div>
+        <div class="progress-mini ok"><div class="fill" style="width:100%;"></div></div>
+        <div><span class="status-pill ok">+4.2%</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 3 брендах</div>
       </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Vitaran</span>
-        <span class="brand-chip">Neuronox</span>
-        <span class="brand-chip">Restylane</span>
-        <span class="brand-chip more">+3</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:74%;"></div></div>
-        <div class="progress-label">Виконано <span style="color:#b45309;font-weight:700;">74.5%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$5,500</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$4,098</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$2,049</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    </div>
 
-    <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 17 активних клієнтів</div>
+    <div class="client glass-card completed" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:rgba(16,185,129,0.15); color:#047857;">ЕД</div>
+        <div class="client-info">
+          <div class="nm">Естетика+ Дніпро</div>
+          <div class="sub">Дніпро · з 2023 · 6 закупок</div>
+          <span class="completed-tag">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Виконав заплановане
+          </span>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$1,860<span class="small"> / $1,800</span></div>
+        </div>
+        <div class="progress-mini ok"><div class="fill" style="width:103%;"></div></div>
+        <div><span class="status-pill ok">+3.3%</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 4 брендах</div>
+      </div>
+    </div>
+
+    <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 17 активних клієнтів (з них 16 виконали план)</div>
   </div>
 
-  <!-- ============ СПЛЯЧІ ============ -->
+  <!-- ============================================================
+       СПЛЯЧІ
+       ============================================================ -->
   <div class="cat-header">
-    <div class="cat-icon sleeping-bg">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
-    </div>
-    <h2>Сплячі клієнти <span style="color:var(--muted); font-weight:600;">· 11</span></h2>
-    <div class="cat-stats">
-      <span>План <strong class="mono">$14,200</strong></span>
-      <span>Факт <strong class="mono">$7,400</strong></span>
+    <span class="cat-dot bg-amber"></span>
+    <h2>Сплячі <span class="cnt">· 11</span></h2>
+    <div class="stats">
+      <span>План <span class="v mono">$14,200</span></span>
+      <span>Факт <span class="v mono">$7,400</span></span>
       <span class="pct" style="color:#b91c1c;">52.1%</span>
     </div>
   </div>
   <div class="clients-list">
 
-    <a class="client-row glass-card fade-stagger" style="--i:0;" href="#">
-      <div class="tl-dot warn"></div>
-      <div class="client-name">
-        <div class="nm">Альфа Клінік · Кривий Ріг</div>
-        <div class="meta"><span class="city">📍 Кривий Ріг</span><span class="since">остання закупка 4 міс тому</span></div>
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">АК</div>
+        <div class="client-info">
+          <div class="nm">Альфа Клінік · Кривий Ріг</div>
+          <div class="sub">Кривий Ріг · остання закупка 4 міс тому</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$900<span class="small"> / $1,500</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:60%;"></div></div>
+        <div><span class="status-pill warn">Активуємо</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 1 бренду</div>
       </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Vitaran</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:60%; background: linear-gradient(to right, #f59e0b, #fbbf24);"></div></div>
-        <div class="progress-label">Реактивовано <span style="color:#b45309;font-weight:700;">60.0%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$1,500</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$900</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$900</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    </div>
 
-    <a class="client-row glass-card fade-stagger" style="--i:1;" href="#">
-      <div class="tl-dot bad"></div>
-      <div class="client-name">
-        <div class="nm">Велла Бьюті · Нікополь</div>
-        <div class="meta"><span class="city">📍 Нікополь</span><span class="since">остання закупка 5 міс тому</span></div>
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">ВБ</div>
+        <div class="client-info">
+          <div class="nm">Велла Бьюті · Нікополь</div>
+          <div class="sub">Нікополь · остання закупка 5 міс тому</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$0<span class="small"> / $1,200</span></div>
+        </div>
+        <div class="progress-mini bad"><div class="fill" style="width:0%;"></div></div>
+        <div><span class="status-pill bad">Не дзвонив</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 2 брендах</div>
       </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Neuramis</span>
-        <span class="brand-chip">Petaran</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:0%;"></div></div>
-        <div class="progress-label">Реактивовано <span class="bad">0.0%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$1,200</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$0</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">—</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    </div>
 
-    <a class="client-row glass-card fade-stagger" style="--i:2;" href="#">
-      <div class="tl-dot ok"></div>
-      <div class="client-name">
-        <div class="nm">Клініка Доктор Скай · Дніпро</div>
-        <div class="meta"><span class="city">📍 Дніпро</span><span class="since">повернулась з $2,500</span></div>
+    <div style="display:flex; align-items:center; gap:10px; margin: 8px 4px 4px;">
+      <span style="height:1px; flex:1; background: rgba(124,135,154,0.2);"></span>
+      <span style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Реактивували</span>
+      <span style="height:1px; flex:1; background: rgba(124,135,154,0.2);"></span>
+    </div>
+
+    <div class="client glass-card completed" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:rgba(16,185,129,0.15); color:#047857;">КС</div>
+        <div class="client-info">
+          <div class="nm">Клініка Доктор Скай · Дніпро</div>
+          <div class="sub">Дніпро · повернулась з $2,500</div>
+          <span class="completed-tag">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Реактивовано
+          </span>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$2,500<span class="small"> / $2,500</span></div>
+        </div>
+        <div class="progress-mini ok"><div class="fill" style="width:100%;"></div></div>
+        <div><span class="status-pill ok">100%</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 3 брендах</div>
       </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Vitaran</span>
-        <span class="brand-chip">Restylane</span>
-        <span class="brand-chip">Neuronox</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:100%; background: linear-gradient(to right, #10b981, #34d399);"></div></div>
-        <div class="progress-label">Реактивовано <span class="ok">100%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$2,500</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$2,500</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$1,250</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    </div>
 
     <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 8 сплячих клієнтів</div>
   </div>
 
-  <!-- ============ НОВІ ============ -->
+  <!-- ============================================================
+       НОВІ
+       ============================================================ -->
   <div class="cat-header">
-    <div class="cat-icon new-bg">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-    </div>
-    <h2>Нові клієнти <span style="color:var(--muted); font-weight:600;">· 5</span></h2>
-    <div class="cat-stats">
-      <span>План <strong class="mono">$5,000</strong></span>
-      <span>Факт <strong class="mono">$4,600</strong></span>
+    <span class="cat-dot bg-emerald"></span>
+    <h2>Нові <span class="cnt">· 5</span></h2>
+    <div class="stats">
+      <span>План <span class="v mono">$5,000</span></span>
+      <span>Факт <span class="v mono">$4,600</span></span>
       <span class="pct" style="color:#047857;">92.0%</span>
     </div>
   </div>
   <div class="clients-list">
 
-    <a class="client-row glass-card fade-stagger" style="--i:0;" href="#">
-      <div class="tl-dot ok"></div>
-      <div class="client-name">
-        <div class="nm">Аква Дерм Центр · Дніпро</div>
-        <div class="meta"><span class="city">📍 Дніпро</span><span class="since">перша угода 12.05</span></div>
-      </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Petaran</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:100%; background: linear-gradient(to right, #10b981, #34d399);"></div></div>
-        <div class="progress-label">Виконано <span class="ok">100%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$800</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$820</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$820</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    <div class="client glass-card completed" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:rgba(16,185,129,0.15); color:#047857;">АД</div>
+        <div class="client-info">
+          <div class="nm">Аква Дерм Центр · Дніпро</div>
+          <div class="sub">Дніпро · перша угода 12.05</div>
+          <span class="completed-tag">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Виконав заплановане
+          </span>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$820<span class="small"> / $800</span></div>
+        </div>
+        <div class="progress-mini ok"><div class="fill" style="width:100%;"></div></div>
+        <div><span class="status-pill ok">+2.5%</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand"><div class="empty" style="margin: 8px 0;">Click chevron — деталі по 1 бренду</div></div>
+    </div>
 
-    <a class="client-row glass-card fade-stagger" style="--i:1;" href="#">
-      <div class="tl-dot ok"></div>
-      <div class="client-name">
-        <div class="nm">Бьюті Сіті · Павлоград</div>
-        <div class="meta"><span class="city">📍 Павлоград</span><span class="since">перша угода 03.05</span></div>
-      </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Vitaran</span>
-        <span class="brand-chip">Neuramis</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:96%;"></div></div>
-        <div class="progress-label">Виконано <span class="ok">96.0%</span></div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono">$1,200</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono">$1,150</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono">$575</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
-
-    <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 3 нових клієнти</div>
+    <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 4 нових клієнти (всі виконали план)</div>
   </div>
 
-  <!-- ============ ВТРАЧЕНІ ============ -->
+  <!-- ============================================================
+       ВТРАЧЕНІ
+       ============================================================ -->
   <div class="cat-header">
-    <div class="cat-icon lost-bg">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-    </div>
-    <h2>Втрачені клієнти <span style="color:var(--muted); font-weight:600;">· 3</span></h2>
-    <div class="cat-stats">
-      <span style="color:var(--muted);">≥ 6 міс без закупок · можна виключити з плану</span>
+    <span class="cat-dot bg-rose"></span>
+    <h2>Втрачені <span class="cnt">· 3</span></h2>
+    <div class="stats">
+      <span style="color:var(--muted);">≥ 6 міс без закупок · в плані не враховуються</span>
     </div>
   </div>
   <div class="clients-list">
 
-    <a class="client-row glass-card fade-stagger" style="--i:0;" href="#">
-      <div class="tl-dot idle"></div>
-      <div class="client-name">
-        <div class="nm">Гранд Бьюті · Запоріжжя</div>
-        <div class="meta"><span class="city">📍 Запоріжжя</span><span class="since">остання закупка 8 міс тому</span></div>
-      </div>
-      <div class="brand-chips">
-        <span class="brand-chip">Petaran</span>
-      </div>
-      <div class="progress-cell">
-        <div class="progress-bar"><div class="fill" style="width:0%;"></div></div>
-        <div class="progress-label" style="color:var(--muted);">Виключено з плану</div>
-      </div>
-      <div class="col-right"><div class="ttl">План</div><div class="val mono" style="color:var(--muted);">—</div></div>
-      <div class="col-right"><div class="ttl">Факт</div><div class="val mono" style="color:var(--muted);">$0</div></div>
-      <div class="col-right"><div class="ttl">Сер. чек</div><div class="val mono" style="color:var(--muted);">—</div></div>
-      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:#f1f5f9; color:#64748b;">ГБ</div>
+        <div class="client-info">
+          <div class="nm">Гранд Бьюті · Запоріжжя</div>
+          <div class="sub">Запоріжжя · остання закупка 8 міс тому</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono muted" style="color:var(--muted);">$0<span class="small"> / —</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:0%; background:#cbd5e1;"></div></div>
+        <div><span class="status-pill idle">Виключено</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand"><div class="empty" style="margin: 8px 0;">Останні бренди: Petaran · Vitaran</div></div>
+    </div>
 
     <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 2 втрачених</div>
   </div>
 
 </main>
+
+<script>
+  function toggleClient(btn) {
+    const card = btn.closest('.client');
+    const open = card.dataset.open === 'true';
+    card.dataset.open = open ? 'false' : 'true';
+  }
+</script>
 
 </body>
 </html>

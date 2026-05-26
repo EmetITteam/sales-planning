@@ -448,12 +448,18 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                 </span>
               )}
               caption={(
-                <div className="space-y-0.5">
-                  <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
-                  <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-                  <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
+                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                  <span className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}:</span>
+                  <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(calcPctValue)}</span>
+                  <span className="text-muted-foreground">Норма на ранок:</span>
+                  <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(morningPctValue)}</span>
+                  <span className="text-muted-foreground">Прогноз (темп):</span>
+                  <span className="font-semibold text-amber-600 tabular-nums text-right">{formatPct(totalForecastPct)}</span>
                   {totalExpectedPct !== null && (
-                    <p className="text-muted-foreground">Запланований: <span className="font-semibold text-emet-blue">{formatPct(totalExpectedPct)}</span></p>
+                    <>
+                      <span className="text-muted-foreground">Запланований:</span>
+                      <span className="font-semibold text-emet-blue tabular-nums text-right">{formatPct(totalExpectedPct)}</span>
+                    </>
                   )}
                 </div>
               )}
