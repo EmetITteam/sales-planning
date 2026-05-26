@@ -384,7 +384,7 @@ export function CompanyOverviewDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 0 }}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
@@ -398,7 +398,7 @@ export function CompanyOverviewDashboard() {
 
             <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 1 }}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт {groupLabel}</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
@@ -415,7 +415,7 @@ export function CompanyOverviewDashboard() {
 
             <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 2 }}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Виконання</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">{fmtPct(totalPct)}</p>
@@ -453,7 +453,7 @@ export function CompanyOverviewDashboard() {
                 return (
                   <div className="glass-card p-5 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
                       <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold flex-1">Відстають від плану</p>
                       <span className="text-[20px] font-bold tabular-nums leading-none">
                         {behind.length}<span className="text-[13px] font-medium text-muted-foreground">/{totalDivs}</span>
@@ -485,7 +485,7 @@ export function CompanyOverviewDashboard() {
                 return (
                   <div className="glass-card p-6 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7]" />
                       <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Робочі дні</p>
                     </div>
                     <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
@@ -516,7 +516,7 @@ export function CompanyOverviewDashboard() {
               return (
                 <div className="glass-card p-6 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
                     <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Покупці місяця · {groupLabel}</p>
                   </div>
                   <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
@@ -587,7 +587,7 @@ export function CompanyOverviewDashboard() {
             return (
               <div className="glass-card p-6 transition-all">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
                   <h3 className="text-[14px] font-bold">
                     Клієнти-покупці по категоріях
                     {groupFilter === 'representations' && ' · Представництва'}
