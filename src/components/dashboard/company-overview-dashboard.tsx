@@ -405,7 +405,6 @@ export function CompanyOverviewDashboard() {
                 <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
                 <span className="amount">{Math.round(animFact).toLocaleString('en-US')}</span>
               </p>
-              <p className="text-[11px] text-muted-foreground mt-3">по підрозділах де є факт</p>
               {filteredTotalPrevFact > 0 && (
                 <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${factDelta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
                   {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс.
@@ -521,14 +520,12 @@ export function CompanyOverviewDashboard() {
                   </div>
                   <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
                     {agg.totalBought}
-                    {agg.totalClients > 0 && (
-                      <span className="text-[22px] font-medium text-muted-foreground"> / {agg.totalClients}</span>
-                    )}
                   </p>
+                  {/* totalClients прибрано — це сума клієнтів на менеджерах з 1С яка
+                      НЕ враховує наші правила класифікації (active 3 міс vs 1С-категорія).
+                      Показували б введення в оману. */}
                   <p className="text-[11px] text-muted-foreground mt-3">
-                    {agg.totalClients > 0
-                      ? `${((agg.totalBought / agg.totalClients) * 100).toFixed(1)}% активність клієнтської бази`
-                      : 'немає даних з 1С'}
+                    клієнтів зробили закупки цього місяця
                   </p>
                   {agg.prevTotalBought > 0 && (
                     <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${deltaBought >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
