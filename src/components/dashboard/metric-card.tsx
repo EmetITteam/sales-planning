@@ -61,24 +61,35 @@ export function MetricCard({
     ? 'text-[22px] font-medium text-muted-foreground align-top mr-0.5'
     : 'text-[14px] font-medium text-muted-foreground align-top mr-0.5';
 
-  const baseCls = 'glass-card p-5 relative min-h-[110px] flex flex-col transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
+  // Layout: label (TOP) → value (MIDDLE) → caption+trailing (BOTTOM).
+  // justify-between розводить три зони рівномірно по висоті — раніше було
+  // flex-1+justify-center і все злипалось у центрі картки.
+  // min-h-[140px] — щоб дати запас для нормального дихання трьох зон.
+  const baseCls = 'glass-card p-5 relative min-h-[140px] flex flex-col justify-between gap-3 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
   const cls = index !== undefined ? `${baseCls} fade-stagger` : baseCls;
   const style = index !== undefined ? { ['--i' as string]: index } : undefined;
 
   return (
     <div className={cls} style={style}>
+      {/* TOP: dot + label */}
       <div className="flex items-center gap-2">
         <span className={`w-1.5 h-1.5 rounded-full ${iconColor.replace('text-', 'bg-')} shadow-[0_0_6px_currentColor] ${iconColor}`} />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
       </div>
-      <div className="flex-1 flex flex-col justify-center mt-2">
-        <div className={`${valueClass} ${isAmount ? 'amount' : ''}`}>
-          {valuePrefix && <span className={prefixClass}>{valuePrefix}</span>}
-          {value}
-        </div>
-        {caption && <div className="mt-1.5 text-[11px] leading-snug">{caption}</div>}
-        {trailing && <div className="mt-2">{trailing}</div>}
+
+      {/* MIDDLE: великий $-номер */}
+      <div className={`${valueClass} ${isAmount ? 'amount' : ''}`}>
+        {valuePrefix && <span className={prefixClass}>{valuePrefix}</span>}
+        {value}
       </div>
+
+      {/* BOTTOM: caption + trailing (delta-pill). Якщо обидва пусті — нічого не рендеримо. */}
+      {(caption || trailing) && (
+        <div className="flex flex-col gap-2">
+          {caption && <div className="text-[11px] leading-snug">{caption}</div>}
+          {trailing && <div>{trailing}</div>}
+        </div>
+      )}
     </div>
   );
 }
