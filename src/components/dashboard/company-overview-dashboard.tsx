@@ -227,6 +227,11 @@ export function CompanyOverviewDashboard() {
     filteredTotalFact: filteredDivisions.reduce((s, d) => s + d.totalFact, 0),
     filteredTotalPrevFact: filteredDivisions.reduce((s, d) => s + d.totalPrevFact, 0),
   }), [filteredDivisions]);
+
+  // ⚠️ useCountUp ОБОВ'ЯЗКОВО на верхньому рівні (React rules-of-hooks).
+  // Раніше були всередині IIFE conditional → React error #310 на switch view.
+  const animPlan = useCountUp(filteredTotalPlan);
+  const animFact = useCountUp(filteredTotalFact);
   const filteredActivePlan = filteredDivisions.filter(d => d.hasFact).reduce((s, d) => s + d.totalPlan, 0);
   const filteredWithoutFact = filteredDivisions.filter(d => !d.hasFact).map(d => d.displayName);
 
@@ -343,34 +348,28 @@ export function CompanyOverviewDashboard() {
 
           {/* Hero — у preview-стилі: colored dot у label, великий $ з sup, delta pills.
               Count-up + stagger fade-in для cinematic feel. */}
-          {(() => {
-            // Анімовані числа — рахуються від 0 до target за 600ms ease-out.
-            // На кожен новий filter/refetch — нова анімація.
-            const animPlan = useCountUp(filteredTotalPlan);
-            const animFact = useCountUp(filteredTotalFact);
-            return (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 0 }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
-                    <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
-                  </div>
-                  <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                    <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
-                    <span className="amount">{Math.round(animPlan).toLocaleString('en-US')}</span>
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-3">
-                    {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
-                  </p>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 0 }}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
+              </div>
+              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
+                <span className="amount">{Math.round(animPlan).toLocaleString('en-US')}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-3">
+                {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
+              </p>
+            </div>
 
-                <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 1 }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
-                    <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт {groupLabel}</p>
-                  </div>
-                  <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                    <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
+            <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 1 }}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
+                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт {groupLabel}</p>
+              </div>
+              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
                 <span className="amount">{Math.round(animFact).toLocaleString('en-US')}</span>
               </p>
               <p className="text-[11px] text-muted-foreground mt-3">по підрозділах де є факт</p>
@@ -506,9 +505,7 @@ export function CompanyOverviewDashboard() {
                 </div>
               );
             })()}
-              </div>
-            );
-          })()}
+          </div>
 
           {/* Велика інформаційна карта: купивші клієнти по 5 категоріях × vs минулий місяць.
               Показуємо ТІЛЬКИ для груп з реальною клієнтською базою —
