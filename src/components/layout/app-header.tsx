@@ -60,6 +60,20 @@ export function AppHeader() {
     mutate(() => true, undefined, { revalidate: false });
     setUser(null);
   };
+
+  // Глобальний listener для 'emet:session-expired' (диспатчиться з callOneC
+  // при 401/403). Показуємо чистий модал + auto-logout — щоб користувач НЕ
+  // бачив JSON dump «HTTP 401: {status:error,message:Unauthorized}».
+  const [sessionExpired, setSessionExpired] = useState(false);
+  useEffect(() => {
+    const handler = () => setSessionExpired(true);
+    window.addEventListener('emet:session-expired', handler);
+    return () => window.removeEventListener('emet:session-expired', handler);
+  }, []);
+  const handleSessionExpiredOk = async () => {
+    setSessionExpired(false);
+    await handleLogout();
+  };
   // Lazy init з localStorage — без useEffect+setState (cascading render).
   // SSR-safe: на сервері window нема → завжди false; перший render у браузері
   // одразу читає правильне значення.
@@ -210,6 +224,35 @@ export function AppHeader() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {/* Session-expired modal — показуємо коли callOneC ловить 401/403 */}
+      {sessionExpired && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="session-expired-title"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        >
+          <div className="glass-card max-w-md w-[90%] p-6 mx-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                <LogOut className="h-5 w-5" />
+              </div>
+              <h2 id="session-expired-title" className="text-[15px] font-bold">Сесія завершилась</h2>
+            </div>
+            <p className="text-[13px] text-muted-foreground mb-5">
+              Час вашого сеансу закінчився або ви вийшли з системи в іншій вкладці. Увійдіть знову, щоб продовжити роботу.
+            </p>
+            <button
+              type="button"
+              onClick={handleSessionExpiredOk}
+              autoFocus
+              className="w-full h-10 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white text-[13px] font-semibold shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
+            >
+              Увійти знову
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

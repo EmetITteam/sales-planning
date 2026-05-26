@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { callOneC, OneCError, OneCNetworkError } from './onec-client';
+import { callOneC, OneCError, OneCNetworkError, SessionExpiredError } from './onec-client';
 import { useAppStore } from './store';
 import type { OneCAction, OneCActionMap } from './onec-types';
 
@@ -95,7 +95,14 @@ export function useOneCData<A extends OneCAction>(
 }
 
 function formatError(err: unknown): string {
-  if (err instanceof OneCError) return `1С: ${err.message}`;
+  // SessionExpiredError — гарне повідомлення без JSON dump
+  if (err instanceof SessionExpiredError) return err.message;
+  if (err instanceof OneCError) {
+    // Якщо OneCError містить JSON dump — спробуємо витягти {message}
+    const m = err.message.match(/"message":"([^"]+)"/);
+    if (m) return `1С: ${m[1]}`;
+    return `1С: ${err.message}`;
+  }
   if (err instanceof OneCNetworkError) return err.message;
   if (err instanceof Error) return err.message;
   return 'Невідома помилка';

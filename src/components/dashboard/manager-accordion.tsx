@@ -86,9 +86,11 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
   return (
     <div className="glass-card overflow-hidden transition-all hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]">
       {/* === DESKTOP === */}
-      <div
+      <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="hidden md:flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors"
+        aria-expanded={expanded}
+        className="hidden md:flex w-full items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50"
       >
         <div className="flex items-center gap-3 min-w-0 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[12px] font-bold text-[#066aab] shrink-0">
@@ -182,13 +184,15 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-      </div>
+      </button>
 
       {/* === MOBILE === */}
       <div className="md:hidden">
-        <div
+        <button
+          type="button"
           onClick={() => setExpanded(!expanded)}
-          className="flex items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb]"
+          aria-expanded={expanded}
+          className="flex w-full items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50"
         >
           <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[11px] font-bold text-[#066aab] shrink-0 mt-0.5">
             {initials(manager.name, manager.login)}
@@ -250,7 +254,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
               </div>
             )}
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Розгорнутий список 9 BrandRow — клік на бренд → планування manager × brand */}

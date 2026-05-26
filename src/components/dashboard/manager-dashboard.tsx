@@ -433,6 +433,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
         </div>
       )}
       {(factError || plansError || clientsError) && (() => {
+        // Якщо це сесія завершилась — модал у AppHeader покаже зрозуміле
+        // повідомлення, банер тут зайвий (буде дубль + JSON dump страх).
+        const isSessionError = [factError, plansError, clientsError].some(
+          e => e && e.includes('Сесія завершилась'),
+        );
+        if (isSessionError) return null;
+
         // Об'єднуємо всі помилки 1С в один баннер з одним Retry — не псуємо
         // ще більше і так стресовий момент сепаратними червоними блоками.
         const sources: string[] = [];

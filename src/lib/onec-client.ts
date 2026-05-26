@@ -15,7 +15,11 @@
 import type { OneCAction, OneCActionMap } from './onec-types';
 
 export class OneCError extends Error {
-  constructor(message: string, public readonly action: string) {
+  constructor(
+    message: string,
+    public readonly action: string,
+    public readonly httpStatus?: number,
+  ) {
     super(message);
     this.name = 'OneCError';
   }
@@ -25,6 +29,14 @@ export class OneCNetworkError extends Error {
   constructor(message: string, public readonly action: string) {
     super(message);
     this.name = 'OneCNetworkError';
+  }
+}
+
+/** Auth-related error — сесія завершилась, треба переавтентифікуватись. */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('Сесія завершилась — увійдіть знову');
+    this.name = 'SessionExpiredError';
   }
 }
 
@@ -61,9 +73,18 @@ export async function callOneC<A extends OneCAction>(
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        // 4xx/5xx з нашого прокі — не retry, кидаємо одразу
+        // 4xx/5xx з нашого прокі — не retry, кидаємо одразу.
+        // 401/403 = сесія завершилась → диспатчимо global event, AppHeader
+        // буде logout + показати toast. Кидаємо SessionExpiredError щоб
+        // useOneCData міг показати чистий банер замість JSON dump.
+        if (res.status === 401 || res.status === 403) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('emet:session-expired'));
+          }
+          throw new SessionExpiredError();
+        }
         const text = await res.text().catch(() => '');
-        throw new OneCError(`HTTP ${res.status}: ${text || res.statusText}`, action);
+        throw new OneCError(`HTTP ${res.status}: ${text || res.statusText}`, action, res.status);
       }
 
       const json = await res.json();
@@ -79,7 +100,8 @@ export async function callOneC<A extends OneCAction>(
       clearTimeout(timeoutId);
       lastError = err;
 
-      // OneCError — бізнес-помилка, не retry
+      // SessionExpired / OneCError — бізнес-помилки, не retry
+      if (err instanceof SessionExpiredError) throw err;
       if (err instanceof OneCError) throw err;
 
       // Network/timeout — спробуємо ще раз якщо є retries

@@ -177,9 +177,11 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   return (
     <div className="glass-card overflow-hidden transition-all hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]">
       {/* === DESKTOP/TABLET (md+): grid layout як у BrandRow, з drill-down chevron === */}
-      <div
+      <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="hidden xl:block px-3 md:px-4 py-3 md:py-4 cursor-pointer hover:bg-white/40 transition-colors"
+        aria-expanded={expanded}
+        className="hidden xl:block w-full text-left px-3 md:px-4 py-3 md:py-4 cursor-pointer hover:bg-white/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50"
       >
         {/* Row 1: name+icon | badge | factPct+dev | progress | plan | fact | menagers | мин.міс | chevron | drill-down */}
         <div className="grid grid-cols-[180px_95px_115px_minmax(160px,1fr)_85px_85px_70px_170px_20px_28px] gap-3 items-center">
@@ -305,12 +307,14 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
         {managersBrief.length > 0 && (
           <div className="mt-3 pt-3 border-t border-[#f0f2f8]">{miniList}</div>
         )}
-      </div>
+      </button>
 
       {/* === MID-TABLET (md..lg-xl): спрощений stacked layout, без grid === */}
-      <div
+      <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="hidden md:block xl:hidden px-4 py-3 cursor-pointer hover:bg-white/40 transition-colors"
+        aria-expanded={expanded}
+        className="hidden md:block xl:hidden w-full text-left px-4 py-3 cursor-pointer hover:bg-white/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50"
       >
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
@@ -375,13 +379,15 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
         {managersBrief.length > 0 && (
           <div className="pt-2 border-t border-[#f0f2f8]">{miniList}</div>
         )}
-      </div>
+      </button>
 
       {/* === MOBILE === */}
       <div className="md:hidden">
-        <div
+        <button
+          type="button"
           onClick={() => setExpanded(!expanded)}
-          className="flex items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb]"
+          aria-expanded={expanded}
+          className="flex w-full items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50"
         >
           <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0 mt-0.5">
             <MapPin className="h-4 w-4 text-[#066aab]" />
@@ -430,7 +436,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               )}
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Розгорнутий блок: спочатку зведена таблиця по категоріях клієнтів,

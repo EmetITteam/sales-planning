@@ -246,7 +246,8 @@ export function DirectorDashboard() {
   // === Loading skeleton ===
   if (loading && !regionResp) return <DashboardSkeleton role="director" />;
 
-  const errorBanner = error ? (
+  // Session-expired показуємо через модал у AppHeader (не дубль).
+  const errorBanner = error && !error.includes('Сесія завершилась') ? (
     <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700 flex items-center gap-2">
       <span>Помилка 1С (getRegionData): {error}</span>
       <button onClick={refetch} className="ml-auto font-semibold underline hover:no-underline">
