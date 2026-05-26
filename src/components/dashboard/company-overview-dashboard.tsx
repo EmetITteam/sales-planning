@@ -543,95 +543,97 @@ export function CompanyOverviewDashboard() {
             })()}
           </div>
 
-          {/* Велика інформаційна карта: купивші клієнти по 5 категоріях × vs минулий місяць.
-              Показуємо ТІЛЬКИ для груп з реальною клієнтською базою —
-              Представництва і Колл-центр. Для Лазерхауз/Адасса/Дистрибуторів
-              дані з 1С сумбурні (наприклад «2/1 = 200%»), категорійна логіка
-              не застосовується. */}
-          {(groupFilter === 'all' || groupFilter === 'representations' || groupFilter === 'call-center') && (() => {
-            // Враховуємо ТІЛЬКИ Представництва і Колл-центр (інші підрозділи мають
-            // sentinel-дані типу 2/1=200% які не мають сенсу у розрізі категорій).
-            const clientDivs = filteredDivisions.filter(d =>
-              d.groupKey === 'representations' || d.groupKey === 'call-center'
-            );
-            const agg = clientDivs.reduce((a, d) => {
-              if (d.clientStats) {
-                a.cur.active.total   += d.clientStats.active.total;    a.cur.active.bought   += d.clientStats.active.bought;
-                a.cur.sleeping.total += d.clientStats.sleeping.total;  a.cur.sleeping.bought += d.clientStats.sleeping.bought;
-                a.cur.lost.total     += d.clientStats.lost.total;      a.cur.lost.bought     += d.clientStats.lost.bought;
-                a.cur.new.total      += d.clientStats.new.total;       a.cur.new.bought      += d.clientStats.new.bought;
-                a.cur.none.total     += d.clientStats.none.total;      a.cur.none.bought     += d.clientStats.none.bought;
-                a.cur.totalClients   += d.clientStats.totalClients;    a.cur.totalBought     += d.clientStats.totalBought;
-              }
-              if (d.prevClientStats) {
-                a.prev.active.bought   += d.prevClientStats.active.bought;
-                a.prev.sleeping.bought += d.prevClientStats.sleeping.bought;
-                a.prev.lost.bought     += d.prevClientStats.lost.bought;
-                a.prev.new.bought      += d.prevClientStats.new.bought;
-                a.prev.none.bought     += d.prevClientStats.none.bought;
-                a.prev.totalBought     += d.prevClientStats.totalBought;
-              }
-              return a;
-            }, {
-              cur: { active: {total:0,bought:0}, sleeping:{total:0,bought:0}, lost:{total:0,bought:0}, new:{total:0,bought:0}, none:{total:0,bought:0}, totalClients:0, totalBought:0 },
-              prev: { active:{bought:0}, sleeping:{bought:0}, lost:{bought:0}, new:{bought:0}, none:{bought:0}, totalBought:0 },
-            });
-
-            const hasAnyData = agg.cur.totalClients > 0;
-            if (!hasAnyData) return null;
-            const hasPrev = agg.prev.totalBought > 0;
-            const cats = [
-              { key: 'active',   label: 'Активні',  color: '#10b981', curT: agg.cur.active.total,   curB: agg.cur.active.bought,   prevB: agg.prev.active.bought },
-              { key: 'sleeping', label: 'Сплячі',   color: '#fb923c', curT: agg.cur.sleeping.total, curB: agg.cur.sleeping.bought, prevB: agg.prev.sleeping.bought },
-              { key: 'new',      label: 'Нові',     color: '#0880cc', curT: agg.cur.new.total,      curB: agg.cur.new.bought,      prevB: agg.prev.new.bought },
-              { key: 'lost',     label: 'Втрачені', color: '#94a3b8', curT: agg.cur.lost.total,     curB: agg.cur.lost.bought,     prevB: agg.prev.lost.bought },
-              { key: 'none',     label: 'Без закупок', color: '#cbd5e1', curT: agg.cur.none.total, curB: agg.cur.none.bought,     prevB: agg.prev.none.bought },
-            ];
-            return (
-              <div className="glass-card p-6 transition-all">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
-                  <h3 className="text-[14px] font-bold">
-                    Клієнти-покупці по категоріях
-                    {groupFilter === 'representations' && ' · Представництва'}
-                    {groupFilter === 'call-center' && ' · Колл-центр'}
-                    {groupFilter === 'all' && ' · Представництва + Колл-центр'}
-                  </h3>
-                </div>
-                <p className="text-[11px] text-muted-foreground mb-4">
-                  Скільки клієнтів кожної категорії купили хоча б щось цього місяця.
-                  {hasPrev ? ' Поряд — кількість за минулий місяць.' : ' Дані за минулий місяць недоступні.'}
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {cats.map(c => {
-                    const pct = c.curT > 0 ? (c.curB / c.curT) * 100 : 0;
-                    const delta = c.curB - c.prevB;
-                    return (
-                      <div key={c.key} className="glass-card-soft p-4 flex flex-col">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
-                          <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{c.label}</span>
-                        </div>
-                        <p className="text-[28px] font-bold tabular-nums leading-none">
-                          {c.curB}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          {c.curT > 0 ? `${pct.toFixed(1)}% купили` : 'купили'}
-                        </p>
-                        {hasPrev && (
-                          <span className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold self-start ${delta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
-                            {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)} vs {agg.prev.totalBought > 0 ? `мин.міс ($${c.prevB})` : 'мин.міс'}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
-
+          {/* === Категорії клієнтів + Donut-діаграми — координований блок ===
+              Раніше були два окремих IIFE → coли донат один, він тягнувся на повну
+              ширину, а блок категорій клієнтів стояв над ним. Тепер один блок:
+                • visibleCount=1 + category-block ⇒ 4-col row: donut 1col + category 3col (КЦ)
+                • visibleCount=1 без category ⇒ 4-col row: donut 1col + top-3 brand cards 3col (Лазерхауз/Адасса)
+                • visibleCount≥2 ⇒ category-block над donut-grid як було. */}
           {(() => {
+            // === PART 1: client-categories block (або null) ===
+            let clientCategoriesJsx: React.ReactNode = null;
+            if (groupFilter === 'all' || groupFilter === 'representations' || groupFilter === 'call-center') {
+              const clientDivs = filteredDivisions.filter(d =>
+                d.groupKey === 'representations' || d.groupKey === 'call-center'
+              );
+              const agg = clientDivs.reduce((a, d) => {
+                if (d.clientStats) {
+                  a.cur.active.total   += d.clientStats.active.total;    a.cur.active.bought   += d.clientStats.active.bought;
+                  a.cur.sleeping.total += d.clientStats.sleeping.total;  a.cur.sleeping.bought += d.clientStats.sleeping.bought;
+                  a.cur.lost.total     += d.clientStats.lost.total;      a.cur.lost.bought     += d.clientStats.lost.bought;
+                  a.cur.new.total      += d.clientStats.new.total;       a.cur.new.bought      += d.clientStats.new.bought;
+                  a.cur.none.total     += d.clientStats.none.total;      a.cur.none.bought     += d.clientStats.none.bought;
+                  a.cur.totalClients   += d.clientStats.totalClients;    a.cur.totalBought     += d.clientStats.totalBought;
+                }
+                if (d.prevClientStats) {
+                  a.prev.active.bought   += d.prevClientStats.active.bought;
+                  a.prev.sleeping.bought += d.prevClientStats.sleeping.bought;
+                  a.prev.lost.bought     += d.prevClientStats.lost.bought;
+                  a.prev.new.bought      += d.prevClientStats.new.bought;
+                  a.prev.none.bought     += d.prevClientStats.none.bought;
+                  a.prev.totalBought     += d.prevClientStats.totalBought;
+                }
+                return a;
+              }, {
+                cur: { active: {total:0,bought:0}, sleeping:{total:0,bought:0}, lost:{total:0,bought:0}, new:{total:0,bought:0}, none:{total:0,bought:0}, totalClients:0, totalBought:0 },
+                prev: { active:{bought:0}, sleeping:{bought:0}, lost:{bought:0}, new:{bought:0}, none:{bought:0}, totalBought:0 },
+              });
+
+              if (agg.cur.totalClients > 0) {
+                const hasPrev = agg.prev.totalBought > 0;
+                const cats = [
+                  { key: 'active',   label: 'Активні',  color: '#10b981', curT: agg.cur.active.total,   curB: agg.cur.active.bought,   prevB: agg.prev.active.bought },
+                  { key: 'sleeping', label: 'Сплячі',   color: '#fb923c', curT: agg.cur.sleeping.total, curB: agg.cur.sleeping.bought, prevB: agg.prev.sleeping.bought },
+                  { key: 'new',      label: 'Нові',     color: '#0880cc', curT: agg.cur.new.total,      curB: agg.cur.new.bought,      prevB: agg.prev.new.bought },
+                  { key: 'lost',     label: 'Втрачені', color: '#94a3b8', curT: agg.cur.lost.total,     curB: agg.cur.lost.bought,     prevB: agg.prev.lost.bought },
+                  { key: 'none',     label: 'Без закупок', color: '#cbd5e1', curT: agg.cur.none.total, curB: agg.cur.none.bought,     prevB: agg.prev.none.bought },
+                ];
+                clientCategoriesJsx = (
+                  <div className="glass-card p-6 transition-all h-full">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
+                      <h3 className="text-[14px] font-bold">
+                        Клієнти-покупці по категоріях
+                        {groupFilter === 'representations' && ' · Представництва'}
+                        {groupFilter === 'call-center' && ' · Колл-центр'}
+                        {groupFilter === 'all' && ' · Представництва + Колл-центр'}
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mb-4">
+                      Скільки клієнтів кожної категорії купили хоча б щось цього місяця.
+                      {hasPrev ? ' Поряд — кількість за минулий місяць.' : ' Дані за минулий місяць недоступні.'}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {cats.map(c => {
+                        const pct = c.curT > 0 ? (c.curB / c.curT) * 100 : 0;
+                        const delta = c.curB - c.prevB;
+                        return (
+                          <div key={c.key} className="glass-card-soft p-4 flex flex-col">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                              <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{c.label}</span>
+                            </div>
+                            <p className="text-[28px] font-bold tabular-nums leading-none">
+                              {c.curB}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              {c.curT > 0 ? `${pct.toFixed(1)}% купили` : 'купили'}
+                            </p>
+                            {hasPrev && (
+                              <span className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold self-start ${delta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                                {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)} vs {agg.prev.totalBought > 0 ? `мин.міс ($${c.prevB})` : 'мин.міс'}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+            }
+
+            // === PART 2: donut segments ===
             const tealPalette = ['#066aab', '#0880cc', '#5bd5bc', '#14b8a6', '#0d9488', '#0e7490', '#67e8f9', '#a7f3d0'];
             const mixedPalette = ['#066aab', '#fb923c', '#fbbf24', '#a855f7', '#5bd5bc'];
             const brandPalette = ['#066aab', '#0880cc', '#5bd5bc', '#14b8a6', '#0d9488', '#fb923c', '#fbbf24', '#a855f7', '#ec4899'];
@@ -643,10 +645,6 @@ export function CompanyOverviewDashboard() {
               .sort((a, b) => b.totalFact - a.totalFact)
               .map((d, i) => ({ name: d.divisionName, value: d.totalFact, color: tealPalette[i % tealPalette.length] }));
 
-            // Donut «Підрозділи у компанії» — будуємо по ФАКТУ (не плану).
-            // План йде у subtitle як база для % виконання.
-            // При filter=distributors — розщеплюємо Полтаву та Чернівці окремими
-            // сегментами (інакше один сегмент «Дистрибутори» = немає donut).
             const divisionSegments: { name: string; value: number; plan: number; color: string }[] = [];
             if (groupFilter === 'distributors') {
               for (const distKey of ['distributor-chuguy', 'distributor-haylenko'] as const) {
@@ -655,7 +653,7 @@ export function CompanyOverviewDashboard() {
                 const plan = divs.reduce((s, d) => s + d.totalPlan, 0);
                 if (fact > 0) {
                   divisionSegments.push({
-                    name: GROUP_LABEL[distKey],  // «Полтава» / «Чернівці»
+                    name: GROUP_LABEL[distKey],
                     value: fact,
                     plan,
                     color: mixedPalette[divisionSegments.length % mixedPalette.length],
@@ -720,60 +718,117 @@ export function CompanyOverviewDashboard() {
             const show3 = brandSegments.length > 1;
             const visibleCount = [show1, show2, show3].filter(Boolean).length;
 
+            // Готуємо JSX-донати один раз, потім вирішуємо layout
+            const donutReps = show1 ? (
+              <DonutChart
+                key="reps"
+                title="Регіони у Представництвах"
+                subtitle={`Частка кожного у факті (${fmtUSD(regionsTotalFact)})`}
+                centerLabel={fmtUSDCompact(regionsTotalFact)}
+                centerSub="факт"
+                segments={repsSegments}
+                formatValue={fmtUsdLegend}
+              />
+            ) : null;
+            const donutDivisions = show2 ? (
+              <DonutChart
+                key="divs"
+                title={groupFilter === 'distributors' ? 'Дистрибутори' : 'Підрозділи у компанії'}
+                subtitle={`Частка кожного у факті (${fmtUSD(divTotalFact)}) · виконання ${divPct.toFixed(1)}% плану`}
+                centerLabel={fmtUSDCompact(divTotalFact)}
+                centerSub="факт"
+                segments={divisionSegments}
+                formatValue={fmtUsdLegend}
+              />
+            ) : null;
+            const brandTitle = (() => {
+              switch (groupFilter) {
+                case 'all': return 'Бренди у компанії';
+                case 'representations': return 'Бренди у Представництвах';
+                case 'call-center': return 'Бренди у Колл-центрі';
+                case 'laserhouse': return 'Бренди у Лазерхаузі';
+                case 'adassa': return 'Бренди в Адассі';
+                case 'distributors': return 'Бренди у Дистрибуторів';
+              }
+            })();
+            const donutBrands = show3 ? (
+              <DonutChart
+                key="brands"
+                title={brandTitle ?? 'Бренди'}
+                subtitle={`Частка кожного у факті (${fmtUSD(brandTotalFact)})`}
+                centerLabel={fmtUSDCompact(brandTotalFact)}
+                centerSub="факт"
+                segments={brandSegments}
+                formatValue={fmtUsdLegend}
+              />
+            ) : null;
+            const donuts = [donutReps, donutDivisions, donutBrands].filter(Boolean);
+
+            // === PART 3: layout decision ===
             if (visibleCount === 0) {
               return (
-                <div className="glass-card p-5 text-center text-[12px] text-muted-foreground">
-                  Для обраного фільтру donut-діаграми не показуються — недостатньо даних (потрібно ≥ 2 сегменти).
+                <>
+                  {clientCategoriesJsx}
+                  <div className="glass-card p-5 text-center text-[12px] text-muted-foreground">
+                    Для обраного фільтру donut-діаграми не показуються — недостатньо даних (потрібно ≥ 2 сегменти).
+                  </div>
+                </>
+              );
+            }
+
+            if (visibleCount === 1) {
+              const single = donuts[0];
+              // КЦ: donut 1col + category 3col у 4-col рядку
+              if (clientCategoriesJsx) {
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 items-stretch">
+                    <div className="lg:col-span-1">{single}</div>
+                    <div className="lg:col-span-3">{clientCategoriesJsx}</div>
+                  </div>
+                );
+              }
+              // Лазерхауз/Адасса: donut 1col + top-3 brand mini-cards 3col у 4-col рядку
+              const top3 = brandSegments.slice(0, 3);
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 items-stretch">
+                  <div className="lg:col-span-1">{single}</div>
+                  <div className="lg:col-span-3">
+                    <div className="glass-card p-6 h-full">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
+                        <h3 className="text-[14px] font-bold">Топ-{top3.length} {top3.length === 1 ? 'бренд' : top3.length < 5 ? 'бренди' : 'брендів'} за фактом</h3>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mb-4">Найбільші частки у факті обраного фільтру.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {top3.map(b => {
+                          const pct = brandTotalFact > 0 ? (b.value / brandTotalFact) * 100 : 0;
+                          return (
+                            <div key={b.name} className="glass-card-soft p-4 flex flex-col">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="w-2 h-2 rounded-full" style={{ background: b.color }} />
+                                <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground truncate">{b.name}</span>
+                              </div>
+                              <p className="text-[28px] font-bold tabular-nums leading-none amount">{fmtUSDCompact(b.value)}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">{pct.toFixed(1)}% від факту</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             }
 
-            const gridCols = visibleCount === 1 ? 'grid-cols-1'
-              : visibleCount === 2 ? 'grid-cols-1 lg:grid-cols-2'
-              : 'grid-cols-1 lg:grid-cols-3';
-
+            // visibleCount >= 2: стандартний layout — category-block над donut-grid
+            const gridCols = visibleCount === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-3';
             return (
-              <div className={`grid ${gridCols} gap-3`}>
-                {show1 && (
-                  <DonutChart
-                    title="Регіони у Представництвах"
-                    subtitle={`Частка кожного у факті (${fmtUSD(regionsTotalFact)})`}
-                    centerLabel={fmtUSDCompact(regionsTotalFact)}
-                    centerSub="факт"
-                    segments={repsSegments}
-                    formatValue={fmtUsdLegend}
-                  />
-                )}
-                {show2 && (
-                  <DonutChart
-                    title={groupFilter === 'distributors' ? 'Дистрибутори' : 'Підрозділи у компанії'}
-                    subtitle={`Частка кожного у факті (${fmtUSD(divTotalFact)}) · виконання ${divPct.toFixed(1)}% плану`}
-                    centerLabel={fmtUSDCompact(divTotalFact)}
-                    centerSub="факт"
-                    segments={divisionSegments}
-                    formatValue={fmtUsdLegend}
-                  />
-                )}
-                {show3 && (
-                  <DonutChart
-                    title={(() => {
-                      switch (groupFilter) {
-                        case 'all': return 'Бренди у компанії';
-                        case 'representations': return 'Бренди у Представництвах';
-                        case 'call-center': return 'Бренди у Колл-центрі';
-                        case 'laserhouse': return 'Бренди у Лазерхаузі';
-                        case 'adassa': return 'Бренди в Адассі';
-                        case 'distributors': return 'Бренди у Дистрибуторів';
-                      }
-                    })()}
-                    subtitle={`Частка кожного у факті (${fmtUSD(brandTotalFact)})`}
-                    centerLabel={fmtUSDCompact(brandTotalFact)}
-                    centerSub="факт"
-                    segments={brandSegments}
-                    formatValue={fmtUsdLegend}
-                  />
-                )}
-              </div>
+              <>
+                {clientCategoriesJsx}
+                <div className={`grid ${gridCols} gap-3`}>
+                  {donuts}
+                </div>
+              </>
             );
           })()}
 
