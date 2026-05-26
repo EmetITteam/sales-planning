@@ -204,7 +204,9 @@
 .glass-card::before {
   content: '';
   position: absolute; inset: 0;
-  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.5), transparent 60%);
+  /* opacity бамп 0.5 → 0.85 — раніше hover-spotlight майже не видно
+     (rgba 0.5 поверх bg-white/55 ≈ дельта 30%). Тепер реальний "слот світла". */
+  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.85), transparent 60%);
   opacity: 0;
   transition: opacity 0.3s;
   border-radius: inherit;
@@ -213,9 +215,13 @@
 }
 .glass-card:hover::before { opacity: 1; }
 .glass-card:hover {
+  /* -translate-y-1 (4px) замість -translate-y-px (1px sub-perceptible).
+     Reдакторована тінь — глибша + кольорова з EMET-blue. */
+  transform: translateY(-4px);
   box-shadow:
-    0 20px 60px rgba(31, 38, 135, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    0 20px 60px rgba(6, 106, 171, 0.15),
+    0 1px 2px rgba(6, 42, 61, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 @media (prefers-reduced-motion: reduce) {
   .glass-card, .glass-card::before { transition: none; }
@@ -230,6 +236,23 @@
 @keyframes glass-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.65; transform: scale(1.25); }
+}
+
+/* Stagger fade-in для grid-контейнерів. Розставляй у грід через style з
+   --i (індекс): style={{ '--i': i }} і клас .fade-stagger.
+   Animation запускається при mount; для SWR-data — спрацьовує при першому
+   render після loaded. */
+.fade-stagger {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fade-stagger-in 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes fade-stagger-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-stagger { animation: none; opacity: 1; transform: none; }
 }
 
 /* v2.1: режим "Сховати суми" — для оперативок (регіони не бачать суми один одного).

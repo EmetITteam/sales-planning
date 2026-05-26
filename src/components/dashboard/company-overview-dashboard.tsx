@@ -15,6 +15,7 @@
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useAppStore } from '@/lib/store';
+import { useCountUp } from '@/hooks/use-count-up';
 import { DonutChart } from '@/components/dashboard/donut-chart';
 import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
@@ -341,30 +342,36 @@ export function CompanyOverviewDashboard() {
           </div>
 
           {/* Hero — у preview-стилі: colored dot у label, великий $ з sup, delta pills.
-              Підписи (План X, Факт X) міняються разом з фільтром Група. */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
-              </div>
-              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
-                <span className="amount">{Math.round(filteredTotalPlan).toLocaleString('en-US')}</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-3">
-                {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
-              </p>
-            </div>
+              Count-up + stagger fade-in для cinematic feel. */}
+          {(() => {
+            // Анімовані числа — рахуються від 0 до target за 600ms ease-out.
+            // На кожен новий filter/refetch — нова анімація.
+            const animPlan = useCountUp(filteredTotalPlan);
+            const animFact = useCountUp(filteredTotalFact);
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 0 }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
+                    <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
+                  </div>
+                  <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                    <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
+                    <span className="amount">{Math.round(animPlan).toLocaleString('en-US')}</span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-3">
+                    {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
+                  </p>
+                </div>
 
-            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт {groupLabel}</p>
-              </div>
-              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
-                <span className="amount">{Math.round(filteredTotalFact).toLocaleString('en-US')}</span>
+                <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 1 }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
+                    <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт {groupLabel}</p>
+                  </div>
+                  <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+                    <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
+                <span className="amount">{Math.round(animFact).toLocaleString('en-US')}</span>
               </p>
               <p className="text-[11px] text-muted-foreground mt-3">по підрозділах де є факт</p>
               {filteredTotalPrevFact > 0 && (
@@ -374,7 +381,7 @@ export function CompanyOverviewDashboard() {
               )}
             </div>
 
-            <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
+            <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 2 }}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Виконання</p>
@@ -412,7 +419,7 @@ export function CompanyOverviewDashboard() {
                   .sort((a, b) => a.delta - b.delta);
                 const totalDivs = filteredDivisions.filter(d => d.totalPlan > 0).length;
                 return (
-                  <div className="glass-card p-5 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
+                  <div className="glass-card p-5 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
                       <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold flex-1">Відстають від плану</p>
@@ -444,7 +451,7 @@ export function CompanyOverviewDashboard() {
                 const passedWD = getPassedWorkingDays(py, pm, now);
                 const remainingWD = Math.max(0, totalWD - passedWD);
                 return (
-                  <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
+                  <div className="glass-card p-6 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
                     <div className="flex items-center gap-2 mb-3">
                       <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7]" />
                       <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Робочі дні</p>
@@ -475,7 +482,7 @@ export function CompanyOverviewDashboard() {
               }, { totalBought: 0, totalClients: 0, prevTotalBought: 0, active: 0, sleeping: 0, lost: 0, new: 0, none: 0 });
               const deltaBought = agg.totalBought - agg.prevTotalBought;
               return (
-                <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] relative">
+                <div className="glass-card p-6 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
                     <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Покупці місяця · {groupLabel}</p>
@@ -499,7 +506,9 @@ export function CompanyOverviewDashboard() {
                 </div>
               );
             })()}
-          </div>
+              </div>
+            );
+          })()}
 
           {/* Велика інформаційна карта: купивші клієнти по 5 категоріях × vs минулий місяць.
               Показуємо ТІЛЬКИ для груп з реальною клієнтською базою —
