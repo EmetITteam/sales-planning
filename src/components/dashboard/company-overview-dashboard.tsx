@@ -418,15 +418,16 @@ export function CompanyOverviewDashboard() {
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Виконання</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">{fmtPct(totalPct)}</p>
-              <p className="text-[11px] text-muted-foreground mt-2">
-                Норма на {asOfForCalc.getDate().toString().padStart(2, '0')}.{(asOfForCalc.getMonth() + 1).toString().padStart(2, '0')}: <span className="font-semibold text-foreground">{fmtPct(calcPct)}</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Норма на ранок: <span className="font-semibold text-foreground">{fmtPct(morningPct)}</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Прогноз (темп): <span className={`font-semibold ${forecastPct >= 100 ? 'text-teal-700' : forecastPct >= 80 ? 'text-amber-600' : 'text-rose-700'}`}>{fmtPct(forecastPct)}</span>
-              </p>
+              {/* Mini-table: лейбли ліворуч (фіксована ширина), % праворуч tabular-nums.
+                  Раніше була wrap-сітка без вирівнювання → числа стрибали по горизонталі. */}
+              <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
+                <span className="text-muted-foreground">Норма на {asOfForCalc.getDate().toString().padStart(2, '0')}.{(asOfForCalc.getMonth() + 1).toString().padStart(2, '0')}:</span>
+                <span className="font-semibold text-foreground tabular-nums text-right">{fmtPct(calcPct)}</span>
+                <span className="text-muted-foreground">Норма на ранок:</span>
+                <span className="font-semibold text-foreground tabular-nums text-right">{fmtPct(morningPct)}</span>
+                <span className="text-muted-foreground">Прогноз (темп):</span>
+                <span className={`font-semibold tabular-nums text-right ${forecastPct >= 100 ? 'text-teal-700' : forecastPct >= 80 ? 'text-amber-600' : 'text-rose-700'}`}>{fmtPct(forecastPct)}</span>
+              </div>
               <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${deviation >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
                 {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}% vs норма
               </span>
