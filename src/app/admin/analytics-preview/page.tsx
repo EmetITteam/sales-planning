@@ -35,31 +35,33 @@ interface MetricCardProps {
   formula: string;
   why: string;
   example: string;
+  index: number;
 }
 
-function PreviewMetricCard({ icon, iconBg, title, what, formula, why, example }: MetricCardProps) {
+function PreviewMetricCard({ icon, iconBg, title, what, formula, why, example, index }: MetricCardProps) {
   return (
-    <div className="glass-card p-6">
+    <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: index }}>
       <div className="flex items-start gap-3 mb-3">
-        <div className={`w-10 h-10 rounded-xl ${iconBg} text-white flex items-center justify-center shadow-md shrink-0`}>
+        <div className={`w-11 h-11 rounded-2xl ${iconBg} text-white flex items-center justify-center shadow-lg shrink-0`}>
           {icon}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-[14px] font-bold">{title}</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">{what}</p>
+          <h3 className="text-[15px] font-bold tracking-tight">{title}</h3>
+          <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{what}</p>
         </div>
       </div>
-      <div className="space-y-2 text-[12px] mt-3 pt-3 border-t border-white/40">
-        <p>
-          <span className="font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Формула:</span>
-          <br />
-          <code className="text-[11px] bg-white/40 px-2 py-0.5 rounded">{formula}</code>
+      <div className="space-y-2.5 text-[12px] mt-4 pt-4 border-t border-white/40">
+        <div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Формула</span>
+          <code className="block mt-1 text-[11px] bg-white/50 backdrop-blur-sm px-2.5 py-1.5 rounded-lg font-mono">{formula}</code>
+        </div>
+        <p className="leading-relaxed">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Навіщо · </span>
+          {why}
         </p>
-        <p>
-          <span className="font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Навіщо:</span> {why}
-        </p>
-        <p>
-          <span className="font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Приклад:</span> {example}
+        <p className="leading-relaxed text-muted-foreground">
+          <span className="text-[9px] font-bold uppercase tracking-wider">Приклад · </span>
+          {example}
         </p>
       </div>
     </div>
@@ -105,7 +107,7 @@ export default function AnalyticsPreviewPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PreviewMetricCard
+          <PreviewMetricCard index={0}
             icon={<TrendingUp className="h-5 w-5" />}
             iconBg="bg-gradient-to-br from-emet-blue to-emet-blue-light"
             title="Pipeline Coverage"
@@ -115,7 +117,7 @@ export default function AnalyticsPreviewPage() {
             example="План $1.5M, факт $822K. Лишилось $678K. Forecast $400K + gap $300K = $700K → 103% → план буде закритий"
           />
 
-          <PreviewMetricCard
+          <PreviewMetricCard index={1}
             icon={<Repeat className="h-5 w-5" />}
             iconBg="bg-gradient-to-br from-emerald-500 to-teal-500"
             title="Net Revenue Retention (NRR)"
@@ -125,7 +127,7 @@ export default function AnalyticsPreviewPage() {
             example="З $822K факту, $650K — від клієнтів що купували минулого місяця → NRR=79%. Решта $172K — нові клієнти або реактивовані сплячі."
           />
 
-          <PreviewMetricCard
+          <PreviewMetricCard index={2}
             icon={<BarChart3 className="h-5 w-5" />}
             iconBg="bg-gradient-to-br from-violet-500 to-purple-500"
             title="AOV per brand"
@@ -135,7 +137,7 @@ export default function AnalyticsPreviewPage() {
             example="Vitaran: $510K / 234 покупців = $2,180 AOV. Якщо минулого місяця було $2,500 → впала вірність бренду на 13%"
           />
 
-          <PreviewMetricCard
+          <PreviewMetricCard index={3}
             icon={<CheckCircle2 className="h-5 w-5" />}
             iconBg="bg-gradient-to-br from-blue-500 to-indigo-500"
             title="Stage-done ratio (РМ)"
@@ -145,7 +147,7 @@ export default function AnalyticsPreviewPage() {
             example="Менеджер запланував 45 дзвінків, 28 з 1С позначив done → 62%. Може бути сигналом що 17 дзвінків насправді не зроблено"
           />
 
-          <PreviewMetricCard
+          <PreviewMetricCard index={4}
             icon={<PieChart className="h-5 w-5" />}
             iconBg="bg-gradient-to-br from-amber-500 to-orange-500"
             title="Brand Mix Concentration"
