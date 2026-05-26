@@ -824,8 +824,10 @@ export function CompanyOverviewDashboard() {
                   return (
                     <div key={g.key} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
                       <button
+                        type="button"
                         onClick={() => { setExpandedKey(isExpanded ? null : g.key); setExpandedSubKey(null); }}
-                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left"
+                        aria-expanded={isExpanded}
+                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50 rounded-lg"
                       >
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                         <span className="font-bold text-[14px]">
@@ -871,8 +873,10 @@ export function CompanyOverviewDashboard() {
                                   return (
                                     <div key={d.divisionName} className={`glass-card-soft transition-all ${isSubExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
                                       <button
+                                        type="button"
                                         onClick={() => setExpandedSubKey(isSubExpanded ? null : subKey)}
-                                        className="w-full p-3 grid grid-cols-[16px_1fr_70px_180px_70px] gap-3 items-center text-left"
+                                        aria-expanded={isSubExpanded}
+                                        className="w-full p-3 grid grid-cols-[16px_1fr_70px_180px_70px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50 rounded-lg"
                                       >
                                         <span className={`text-[11px] text-muted-foreground transition-transform ${isSubExpanded ? 'rotate-90' : ''}`}>▶</span>
                                         <span className="text-[13px] font-semibold">{d.divisionName}</span>
@@ -1001,8 +1005,10 @@ export function CompanyOverviewDashboard() {
                   return (
                     <div key={b.code} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
                       <button
+                        type="button"
                         onClick={() => setExpandedKey(isExpanded ? null : b.code)}
-                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left"
+                        aria-expanded={isExpanded}
+                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50 rounded-lg"
                       >
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                         <span className="font-bold text-[14px]">{b.name}</span>

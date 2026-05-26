@@ -89,12 +89,17 @@ export function BrandRow({
   const isInactive = planAmount === 0 && factAmount === 0;
 
   const Wrapper: React.ElementType = onClick ? 'button' : 'div';
+  const buttonProps = onClick ? {
+    type: 'button' as const,
+    'aria-expanded': expandable ? expanded : undefined,
+  } : {};
 
   return (
     <Wrapper
       onClick={onClick}
+      {...buttonProps}
       className={`group w-full text-left glass-card p-3 md:p-4 ${
-        onClick && !readOnly ? 'hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] cursor-pointer hover:-translate-y-px' : ''
+        onClick && !readOnly ? 'hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] cursor-pointer hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50' : ''
       } transition-all duration-200 ${isInactive ? 'opacity-50' : ''}`}
     >
       {/* === DESKTOP (xl+: 1280px і ширше): один рядок з 9 колонками ===

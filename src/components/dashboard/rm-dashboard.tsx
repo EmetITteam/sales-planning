@@ -307,7 +307,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg font-bold">Регіон: {region?.regionName || user?.region || '—'}</h2>
+            <h1 className="text-lg font-bold">Регіон: {region?.regionName || user?.region || '—'}</h1>
             {!regionCode && availableRegions.length > 1 && (
               <div className="flex items-center gap-1 ml-1">
                 {availableRegions.map(r => {
