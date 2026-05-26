@@ -21,9 +21,7 @@ import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from
 import { Building2, RefreshCw, Zap } from 'lucide-react';
 
 const HEADERS_JSON = {
-  'Content-Type': 'application/json',
-  'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '',
-};
+  'Content-Type': 'application/json',};
 
 // Types: shared with backend через @/lib/company-overview-types (TD-9/10 fix).
 import type {

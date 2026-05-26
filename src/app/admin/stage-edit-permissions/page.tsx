@@ -28,7 +28,7 @@ interface UserRow {
   canEditStagesAfterFinalize: boolean;
 }
 
-const HEADERS_JSON = { 'Content-Type': 'application/json', 'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '' };
+const HEADERS_JSON = { 'Content-Type': 'application/json' };  // same-origin auth via Sec-Fetch-Site (api-auth.ts)
 
 export default function AdminStageEditPermissionsPage() {
   const router = useRouter();
