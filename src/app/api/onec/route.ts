@@ -128,6 +128,13 @@ export async function POST(request: NextRequest) {
         { status: 403 },
       );
     }
+    // SECURITY C1: includeAll=true (Action 5 getRegionData) повертає ВСІ
+    // підрозділи компанії включно з тими де менеджер нема. 1С НЕ перевіряє
+    // право на цей прапор — гард тут. Тільки admin може його використовувати.
+    if ('includeAll' in safePayload && session.role !== 'admin') {
+      const { includeAll: _, ...rest } = safePayload as Record<string, unknown>;
+      safePayload = rest;
+    }
   }
   const requestBody = JSON.stringify({ action, payload: safePayload });
 

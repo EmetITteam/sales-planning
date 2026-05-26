@@ -20,6 +20,16 @@ import { getSession } from '@/lib/session';
 import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
 import { mapSegmentCode } from '@/lib/onec-adapters';
 import { isTrialBrandPlan } from '@/lib/trial-manager';
+import { supabase } from '@/lib/supabase';
+import {
+  type DivisionGroup,
+  type SegmentTotals,
+  type ManagerSummary,
+  type CompanyClientStats,
+  type CompanyOverviewResponse,
+  type DivisionDetails,
+  emptyCompanyClientStats,
+} from '@/lib/company-overview-types';
 
 // Без кешування — admin-дашборд має тягнути свіже з 1С (інакше «Оновити»
 // віддає Vercel-кеш і дані «затухають» — фак не міняється весь день).
@@ -31,13 +41,6 @@ export const revalidate = 0;
 const REPRESENTATIONS = new Set([
   'Київ', 'Дніпро', 'Одеса', 'Харків', 'Запоріжжя', 'Вінниця', 'Миколаєв', 'Житомир',
 ]);
-type DivisionGroup =
-  | 'representations'
-  | 'call-center'
-  | 'laserhouse'
-  | 'adassa'
-  | 'distributor-chuguy'
-  | 'distributor-haylenko';
 
 function classifyDivision(name: string): DivisionGroup | null {
   if (REPRESENTATIONS.has(name)) return 'representations';
@@ -50,51 +53,9 @@ function classifyDivision(name: string): DivisionGroup | null {
   return null;
 }
 
-// === Типи відповіді нашого endpoint ===
-interface SegmentTotals { plan: number; fact: number; prevFact: number; }
-interface ManagerSummary { login: string; name: string; totalPlan: number; totalFact: number; }
-/** Агрегат клієнтів по 5 категоріях. {total, bought} на категорію. */
-interface ClientCategoryStats {
-  active:   { total: number; bought: number };
-  sleeping: { total: number; bought: number };
-  lost:     { total: number; bought: number };
-  new:      { total: number; bought: number };
-  none:     { total: number; bought: number };
-  totalClients: number;
-  totalBought: number;
-}
-interface DivisionDetails {
-  divisionName: string;        // як приходить з 1С
-  groupKey: DivisionGroup;
-  displayName: string;         // для UI («Полтава», «Колл-центр»...)
-  segments: Record<string, SegmentTotals>;  // segmentCode → totals
-  totalPlan: number;
-  totalFact: number;
-  totalPrevFact: number;
-  hasFact: boolean;            // true якщо Action 5 повернув цей підрозділ
-  managerCount: number;
-  /** Per-manager breakdown — використовується для donut «Менеджери Представництв».
-   *  Заповнюється тільки для groupKey='representations' (для решти груп — пусто). */
-  managers?: ManagerSummary[];
-  /** v2.5 Action 5 clientStats — агрегат купивших клієнтів по 5 категоріях.
-   *  Сума по всіх менеджерах підрозділу. Поточний місяць. */
-  clientStats?: ClientCategoryStats;
-  /** Те саме що clientStats, але за попередній місяць — для порівняння */
-  prevClientStats?: ClientCategoryStats;
-}
-interface CompanyOverviewResponse {
-  asOfDate: string | null;
-  prevMonthAsOfDate: string | null;
-  divisions: DivisionDetails[];
-  // Aggregates ready for UI:
-  totalPlan: number;
-  totalFact: number;
-  totalPrevFact: number;
-  divisionsWithoutFact: string[];  // displayNames
-  /** Канонічні підрозділи (13 шт) яких НЕМАЄ у плані поточного періоду —
-   *  показуємо у hero «Підрозділи не в плані» коли filter='all'. */
-  divisionsNotInPlan: string[];
-}
+// === Типи: shared з frontend через @/lib/company-overview-types ===
+// (Раніше дубльовалися тут і у company-overview-dashboard.tsx — TD-9 закрите)
+// DivisionDetails / CompanyOverviewResponse — імпорти зверху файлу
 
 /** Канонічний список 13 підрозділів — реперний для перевірки «хто в плані».
  *  Назви точно як 1С повертає у Action 4 (перевірено diag-divisions.mjs). */
@@ -114,24 +75,13 @@ const CANONICAL_DIVISIONS: { name: string; display: string }[] = [
   { name: 'Черновцы*', display: 'Чернівці' },
 ];
 
-// Helper: zero clientStats baseline
-function emptyClientStats(): ClientCategoryStats {
-  return {
-    active: { total: 0, bought: 0 },
-    sleeping: { total: 0, bought: 0 },
-    lost: { total: 0, bought: 0 },
-    new: { total: 0, bought: 0 },
-    none: { total: 0, bought: 0 },
-    totalClients: 0,
-    totalBought: 0,
-  };
-}
+// emptyCompanyClientStats імпортуємо з shared types (emptyCompanyClientStats)
 function toNum(v: unknown): number {
   if (typeof v === 'number') return v;
   if (typeof v === 'string') return Number(v) || 0;
   return 0;
 }
-function accumulateClientStats(target: ClientCategoryStats, src: Record<string, unknown>): void {
+function accumulateClientStats(target: CompanyClientStats, src: Record<string, unknown>): void {
   for (const cat of ['active', 'sleeping', 'lost', 'new', 'none'] as const) {
     const s = src[cat] as { total: unknown; bought: unknown } | undefined;
     if (!s) continue;
@@ -174,8 +124,22 @@ export async function GET(request: NextRequest) {
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
   const session = await getSession();
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.role !== 'admin') {
-    return Response.json({ error: 'Admin only' }, { status: 403 });
+  // C2 fix: admin завжди + юзери з can_view_company_overview=true (M10).
+  // JWT не оновлюється коли admin перемикає прапор → re-fetch з БД.
+  let canView = session.role === 'admin';
+  if (!canView) {
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('can_view_company_overview')
+        .eq('login', session.login);
+      canView = !!(Array.isArray(data) && data[0]?.can_view_company_overview);
+    } catch {
+      // Колонка ще не існує — fallback false (тільки admin)
+    }
+  }
+  if (!canView) {
+    return Response.json({ error: 'Access denied' }, { status: 403 });
   }
 
   // Period: ?period=YYYY-MM (default — поточний місяць)
@@ -256,13 +220,13 @@ export async function GET(request: NextRequest) {
       // Per-manager breakdown — для donut «Менеджери Представництв»
       managers: Map<string, ManagerSummary>;
       // Сумарні клієнт-категорії по підрозділу (сума всіх менеджерів)
-      clientStats: ClientCategoryStats;
+      clientStats: CompanyClientStats;
     }>();
     for (const reg of a5.data?.regions ?? []) {
       const regName = String(reg.regionName || '').trim();
       if (!regName) continue;
       if (!factAgg.has(regName)) {
-        factAgg.set(regName, { segments: new Map(), managerCount: 0, managers: new Map(), clientStats: emptyClientStats() });
+        factAgg.set(regName, { segments: new Map(), managerCount: 0, managers: new Map(), clientStats: emptyCompanyClientStats() });
       }
       const slot = factAgg.get(regName)!;
       slot.managerCount += Array.isArray(reg.managers) ? reg.managers.length : 0;
@@ -305,12 +269,12 @@ export async function GET(request: NextRequest) {
 
     // === Prev month clientStats — окремо агрегуємо з a5prev ===
     // Тільки clientStats (segments/managers вже маємо у поточному).
-    const prevClientStatsAgg = new Map<string, ClientCategoryStats>();
+    const prevClientStatsAgg = new Map<string, CompanyClientStats>();
     if (a5prev.status === 'success') {
       for (const reg of a5prev.data?.regions ?? []) {
         const regName = String(reg.regionName || '').trim();
         if (!regName) continue;
-        if (!prevClientStatsAgg.has(regName)) prevClientStatsAgg.set(regName, emptyClientStats());
+        if (!prevClientStatsAgg.has(regName)) prevClientStatsAgg.set(regName, emptyCompanyClientStats());
         const slot = prevClientStatsAgg.get(regName)!;
         for (const mgr of reg.managers ?? []) {
           if (mgr.clientStats) {

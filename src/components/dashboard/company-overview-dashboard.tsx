@@ -25,41 +25,11 @@ const HEADERS_JSON = {
   'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '',
 };
 
-interface SegmentTotals { plan: number; fact: number; prevFact: number; }
-interface ManagerSummary { login: string; name: string; totalPlan: number; totalFact: number; }
-interface ClientCategoryStats {
-  active:   { total: number; bought: number };
-  sleeping: { total: number; bought: number };
-  lost:     { total: number; bought: number };
-  new:      { total: number; bought: number };
-  none:     { total: number; bought: number };
-  totalClients: number;
-  totalBought: number;
-}
-interface DivisionDetails {
-  divisionName: string;
-  groupKey: 'representations' | 'call-center' | 'laserhouse' | 'adassa' | 'distributor-chuguy' | 'distributor-haylenko';
-  displayName: string;
-  segments: Record<string, SegmentTotals>;
-  totalPlan: number;
-  totalFact: number;
-  totalPrevFact: number;
-  hasFact: boolean;
-  managerCount: number;
-  managers?: ManagerSummary[];
-  clientStats?: ClientCategoryStats;
-  prevClientStats?: ClientCategoryStats;
-}
-interface CompanyOverviewData {
-  asOfDate: string | null;
-  prevMonthAsOfDate: string | null;
-  divisions: DivisionDetails[];
-  totalPlan: number;
-  totalFact: number;
-  totalPrevFact: number;
-  divisionsWithoutFact: string[];
-  divisionsNotInPlan?: string[];
-}
+// Types: shared with backend через @/lib/company-overview-types (TD-9/10 fix).
+import type {
+  DivisionDetails,
+  CompanyOverviewResponse as CompanyOverviewData,
+} from '@/lib/company-overview-types';
 
 const BRAND_CODES = SEGMENTS.map(s => s.code);
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
