@@ -19,7 +19,8 @@ import { useCountUp } from '@/hooks/use-count-up';
 import { DonutChart } from '@/components/dashboard/donut-chart';
 import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
-import { Building2, RefreshCw, Zap } from 'lucide-react';
+import { Building2, RefreshCw, Zap, Target, DollarSign, TrendingUp, TrendingDown, AlertTriangle, CalendarDays, Users } from 'lucide-react';
+import { MetricCard } from '@/components/dashboard/metric-card';
 
 const HEADERS_JSON = {
   'Content-Type': 'application/json',};
@@ -379,59 +380,65 @@ export function CompanyOverviewDashboard() {
             </div>
           </div>
 
-          {/* Hero — у preview-стилі: colored dot у label, великий $ з sup, delta pills.
-              Count-up + stagger fade-in для cinematic feel. */}
+          {/* Hero — уніфікований MetricCard для Огляд+Планування (watermark + великий $36px + fade-stagger). */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 0 }}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
-              </div>
-              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
-                <span className="amount">{Math.round(animPlan).toLocaleString('en-US')}</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-3">
-                {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
-              </p>
-            </div>
-
-            <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 1 }}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Факт {groupLabel}</p>
-              </div>
-              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                <span className="text-[22px] font-medium text-muted-foreground align-top mr-0.5">$</span>
-                <span className="amount">{Math.round(animFact).toLocaleString('en-US')}</span>
-              </p>
-              {filteredTotalPrevFact > 0 && (
-                <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${factDelta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
-                  {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс.
+            <MetricCard
+              index={0}
+              icon={<Target />}
+              iconColor="text-emet-blue"
+              label={`План ${groupLabel}`}
+              valueSize="lg"
+              valuePrefix="$"
+              isAmount
+              value={<span className="amount">{Math.round(animPlan).toLocaleString('en-US')}</span>}
+              caption={
+                <span className="text-muted-foreground">
+                  {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
                 </span>
-              )}
-            </div>
+              }
+            />
 
-            <div className="glass-card p-6 fade-stagger" style={{ ['--i' as string]: 2 }}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5bd5bc] shadow-[0_0_6px_#5bd5bc]" />
-                <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Виконання</p>
-              </div>
-              <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">{fmtPct(totalPct)}</p>
-              {/* Mini-table: лейбли ліворуч (фіксована ширина), % праворуч tabular-nums.
-                  Раніше була wrap-сітка без вирівнювання → числа стрибали по горизонталі. */}
-              <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
-                <span className="text-muted-foreground">Норма на {asOfForCalc.getDate().toString().padStart(2, '0')}.{(asOfForCalc.getMonth() + 1).toString().padStart(2, '0')}:</span>
-                <span className="font-semibold text-foreground tabular-nums text-right">{fmtPct(calcPct)}</span>
-                <span className="text-muted-foreground">Норма на ранок:</span>
-                <span className="font-semibold text-foreground tabular-nums text-right">{fmtPct(morningPct)}</span>
-                <span className="text-muted-foreground">Прогноз (темп):</span>
-                <span className={`font-semibold tabular-nums text-right ${forecastPct >= 100 ? 'text-teal-700' : forecastPct >= 80 ? 'text-amber-600' : 'text-rose-700'}`}>{fmtPct(forecastPct)}</span>
-              </div>
-              <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${deviation >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
-                {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}% vs норма
-              </span>
-            </div>
+            <MetricCard
+              index={1}
+              icon={<DollarSign />}
+              iconColor="text-emerald-500"
+              label={`Факт ${groupLabel}`}
+              valueSize="lg"
+              valuePrefix="$"
+              isAmount
+              value={<span className="amount">{Math.round(animFact).toLocaleString('en-US')}</span>}
+              trailing={
+                filteredTotalPrevFact > 0 ? (
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${factDelta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                    {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс.
+                  </span>
+                ) : null
+              }
+            />
+
+            <MetricCard
+              index={2}
+              icon={totalPct >= calcPct ? <TrendingUp /> : <TrendingDown />}
+              iconColor={totalPct >= calcPct ? 'text-emerald-500' : 'text-rose-500'}
+              label="Виконання"
+              valueSize="lg"
+              value={fmtPct(totalPct)}
+              caption={
+                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                  <span className="text-muted-foreground">Норма на {asOfForCalc.getDate().toString().padStart(2, '0')}.{(asOfForCalc.getMonth() + 1).toString().padStart(2, '0')}:</span>
+                  <span className="font-semibold text-foreground tabular-nums text-right">{fmtPct(calcPct)}</span>
+                  <span className="text-muted-foreground">Норма на ранок:</span>
+                  <span className="font-semibold text-foreground tabular-nums text-right">{fmtPct(morningPct)}</span>
+                  <span className="text-muted-foreground">Прогноз (темп):</span>
+                  <span className={`font-semibold tabular-nums text-right ${forecastPct >= 100 ? 'text-teal-700' : forecastPct >= 80 ? 'text-amber-600' : 'text-rose-700'}`}>{fmtPct(forecastPct)}</span>
+                </div>
+              }
+              trailing={
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${deviation >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                  {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}% vs норма
+                </span>
+              }
+            />
 
             {(() => {
               // 4-та hero — три режими:
@@ -451,51 +458,53 @@ export function CompanyOverviewDashboard() {
                   .sort((a, b) => a.delta - b.delta);
                 const totalDivs = filteredDivisions.filter(d => d.totalPlan > 0).length;
                 return (
-                  <div className="glass-card p-5 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
-                      <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold flex-1">Відстають від плану</p>
-                      <span className="text-[20px] font-bold tabular-nums leading-none">
-                        {behind.length}<span className="text-[13px] font-medium text-muted-foreground">/{totalDivs}</span>
-                      </span>
-                    </div>
-                    {behind.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground">— усі тримають темп</p>
-                    ) : (
-                      <div className="flex flex-col gap-0.5 max-h-[150px] overflow-y-auto pr-1">
-                        {behind.map(b => (
-                          <div key={b.name} className="flex items-center justify-between text-[11px] gap-2">
-                            <span className="text-muted-foreground truncate">{b.name}</span>
-                            <span className="font-bold tabular-nums text-rose-700 shrink-0">{b.delta.toFixed(1)}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <MetricCard
+                    index={3}
+                    icon={<AlertTriangle />}
+                    iconColor="text-orange-500"
+                    label="Відстають від плану"
+                    valueSize="lg"
+                    value={<>{behind.length}<span className="text-[22px] font-medium text-muted-foreground">/{totalDivs}</span></>}
+                    caption={
+                      behind.length === 0 ? (
+                        <span className="text-muted-foreground">— усі тримають темп</span>
+                      ) : (
+                        <div className="flex flex-col gap-0.5 max-h-[110px] overflow-y-auto pr-1">
+                          {behind.map(b => (
+                            <div key={b.name} className="flex items-center justify-between gap-2">
+                              <span className="text-muted-foreground truncate">{b.name}</span>
+                              <span className="font-bold tabular-nums text-rose-700 shrink-0">{b.delta.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                  />
                 );
               }
               const isClientGroup = groupFilter === 'representations' || groupFilter === 'call-center';
               if (!isClientGroup) {
-                // Робочі дні місяця: пройшло / всього
                 const py = periodDate.getFullYear();
                 const pm = periodDate.getMonth();
                 const totalWD = getWorkingDaysInMonth(py, pm);
                 const passedWD = getPassedWorkingDays(py, pm, now);
                 const remainingWD = Math.max(0, totalWD - passedWD);
                 return (
-                  <div className="glass-card p-6 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7]" />
-                      <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Робочі дні</p>
-                    </div>
-                    <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                      {passedWD} <span className="text-[22px] font-medium text-muted-foreground">/ {totalWD}</span>
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-3">{remainingWD > 0 ? `лишилось ${remainingWD} ${remainingWD === 1 ? 'день' : remainingWD < 5 ? 'дні' : 'днів'} до кінця` : 'місяць завершено'}</p>
-                  </div>
+                  <MetricCard
+                    index={3}
+                    icon={<CalendarDays />}
+                    iconColor="text-violet-500"
+                    label="Робочі дні"
+                    valueSize="lg"
+                    value={<>{passedWD}<span className="text-[22px] font-medium text-muted-foreground"> / {totalWD}</span></>}
+                    caption={
+                      <span className="text-muted-foreground">
+                        {remainingWD > 0 ? `лишилось ${remainingWD} ${remainingWD === 1 ? 'день' : remainingWD < 5 ? 'дні' : 'днів'} до кінця` : 'місяць завершено'}
+                      </span>
+                    }
+                  />
                 );
               }
-              // Тільки reps+call-center дані для клієнтської картки
               const clientDivs = filteredDivisions.filter(d => d.groupKey === 'representations' || d.groupKey === 'call-center');
               const agg = clientDivs.reduce((a, d) => {
                 if (d.clientStats) {
@@ -514,26 +523,22 @@ export function CompanyOverviewDashboard() {
               }, { totalBought: 0, totalClients: 0, prevTotalBought: 0, active: 0, sleeping: 0, lost: 0, new: 0, none: 0 });
               const deltaBought = agg.totalBought - agg.prevTotalBought;
               return (
-                <div className="glass-card p-6 fade-stagger relative" style={{ ['--i' as string]: 3 }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#fb923c] shadow-[0_0_6px_#fb923c]" />
-                    <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">Покупці місяця · {groupLabel}</p>
-                  </div>
-                  <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-                    {agg.totalBought}
-                  </p>
-                  {/* totalClients прибрано — це сума клієнтів на менеджерах з 1С яка
-                      НЕ враховує наші правила класифікації (active 3 міс vs 1С-категорія).
-                      Показували б введення в оману. */}
-                  <p className="text-[11px] text-muted-foreground mt-3">
-                    клієнтів зробили закупки цього місяця
-                  </p>
-                  {agg.prevTotalBought > 0 && (
-                    <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold ${deltaBought >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
-                      {deltaBought >= 0 ? '↑' : '↓'} {Math.abs(deltaBought)} клієнтів vs мин.міс.
-                    </span>
-                  )}
-                </div>
+                <MetricCard
+                  index={3}
+                  icon={<Users />}
+                  iconColor="text-orange-500"
+                  label={`Покупці місяця · ${groupLabel}`}
+                  valueSize="lg"
+                  value={agg.totalBought}
+                  caption={<span className="text-muted-foreground">клієнтів зробили закупки цього місяця</span>}
+                  trailing={
+                    agg.prevTotalBought > 0 ? (
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${deltaBought >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                        {deltaBought >= 0 ? '↑' : '↓'} {Math.abs(deltaBought)} клієнтів vs мин.міс.
+                      </span>
+                    ) : null
+                  }
+                />
               );
             })()}
           </div>
