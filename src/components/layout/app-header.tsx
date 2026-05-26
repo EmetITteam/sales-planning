@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSWRConfig } from 'swr';
 import { useAppStore } from '@/lib/store';
 import { useGlassHover } from '@/hooks/use-glass-hover';
@@ -102,6 +103,7 @@ export function AppHeader() {
   const initials = user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
 
   return (
+    <>
     <header className="sticky top-0 z-50 bg-white/55 backdrop-blur-xl backdrop-saturate-150 border-b border-white/50 shadow-[0_4px_24px_rgba(6,42,61,0.04)]">
       <div className="flex h-[56px] items-center gap-4 px-5">
         {/* Logo: EMET-знак + назва продукту */}
@@ -228,35 +230,39 @@ export function AppHeader() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {/* Session-expired modal — показуємо коли callOneC ловить 401/403 */}
-      {sessionExpired && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="session-expired-title"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
-        >
-          <div className="glass-card max-w-md w-[90%] p-6 mx-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
-                <LogOut className="h-5 w-5" />
-              </div>
-              <h2 id="session-expired-title" className="text-[15px] font-bold">Сесія завершилась</h2>
-            </div>
-            <p className="text-[13px] text-muted-foreground mb-5">
-              Час вашого сеансу закінчився або ви вийшли з системи в іншій вкладці. Увійдіть знову, щоб продовжити роботу.
-            </p>
-            <button
-              type="button"
-              onClick={handleSessionExpiredOk}
-              autoFocus
-              className="w-full h-10 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] font-semibold shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
-            >
-              Увійти знову
-            </button>
-          </div>
-        </div>
-      )}
     </header>
+    {/* Session-expired modal — портал у document.body, бо <header> має
+        backdrop-blur і створює новий containing-block для fixed-нащадків.
+        Без порталу модал прив'язувався б до бара хедера як стрічка. */}
+    {sessionExpired && typeof document !== 'undefined' && createPortal(
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="session-expired-title"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      >
+        <div className="glass-card max-w-md w-[90%] p-6 mx-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+              <LogOut className="h-5 w-5" />
+            </div>
+            <h2 id="session-expired-title" className="text-[15px] font-bold">Сесія завершилась</h2>
+          </div>
+          <p className="text-[13px] text-muted-foreground mb-5">
+            Час вашого сеансу закінчився або ви вийшли з системи в іншій вкладці. Увійдіть знову, щоб продовжити роботу.
+          </p>
+          <button
+            type="button"
+            onClick={handleSessionExpiredOk}
+            autoFocus
+            className="w-full h-10 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] font-semibold shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
+          >
+            Увійти знову
+          </button>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   );
 }
