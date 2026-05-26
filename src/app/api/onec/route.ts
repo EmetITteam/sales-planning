@@ -162,10 +162,13 @@ export async function POST(request: NextRequest) {
     try {
       json = JSON.parse(text);
     } catch {
+      // У проді не показуємо raw 1С body (може бути IIS stack trace).
+      console.error(`[/api/onec] 1С returned non-JSON HTTP ${upstream.status}: ${text.slice(0, 200)}`);
       return Response.json(
         {
           status: 'error',
-          message: `1С повернула не-JSON (HTTP ${upstream.status}): ${text.slice(0, 200)}`,
+          message: `1С повернула невалідну відповідь (HTTP ${upstream.status}). Спробуйте пізніше.`,
+          ...(process.env.NODE_ENV !== 'production' && { debugBody: text.slice(0, 200) }),
         },
         { status: 502 },
       );
