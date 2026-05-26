@@ -149,7 +149,7 @@ export default function AdminPlanningLocksPage() {
         {/* Window-days settings */}
         <section className="glass-card p-5">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-[#e8f4fc] flex items-center justify-center"><Clock className="h-4 w-4 text-[#066aab]" /></div>
+            <div className="w-8 h-8 rounded-xl bg-emet-50 flex items-center justify-center"><Clock className="h-4 w-4 text-emet-blue" /></div>
             <h2 className="text-[14px] font-bold">Графік планування</h2>
           </div>
           <p className="text-[12px] text-muted-foreground mb-4">
@@ -169,7 +169,7 @@ export default function AdminPlanningLocksPage() {
             <Button
               onClick={saveSettings}
               disabled={savingSettings || windowDaysDraft === null}
-              className="gap-2 h-10 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white"
+              className="gap-2 h-10 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white"
             >
               <Save className="h-4 w-4" /> {savingSettings ? 'Збереження…' : 'Зберегти'}
             </Button>
@@ -257,7 +257,7 @@ export default function AdminPlanningLocksPage() {
         {/* Locks list */}
         <section className="glass-card p-5">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-[#e8f4fc] flex items-center justify-center"><Settings2 className="h-4 w-4 text-[#066aab]" /></div>
+            <div className="w-8 h-8 rounded-xl bg-emet-50 flex items-center justify-center"><Settings2 className="h-4 w-4 text-emet-blue" /></div>
             <h2 className="text-[14px] font-bold">Активні локи · {month.slice(0, 7)}</h2>
           </div>
           {locks.length === 0 ? (

@@ -99,7 +99,7 @@ export function BrandRow({
       onClick={onClick}
       {...buttonProps}
       className={`group w-full text-left glass-card p-3 md:p-4 ${
-        onClick && !readOnly ? 'hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] cursor-pointer hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50' : ''
+        onClick && !readOnly ? 'hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] cursor-pointer hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50' : ''
       } transition-all duration-200 ${isInactive ? 'opacity-50' : ''}`}
     >
       {/* === DESKTOP (xl+: 1280px і ширше): один рядок з 9 колонками ===
@@ -136,7 +136,7 @@ export function BrandRow({
         <div className="min-w-0">
           <div className="relative w-full h-2 rounded-full bg-[#f0f2f8] overflow-visible">
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc] transition-all duration-500"
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emet-blue to-emet-blue-light transition-all duration-500"
               style={{ width: `${factBarWidth}%` }}
             />
             {/* Насічка прогнозу (run-rate, амбер) */}
@@ -150,7 +150,7 @@ export function BrandRow({
             {/* Насічка очікуваного (план менеджера, EMET-синя) */}
             {hasManagerPlan && (
               <div
-                className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-[#066aab] rounded-full"
+                className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-emet-blue rounded-full"
                 style={{ left: `calc(${Math.min(computedExpectedPct, 100)}% - 1px)` }}
                 title={`Запланований (план менеджера): ${formatPct(computedExpectedPct)}`}
               />
@@ -166,8 +166,8 @@ export function BrandRow({
               <>
                 <span className="text-muted-foreground/40">·</span>
                 <span>
-                  <span className="text-[#066aab]">●</span> Запл.:{' '}
-                  <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span>
+                  <span className="text-emet-blue">●</span> Запл.:{' '}
+                  <span className="font-bold text-emet-blue">{formatPct(computedExpectedPct)}</span>
                   <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount ?? 0)}</span></span>
                 </span>
               </>
@@ -219,9 +219,9 @@ export function BrandRow({
         {/* 9. Chevron — drill-down (вправо) або accordion (вниз/обертається) */}
         {onClick ? (
           expandable ? (
-            <ChevronDown className={`h-4 w-4 text-muted-foreground/40 group-hover:text-[#066aab] transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-4 w-4 text-muted-foreground/40 group-hover:text-emet-blue transition-transform ${expanded ? 'rotate-180' : ''}`} />
           ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-[#066aab] group-hover:translate-x-0.5 transition-all" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-emet-blue group-hover:translate-x-0.5 transition-all" />
           )
         ) : <div />}
       </div>
@@ -249,7 +249,7 @@ export function BrandRow({
         {/* Mobile прогрес-бар */}
         <div className="relative w-full h-2 rounded-full bg-[#f0f2f8] overflow-visible">
           <div
-            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]"
+            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emet-blue to-emet-blue-light"
             style={{ width: `${factBarWidth}%` }}
           />
           {forecastPct > 0 && forecastPct <= 100 && (
@@ -257,7 +257,7 @@ export function BrandRow({
               style={{ left: `calc(${Math.min(forecastPct, 100)}% - 1px)` }} />
           )}
           {hasManagerPlan && (
-            <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-[#066aab] rounded-full"
+            <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-emet-blue rounded-full"
               style={{ left: `calc(${Math.min(computedExpectedPct, 100)}% - 1px)` }} />
           )}
         </div>
@@ -267,8 +267,8 @@ export function BrandRow({
           <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
           {planAmount > 0 && (
             <span>
-              <span className="text-[#066aab]">●</span> Запл.{' '}
-              <span className="font-bold text-[#066aab]">{formatPct(computedExpectedPct)}</span>
+              <span className="text-emet-blue">●</span> Запл.{' '}
+              <span className="font-bold text-emet-blue">{formatPct(computedExpectedPct)}</span>
               <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount ?? 0)}</span></span>
             </span>
           )}

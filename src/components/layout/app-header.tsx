@@ -40,7 +40,7 @@ function getRoleLabel(login: string, role: string): string {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  manager: 'bg-[#c5e3f6] text-[#055a91]',
+  manager: 'bg-emet-100 text-emet-blue-dark',
   rm: 'bg-[#e8d5f5] text-[#6b21a8]',
   director: 'bg-[#fde68a] text-[#92400e]',
   admin: 'bg-[#fecaca] text-[#991b1b]',
@@ -108,7 +108,7 @@ export function AppHeader() {
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/emet-logo.png" alt="EMET" className="h-8 w-8 object-contain" />
-          <span className="text-[15px] font-semibold tracking-tight hidden sm:inline bg-gradient-to-r from-[#066aab] to-[#0880cc] bg-clip-text text-transparent">
+          <span className="text-[15px] font-semibold tracking-tight hidden sm:inline bg-gradient-to-r from-emet-blue to-emet-blue-light bg-clip-text text-transparent">
             Планування продажів
           </span>
         </div>
@@ -150,7 +150,7 @@ export function AppHeader() {
               onClick={() => setActiveView('planning')}
               className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
                 activeView === 'planning'
-                  ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -160,7 +160,7 @@ export function AppHeader() {
               onClick={() => setActiveView('company-overview')}
               className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
                 activeView === 'company-overview'
-                  ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -246,7 +246,7 @@ export function AppHeader() {
               type="button"
               onClick={handleSessionExpiredOk}
               autoFocus
-              className="w-full h-10 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white text-[13px] font-semibold shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
+              className="w-full h-10 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] font-semibold shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
             >
               Увійти знову
             </button>

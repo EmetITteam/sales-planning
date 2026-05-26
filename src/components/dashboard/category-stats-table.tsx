@@ -60,7 +60,7 @@ const CAT_META: Array<{
   iconClass: string;
   bgClass: string;
 }> = [
-  { key: 'active',     label: 'Активні клієнти',          icon: Users,       iconClass: 'text-[#066aab]', bgClass: 'bg-[#e8f4fc]' },
+  { key: 'active',     label: 'Активні клієнти',          icon: Users,       iconClass: 'text-emet-blue', bgClass: 'bg-emet-50' },
   { key: 'activation', label: 'Активізація (Сплячі/Втрачені/БЗ)', icon: RefreshCw, iconClass: 'text-amber-600',  bgClass: 'bg-amber-50' },
   { key: 'unplanned',  label: 'Незаплановані', icon: AlertCircle, iconClass: 'text-fuchsia-600', bgClass: 'bg-fuchsia-50' },
   { key: 'new',        label: 'Нові клієнти (категорія 1С)', icon: UserPlus, iconClass: 'text-emerald-600', bgClass: 'bg-emerald-50' },
@@ -121,7 +121,7 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
           <span className="text-[11px] text-muted-foreground">{title}</span>
         </div>}
         <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
-          <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none">
+          <svg className="h-5 w-5 animate-spin text-emet-blue" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>

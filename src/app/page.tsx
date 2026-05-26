@@ -18,7 +18,7 @@ export default function Home() {
 
   if (!bootstrapped) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#e8f4fc] via-white to-[#e8f4fc]">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emet-50 via-white to-emet-50">
         <div className="text-[13px] text-muted-foreground animate-pulse">Перевіряю сесію…</div>
       </div>
     );

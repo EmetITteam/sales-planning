@@ -79,14 +79,14 @@ export default function AdminPage() {
           />
           <AdminCard
             href="/admin/company-overview"
-            icon={<Building2 className="h-4 w-4 text-[#066aab]" />}
+            icon={<Building2 className="h-4 w-4 text-emet-blue" />}
             title="Огляд компанії"
             description="Уся компанія — план/факт по 13 підрозділах (включно з Колл-центр, Лазерхауз, Адасса, Чугуй, Хайленко). Heatmap бренд×підрозділ + donut-діаграми. Read-only."
             ready
           />
           <AdminCard
             href="/admin/company-overview-permissions"
-            icon={<Building2 className="h-4 w-4 text-[#066aab]" />}
+            icon={<Building2 className="h-4 w-4 text-emet-blue" />}
             title="Доступ до «Огляду компанії»"
             description="Кому показувати toggle «Дашборд / Огляд компанії» на головній сторінці. Admin завжди має доступ. Інші юзери — за галочкою."
             ready
@@ -122,7 +122,7 @@ function AdminCard({ icon, title, description, ready, href }: {
         <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">{icon}</div>
         <p className="text-[14px] font-bold">{title}</p>
         {!ready && (
-          <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#e8f4fc] text-[#066aab] font-bold">
+          <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-emet-50 text-emet-blue font-bold">
             Інлайн у формі
           </span>
         )}

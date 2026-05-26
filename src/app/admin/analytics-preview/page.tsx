@@ -107,7 +107,7 @@ export default function AnalyticsPreviewPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <PreviewMetricCard
             icon={<TrendingUp className="h-5 w-5" />}
-            iconBg="bg-gradient-to-br from-[#066aab] to-[#0880cc]"
+            iconBg="bg-gradient-to-br from-emet-blue to-emet-blue-light"
             title="Pipeline Coverage"
             what="Скільки прогнозу + закриття розриву покриває залишок плану"
             formula="(Σ forecast + Σ gap_closure) / (plan − fact)"

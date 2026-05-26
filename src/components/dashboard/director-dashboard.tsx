@@ -304,7 +304,7 @@ export function DirectorDashboard() {
 
       {/* Header */}
       <div className="flex items-center gap-2.5">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emet-blue to-emet-blue-light text-white shadow-lg shadow-emet-blue/15">
           <Users className="h-5 w-5" />
         </div>
         <div className="flex-1">
@@ -318,7 +318,7 @@ export function DirectorDashboard() {
           <button
             onClick={handleRefreshAll}
             title="Оновити всі дані (1С + статистика регіонів)"
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-emet-blue transition-colors cursor-pointer"
           >
             <RefreshCw className="h-3 w-3" /> Оновити
           </button>
@@ -328,7 +328,7 @@ export function DirectorDashboard() {
       {loading && (
         <div className="glass-card p-12 text-center">
           <div className="inline-flex flex-col items-center gap-3">
-            <RefreshCw className="h-6 w-6 animate-spin text-[#066aab]" />
+            <RefreshCw className="h-6 w-6 animate-spin text-emet-blue" />
             <p className="text-[13px] font-medium text-muted-foreground">Завантажуємо дані компанії…</p>
           </div>
         </div>
@@ -342,7 +342,7 @@ export function DirectorDashboard() {
           </p>
           <button
             onClick={handleManualRetry}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-[#066aab]/15 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-emet-blue/15 transition-all"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Спробувати ще
           </button>
@@ -355,7 +355,7 @@ export function DirectorDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
               icon={<Target />}
-              iconColor="text-[#066aab]"
+              iconColor="text-emet-blue"
               label="План представництв"
               value={formatUSD(totalPlan)}
               isAmount
@@ -413,7 +413,7 @@ export function DirectorDashboard() {
                   <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
                   <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
                   {totalExpectedPct !== null && (
-                    <p className="text-muted-foreground">Запланований: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+                    <p className="text-muted-foreground">Запланований: <span className="font-semibold text-emet-blue">{formatPct(totalExpectedPct)}</span></p>
                   )}
                 </div>
               )}

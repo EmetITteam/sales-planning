@@ -39,7 +39,7 @@ export function ClientStatsCard({ stats, loading = false }: ClientStatsCardProps
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-[12px]">
           <div className="flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5 text-[#066aab]" />
+            <Users className="h-3.5 w-3.5 text-emet-blue" />
             <span className="font-medium">Активні</span>
           </div>
           <span className="font-bold">

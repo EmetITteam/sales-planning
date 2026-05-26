@@ -94,7 +94,7 @@ export default function AdminCompanyOverviewPermissionsPage() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#5bd5bc] text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emet-blue to-[#5bd5bc] text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
             <Building2 className="h-5 w-5" />
           </div>
           <div>

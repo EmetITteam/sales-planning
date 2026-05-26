@@ -987,7 +987,7 @@ export function PlanningForm({
   const totalCatPct = pctOf(totalCatAmount, planAmount);
 
   const CAT_ICONS: Record<string, React.ReactNode> = {
-    active: <Users className="h-4 w-4 text-[#066aab]" />,
+    active: <Users className="h-4 w-4 text-emet-blue" />,
     new: <UserPlus className="h-4 w-4 text-emerald-600" />,
     sleeping_lost: <RefreshCw className="h-4 w-4 text-amber-600" />,
   };
@@ -1209,7 +1209,7 @@ export function PlanningForm({
         </button>
         <span className="text-muted-foreground/40">/</span>
         <span className="text-[15px] font-bold">{segment?.name}</span>
-        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">{periodLabel}</span>
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emet-50 text-emet-blue">{periodLabel}</span>
         {readOnlyProp && (
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 flex items-center gap-1">
             <Eye className="h-3 w-3" /> Перегляд
@@ -1226,15 +1226,15 @@ export function PlanningForm({
       {/* Whose-plan banner — коли admin/RM/Director дивиться чужого менеджера,
           явно показуємо ім'я і логін щоб не загубитись (Етап 2.6, 2026-05-13). */}
       {targetUserLogin && targetUserLogin !== (user?.login || '') && (
-        <div className="bg-[#e8f4fc] border border-[#066aab]/20 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#066aab] text-white flex items-center justify-center shrink-0">
+        <div className="bg-emet-50 border border-emet-blue/20 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emet-blue text-white flex items-center justify-center shrink-0">
             <Users className="h-4 w-4" />
           </div>
           <div className="flex-1">
-            <p className="text-[14px] font-bold text-[#066aab]">
+            <p className="text-[14px] font-bold text-emet-blue">
               План менеджера: {targetUserName || targetUserLogin}
             </p>
-            <p className="text-[12px] text-[#066aab]/70 mt-0.5">
+            <p className="text-[12px] text-emet-blue/70 mt-0.5">
               Логін: {targetUserLogin}
               {isAdmin ? ' · режим адміна — редагування дозволено' : ''}
             </p>
@@ -1288,8 +1288,8 @@ export function PlanningForm({
             subline?: string;
           };
           const metrics: Metric[] = [
-            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true, subline: planSubline ?? undefined },
-            { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-emet-blue to-emet-blue-light', isAmount: true, subline: planSubline ?? undefined },
+            { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-emet-blue to-emet-blue-light', isAmount: true },
             { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true, subline: factSubline ?? undefined },
             { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
           ];
@@ -1318,7 +1318,7 @@ export function PlanningForm({
         <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
           <h3 className="text-[14px] font-bold">Дані по клієнтах по ТМ</h3>
           {clientsLoading && (
-            <span className="flex items-center gap-1.5 text-[11px] text-[#066aab] font-medium">
+            <span className="flex items-center gap-1.5 text-[11px] text-emet-blue font-medium">
               <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1341,7 +1341,7 @@ export function PlanningForm({
               <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Заплан.</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
               <div className="text-right basis-[90px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
               <div className="text-right basis-[80px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-emerald-700">{formatUSD(cat.factAmount)}</p></div>
-              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
+              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-emet-blue">{cat.planCoveragePercent.toFixed(1)}%</p></div>
             </div>
           ))}
           {/* Незаплановані — покупці яких немає у плані менеджера, але вони
@@ -1393,7 +1393,7 @@ export function PlanningForm({
             <p className="text-[14px] font-bold text-right">{totalCatClients}</p>
             <p className="text-[14px] font-bold font-mono text-right amount">{formatUSD(totalCatAmount)}</p>
             <p className="text-[14px] font-bold font-mono text-right amount text-emerald-700">{formatUSD(totalCatFact)}</p>
-            <p className="text-[14px] font-bold text-[#066aab] text-right">{totalCatPct.toFixed(1)}%</p>
+            <p className="text-[14px] font-bold text-emet-blue text-right">{totalCatPct.toFixed(1)}%</p>
           </div>
         </div>
         )}
@@ -1408,7 +1408,7 @@ export function PlanningForm({
           </div>
           {!lockEdit && (
             <Button onClick={() => setSearchOpen(true)}
-              className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
+              className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-9 px-4 text-[13px]">
               <Search className="h-3.5 w-3.5" /> Додати клієнта
             </Button>
           )}
@@ -1458,7 +1458,7 @@ export function PlanningForm({
 
         {clientsLoading && sortedForecasts.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground glass-card border border-[#e8ebf4]/50">
-            <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <svg className="h-5 w-5 animate-spin text-emet-blue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
@@ -1780,7 +1780,7 @@ export function PlanningForm({
           </div>
           {!lockEdit && (
             <Button onClick={() => setGapSearchOpen(true)}
-              className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
+              className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-9 px-4 text-[13px]">
               <Search className="h-3.5 w-3.5" /> Додати клієнта
             </Button>
           )}
@@ -1788,7 +1788,7 @@ export function PlanningForm({
 
         {clientsLoading && gapClosures.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground glass-card border border-[#e8ebf4]/50">
-            <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <svg className="h-5 w-5 animate-spin text-emet-blue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
@@ -2176,7 +2176,7 @@ export function PlanningForm({
           <Button
             onClick={handleSave}
             disabled={saving || finalizing}
-            className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+            className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
           >
             {saving ? (
               <>

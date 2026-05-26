@@ -99,7 +99,7 @@ export default function AdminStageEditPermissionsPage() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emet-blue to-emet-blue-light text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
             <Settings2 className="h-5 w-5" />
           </div>
           <div>

@@ -90,10 +90,10 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className="hidden md:flex w-full items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50"
+        className="hidden md:flex w-full items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
       >
         <div className="flex items-center gap-3 min-w-0 shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[12px] font-bold text-[#066aab] shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-emet-50 flex items-center justify-center text-[12px] font-bold text-emet-blue shrink-0">
             {initials(manager.name, manager.login)}
           </div>
           <div className="min-w-0">
@@ -119,9 +119,9 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             {hasExpected ? (
               <>
                 <p className="text-[14px] font-bold font-mono leading-none mt-1.5 whitespace-nowrap">
-                  <span className="amount text-[#066aab]">{formatUSD(totalExpected)}</span>
+                  <span className="amount text-emet-blue">{formatUSD(totalExpected)}</span>
                 </p>
-                <p className="text-[11px] font-bold leading-none mt-1 text-[#066aab]">
+                <p className="text-[11px] font-bold leading-none mt-1 text-emet-blue">
                   {expectedPct.toFixed(1)}%
                 </p>
               </>
@@ -154,7 +154,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             ) : (
               <>
                 <div className="w-14 h-2 rounded-full bg-[#f0f2f8] overflow-hidden">
-                  <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+                  <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
                     style={{ width: `${Math.min(pct, 100)}%` }} />
                 </div>
                 <span className={`text-[11px] font-bold leading-none ${tl.color}`}>{pct.toFixed(1)}%</span>
@@ -179,7 +179,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
           <button
             onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
             title="Перейти у дашборд менеджера"
-            className="mt-[16px] p-1.5 rounded-lg hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
+            className="mt-[16px] p-1.5 rounded-lg hover:bg-emet-50 text-muted-foreground/40 hover:text-emet-blue transition-colors cursor-pointer shrink-0"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -192,9 +192,9 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
           type="button"
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
-          className="flex w-full items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50"
+          className="flex w-full items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
         >
-          <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center text-[11px] font-bold text-[#066aab] shrink-0 mt-0.5">
+          <div className="w-9 h-9 rounded-xl bg-emet-50 flex items-center justify-center text-[11px] font-bold text-emet-blue shrink-0 mt-0.5">
             {initials(manager.name, manager.login)}
           </div>
           <div className="flex-1 min-w-0">
@@ -208,7 +208,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
               <ChevronDown className={`h-4 w-4 text-muted-foreground/40 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
               <button
                 onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
-                className="p-1 rounded-lg text-muted-foreground/40 hover:text-[#066aab] hover:bg-[#e8f4fc] transition-colors cursor-pointer shrink-0"
+                className="p-1 rounded-lg text-muted-foreground/40 hover:text-emet-blue hover:bg-emet-50 transition-colors cursor-pointer shrink-0"
                 title="Дашборд менеджера"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -228,7 +228,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             </div>
             {!isTrial && (
               <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mb-2">
-                <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+                <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
                   style={{ width: `${Math.min(pct, 100)}%` }} />
               </div>
             )}
@@ -248,9 +248,9 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             {hasExpected && (
               <div className="text-[11px] mt-1">
                 <span className="text-muted-foreground">Запл. </span>
-                <span className="font-bold text-[#066aab] amount">{formatUSD(totalExpected)}</span>
+                <span className="font-bold text-emet-blue amount">{formatUSD(totalExpected)}</span>
                 <span className="text-muted-foreground/50"> · </span>
-                <span className="font-bold text-[#066aab]">{expectedPct.toFixed(1)}%</span>
+                <span className="font-bold text-emet-blue">{expectedPct.toFixed(1)}%</span>
               </div>
             )}
           </div>

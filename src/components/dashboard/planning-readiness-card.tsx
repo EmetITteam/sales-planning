@@ -222,11 +222,11 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className="w-full flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50"
+        className="w-full flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
       >
         <div className="flex items-center gap-3 min-w-0 shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
-            <ClipboardCheck className="h-5 w-5 text-[#066aab]" />
+          <div className="w-10 h-10 rounded-xl bg-emet-50 flex items-center justify-center shrink-0">
+            <ClipboardCheck className="h-5 w-5 text-emet-blue" />
           </div>
           <div className="min-w-0">
             <p className="text-[14px] font-bold truncate">Готовність планування</p>

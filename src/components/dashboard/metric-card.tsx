@@ -7,7 +7,7 @@ interface MetricCardProps {
   icon: ReactNode;
   /**
    * Tailwind text-color клас для приглушеної watermark-іконки.
-   * Наприклад 'text-[#066aab]' або 'text-emerald-500'.
+   * Наприклад 'text-emet-blue' або 'text-emerald-500'.
    * Прозорість додається через /10 у компоненті.
    */
   iconColor: string;

@@ -267,7 +267,7 @@ export function CompanyOverviewDashboard() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#5bd5bc] text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emet-blue to-[#5bd5bc] text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
           <Building2 className="h-5 w-5" />
         </div>
         <div className="flex-1">
@@ -282,7 +282,7 @@ export function CompanyOverviewDashboard() {
               станом на {data.asOfDate}
             </span>
           )}
-          <button onClick={() => mutate(undefined, { revalidate: true })} className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors">
+          <button onClick={() => mutate(undefined, { revalidate: true })} className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-emet-blue transition-colors">
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Оновити
           </button>
         </div>
@@ -296,7 +296,7 @@ export function CompanyOverviewDashboard() {
 
       {isLoading && !data && (
         <div className="glass-card p-12 text-center">
-          <RefreshCw className="h-6 w-6 animate-spin text-[#066aab] mx-auto mb-3" />
+          <RefreshCw className="h-6 w-6 animate-spin text-emet-blue mx-auto mb-3" />
           <p className="text-[13px] text-muted-foreground">Збираємо дані з 1С (план + факт)…</p>
         </div>
       )}
@@ -332,7 +332,7 @@ export function CompanyOverviewDashboard() {
                   onClick={() => { setGroupFilter(key); setExpandedKey(null); }}
                   className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
                     groupFilter === key
-                      ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow-md shadow-[#066aab]/25'
+                      ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                       : 'bg-white/60 backdrop-blur-md border border-white/50 text-muted-foreground hover:bg-white/90 hover:text-foreground'
                   }`}
                 >
@@ -347,7 +347,7 @@ export function CompanyOverviewDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="glass-card p-6 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)]">
               <div className="flex items-center gap-2 mb-3">
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
                 <p className="text-[10px] uppercase tracking-[1.1px] text-muted-foreground font-bold">План {groupLabel}</p>
               </div>
               <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
@@ -550,7 +550,7 @@ export function CompanyOverviewDashboard() {
             return (
               <div className="glass-card p-6 transition-all">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-[#066aab] shadow-[0_0_6px_#066aab]" />
+                  <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_#066aab]" />
                   <h3 className="text-[14px] font-bold">
                     Клієнти-покупці по категоріях
                     {groupFilter === 'representations' && ' · Представництва'}
@@ -807,13 +807,13 @@ export function CompanyOverviewDashboard() {
               <div className="flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-auto">
                 <button
                   onClick={() => { setAccordionMode('by-div'); setExpandedKey(null); }}
-                  className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all ${accordionMode === 'by-div' ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow' : 'text-muted-foreground'}`}
+                  className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all ${accordionMode === 'by-div' ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow' : 'text-muted-foreground'}`}
                 >
                   Підрозділи → бренди
                 </button>
                 <button
                   onClick={() => { setAccordionMode('by-brand'); setExpandedKey(null); }}
-                  className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all ${accordionMode === 'by-brand' ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc] text-white shadow' : 'text-muted-foreground'}`}
+                  className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all ${accordionMode === 'by-brand' ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow' : 'text-muted-foreground'}`}
                 >
                   Бренди → підрозділи
                 </button>
@@ -834,17 +834,17 @@ export function CompanyOverviewDashboard() {
                   const isExpanded = expandedKey === g.key;
                   const pct = g.hasFact && g.totalPlan > 0 ? (g.totalFact / g.totalPlan) * 100 : null;
                   return (
-                    <div key={g.key} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
+                    <div key={g.key} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-emet-blue/30' : ''}`}>
                       <button
                         type="button"
                         onClick={() => { setExpandedKey(isExpanded ? null : g.key); setExpandedSubKey(null); }}
                         aria-expanded={isExpanded}
-                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50 rounded-lg"
+                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50 rounded-lg"
                       >
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                         <span className="font-bold text-[14px]">
                           {g.label}
-                          {g.isRepresentations && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-[#066aab]/10 text-[#066aab] px-2 py-0.5 rounded-full">{g.children.length} регіонів</span>}
+                          {g.isRepresentations && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-emet-blue/10 text-emet-blue px-2 py-0.5 rounded-full">{g.children.length} регіонів</span>}
                           {!g.hasFact && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-slate-100/70 text-slate-600 px-2 py-0.5 rounded-full">Без факту</span>}
                         </span>
                         <span className="font-mono tabular-nums text-[12px] text-right">
@@ -883,16 +883,16 @@ export function CompanyOverviewDashboard() {
                                     .filter(([_, s]) => s.plan > 0)
                                     .sort((a, b) => b[1].fact - a[1].fact);
                                   return (
-                                    <div key={d.divisionName} className={`glass-card-soft transition-all ${isSubExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
+                                    <div key={d.divisionName} className={`glass-card-soft transition-all ${isSubExpanded ? 'ring-1 ring-emet-blue/30' : ''}`}>
                                       <button
                                         type="button"
                                         onClick={() => setExpandedSubKey(isSubExpanded ? null : subKey)}
                                         aria-expanded={isSubExpanded}
-                                        className="w-full p-3 grid grid-cols-[16px_1fr_70px_180px_70px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50 rounded-lg"
+                                        className="w-full p-3 grid grid-cols-[16px_1fr_70px_180px_70px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50 rounded-lg"
                                       >
                                         <span className={`text-[11px] text-muted-foreground transition-transform ${isSubExpanded ? 'rotate-90' : ''}`}>▶</span>
                                         <span className="text-[13px] font-semibold">{d.divisionName}</span>
-                                        <span className="font-mono tabular-nums text-[12px] text-right font-bold text-[#066aab]">
+                                        <span className="font-mono tabular-nums text-[12px] text-right font-bold text-emet-blue">
                                           {d.hasFact ? fmtPct(shareOfGroup) : '—'}
                                         </span>
                                         <span className="font-mono tabular-nums text-[11px] text-right">
@@ -920,7 +920,7 @@ export function CompanyOverviewDashboard() {
                                               return (
                                                 <div key={code} className="bg-white/40 rounded-lg p-2.5 grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center">
                                                   <span className="text-[12px] font-medium">{BRAND_NAMES[code] || code}</span>
-                                                  <span className="font-mono tabular-nums text-[11px] text-right font-bold text-[#066aab]">
+                                                  <span className="font-mono tabular-nums text-[11px] text-right font-bold text-emet-blue">
                                                     {s.fact > 0 ? fmtPct(shareOfRegion) : '—'}
                                                   </span>
                                                   <span className="font-mono tabular-nums text-[11px] text-right">
@@ -974,7 +974,7 @@ export function CompanyOverviewDashboard() {
                                       return (
                                         <div key={code} className="glass-card-soft p-3 grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center">
                                           <span className="text-[13px] font-semibold">{BRAND_NAMES[code] || code}</span>
-                                          <span className="font-mono tabular-nums text-[12px] text-right font-bold text-[#066aab]">
+                                          <span className="font-mono tabular-nums text-[12px] text-right font-bold text-emet-blue">
                                             {s.fact > 0 ? fmtPct(shareOfDiv) : '—'}
                                           </span>
                                           <span className="font-mono tabular-nums text-[11px] text-right">
@@ -1015,12 +1015,12 @@ export function CompanyOverviewDashboard() {
                   const isExpanded = expandedKey === b.code;
                   const pct = b.totalPlan > 0 ? (b.totalFact / b.totalPlan) * 100 : null;
                   return (
-                    <div key={b.code} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-[#066aab]/30' : ''}`}>
+                    <div key={b.code} className={`glass-card p-4 transition-all ${isExpanded ? 'ring-1 ring-emet-blue/30' : ''}`}>
                       <button
                         type="button"
                         onClick={() => setExpandedKey(isExpanded ? null : b.code)}
                         aria-expanded={isExpanded}
-                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#066aab]/50 rounded-lg"
+                        className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50 rounded-lg"
                       >
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                         <span className="font-bold text-[14px]">{b.name}</span>
@@ -1052,7 +1052,7 @@ export function CompanyOverviewDashboard() {
                                   <div key={d.divisionName} className="glass-card-soft p-3 grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center">
                                     <span className="text-[13px] font-semibold">{d.displayName}</span>
                                     {/* % внеску підрозділу у загальний факт бренду — щоб бачити хто головний драйвер */}
-                                    <span className="font-mono tabular-nums text-[12px] text-right font-bold text-[#066aab]">
+                                    <span className="font-mono tabular-nums text-[12px] text-right font-bold text-emet-blue">
                                       {d.fact > 0 ? fmtPct(shareOfBrand) : '—'}
                                     </span>
                                     <span className="font-mono tabular-nums text-[11px] text-right">

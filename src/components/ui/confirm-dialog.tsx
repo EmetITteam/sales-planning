@@ -36,7 +36,7 @@ export function ConfirmDialog({
       <DialogContent className="max-w-sm p-5 gap-3 rounded-2xl">
         <div className="flex items-start gap-3">
           <div className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${
-            variant === 'danger' ? 'bg-rose-50 text-rose-600' : 'bg-[#e8f4fc] text-[#066aab]'
+            variant === 'danger' ? 'bg-rose-50 text-rose-600' : 'bg-emet-50 text-emet-blue'
           }`}>
             <AlertTriangle className="h-5 w-5" />
           </div>
@@ -58,7 +58,7 @@ export function ConfirmDialog({
             className={`h-9 px-4 text-[13px] text-white ${
               variant === 'danger'
                 ? 'bg-rose-600 hover:bg-rose-700'
-                : 'bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb]'
+                : 'bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb]'
             }`}
           >
             {confirmLabel}

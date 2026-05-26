@@ -161,7 +161,7 @@ export function BrandExpandedDetails({
 
   const baseCards = [
     { key: 'active' as const, label: 'Активні', icon: Users, color: 'text-emerald-700', bg: 'bg-emerald-50', planned: plannedByCategory.active, bought: buyersByCategory.active, fact: factByCategory.active },
-    { key: 'new' as const, label: 'Нові', icon: UserPlus, color: 'text-[#066aab]', bg: 'bg-blue-50', planned: plannedByCategory.new, bought: buyersByCategory.new, fact: factByCategory.new },
+    { key: 'new' as const, label: 'Нові', icon: UserPlus, color: 'text-emet-blue', bg: 'bg-blue-50', planned: plannedByCategory.new, bought: buyersByCategory.new, fact: factByCategory.new },
     { key: 'sleeping_lost' as const, label: 'Активація', icon: RefreshCw, color: 'text-amber-700', bg: 'bg-amber-50', planned: plannedByCategory.sleeping_lost, bought: buyersByCategory.sleeping_lost, fact: factByCategory.sleeping_lost },
   ];
 
@@ -188,7 +188,7 @@ export function BrandExpandedDetails({
             </p>
             <button
               onClick={onPlan}
-              className="text-[11px] font-semibold text-[#066aab] hover:underline"
+              className="text-[11px] font-semibold text-emet-blue hover:underline"
             >
               Перейти у форму →
             </button>

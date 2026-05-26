@@ -159,7 +159,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                   {onManagerClick && r.managers.length > 0 && (
                     <button
                       onClick={() => setExpandedRegion(isRegionExpanded ? null : r.regionCode)}
-                      className="p-2 rounded-lg hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
+                      className="p-2 rounded-lg hover:bg-emet-50 text-muted-foreground/40 hover:text-emet-blue transition-colors cursor-pointer shrink-0"
                       title={isRegionExpanded ? 'Сховати менеджерів' : 'Показати менеджерів регіону'}
                     >
                       <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isRegionExpanded ? 'rotate-180' : ''}`} />
@@ -172,7 +172,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                       <button
                         key={m.login}
                         onClick={() => onManagerClick(m.login, brand.segmentCode)}
-                        className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-white hover:bg-[#e8f4fc] border border-[#f0f2f8] text-[12px] text-left transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-white hover:bg-emet-50 border border-[#f0f2f8] text-[12px] text-left transition-colors cursor-pointer"
                       >
                         <span className="font-medium truncate flex-1">{m.name || m.login}</span>
                         <span className="text-muted-foreground tabular-nums shrink-0">

@@ -405,7 +405,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
             Зверніться до адміністратора 1С щоб закріпити клієнтів за вашим логіном.
           </p>
           <button onClick={refetchClients}
-            className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#066aab] hover:underline">
+            className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-emet-blue hover:underline">
             <RefreshCw className="h-3 w-3" /> Спробувати ще раз
           </button>
         </div>
@@ -465,7 +465,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           icon={<Target />}
-          iconColor="text-[#066aab]"
+          iconColor="text-emet-blue"
           label="План місяця"
           value={isTrial ? '—' : formatUSD(totalPlan)}
           isAmount={!isTrial}
@@ -542,7 +542,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
             <div className="space-y-0.5">
               <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
               <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-              <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Запланований: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+              <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Запланований: <span className="font-semibold text-emet-blue">{formatPct(totalExpectedPct)}</span></p>
             </div>
           )}
         />
@@ -560,7 +560,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
             <button
               onClick={refetchClients}
               title="Перезавантажити клієнтів з 1С (якщо щойно додав/змінив у 1С)"
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors"
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-emet-blue transition-colors"
             >
               <RefreshCw className="h-3 w-3" /> Оновити з 1С
             </button>
