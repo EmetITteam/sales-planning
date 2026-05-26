@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Варіант А · Клієнти — Accordion по категоріях</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f8fbfd;
+  --ink: #062a3d;
+  --ink-soft: rgba(6,42,61,0.62);
+  --ink-muted: rgba(6,42,61,0.42);
+  --emet: #066aab;
+  --emet-light: #0880cc;
+  --mint: #5bd5bc;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background:
+    radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+    radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+    radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+    var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 32px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+.label-top {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(6,106,171,0.1);
+  color: var(--emet);
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+h1 {
+  font-size: 28px;
+  letter-spacing: -0.8px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.subtitle { font-size: 13px; color: var(--ink-soft); margin-bottom: 24px; }
+
+/* Filter chips */
+.filters {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 16px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+.chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(255,255,255,0.5);
+  color: var(--ink-soft);
+}
+.chip.active {
+  background: var(--emet);
+  color: white;
+  border-color: var(--emet);
+  box-shadow: 0 4px 12px rgba(6,106,171,0.25);
+}
+.chip-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding: 6px 0;
+  margin-right: 6px;
+}
+
+/* Hero stats */
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 18px;
+  padding: 16px 18px;
+}
+.stat .lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 8px;
+}
+.stat .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+.stat .val {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  font-variant-numeric: tabular-nums;
+}
+.stat .sub { font-size: 11px; color: var(--ink-muted); margin-top: 4px; }
+
+/* Accordion */
+.category-group {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 20px;
+  padding: 4px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.category-header {
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 16px 180px 1fr 100px 100px 60px;
+  gap: 12px;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 16px;
+}
+.category-header:hover { background: rgba(255,255,255,0.4); }
+.category-header .arrow {
+  font-size: 12px;
+  color: var(--ink-muted);
+  transition: transform 0.2s;
+}
+.category-group[open] .arrow { transform: rotate(90deg); }
+.category-header .title {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex; align-items: center; gap: 10px;
+}
+.category-header .title .cat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+.cat-active { background: #10b981; }
+.cat-sleeping { background: #fb923c; }
+.cat-new { background: #066aab; }
+.cat-lost { background: #94a3b8; }
+.cat-none { background: #cbd5e1; }
+
+.category-header .count {
+  font-size: 11px;
+  color: var(--ink-muted);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.6);
+  font-weight: 600;
+  width: max-content;
+}
+.category-header .fact-plan {
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', monospace;
+}
+.category-header .fact-plan .small { color: var(--ink-muted); }
+.category-header .pct {
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pct-good { color: #047857; }
+.pct-warn { color: #c2410c; }
+.pct-bad { color: #be123c; }
+.pct-zero { color: var(--ink-muted); }
+
+/* Client row */
+.client-list {
+  display: none;
+  padding: 6px 4px;
+}
+.category-group[open] .client-list { display: block; }
+.client-row {
+  display: grid;
+  grid-template-columns: 16px 1fr 130px 140px 90px 70px;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.4);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 12px;
+  margin-bottom: 4px;
+  align-items: center;
+  cursor: pointer;
+}
+.client-row:hover {
+  background: rgba(255,255,255,0.7);
+  transform: translateX(2px);
+  transition: all 0.2s;
+}
+.client-row .arr { font-size: 11px; color: var(--ink-muted); }
+.client-row .name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.client-row .name .last { color: var(--ink-muted); font-size: 11px; margin-left: 6px; }
+.client-row .brands {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.client-row .brand-chip {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(6,106,171,0.08);
+  color: var(--emet);
+  border: 1px solid rgba(6,106,171,0.15);
+}
+.client-row .fact-plan {
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.client-row .fact-plan .small {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+.client-row .pct {
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.client-row .drill {
+  text-align: right;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+/* Column headers */
+.col-headers {
+  display: grid;
+  grid-template-columns: 16px 1fr 130px 140px 90px 70px;
+  gap: 12px;
+  padding: 4px 14px 8px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.col-headers .ta-r { text-align: right; }
+
+/* Sort dropdown */
+.sort-box {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.variant-tag {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, var(--emet), var(--emet-light));
+  color: white;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 10px 30px rgba(6,106,171,0.25);
+  z-index: 100;
+}
+</style>
+</head>
+<body>
+
+<div class="variant-tag">ВАРІАНТ А · Accordion по категоріях</div>
+
+<div class="container">
+  <span class="label-top">МЕНЕДЖЕРСЬКА ВКЛАДКА</span>
+  <h1>Мої клієнти · Травень 2026</h1>
+  <p class="subtitle">Список усіх ваших клієнтів згруповано по категоріях. Усередині — за алфавітом.<br>Клік на клієнта → деталі з планом по брендах.</p>
+
+  <!-- Hero stats -->
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="lbl"><span class="dot" style="background:#066aab; color:#066aab"></span>УСЬОГО КЛІЄНТІВ</div>
+      <div class="val">87</div>
+      <div class="sub">закріплено за вами</div>
+    </div>
+    <div class="stat">
+      <div class="lbl"><span class="dot" style="background:#5bd5bc; color:#5bd5bc"></span>КУПИЛИ ЦЬОГО МІСЯЦЯ</div>
+      <div class="val">34 <span style="font-size:18px; color:var(--ink-muted)">/ 87</span></div>
+      <div class="sub">39.1% активність бази</div>
+    </div>
+    <div class="stat">
+      <div class="lbl"><span class="dot" style="background:#10b981; color:#10b981"></span>ФАКТ</div>
+      <div class="val"><span style="font-size:18px; vertical-align:top">$</span>56,861</div>
+      <div class="sub">90.2% плану</div>
+    </div>
+    <div class="stat">
+      <div class="lbl"><span class="dot" style="background:#fb923c; color:#fb923c"></span>СПЛЯЧИХ ПРИНОСИТЬ</div>
+      <div class="val">7 <span style="font-size:18px; color:var(--ink-muted)">/ 22</span></div>
+      <div class="sub">реактивація працює!</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <span class="chip-label">КАТЕГОРІЯ</span>
+    <span class="chip active">Усі (87)</span>
+    <span class="chip">Активні (42)</span>
+    <span class="chip">Сплячі (22)</span>
+    <span class="chip">Нові (8)</span>
+    <span class="chip">Втрачені (12)</span>
+    <span class="chip">Без закупок (3)</span>
+    <span class="sort-box">Сортування: <strong>За алфавітом</strong> ↓</span>
+  </div>
+
+  <!-- Accordions by category -->
+
+  <details class="category-group" open>
+    <summary class="category-header">
+      <span class="arrow">▶</span>
+      <span class="title"><span class="cat-dot cat-active"></span>Активні</span>
+      <span class="count">28 з 42 купили</span>
+      <span class="fact-plan"><strong>$24,310</strong> <span class="small">/ $28,500</span></span>
+      <span class="pct pct-good">85.3%</span>
+      <span></span>
+    </summary>
+    <div class="client-list">
+      <div class="col-headers">
+        <span></span>
+        <span>Клієнт</span>
+        <span>Бренди</span>
+        <span class="ta-r">Факт / План</span>
+        <span class="ta-r">Виконан.</span>
+        <span class="ta-r">Деталі</span>
+      </div>
+      <div class="client-row">
+        <span class="arr">▸</span>
+        <div class="name">Адель салон, ТОВ <span class="last">остання 17.05</span></div>
+        <div class="brands"><span class="brand-chip">Vitaran</span><span class="brand-chip">ESSE</span></div>
+        <div class="fact-plan"><strong>$1,820</strong> <span class="small">/ $2,000</span></div>
+        <div class="pct pct-good">91%</div>
+        <div class="drill">›</div>
+      </div>
+      <div class="client-row">
+        <span class="arr">▸</span>
+        <div class="name">Аріша клініка <span class="last">остання 14.05</span></div>
+        <div class="brands"><span class="brand-chip">Neuronox</span><span class="brand-chip">Ellanse</span><span class="brand-chip">Vitaran</span></div>
+        <div class="fact-plan"><strong>$3,420</strong> <span class="small">/ $3,200</span></div>
+        <div class="pct pct-good">107%</div>
+        <div class="drill">›</div>
+      </div>
+      <div class="client-row">
+        <span class="arr">▸</span>
+        <div class="name">Бьюті центр Емма <span class="last">остання 20.05</span></div>
+        <div class="brands"><span class="brand-chip">Petaran</span></div>
+        <div class="fact-plan"><strong>$680</strong> <span class="small">/ $800</span></div>
+        <div class="pct pct-good">85%</div>
+        <div class="drill">›</div>
+      </div>
+      <div class="client-row">
+        <span class="arr">▸</span>
+        <div class="name">Венера ФОП <span class="last">остання 22.05</span></div>
+        <div class="brands"><span class="brand-chip">Vitaran</span><span class="brand-chip">Neuramis</span></div>
+        <div class="fact-plan"><strong>$2,150</strong> <span class="small">/ $2,500</span></div>
+        <div class="pct pct-good">86%</div>
+        <div class="drill">›</div>
+      </div>
+      <div class="client-row">
+        <span class="arr">▸</span>
+        <div class="name">Гламур естетик <span class="last">остання 11.05</span></div>
+        <div class="brands"><span class="brand-chip">ESSE</span><span class="brand-chip">IUSE</span></div>
+        <div class="fact-plan"><strong>$1,240</strong> <span class="small">/ $1,500</span></div>
+        <div class="pct pct-warn">83%</div>
+        <div class="drill">›</div>
+      </div>
+    </div>
+  </details>
+
+  <details class="category-group">
+    <summary class="category-header">
+      <span class="arrow">▶</span>
+      <span class="title"><span class="cat-dot cat-sleeping"></span>Сплячі</span>
+      <span class="count">7 з 22 купили</span>
+      <span class="fact-plan"><strong>$8,420</strong> <span class="small">/ $14,000</span></span>
+      <span class="pct pct-warn">60.1%</span>
+      <span></span>
+    </summary>
+    <div class="client-list">
+      <div class="col-headers">
+        <span></span>
+        <span>Клієнт</span>
+        <span>Бренди</span>
+        <span class="ta-r">Факт / План</span>
+        <span class="ta-r">Виконан.</span>
+        <span class="ta-r">Деталі</span>
+      </div>
+      <div class="client-row">
+        <span class="arr">▸</span>
+        <div class="name">Богема СПА <span class="last">остання 02.02</span></div>
+        <div class="brands"><span class="brand-chip">Vitaran</span></div>
+        <div class="fact-plan"><strong>$1,420</strong> <span class="small">/ $1,500</span></div>
+        <div class="pct pct-good">95%</div>
+        <div class="drill">›</div>
+      </div>
+      <div class="client-row">
+        <span class="arr">▸</span>
+        <div class="name">Перлина центр <span class="last">остання 13.01</span></div>
+        <div class="brands"><span class="brand-chip">Vitaran</span><span class="brand-chip">Neuramis</span></div>
+        <div class="fact-plan"><strong>$2,100</strong> <span class="small">/ $3,000</span></div>
+        <div class="pct pct-warn">70%</div>
+        <div class="drill">›</div>
+      </div>
+    </div>
+  </details>
+
+  <details class="category-group">
+    <summary class="category-header">
+      <span class="arrow">▶</span>
+      <span class="title"><span class="cat-dot cat-new"></span>Нові</span>
+      <span class="count">3 з 8 купили</span>
+      <span class="fact-plan"><strong>$1,800</strong> <span class="small">/ $2,200</span></span>
+      <span class="pct pct-good">81.8%</span>
+      <span></span>
+    </summary>
+    <div class="client-list">
+      <div class="col-headers"><span></span><span>Клієнт</span><span>Бренди</span><span class="ta-r">Факт / План</span><span class="ta-r">Виконан.</span><span class="ta-r">Деталі</span></div>
+      <div class="client-row">
+        <span class="arr">▸</span>
+        <div class="name">Зірка нова ФОП <span class="last">нова 28.04</span></div>
+        <div class="brands"><span class="brand-chip">Petaran</span></div>
+        <div class="fact-plan"><strong>$650</strong> <span class="small">/ $800</span></div>
+        <div class="pct pct-good">81%</div>
+        <div class="drill">›</div>
+      </div>
+    </div>
+  </details>
+
+  <details class="category-group">
+    <summary class="category-header">
+      <span class="arrow">▶</span>
+      <span class="title"><span class="cat-dot cat-lost"></span>Втрачені</span>
+      <span class="count">0 з 12 купили</span>
+      <span class="fact-plan"><strong>$0</strong> <span class="small">/ $0</span></span>
+      <span class="pct pct-zero">—</span>
+      <span></span>
+    </summary>
+    <div class="client-list"><div style="padding:12px; text-align:center; color:var(--ink-muted); font-size:12px">Жоден з 12 «Втрачених» не купив цього місяця</div></div>
+  </details>
+
+  <details class="category-group">
+    <summary class="category-header">
+      <span class="arrow">▶</span>
+      <span class="title"><span class="cat-dot cat-none"></span>Без закупок</span>
+      <span class="count">0 з 3 купили</span>
+      <span class="fact-plan"><strong>$0</strong> <span class="small">/ $0</span></span>
+      <span class="pct pct-zero">—</span>
+      <span></span>
+    </summary>
+    <div class="client-list"></div>
+  </details>
+</div>
+
+</body>
+</html>

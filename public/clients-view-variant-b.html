@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Варіант Б · Клієнти — Master/Detail з filter sidebar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f8fbfd;
+  --ink: #062a3d;
+  --ink-soft: rgba(6,42,61,0.62);
+  --ink-muted: rgba(6,42,61,0.42);
+  --emet: #066aab;
+  --emet-light: #0880cc;
+  --mint: #5bd5bc;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background:
+    radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+    radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+    radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+    var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 32px;
+}
+.container { max-width: 1400px; margin: 0 auto; }
+.label-top {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(91,213,188,0.15);
+  color: #047857;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+h1 {
+  font-size: 28px;
+  letter-spacing: -0.8px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.subtitle { font-size: 13px; color: var(--ink-soft); margin-bottom: 24px; }
+
+/* Layout — split */
+.split-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  min-height: 760px;
+}
+
+/* Sidebar */
+.sidebar {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 20px;
+  padding: 18px;
+  height: fit-content;
+  position: sticky;
+  top: 32px;
+}
+.sidebar h2 {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+.cat-button {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.cat-button:hover { background: rgba(255,255,255,0.6); }
+.cat-button.active {
+  background: linear-gradient(135deg, var(--emet), var(--emet-light));
+  color: white;
+  box-shadow: 0 6px 18px rgba(6,106,171,0.25);
+}
+.cat-button .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.cat-active { background: #10b981; }
+.cat-sleeping { background: #fb923c; }
+.cat-new { background: #066aab; }
+.cat-lost { background: #94a3b8; }
+.cat-none { background: #cbd5e1; }
+
+.cat-button.active .dot { box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+.cat-button .name { font-weight: 600; }
+.cat-button.active .name { font-weight: 700; }
+.cat-button .count {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.05);
+  color: var(--ink-muted);
+}
+.cat-button.active .count {
+  background: rgba(255,255,255,0.25);
+  color: white;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: rgba(6,42,61,0.08);
+  margin: 14px 0;
+}
+
+.mini-stat {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+.mini-stat strong { color: var(--ink); font-weight: 700; }
+
+/* Main panel */
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Mini-hero — компакт зведення поточної категорії */
+.mini-hero {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.mini-hero .card {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 16px;
+  padding: 14px;
+}
+.mini-hero .lbl {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+.mini-hero .val {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.mini-hero .sub { font-size: 10px; color: var(--ink-muted); margin-top: 2px; }
+
+/* Search bar */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 16px;
+  padding: 8px 12px;
+}
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+}
+.search-input::placeholder { color: var(--ink-muted); }
+.toolbar-sort {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+/* Client cards grid */
+.clients-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.client-card {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 14px 1fr 200px 140px 90px 60px;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
+}
+.client-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(6,106,171,0.12);
+  border-color: rgba(6,106,171,0.25);
+}
+.client-card .letter {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(6,106,171,0.1), rgba(91,213,188,0.15));
+  color: var(--emet);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  margin-left: -8px;
+}
+.client-card .name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.client-card .meta {
+  display: flex; gap: 8px;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+.client-card .meta span { display: flex; align-items: center; gap: 4px; }
+.client-card .meta .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+.client-card .brands {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.brand-chip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(6,106,171,0.08);
+  color: var(--emet);
+  border: 1px solid rgba(6,106,171,0.12);
+  white-space: nowrap;
+}
+.brand-chip.empty {
+  background: rgba(0,0,0,0.03);
+  color: var(--ink-muted);
+  border-color: rgba(0,0,0,0.08);
+}
+.client-card .fact-plan {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.client-card .fact-plan .big {
+  font-size: 14px; font-weight: 700;
+}
+.client-card .fact-plan .small {
+  font-size: 11px;
+  color: var(--ink-muted);
+  display: block;
+  margin-top: 2px;
+}
+.client-card .pct {
+  text-align: right;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pct-good { color: #047857; }
+.pct-warn { color: #c2410c; }
+.pct-bad { color: #be123c; }
+.pct-zero { color: var(--ink-muted); }
+
+.client-card .drill {
+  text-align: right;
+  font-size: 18px;
+  color: var(--ink-muted);
+}
+.client-card:hover .drill { color: var(--emet); }
+
+/* Section letter divider */
+.letter-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 4px 4px;
+}
+.letter-divider .letter-big {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--emet);
+  letter-spacing: 0.5px;
+}
+.letter-divider .line {
+  flex: 1;
+  height: 1px;
+  background: rgba(6,42,61,0.08);
+}
+.letter-divider .count {
+  font-size: 10px;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.variant-tag {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, #047857, var(--mint));
+  color: white;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 10px 30px rgba(4,120,87,0.25);
+  z-index: 100;
+}
+
+.col-headers {
+  display: grid;
+  grid-template-columns: 14px 1fr 200px 140px 90px 60px;
+  gap: 14px;
+  padding: 8px 18px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.col-headers .ta-r { text-align: right; }
+</style>
+</head>
+<body>
+
+<div class="variant-tag">ВАРІАНТ Б · Master/Detail з sidebar</div>
+
+<div class="container">
+  <span class="label-top">МЕНЕДЖЕРСЬКА ВКЛАДКА</span>
+  <h1>Мої клієнти · Травень 2026</h1>
+  <p class="subtitle">Зліва — категорії клієнтів. Справа — список обраної категорії за алфавітом.<br>Sticky sidebar для швидкого перемикання між Активними / Сплячими тощо.</p>
+
+  <div class="split-layout">
+    <!-- LEFT: Category sidebar -->
+    <div class="sidebar">
+      <h2>Категорії клієнтів</h2>
+
+      <div class="cat-button active">
+        <span class="dot cat-active"></span>
+        <span class="name">Активні</span>
+        <span class="count">42</span>
+      </div>
+      <div class="cat-button">
+        <span class="dot cat-sleeping"></span>
+        <span class="name">Сплячі</span>
+        <span class="count">22</span>
+      </div>
+      <div class="cat-button">
+        <span class="dot cat-new"></span>
+        <span class="name">Нові</span>
+        <span class="count">8</span>
+      </div>
+      <div class="cat-button">
+        <span class="dot cat-lost"></span>
+        <span class="name">Втрачені</span>
+        <span class="count">12</span>
+      </div>
+      <div class="cat-button">
+        <span class="dot cat-none"></span>
+        <span class="name">Без закупок</span>
+        <span class="count">3</span>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <h2>База в цілому</h2>
+      <p class="mini-stat">Усього клієнтів: <strong>87</strong></p>
+      <p class="mini-stat">Купили цього міс.: <strong>34 / 87</strong></p>
+      <p class="mini-stat">Активність: <strong>39.1%</strong></p>
+
+      <div class="sidebar-divider"></div>
+
+      <h2>Швидкі дії</h2>
+      <div class="cat-button">
+        <span class="dot" style="background:var(--emet)"></span>
+        <span class="name">Експорт у Excel</span>
+        <span></span>
+      </div>
+      <div class="cat-button">
+        <span class="dot" style="background:#fb923c"></span>
+        <span class="name">Підняти сплячих</span>
+        <span></span>
+      </div>
+    </div>
+
+    <!-- RIGHT: Main panel -->
+    <div class="main">
+      <!-- Mini-hero for current category -->
+      <div class="mini-hero">
+        <div class="card">
+          <div class="lbl">КУПИЛИ ЦЬОГО МІС.</div>
+          <div class="val">28 <span style="font-size:14px; color:var(--ink-muted)">/ 42</span></div>
+          <div class="sub">66.7% від категорії</div>
+        </div>
+        <div class="card">
+          <div class="lbl">ФАКТ</div>
+          <div class="val"><span style="font-size:14px; vertical-align:top">$</span>24,310</div>
+          <div class="sub">85% від плану</div>
+        </div>
+        <div class="card">
+          <div class="lbl">ПЛАН</div>
+          <div class="val"><span style="font-size:14px; vertical-align:top">$</span>28,500</div>
+          <div class="sub">залишилось $4,190</div>
+        </div>
+        <div class="card">
+          <div class="lbl">СЕРЕДНІЙ ЧЕК</div>
+          <div class="val"><span style="font-size:14px; vertical-align:top">$</span>868</div>
+          <div class="sub">vs мин. міс. <span style="color:#047857">↑ $42</span></div>
+        </div>
+      </div>
+
+      <!-- Toolbar / search -->
+      <div class="toolbar">
+        <span style="color:var(--ink-muted); font-size:14px">🔍</span>
+        <input class="search-input" placeholder="Пошук клієнта... (Ctrl+K)">
+        <span class="toolbar-sort">Сортування: <strong>За алфавітом</strong> ↓</span>
+      </div>
+
+      <!-- Column headers -->
+      <div class="col-headers">
+        <span></span>
+        <span>Клієнт</span>
+        <span>Бренди закупки</span>
+        <span class="ta-r">Факт / План</span>
+        <span class="ta-r">Виконан.</span>
+        <span class="ta-r">Деталі</span>
+      </div>
+
+      <!-- Letter A -->
+      <div class="letter-divider">
+        <span class="letter-big">А</span>
+        <div class="line"></div>
+        <span class="count">3 клієнти</span>
+      </div>
+
+      <div class="clients-grid">
+        <div class="client-card">
+          <div class="letter">А</div>
+          <div>
+            <div class="name">Адель салон, ТОВ</div>
+            <div class="meta">
+              <span><span class="dot cat-active"></span>Активний</span>
+              <span>· остання закупка 17.05</span>
+            </div>
+          </div>
+          <div class="brands">
+            <span class="brand-chip">Vitaran $1,400</span>
+            <span class="brand-chip">ESSE $420</span>
+          </div>
+          <div class="fact-plan">
+            <span class="big">$1,820</span>
+            <span class="small">з $2,000</span>
+          </div>
+          <div class="pct pct-good">91%</div>
+          <div class="drill">›</div>
+        </div>
+
+        <div class="client-card">
+          <div class="letter">А</div>
+          <div>
+            <div class="name">Аріша клініка</div>
+            <div class="meta">
+              <span><span class="dot cat-active"></span>Активний</span>
+              <span>· остання закупка 14.05</span>
+            </div>
+          </div>
+          <div class="brands">
+            <span class="brand-chip">Neuronox $1,800</span>
+            <span class="brand-chip">Ellanse $1,200</span>
+            <span class="brand-chip">Vitaran $420</span>
+          </div>
+          <div class="fact-plan">
+            <span class="big">$3,420</span>
+            <span class="small">з $3,200</span>
+          </div>
+          <div class="pct pct-good">107%</div>
+          <div class="drill">›</div>
+        </div>
+
+        <div class="client-card">
+          <div class="letter">А</div>
+          <div>
+            <div class="name">Альфа Б'юті</div>
+            <div class="meta">
+              <span><span class="dot cat-active"></span>Активний</span>
+              <span>· остання закупка 09.05</span>
+            </div>
+          </div>
+          <div class="brands">
+            <span class="brand-chip empty">не купив бренди плану</span>
+          </div>
+          <div class="fact-plan">
+            <span class="big">$0</span>
+            <span class="small">з $1,500</span>
+          </div>
+          <div class="pct pct-bad">0%</div>
+          <div class="drill">›</div>
+        </div>
+      </div>
+
+      <!-- Letter B -->
+      <div class="letter-divider">
+        <span class="letter-big">Б</span>
+        <div class="line"></div>
+        <span class="count">5 клієнтів</span>
+      </div>
+
+      <div class="clients-grid">
+        <div class="client-card">
+          <div class="letter">Б</div>
+          <div>
+            <div class="name">Бьюті центр Емма</div>
+            <div class="meta">
+              <span><span class="dot cat-active"></span>Активний</span>
+              <span>· остання закупка 20.05</span>
+            </div>
+          </div>
+          <div class="brands">
+            <span class="brand-chip">Petaran $680</span>
+          </div>
+          <div class="fact-plan">
+            <span class="big">$680</span>
+            <span class="small">з $800</span>
+          </div>
+          <div class="pct pct-good">85%</div>
+          <div class="drill">›</div>
+        </div>
+
+        <div class="client-card">
+          <div class="letter">Б</div>
+          <div>
+            <div class="name">Бельведер, ФОП</div>
+            <div class="meta">
+              <span><span class="dot cat-active"></span>Активний</span>
+              <span>· остання закупка 23.05</span>
+            </div>
+          </div>
+          <div class="brands">
+            <span class="brand-chip">Vitaran $1,950</span>
+          </div>
+          <div class="fact-plan">
+            <span class="big">$1,950</span>
+            <span class="small">з $2,000</span>
+          </div>
+          <div class="pct pct-good">98%</div>
+          <div class="drill">›</div>
+        </div>
+      </div>
+
+      <!-- Letter V -->
+      <div class="letter-divider">
+        <span class="letter-big">В</span>
+        <div class="line"></div>
+        <span class="count">2 клієнти</span>
+      </div>
+
+      <div class="clients-grid">
+        <div class="client-card">
+          <div class="letter">В</div>
+          <div>
+            <div class="name">Венера ФОП</div>
+            <div class="meta">
+              <span><span class="dot cat-active"></span>Активний</span>
+              <span>· остання закупка 22.05</span>
+            </div>
+          </div>
+          <div class="brands">
+            <span class="brand-chip">Vitaran $1,400</span>
+            <span class="brand-chip">Neuramis $750</span>
+          </div>
+          <div class="fact-plan">
+            <span class="big">$2,150</span>
+            <span class="small">з $2,500</span>
+          </div>
+          <div class="pct pct-good">86%</div>
+          <div class="drill">›</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
