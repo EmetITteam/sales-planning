@@ -364,27 +364,40 @@ export function ClientsPage() {
       </div>
 
       {/* === CATEGORY SECTIONS === */}
-      {totalFiltered === 0 ? (
+      {totalFiltered === 0 && reservedClients.length === 0 ? (
         <div className="glass-card p-12 text-center text-[13px] text-muted-foreground">
           {search ? `За запитом «${search}» нічого не знайдено` : 'Немає клієнтів у обраному фільтрі'}
         </div>
       ) : (
-        CAT_ORDER.map(cat => {
-          const list = groupedClients.get(cat) || [];
-          if (list.length === 0) return null;
-          return (
-            <CategorySection
-              key={cat}
-              cat={cat}
-              clients={list}
+        <>
+          {CAT_ORDER.map(cat => {
+            const list = groupedClients.get(cat) || [];
+            if (list.length === 0) return null;
+            return (
+              <CategorySection
+                key={cat}
+                cat={cat}
+                clients={list}
+                planByClient={planByClient}
+                factByClient={factByClient}
+                totalsLoading={totalsLoading}
+                expandedId={expandedId}
+                onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
+              />
+            );
+          })}
+          {/* Окрема секція РЕЗЕРВ — collapsed за замовч (на цих клієнтів менеджер не звертає увагу) */}
+          {reservedClients.length > 0 && (
+            <ReservedSection
+              clients={reservedClients}
               planByClient={planByClient}
               factByClient={factByClient}
               totalsLoading={totalsLoading}
               expandedId={expandedId}
               onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
             />
-          );
-        })
+          )}
+        </>
       )}
     </div>
   );
@@ -709,6 +722,70 @@ function CategorySection({
   );
 }
 
+/**
+ * Окрема секція РЕЗЕРВ — внизу списку, за замовч згорнута.
+ * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
+ * Sort — алфавіт.
+ */
+function ReservedSection({ clients, planByClient, factByClient, totalsLoading, expandedId, onToggleExpand }: {
+  clients: ClientFromOneC[];
+  planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
+  factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
+  totalsLoading: boolean;
+  expandedId: string | null; onToggleExpand: (id: string) => void;
+}) {
+  const [sectionOpen, setSectionOpen] = useState(false);
+
+  // У резерві теж можуть бути ті хто купив — підрахуємо для підказки
+  const boughtCount = clients.filter(c => (factByClient[c.ClientID]?.factTotal ?? 0) > 0).length;
+
+  return (
+    <section className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setSectionOpen(o => !o)}
+        className="w-full flex items-baseline gap-3 px-1 pt-2 flex-wrap text-left hover:opacity-80 transition-opacity"
+        aria-expanded={sectionOpen}
+      >
+        <span className="w-2 h-2 rounded-full bg-slate-400" />
+        <h2 className="text-[13px] font-extrabold uppercase tracking-[0.04em] text-slate-600">
+          Резерв <span className="text-muted-foreground font-semibold">· {clients.length}</span>
+        </h2>
+        <span className="text-[10px] text-muted-foreground font-medium">
+          не враховуються у плануванні
+          {boughtCount > 0 && <> · купили цього міс: <span className="text-emerald-600 font-bold">{boughtCount}</span></>}
+        </span>
+        <span className="ml-auto">
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${sectionOpen ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+      {sectionOpen && (
+        <div className="flex flex-col gap-2">
+          {clients.map(c => {
+            const plan = planByClient[c.ClientID]?.planTotal ?? null;
+            const fact = factByClient[c.ClientID]?.factTotal ?? null;
+            const planBrands = planByClient[c.ClientID]?.brands ?? {};
+            const factBrands = factByClient[c.ClientID]?.brands ?? {};
+            return (
+              <ClientRow
+                key={c.ClientID}
+                client={c}
+                plan={plan}
+                fact={fact}
+                planBrands={planBrands}
+                factBrands={factBrands}
+                totalsLoading={totalsLoading}
+                expanded={expandedId === c.ClientID}
+                onToggle={() => onToggleExpand(c.ClientID)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // === One client row with accordion-expand ===
 function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, expanded, onToggle }: {
   client: ClientFromOneC;
@@ -760,6 +837,12 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
               {toUkrainianChip(client.ClientCategory)}
             </span>
+            {/* Резерв-tag (нейтральний slate, бо на цих клієнтів менеджер не звертає уваги) */}
+            {isClientReserved(client) && (
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-600 border border-slate-200" title="Клієнт у Резерві — виключений з планування">
+                Резерв
+              </span>
+            )}
             {noPlanNoFact && (
               <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-500 border border-dashed border-slate-300" title="Цього клієнта менеджер не виставив у план і він не купував цього місяця">
                 Без плану
