@@ -133,7 +133,42 @@ export default function DebugClientsAPI() {
         </div>
 
         <div className="glass-card p-4 space-y-3">
-          <h2 className="text-[13px] font-bold">3. checkActivities (для перших 5 клієнтів)</h2>
+          <h2 className="text-[13px] font-bold">3. getClientFocus (фокуси для клієнта)</h2>
+          <p className="text-[11px] text-muted-foreground">
+            Введи ClientID + клік. У відповіді — масив <code>focuses[].items[]</code> з <code>focusName/since/validUntil</code>.
+          </p>
+          <button
+            type="button"
+            onClick={() => call(
+              'getClientFocus',
+              () => callOneC('getClientFocus', {
+                login: user.login,
+                clientIds: clientId.trim() ? [clientId.trim()] : [],
+              }),
+            )}
+            disabled={loading || !clientId.trim()}
+            className="px-4 py-2 rounded-xl bg-violet-500 text-white text-[13px] font-semibold disabled:opacity-50"
+          >
+            getClientFocus (для цього clientId)
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              await call('getClientFocus (first 10)', async () => {
+                const list = await callOneC('getManagerClients', { login: user.login });
+                const ids = list.clients.slice(0, 10).map(c => c.ClientID).filter(Boolean);
+                return await callOneC('getClientFocus', { login: user.login, clientIds: ids });
+              });
+            }}
+            disabled={loading}
+            className="px-4 py-2 rounded-xl bg-violet-500 text-white text-[13px] font-semibold disabled:opacity-50 ml-2"
+          >
+            getClientFocus (перші 10 клієнтів)
+          </button>
+        </div>
+
+        <div className="glass-card p-4 space-y-3">
+          <h2 className="text-[13px] font-bold">4. checkActivities (для перших 5 клієнтів)</h2>
           <p className="text-[11px] text-muted-foreground">Перевір — чи реально 1С повертає `hasCall: true` для тих хто дзвонив у поточному місяці.</p>
           <button
             type="button"
