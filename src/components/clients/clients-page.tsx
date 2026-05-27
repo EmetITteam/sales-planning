@@ -19,9 +19,15 @@ import { SEGMENTS } from '@/lib/mock-data';
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
 /**
- * Аліаси кодів брендів — нормалізують різні написання тієї самої сутності.
- * 1С історично присилає 'ДРУГИЕ ТМ' / 'Інші ТМ' як segment-code, у нас канонічно — 'OTHER'.
- * Розширюй за потреби коли знайдеш ще колізій.
+ * Аліаси кодів брендів — нормалізують різні написання тієї самої сутності
+ * у блоку «План × Факт» (3-міс історія лишається з усіма sub-брендами окремо).
+ *
+ * Правила за домовленістю 2026-05-27:
+ *  - 'Vitaran Cosmetics' / 'Vitaran БАДи' / будь-який 'Vitaran ...' → OTHER (Інші ТМ)
+ *  - 'IUSE Collagen' / 'IUSE SkinBooster' / 'IUSE Hair' / 'IUSE ...' → IUSE (головна ТМ)
+ *  - 'ДРУГИЕ ТМ' / 'Інші ТМ' / 'OTHER BRANDS' → OTHER
+ *
+ * Direct match має пріоритет; далі — pattern по prefix.
  */
 const BRAND_CODE_ALIASES: Record<string, string> = {
   'ДРУГИЕ ТМ': 'OTHER',
@@ -31,7 +37,22 @@ const BRAND_CODE_ALIASES: Record<string, string> = {
   'OTHER BRANDS': 'OTHER',
 };
 function canonicalSegmentCode(raw: string): string {
-  return BRAND_CODE_ALIASES[raw] ?? BRAND_CODE_ALIASES[raw.toLowerCase()] ?? raw;
+  const cleaned = (raw ?? '').replace(/^_+/, '').trim();
+  if (!cleaned) return raw;
+
+  // Direct alias match (RU/UA/інші написання)
+  if (BRAND_CODE_ALIASES[cleaned]) return BRAND_CODE_ALIASES[cleaned];
+  const lower = cleaned.toLowerCase();
+  if (BRAND_CODE_ALIASES[lower]) return BRAND_CODE_ALIASES[lower];
+
+  // Pattern: «Vitaran <будь-що>» (Cosmetics, БАДи, тощо) → OTHER
+  // Сам 'Vitaran' / 'VITARAN' (без пробілу після) → лишається як є
+  if (lower.startsWith('vitaran ')) return 'OTHER';
+
+  // Pattern: «IUSE <будь-що>» (Collagen, SkinBooster, Hair) → IUSE main
+  if (lower.startsWith('iuse ')) return 'IUSE';
+
+  return cleaned;
 }
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
