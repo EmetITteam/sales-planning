@@ -258,6 +258,54 @@ export interface GetTrainingsResponse {
 }
 
 // === Карта action → request/response (для type-safe callOneC) ===
+// === Митинг (meeting-app) actions для сторінки «Мої клієнти» ===
+// shapes у `mityng-types.ts` (окремий файл бо це не наш контракт — це Митинга).
+import type {
+  GetManagerClientsResponse,
+  FindClientResponse,
+  ClientReport,
+} from './mityng-types';
+
+export interface GetManagerClientsRequest {
+  login: string;  // override з сесії у /api/onec
+}
+
+export interface FindClientRequest {
+  searchTerm: string;
+  managerLogin: string;  // override з сесії
+}
+
+export interface GetClientReportRequest {
+  clientID: string;
+}
+
+export interface GetAllMeetingsForClientRequest {
+  clientID: string;
+}
+
+/** Поки що shape не верифікований у проді — `unknown`. */
+export type GetAllMeetingsForClientResponse = unknown;
+
+// === getClientFocus (Action A) ===
+export interface GetClientFocusRequest {
+  login: string;
+  clientIds: string[];
+}
+
+/** Shape поки що припускається на основі нашої спеки — уточнити після першого виклику. */
+export interface ClientFocusItem {
+  focusName: string;
+  since?: string;
+  validUntil?: string | null;
+}
+
+export interface GetClientFocusResponse {
+  focuses: Array<{
+    clientId: string;
+    items: ClientFocusItem[];
+  }>;
+}
+
 export interface OneCActionMap {
   login: { request: LoginRequest; response: LoginResponse };
   getClientsForPlanning: { request: GetClientsForPlanningRequest; response: GetClientsForPlanningResponse };
@@ -266,6 +314,12 @@ export interface OneCActionMap {
   getRegionData: { request: GetRegionDataRequest; response: GetRegionDataResponse };
   getTrainings: { request: GetTrainingsRequest; response: GetTrainingsResponse };
   checkActivities: { request: CheckActivitiesRequest; response: CheckActivitiesResponse };
+  // Митинг:
+  getManagerClients: { request: GetManagerClientsRequest; response: GetManagerClientsResponse };
+  findClient: { request: FindClientRequest; response: FindClientResponse };
+  getClientReport: { request: GetClientReportRequest; response: ClientReport };
+  getAllMeetingsForClient: { request: GetAllMeetingsForClientRequest; response: GetAllMeetingsForClientResponse };
+  getClientFocus: { request: GetClientFocusRequest; response: GetClientFocusResponse };
 }
 
 export type OneCAction = keyof OneCActionMap;

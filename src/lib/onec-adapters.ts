@@ -48,7 +48,8 @@ const CATEGORY_MAP: Record<string, Client1C['category']> = {
   'беззакупок': 'none',
 };
 
-export function mapClientCategory(category: string): Client1C['category'] {
+export function mapClientCategory(category: string | null | undefined): Client1C['category'] {
+  if (!category) return 'none';
   return CATEGORY_MAP[category.trim().toLowerCase()] ?? 'none';
 }
 
