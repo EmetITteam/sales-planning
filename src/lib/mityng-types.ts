@@ -47,6 +47,25 @@ export interface ClientFromOneC {
    */
   isReserved?: boolean;
   IsReserved?: boolean;
+  /**
+   * 🆕 Bulk-поля з 1С getManagerClients — останні дати контактів.
+   * Це дозволяє НЕ викликати checkActivities (який зараз баговий) —
+   * напряму перевіряємо чи дата у поточному місяці.
+   * - LastMeetingDate: 1С повертає (формат "YYYY-MM-DD" або порожня "")
+   * - LastCallDate: 🟡 чекаємо щоб 1С додав (Action C extension)
+   */
+  LastMeetingDate?: string;
+  lastMeetingDate?: string;
+  LastCallDate?: string;
+  lastCallDate?: string;
+}
+
+/** Helper: останні дата зустрічі/дзвінка незалежно від casing. */
+export function getLastMeetingDate(c: { LastMeetingDate?: string; lastMeetingDate?: string }): string {
+  return c.LastMeetingDate ?? c.lastMeetingDate ?? '';
+}
+export function getLastCallDate(c: { LastCallDate?: string; lastCallDate?: string }): string {
+  return c.LastCallDate ?? c.lastCallDate ?? '';
 }
 
 /** Helper — узяти isReserved незалежно від casing/типу даних з 1С.

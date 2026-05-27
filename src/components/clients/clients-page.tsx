@@ -57,7 +57,7 @@ function canonicalSegmentCode(raw: string): string {
 }
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
-import { getClientName, getClientAddress, isClientReserved, type ClientFromOneC } from '@/lib/mityng-types';
+import { getClientName, getClientAddress, isClientReserved, getLastMeetingDate, getLastCallDate, type ClientFromOneC } from '@/lib/mityng-types';
 
 // === Категорійні групи ===
 // 5 реальних категорій 1С + окремий error-bucket «Без категорії в 1С»
@@ -209,6 +209,17 @@ export function ClientsPage() {
     }
 
     // Card 4 — Контактна активність
+    // ВАЖЛИВЕ ДЖЕРЕЛО: bulk-поля LastMeetingDate/LastCallDate з getManagerClients.
+    // Раніше використовували checkActivities але він баговий — повертає false
+    // навіть для клієнтів які реально мали дзвінки (виявлено 2026-05-27 на Балабан).
+    // Зараз LastMeetingDate точно є; LastCallDate чекаємо щоб 1С додав —
+    // як fallback використовуємо checkActivities коли LastCallDate порожній.
+    const now = new Date();
+    const yyyymm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const isInCurrentMonth = (d: string): boolean => {
+      if (!d) return false;
+      return d.slice(0, 7) === yyyymm;
+    };
     let clientsWithCall = 0;
     let clientsWithMeeting = 0;
     let clientsWithAnyEvent = 0;
@@ -216,9 +227,16 @@ export function ClientsPage() {
     let noContactsWithPlan = 0;
     let noContactsWithoutPlan = 0;
     for (const c of baseClients) {
-      const a = activityByClient[c.ClientID];
-      const hasCall = !!a?.hasCall;
-      const hasMeeting = !!a?.hasMeeting;
+      // Зустріч: пріоритет — bulk-поле; fallback на checkActivities
+      const lastMeetingD = getLastMeetingDate(c);
+      const hasMeeting = lastMeetingD
+        ? isInCurrentMonth(lastMeetingD)
+        : !!activityByClient[c.ClientID]?.hasMeeting;
+      // Дзвінок: те саме
+      const lastCallD = getLastCallDate(c);
+      const hasCall = lastCallD
+        ? isInCurrentMonth(lastCallD)
+        : !!activityByClient[c.ClientID]?.hasCall;
       const hasAny = hasCall || hasMeeting;
       if (hasCall) clientsWithCall++;
       if (hasMeeting) clientsWithMeeting++;
