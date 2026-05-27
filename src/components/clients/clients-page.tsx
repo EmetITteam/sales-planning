@@ -498,7 +498,10 @@ function buildHeaderSubtitle(clientsCount: number): React.ReactNode {
 // === HERO CARDS ===
 
 const fmtUSD = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
-const heroCardCls = 'glass-card p-5 relative min-h-[160px] flex flex-col justify-between gap-3 fade-stagger transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
+// flex-col + gap-3 — БЕЗ justify-between. Великі цифри сидять одразу під label
+// на одному вертикальному рівні у всіх 4 картках (раніше justify-between
+// розводив зверху-знизу і цифри стрибали залежно від обсягу нижнього контенту).
+const heroCardCls = 'glass-card p-5 relative flex flex-col gap-3 fade-stagger transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
 
 /** Card 1 — Виконання (план / факт / % / норма / темп). */
 function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct }: {
