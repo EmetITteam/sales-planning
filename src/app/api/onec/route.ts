@@ -40,6 +40,7 @@ const ALLOWED_ACTIONS = new Set([
   'findClient',                // глобальний пошук (managerLogin-bound)
   'getClientReport',           // 3-міс історія + events + clientInfo (clientID)
   'getAllMeetingsForClient',   // всі зустрічі по клієнту (clientID)
+  'getClientFocus',            // фокуси по клієнтах bulk (login + clientIds[])
 ]);
 
 // Action → яке поле у payload.login треба ОВЕРРАЙДНУТИ з сесії.

@@ -286,6 +286,26 @@ export interface GetAllMeetingsForClientRequest {
 /** Поки що shape не верифікований у проді — `unknown`. */
 export type GetAllMeetingsForClientResponse = unknown;
 
+// === getClientFocus (Action A) ===
+export interface GetClientFocusRequest {
+  login: string;
+  clientIds: string[];
+}
+
+/** Shape поки що припускається на основі нашої спеки — уточнити після першого виклику. */
+export interface ClientFocusItem {
+  focusName: string;
+  since?: string;
+  validUntil?: string | null;
+}
+
+export interface GetClientFocusResponse {
+  focuses: Array<{
+    clientId: string;
+    items: ClientFocusItem[];
+  }>;
+}
+
 export interface OneCActionMap {
   login: { request: LoginRequest; response: LoginResponse };
   getClientsForPlanning: { request: GetClientsForPlanningRequest; response: GetClientsForPlanningResponse };
@@ -299,6 +319,7 @@ export interface OneCActionMap {
   findClient: { request: FindClientRequest; response: FindClientResponse };
   getClientReport: { request: GetClientReportRequest; response: ClientReport };
   getAllMeetingsForClient: { request: GetAllMeetingsForClientRequest; response: GetAllMeetingsForClientResponse };
+  getClientFocus: { request: GetClientFocusRequest; response: GetClientFocusResponse };
 }
 
 export type OneCAction = keyof OneCActionMap;
