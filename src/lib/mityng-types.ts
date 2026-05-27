@@ -26,26 +26,30 @@ export type ClientCategoryFromOneC =
 export interface ClientFromOneC {
   ClientID: string;
   /**
-   * 1С повертає поле по-різному залежно від endpoint:
+   * 1С повертає поле name по-різному залежно від endpoint:
    *  - `getManagerClients` → `ClientName` (PascalCase)
    *  - `findClient` → `clientName` (camelCase)
-   * Тримаємо обидва опційними; UI має робити `c.clientName ?? c.ClientName ?? ''`.
+   * Тримаємо обидва опційними; UI робить через `getClientName(c)`.
    */
   clientName?: string;
   ClientName?: string;
   ClientCategory: ClientCategoryFromOneC;
-  clientAddress: string;
+  /** Аналогічно name: `ClientAddress` у getManagerClients, `clientAddress` у findClient. */
+  clientAddress?: string;
+  ClientAddress?: string;
   Phone: string;
   managerName: string;
   isMine: boolean;
 }
 
-/**
- * Helper: дістати name незалежно від casing 1С.
- * Замість прямого `c.clientName` — `getClientName(c)`.
- */
+/** Helper: дістати name незалежно від casing 1С. */
 export function getClientName(c: { clientName?: string; ClientName?: string }): string {
   return c.clientName ?? c.ClientName ?? '';
+}
+
+/** Helper: дістати address незалежно від casing 1С. */
+export function getClientAddress(c: { clientAddress?: string; ClientAddress?: string }): string {
+  return c.clientAddress ?? c.ClientAddress ?? '';
 }
 
 /** Відповідь `getManagerClients({login})`. */

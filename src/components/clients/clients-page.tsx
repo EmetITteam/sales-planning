@@ -15,35 +15,39 @@ import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader
 import { useMyClients, useClientReport } from '@/lib/use-my-clients';
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
-import { getClientName, type ClientFromOneC } from '@/lib/mityng-types';
+import { getClientName, getClientAddress, type ClientFromOneC } from '@/lib/mityng-types';
 
-// === Категорійні групи (5 з 1С → 4 секції UI як у v3c мокапі) ===
-type UICategory = 'active' | 'sleeping' | 'new' | 'lost' | 'other';
+// === Категорійні групи ===
+// 5 реальних категорій 1С + окремий error-bucket «Без категорії в 1С»
+// для виявлення проблем у даних 1С (поле порожнє у контрагента).
+type UICategory = 'active' | 'sleeping' | 'new' | 'lost' | 'none' | 'missing';
 
 const CAT_LABEL: Record<UICategory, string> = {
-  active: 'Активні',
+  active:   'Активні',
   sleeping: 'Сплячі',
-  new: 'Нові',
-  lost: 'Втрачені',
-  other: 'Без категорії',
+  new:      'Нові',
+  lost:     'Втрачені',
+  none:     'Без закупок',
+  missing:  'Без категорії в 1С',
 };
 const CAT_COLOR: Record<UICategory, { dot: string; ring: string; text: string }> = {
   active:   { dot: 'bg-emet-blue shadow-[0_0_6px_#066aab]',  ring: 'text-emet-blue',   text: 'text-emet-blue' },
   sleeping: { dot: 'bg-amber-500 shadow-[0_0_6px_#d97706]',   ring: 'text-amber-600',   text: 'text-amber-600' },
   new:      { dot: 'bg-emerald-500 shadow-[0_0_6px_#10b981]', ring: 'text-emerald-500', text: 'text-emerald-600' },
   lost:     { dot: 'bg-rose-500 shadow-[0_0_6px_#e11d48]',    ring: 'text-rose-500',    text: 'text-rose-600' },
-  other:    { dot: 'bg-slate-400 shadow-[0_0_6px_#94a3b8]',   ring: 'text-slate-500',   text: 'text-slate-500' },
+  none:     { dot: 'bg-slate-400 shadow-[0_0_6px_#94a3b8]',   ring: 'text-slate-500',   text: 'text-slate-500' },
+  // missing = warning: дані з 1С неповні; жовтогарячий щоб впадало в око
+  missing:  { dot: 'bg-orange-500 shadow-[0_0_6px_#f97316]',  ring: 'text-orange-600',  text: 'text-orange-600' },
 };
 
-function toUICategory(raw: string | null): UICategory {
-  if (!raw) return 'other';
-  // mapClientCategory повертає 'active'|'sleeping'|'lost'|'new'|'none'
-  const norm = mapClientCategory(raw);
-  if (norm === 'none') return 'other';
-  return norm;
+function toUICategory(raw: string | null | undefined): UICategory {
+  // Реально порожнє поле у 1С → error-bucket (щоб менеджер міг побачити і виправити в 1С)
+  if (!raw || !raw.trim()) return 'missing';
+  // mapClientCategory повертає 'active'|'sleeping'|'lost'|'new'|'none' (none = "Без закупок")
+  return mapClientCategory(raw);
 }
 
-const CAT_ORDER: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'other'];
+const CAT_ORDER: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'none', 'missing'];
 
 // Initials з назви клієнта (для аватара) — defensive: 1С іноді повертає undefined
 function initials(name: string | null | undefined): string {
@@ -62,7 +66,7 @@ export function ClientsPage() {
   // === Counts per category ===
   const countsByCategory = useMemo(() => {
     const counts: Record<UICategory, number> = {
-      active: 0, sleeping: 0, new: 0, lost: 0, other: 0,
+      active: 0, sleeping: 0, new: 0, lost: 0, none: 0, missing: 0,
     };
     for (const c of clients) counts[toUICategory(c.ClientCategory)]++;
     return counts;
@@ -80,7 +84,7 @@ export function ClientsPage() {
       const name = getClientName(c).toLowerCase();
       const phone = (c.Phone ?? '').toLowerCase();
       const cat = (c.ClientCategory ?? '').toLowerCase();
-      const addr = (c.clientAddress ?? '').toLowerCase();
+      const addr = getClientAddress(c).toLowerCase();
       return name.includes(lowSearch) || phone.includes(lowSearch) || cat.includes(lowSearch) || addr.includes(lowSearch);
     });
 
@@ -182,7 +186,7 @@ export function ClientsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterPill active={activeFilter === 'all'} onClick={() => setActiveFilter('all')} count={clients.length}>Усі</FilterPill>
-          {CAT_ORDER.filter(c => c !== 'other' || countsByCategory.other > 0).map(cat => (
+          {CAT_ORDER.filter(c => countsByCategory[c] > 0).map(cat => (
             <FilterPill
               key={cat}
               active={activeFilter === cat}
@@ -339,7 +343,7 @@ function ClientRow({ client, expanded, onToggle }: {
         <div className="min-w-0">
           <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
           <p className="text-[11px] text-muted-foreground truncate">
-            {client.clientAddress || 'Адреса не вказана'}
+            {getClientAddress(client) || 'Адреса не вказана в 1С'}
           </p>
         </div>
         <div className="hidden md:block min-w-0">
