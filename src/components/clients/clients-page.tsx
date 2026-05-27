@@ -15,6 +15,7 @@ import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
+import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -157,9 +158,32 @@ export function ClientsPage() {
     return counts;
   }, [baseClients]);
 
+  // Working-days metrics для Card 1 (норма + темп). Базуються на поточному
+  // місяці (period з store). Live чи звітний — у CRM-режимі не критично,
+  // використовуємо реальний `now`.
+  const currentPeriod = useAppStore(s => s.currentPeriod);
+  const wd = useMemo(() => {
+    const now = new Date();
+    const m = currentPeriod.month?.slice(0, 7);
+    let year: number;
+    let month: number;
+    if (m && /^\d{4}-\d{2}$/.test(m)) {
+      const [y, mm] = m.split('-').map(n => parseInt(n, 10));
+      year = y;
+      month = mm - 1;
+    } else {
+      year = now.getFullYear();
+      month = now.getMonth();
+    }
+    const totalWD = getWorkingDaysInMonth(year, month);
+    const passedWD = getPassedWorkingDays(year, month, now);
+    const calcPct = getMonthProgressPct(year, month, now);
+    return { totalWD, passedWD, calcPct };
+  }, [currentPeriod.month]);
+
   // === Hero metrics обчислюємо по базі ===
   const heroMetrics = useMemo(() => {
-    // Card 1 — Виконання $план/факт/%
+    // Card 1 — Виконання $план/факт/%/темп
     let planTotal = 0;
     let factTotal = 0;
     for (const c of baseClients) {
@@ -167,6 +191,10 @@ export function ClientsPage() {
       factTotal += factByClient[c.ClientID]?.factTotal ?? 0;
     }
     const pct = planTotal > 0 ? (factTotal / planTotal) * 100 : 0;
+    // Темп (run-rate forecast): екстраполюємо до кінця місяця за поточним темпом
+    const forecastPct = (planTotal > 0 && wd.passedWD > 0)
+      ? (factTotal * wd.totalWD) / (planTotal * wd.passedWD) * 100
+      : 0;
 
     // Card 3 — Виконання по клієнтах (скільки з планом / виконали)
     let withPlanCnt = 0;
@@ -208,12 +236,12 @@ export function ClientsPage() {
       : 0;
 
     return {
-      planTotal, factTotal, pct,
+      planTotal, factTotal, pct, forecastPct,
       withPlanCnt, completedCnt,
       clientsWithCall, clientsWithMeeting, clientsWithAnyEvent,
       coveragePct, noContacts, noContactsWithPlan, noContactsWithoutPlan,
     };
-  }, [baseClients, planByClient, factByClient, activityByClient]);
+  }, [baseClients, planByClient, factByClient, activityByClient, wd.passedWD, wd.totalWD]);
 
   // === Filtered + grouped clients (БЕЗ резерв-некупуючих — вони у окремій секції) ===
   // Defensive: 1С іноді повертає clientName/Phone undefined → ?? '' скрізь.
@@ -283,12 +311,14 @@ export function ClientsPage() {
       {/* === HERO BAND — 4 картки за домовленістю 2026-05-27 === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
 
-        {/* Card 1 — ВИКОНАННЯ ($план / факт / % / норма / темп / запл.) */}
+        {/* Card 1 — ВИКОНАННЯ ($план / факт / % / норма / темп) */}
         <HeroVykonannya
           index={0}
           planTotal={heroMetrics.planTotal}
           factTotal={heroMetrics.factTotal}
           pct={heroMetrics.pct}
+          calcPct={wd.calcPct}
+          forecastPct={heroMetrics.forecastPct}
         />
 
         {/* Card 2 — БАЗА КЛІЄНТІВ (включно з резерв-купуючими; резерв-sub-row) */}
@@ -441,14 +471,20 @@ function buildHeaderSubtitle(clientsCount: number): React.ReactNode {
 const fmtUSD = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 const heroCardCls = 'glass-card p-5 relative min-h-[160px] flex flex-col justify-between gap-3 fade-stagger transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
 
-/** Card 1 — Виконання (план / факт / % виконання). */
-function HeroVykonannya({ index, planTotal, factTotal, pct }: {
-  index: number; planTotal: number; factTotal: number; pct: number;
+/** Card 1 — Виконання (план / факт / % / норма / темп). */
+function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct }: {
+  index: number;
+  planTotal: number; factTotal: number; pct: number;
+  calcPct: number; forecastPct: number;
 }) {
   let pctColor = 'text-rose-600';
   if (pct >= 100) pctColor = 'text-emerald-700';
-  else if (pct >= 80) pctColor = 'text-emerald-600';
-  else if (pct >= 50) pctColor = 'text-amber-600';
+  else if (pct >= calcPct) pctColor = 'text-emerald-600';
+  else if (pct >= calcPct - 10) pctColor = 'text-amber-600';
+  // Темп має свій traffic-light окремо
+  let forecastColor = 'text-rose-600';
+  if (forecastPct >= 100) forecastColor = 'text-emerald-700';
+  else if (forecastPct >= 80) forecastColor = 'text-amber-600';
   return (
     <div className={heroCardCls} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
@@ -465,10 +501,10 @@ function HeroVykonannya({ index, planTotal, factTotal, pct }: {
         <span className="font-mono font-semibold text-foreground tabular-nums text-right amount">{fmtUSD(planTotal)}</span>
         <span className="text-muted-foreground">Факт:</span>
         <span className="font-mono font-semibold text-foreground tabular-nums text-right amount">{fmtUSD(factTotal)}</span>
-        <span className="text-muted-foreground">Залишок:</span>
-        <span className={`font-mono font-semibold tabular-nums text-right amount ${factTotal >= planTotal ? 'text-emerald-700' : 'text-foreground'}`}>
-          {fmtUSD(Math.max(0, planTotal - factTotal))}
-        </span>
+        <span className="text-muted-foreground">Норма:</span>
+        <span className="font-mono font-semibold text-foreground tabular-nums text-right">{calcPct.toFixed(0)}%</span>
+        <span className="text-muted-foreground">Темп:</span>
+        <span className={`font-mono font-semibold tabular-nums text-right ${forecastColor}`}>{forecastPct.toFixed(0)}%</span>
       </div>
     </div>
   );

@@ -49,9 +49,27 @@ export interface ClientFromOneC {
   IsReserved?: boolean;
 }
 
-/** Helper — узяти isReserved незалежно від casing. */
-export function isClientReserved(c: { isReserved?: boolean; IsReserved?: boolean }): boolean {
-  return c.isReserved === true || c.IsReserved === true;
+/** Helper — узяти isReserved незалежно від casing/типу даних з 1С.
+ *  Приймає bool, string ('true'/'1'/'yes'), number (1) — 1С повертає по-різному.
+ *  Параметр `unknown` бо обходимо різні shapes (ClientFromOneC + raw responses).
+ */
+export function isClientReserved(c: unknown): boolean {
+  if (!c || typeof c !== 'object') return false;
+  const o = c as Record<string, unknown>;
+  const candidates = [
+    o.isReserved, o.IsReserved,
+    o.isReserve, o.IsReserve,
+    o.reserved, o.Reserved,
+    o.reserve, o.Reserve,
+  ];
+  for (const v of candidates) {
+    if (v === true || v === 1) return true;
+    if (typeof v === 'string') {
+      const low = v.toLowerCase().trim();
+      if (low === 'true' || low === '1' || low === 'yes' || low === 'да') return true;
+    }
+  }
+  return false;
 }
 
 /** Helper: дістати name незалежно від casing 1С. */
