@@ -11,7 +11,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2 } from 'lucide-react';
+import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
@@ -190,8 +190,10 @@ export function ClientsPage() {
         <CategoryBreakdownCard counts={countsByCategory} total={clients.length} />
       </div>
 
-      {/* === SEARCH + FILTER PILLS === */}
-      <div className="glass-card p-3 flex flex-col gap-3">
+      {/* === SEARCH + FILTER PILLS (sticky під header-ом) ===
+          Header висота 56px; запас 6px щоб не залипало впритул. */}
+      <div className="sticky top-[56px] z-30 -mx-1 px-1 pt-1 pb-2 bg-gradient-to-b from-[#f8fbfd] via-[#f8fbfd]/95 to-transparent">
+      <div className="glass-card p-3 flex flex-col gap-3 shadow-[0_4px_20px_rgba(6,42,61,0.06)]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
@@ -227,6 +229,7 @@ export function ClientsPage() {
             </FilterPill>
           ))}
         </div>
+      </div>
       </div>
 
       {/* === CATEGORY SECTIONS === */}
@@ -335,17 +338,34 @@ function CategorySection({
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
 }) {
-  // Sort: спочатку клієнти з планом, потім без. У межах — алфавіт (вже зроблено у parent).
+  // 3-bucket sort:
+  //   0 — у роботі (план>0, факт<план): top, потребують уваги
+  //   1 — виконав заплановане (факт >= план): mid, успіх
+  //   2 — без плану (план=0 або undefined): bottom
+  // У межах кожного — алфавіт.
   const sorted = useMemo(() => {
+    const bucket = (clientId: string): number => {
+      const plan = planByClient[clientId]?.planTotal ?? 0;
+      const fact = factByClient[clientId]?.factTotal ?? 0;
+      if (plan === 0) return 2;
+      if (fact >= plan) return 1;
+      return 0;
+    };
     return [...clients].sort((a, b) => {
-      const planA = (planByClient[a.ClientID]?.planTotal ?? 0) > 0 ? 0 : 1;
-      const planB = (planByClient[b.ClientID]?.planTotal ?? 0) > 0 ? 0 : 1;
-      if (planA !== planB) return planA - planB;
+      const bA = bucket(a.ClientID);
+      const bB = bucket(b.ClientID);
+      if (bA !== bB) return bA - bB;
       return getClientName(a).localeCompare(getClientName(b), 'uk');
     });
-  }, [clients, planByClient]);
+  }, [clients, planByClient, factByClient]);
 
   const withPlanCount = sorted.filter(c => (planByClient[c.ClientID]?.planTotal ?? 0) > 0).length;
+  const completedCount = sorted.filter(c => {
+    const plan = planByClient[c.ClientID]?.planTotal ?? 0;
+    const fact = factByClient[c.ClientID]?.factTotal ?? 0;
+    return plan > 0 && fact >= plan;
+  }).length;
+  const inProgressCount = withPlanCount - completedCount;
   const withoutPlanCount = sorted.length - withPlanCount;
 
   return (
@@ -355,11 +375,16 @@ function CategorySection({
         <h2 className="text-[13px] font-extrabold uppercase tracking-[0.04em]">
           {CAT_LABEL[cat]} <span className="text-muted-foreground font-semibold">· {sorted.length}</span>
         </h2>
-        {!totalsLoading && withPlanCount > 0 && (
+        {!totalsLoading && sorted.length > 0 && (
           <span className="text-[10px] text-muted-foreground font-medium">
-            у плані: <span className="text-emet-blue font-bold">{withPlanCount}</span>
+            {inProgressCount > 0 && (
+              <>у роботі: <span className="text-emet-blue font-bold">{inProgressCount}</span></>
+            )}
+            {completedCount > 0 && (
+              <>{inProgressCount > 0 ? ' · ' : ''}виконали: <span className="text-emerald-600 font-bold">{completedCount}</span></>
+            )}
             {withoutPlanCount > 0 && (
-              <> · без плану: <span className="text-foreground font-bold">{withoutPlanCount}</span></>
+              <>{(inProgressCount + completedCount) > 0 ? ' · ' : ''}без плану: <span className="text-foreground font-bold">{withoutPlanCount}</span></>
             )}
           </span>
         )}
@@ -408,8 +433,11 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
   //   totalsLoading=true → ще тягнемо → '—'
   //   plan===null/0 (не loading) → реально нема плану → 'Без плану' badge
   //   plan>0 → реальна сума
-  const hasPlan = plan != null && plan > 0;
-  const pct: number | null = (hasPlan && fact != null) ? (fact / (plan ?? 1)) * 100 : null;
+  const hasPlan = plan != null && Number.isFinite(plan) && plan > 0;
+  // Defensive: захист від NaN (якщо у даних щось не так)
+  const rawPct = (hasPlan && fact != null && Number.isFinite(fact)) ? (fact / (plan as number)) * 100 : null;
+  const pct: number | null = (rawPct !== null && Number.isFinite(rawPct)) ? rawPct : null;
+  const completed = hasPlan && fact != null && fact >= (plan as number);
   // Outline для рядків без плану (приглушений) — щоб менеджер бачив що це
   // не data-issue, а просто немає планування по бренду цього клієнта.
   const noPlanRow = !totalsLoading && !hasPlan;
@@ -438,6 +466,12 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
             {noPlanRow && (
               <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-500 border border-dashed border-slate-300" title="Цього клієнта менеджер не виставив у план на цей місяць — пусті колонки не data-issue">
                 Без плану
+              </span>
+            )}
+            {!totalsLoading && completed && (
+              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-emerald-100 text-emerald-700">
+                <CheckCircle2 className="h-2.5 w-2.5" />
+                Виконав
               </span>
             )}
           </div>
@@ -566,97 +600,221 @@ function ClientExpand({ clientID, planBrands, factBrands }: {
 
   return (
     <div className="border-t border-white/50 px-5 py-4 space-y-4">
-      {/* Базова інфа: освіта + документи (категорія прибрана — chip вже у рядку клієнта) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12px]">
-        <InfoCell label="Освіта" value={clientInfo.education || '—'} />
-        <InfoCell label="Документи" value={clientInfo.documents ? (
-          <span className="text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Є</span>
-        ) : (
-          <span className="text-rose-700">Немає</span>
-        )} />
-      </div>
-
-      {/* Properties — текстові tag-и з 1С (Валидний viber / у LMS / доступний бренд X тощо) */}
-      {clientInfo.properties && clientInfo.properties.length > 0 && (
-        <div>
-          <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-            Контекст · {clientInfo.properties.length}
-          </h3>
-          <div className="flex flex-wrap gap-1.5">
-            {clientInfo.properties.map((prop, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emet-50 text-emet-blue text-[11px] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emet-blue" />
-                {prop}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Інформація по клієнту — об'єднує освіту, документи та properties */}
+      <ClientInfoBlock clientInfo={clientInfo} />
 
       {/* ПЛАН × ФАКТ ЦЬОГО МІСЯЦЯ ПО БРЕНДАХ — основний CRM-блок */}
       <PlanFactByBrand planBrands={planBrands} factBrands={factBrands} />
 
       {/* 3-місячна історія по брендах — для контексту upsell */}
+      <ThreeMonthHistory salesReport={salesReport} />
+
+      {/* Події — таймлайн (об'єднання зустрічей/дзвінків/семінарів за датою desc) */}
+      <EventsTimeline
+        meetings={lastMeetings ?? []}
+        calls={lastCalls ?? []}
+        seminars={lastSeminars ?? []}
+        totalCount={eventCount}
+      />
+    </div>
+  );
+}
+
+/** Helper — прибрати ведучий '_' (у 1С деякі бренди приходять як '_ESSE' / '_Neuronox'). */
+function cleanBrandName(name: string | undefined | null): string {
+  return (name ?? '').replace(/^_+/, '').trim();
+}
+
+/** Об'єднана картка «Інформація по клієнту»: освіта + документи + properties chips. */
+function ClientInfoBlock({ clientInfo }: { clientInfo: import('@/lib/mityng-types').ClientInfoFromReport }) {
+  const props = clientInfo.properties ?? [];
+  return (
+    <div>
+      <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+        Інформація по клієнту
+      </h3>
+      <div className="glass-card-soft p-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
+          <div>
+            <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Освіта</p>
+            <p className="text-[13px] font-semibold mt-1">{clientInfo.education || '—'}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Документи</p>
+            <p className="text-[13px] font-semibold mt-1">
+              {clientInfo.documents ? (
+                <span className="text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Є</span>
+              ) : (
+                <span className="text-rose-700">Немає</span>
+              )}
+            </p>
+          </div>
+        </div>
+        {props.length > 0 && (
+          <div className="pt-2 border-t border-white/40">
+            <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground mb-2">Властивості · {props.length}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {props.map((prop, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emet-blue/8 text-emet-blue text-[11px] font-semibold border border-emet-blue/15">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emet-blue" />
+                  {prop}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** 3-місячна історія — таблиця у тому ж стилі що План×Факт (без _ prefix). */
+function ThreeMonthHistory({ salesReport }: { salesReport: import('@/lib/mityng-types').ClientReport['salesReport'] | undefined }) {
+  const brands = salesReport?.brands ?? [];
+  if (brands.length === 0) {
+    return (
       <div>
         <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
           Покупки 3 місяці · {salesReport?.periodStart || '?'} — {salesReport?.periodEnd || '?'}
         </h3>
-        {salesReport?.brands?.length ? (
-          <div className="space-y-1.5">
-            {salesReport.brands.map(b => (
-              <BrandSalesRow key={b.brandName} brand={b} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-[12px] text-muted-foreground">Покупок за останні 3 місяці не було.</p>
-        )}
+        <p className="text-[12px] text-muted-foreground">Покупок за останні 3 місяці не було.</p>
       </div>
+    );
+  }
+  // Збираємо унікальні місяці з усіх брендів — щоб таблиця мала однаковий шаблон стовпців
+  const monthSet = new Set<string>();
+  for (const b of brands) for (const m of b.salesByMonth ?? []) monthSet.add(m.month);
+  const monthOrder = Array.from(monthSet); // 1С повертає у порядку, лишаємо як є
+  // Sort бренди за totalAmount desc
+  const sorted = [...brands].sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
 
-      {/* Події */}
+  return (
+    <div>
+      <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+        Покупки 3 місяці · {salesReport?.periodStart || '?'} — {salesReport?.periodEnd || '?'}
+      </h3>
+      <div className="space-y-1.5">
+        {sorted.map(b => {
+          const byMonth = Object.fromEntries((b.salesByMonth ?? []).map(m => [m.month, m.amount]));
+          return (
+            <div
+              key={b.brandName}
+              className="glass-card-soft p-3 grid items-center gap-3"
+              style={{ gridTemplateColumns: `minmax(0,1.4fr) repeat(${monthOrder.length}, 1fr) 90px` }}
+            >
+              <div className="font-semibold text-[13px] truncate flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emet-blue/60" />
+                {cleanBrandName(b.brandName)}
+              </div>
+              {monthOrder.map(m => {
+                const amount = byMonth[m] ?? 0;
+                return (
+                  <div key={m} className="text-right">
+                    <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{m}</p>
+                    <p className={`font-mono font-bold tabular-nums text-[12px] mt-1 leading-none amount ${amount > 0 ? '' : 'text-muted-foreground/40'}`}>
+                      {amount > 0 ? `$${Math.round(amount).toLocaleString('en-US')}` : '—'}
+                    </p>
+                  </div>
+                );
+              })}
+              <div className="text-right border-l border-white/50 pl-3">
+                <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">Всього</p>
+                <p className="font-mono font-bold tabular-nums text-[14px] mt-1 leading-none amount">
+                  ${Math.round(b.totalAmount || 0).toLocaleString('en-US')}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Об'єднаний timeline подій (зустрічі+дзвінки+семінари за датою desc).
+ * Заміна попередньому 3-колоночному «полотну».
+ */
+type TimelineEvent = { date: string; comment: string; type: 'meeting' | 'call' | 'seminar' };
+
+function EventsTimeline({ meetings, calls, seminars, totalCount }: {
+  meetings: { date: string; comment: string }[];
+  calls: { date: string; comment: string }[];
+  seminars: { date: string; comment: string }[];
+  totalCount: number;
+}) {
+  const events: TimelineEvent[] = useMemo(() => {
+    const all: TimelineEvent[] = [];
+    for (const e of meetings) all.push({ ...e, type: 'meeting' });
+    for (const e of calls) all.push({ ...e, type: 'call' });
+    for (const e of seminars) all.push({ ...e, type: 'seminar' });
+    // Sort by date desc — рядкове порівняння ISO YYYY-MM-DD працює правильно.
+    return all.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [meetings, calls, seminars]);
+
+  const [showAll, setShowAll] = useState(false);
+  const DEFAULT_LIMIT = 8;
+  const visible = showAll ? events : events.slice(0, DEFAULT_LIMIT);
+
+  if (totalCount === 0) {
+    return (
       <div>
         <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-          Події · {eventCount}
+          Події
         </h3>
-        {eventCount === 0 ? (
-          <p className="text-[12px] text-muted-foreground">Зустрічей, дзвінків і семінарів не зафіксовано.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <EventList title="Зустрічі" items={lastMeetings} accent="text-emet-blue" />
-            <EventList title="Дзвінки" items={lastCalls} accent="text-emerald-600" />
-            <EventList title="Семінари" items={lastSeminars} accent="text-violet-600" />
-          </div>
-        )}
+        <p className="text-[12px] text-muted-foreground">Зустрічей, дзвінків і семінарів не зафіксовано.</p>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-function InfoCell({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="glass-card-soft p-3">
-      <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">{label}</p>
-      <p className="text-[13px] font-semibold mt-1">{value}</p>
-    </div>
-  );
-}
-
-function BrandSalesRow({ brand }: { brand: { brandName: string; totalAmount: number; salesByMonth: { month: string; amount: number }[] } }) {
-  return (
-    <div className="glass-card-soft p-3 grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_auto] gap-3 items-center">
-      <div className="font-semibold text-[13px] truncate">{brand.brandName}</div>
-      <div className="hidden md:flex gap-3 text-[11px]">
-        {brand.salesByMonth?.slice(-3).map((m, i) => (
-          <div key={i} className="flex flex-col">
-            <span className="text-muted-foreground text-[9px] uppercase">{m.month}</span>
-            <span className="font-mono font-bold tabular-nums">${m.amount.toLocaleString('en-US')}</span>
-          </div>
+    <div>
+      <div className="flex items-baseline gap-3 mb-2">
+        <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">
+          Події · {totalCount}
+        </h3>
+        <span className="text-[10px] text-muted-foreground">
+          🤝 {meetings.length} · 📞 {calls.length} · 🎓 {seminars.length}
+        </span>
+      </div>
+      <ol className="space-y-1.5">
+        {visible.map((e, i) => (
+          <TimelineEventRow key={i} event={e} />
         ))}
-      </div>
-      <div className="text-right">
-        <p className="text-[9px] uppercase text-muted-foreground">Всього</p>
-        <p className="font-mono font-bold tabular-nums text-[14px]">${brand.totalAmount.toLocaleString('en-US')}</p>
-      </div>
+      </ol>
+      {events.length > DEFAULT_LIMIT && (
+        <button
+          type="button"
+          onClick={() => setShowAll(s => !s)}
+          className="mt-2 text-[11px] text-emet-blue hover:underline font-semibold"
+        >
+          {showAll ? 'Згорнути' : `Показати ще ${events.length - DEFAULT_LIMIT}`}
+        </button>
+      )}
     </div>
+  );
+}
+
+function TimelineEventRow({ event }: { event: TimelineEvent }) {
+  const META = {
+    meeting: { Icon: Calendar,       label: 'Зустріч',  color: 'text-emet-blue',   bg: 'bg-emet-blue/10' },
+    call:    { Icon: Phone,          label: 'Дзвінок',  color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    seminar: { Icon: GraduationCap,  label: 'Семінар',  color: 'text-violet-600',  bg: 'bg-violet-50' },
+  } as const;
+  const m = META[event.type];
+  return (
+    <li className="glass-card-soft p-3 grid grid-cols-[28px_88px_1fr] gap-3 items-start">
+      <div className={`w-7 h-7 rounded-lg ${m.bg} ${m.color} flex items-center justify-center shrink-0`}>
+        <m.Icon className="h-3.5 w-3.5" />
+      </div>
+      <div>
+        <p className={`text-[10px] uppercase tracking-wider font-bold ${m.color} leading-tight`}>{m.label}</p>
+        <p className="text-[11px] text-muted-foreground font-mono tabular-nums mt-0.5">{event.date}</p>
+      </div>
+      <p className="text-[12px] text-foreground leading-snug line-clamp-3">
+        {event.comment || <span className="text-muted-foreground italic">Без коментаря</span>}
+      </p>
+    </li>
   );
 }
 
@@ -694,7 +852,7 @@ function PlanFactByBrand({ planBrands, factBrands }: {
         : 'warn';
       return {
         code,
-        name: BRAND_NAMES[code] || code,
+        name: cleanBrandName(BRAND_NAMES[code] || code),
         plan,
         fact,
         pct,
@@ -790,22 +948,3 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
   );
 }
 
-function EventList({ title, items, accent }: { title: string; items: { date: string; comment: string }[] | undefined; accent: string }) {
-  return (
-    <div className="glass-card-soft p-3">
-      <p className={`text-[10px] uppercase tracking-wider font-bold ${accent} mb-2`}>{title} · {items?.length || 0}</p>
-      {items?.length ? (
-        <ul className="space-y-2 text-[11px] max-h-[140px] overflow-y-auto">
-          {items.slice(0, 5).map((e, i) => (
-            <li key={i}>
-              <p className="font-semibold tabular-nums">{e.date}</p>
-              <p className="text-muted-foreground line-clamp-2">{e.comment || '—'}</p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-[11px] text-muted-foreground">Немає</p>
-      )}
-    </div>
-  );
-}

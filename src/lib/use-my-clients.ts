@@ -153,10 +153,13 @@ function useMemoFactBreakdown(
     const out: Record<string, { factTotal: number; brands: Record<string, number> }> = {};
     for (const seg of factRes.segments) {
       for (const c of seg.clients ?? []) {
-        if (!c.clientId || !c.factAmountUSD) continue;
+        // 1С може повертати factAmountUSD як string ("360.00") — coerce до number.
+        // Інакше `+=` робить string concatenation → NaN при пораховому використанні.
+        const amount = Number(c.factAmountUSD) || 0;
+        if (!c.clientId || amount === 0) continue;
         if (!out[c.clientId]) out[c.clientId] = { factTotal: 0, brands: {} };
-        out[c.clientId].factTotal += c.factAmountUSD;
-        out[c.clientId].brands[seg.segmentCode] = (out[c.clientId].brands[seg.segmentCode] || 0) + c.factAmountUSD;
+        out[c.clientId].factTotal += amount;
+        out[c.clientId].brands[seg.segmentCode] = (out[c.clientId].brands[seg.segmentCode] || 0) + amount;
       }
     }
     return out;
