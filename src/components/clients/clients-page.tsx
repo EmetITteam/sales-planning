@@ -762,10 +762,29 @@ function ThreeMonthHistory({ salesReport }: { salesReport: import('@/lib/mityng-
 }
 
 /**
- * Об'єднаний timeline подій (зустрічі+дзвінки+семінари за датою desc).
- * Заміна попередньому 3-колоночному «полотну».
+ * Hybrid events block (узгоджено з користувачем 2026-05-27):
+ *  - Ліва колонка (2fr): Зустрічі + Дзвінки з tab-фільтром.
+ *    За замовч — тільки поточний місяць. Кнопка «Показати всю історію»
+ *    відкриває V3-стайл monthly timeline.
+ *  - Права колонка (1fr): Семінари — ВСІ показуємо (рідкісна подія).
+ *
+ * На вузьких екранах (sm/md) — стек у одну колонку.
  */
-type TimelineEvent = { date: string; comment: string; type: 'meeting' | 'call' | 'seminar' };
+
+type EventType = 'meeting' | 'call' | 'seminar';
+type TimelineEvent = { date: string; comment: string; type: EventType };
+type CallMeetingFilter = 'all' | 'meeting' | 'call';
+
+const UA_MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+function formatMonthLabel(yyyymm: string): string {
+  const [y, mStr] = yyyymm.split('-');
+  const m = parseInt(mStr, 10);
+  return (UA_MONTHS[m - 1] || mStr) + ' ' + y;
+}
+function currentYearMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 function EventsTimeline({ meetings, calls, seminars, totalCount }: {
   meetings: { date: string; comment: string }[];
@@ -773,19 +792,46 @@ function EventsTimeline({ meetings, calls, seminars, totalCount }: {
   seminars: { date: string; comment: string }[];
   totalCount: number;
 }) {
-  const events: TimelineEvent[] = useMemo(() => {
+  const [filter, setFilter] = useState<CallMeetingFilter>('all');
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+
+  // === Об'єднуємо зустрічі+дзвінки, sort desc ===
+  const meetingsAndCalls: TimelineEvent[] = useMemo(() => {
     const all: TimelineEvent[] = [];
     for (const e of meetings) all.push({ ...e, type: 'meeting' });
     for (const e of calls) all.push({ ...e, type: 'call' });
-    for (const e of seminars) all.push({ ...e, type: 'seminar' });
-    // Sort by date desc — рядкове порівняння ISO YYYY-MM-DD працює правильно.
     return all.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  }, [meetings, calls, seminars]);
+  }, [meetings, calls]);
 
-  const [showAll, setShowAll] = useState(false);
-  const DEFAULT_LIMIT = 8;
-  const visible = showAll ? events : events.slice(0, DEFAULT_LIMIT);
+  // Filter по tab
+  const filtered = useMemo(() => {
+    if (filter === 'all') return meetingsAndCalls;
+    return meetingsAndCalls.filter(e => e.type === filter);
+  }, [meetingsAndCalls, filter]);
 
+  // === Поточний місяць vs історія ===
+  const ym = currentYearMonth();
+  const currentMonth = useMemo(() => filtered.filter(e => (e.date || '').slice(0, 7) === ym), [filtered, ym]);
+  const history = useMemo(() => filtered.filter(e => (e.date || '').slice(0, 7) !== ym), [filtered, ym]);
+
+  // Групуємо історію по місяцях
+  const historyByMonth = useMemo(() => {
+    const groups: Record<string, TimelineEvent[]> = {};
+    for (const e of history) {
+      const k = (e.date || '').slice(0, 7) || 'unknown';
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(e);
+    }
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [history]);
+
+  // Семінари — sort desc
+  const sortedSeminars = useMemo(
+    () => [...seminars].sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    [seminars],
+  );
+
+  // Empty state
   if (totalCount === 0) {
     return (
       <div>
@@ -799,6 +845,7 @@ function EventsTimeline({ meetings, calls, seminars, totalCount }: {
 
   return (
     <div>
+      {/* Header з лічильниками */}
       <div className="flex items-center gap-3 mb-2 flex-wrap">
         <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">
           Події · {totalCount}
@@ -811,39 +858,156 @@ function EventsTimeline({ meetings, calls, seminars, totalCount }: {
           <GraduationCap className="h-3 w-3 text-violet-600" /> {seminars.length}
         </span>
       </div>
-      <ol className="glass-card-soft py-1">
-        {visible.map((e, i) => (
-          <TimelineEventRow key={i} event={e} />
-        ))}
-      </ol>
-      {events.length > DEFAULT_LIMIT && (
-        <button
-          type="button"
-          onClick={() => setShowAll(s => !s)}
-          className="mt-2 text-[11px] text-emet-blue hover:underline font-semibold"
-        >
-          {showAll ? 'Згорнути' : `Показати ще ${events.length - DEFAULT_LIMIT}`}
-        </button>
-      )}
+
+      {/* 2-колоночна сітка: зустрічі+дзвінки (2fr) | семінари (1fr) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
+
+        {/* === ЛІВА КОЛОНКА: Зустрічі + Дзвінки === */}
+        <div className="glass-card-soft p-3">
+          {/* Tabs */}
+          <div className="flex gap-1.5 mb-2 flex-wrap">
+            <TabBtn active={filter === 'all'} onClick={() => setFilter('all')} count={meetingsAndCalls.length}>Усі</TabBtn>
+            <TabBtn active={filter === 'meeting'} onClick={() => setFilter('meeting')} count={meetings.length} icon={<Calendar className="h-3 w-3" />} color="emet">Зустрічі</TabBtn>
+            <TabBtn active={filter === 'call'} onClick={() => setFilter('call')} count={calls.length} icon={<Phone className="h-3 w-3" />} color="emerald">Дзвінки</TabBtn>
+          </div>
+
+          {/* Поточний місяць — за замовч завжди видно */}
+          <p className="text-[10px] uppercase tracking-[0.08em] font-extrabold text-emet-blue mt-3 mb-1.5 px-1.5">
+            {formatMonthLabel(ym)} · {currentMonth.length} {currentMonth.length === 1 ? 'подія' : currentMonth.length < 5 ? 'події' : 'подій'}
+          </p>
+          {currentMonth.length === 0 ? (
+            <p className="text-[12px] text-muted-foreground italic px-3 py-2">
+              У цьому місяці контактів ще не зафіксовано.
+            </p>
+          ) : (
+            <ol>
+              {currentMonth.map((e, i) => <EventCompactRow key={`cm-${i}`} event={e} />)}
+            </ol>
+          )}
+
+          {/* Кнопка-розгортання історії */}
+          {history.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setHistoryExpanded(s => !s)}
+              className="inline-flex items-center gap-1.5 mt-3 px-3.5 py-1.5 rounded-full bg-emet-blue/8 hover:bg-emet-blue/15 border border-emet-blue/15 text-emet-blue text-[11px] font-bold transition-all hover:-translate-y-px"
+            >
+              <ChevronDown className={`h-3 w-3 transition-transform ${historyExpanded ? 'rotate-180' : ''}`} />
+              {historyExpanded ? 'Згорнути історію' : `Показати всю історію (${history.length})`}
+            </button>
+          )}
+
+          {/* V3-style monthly timeline історії */}
+          {historyExpanded && historyByMonth.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {historyByMonth.map(([month, evs]) => (
+                <div key={month}>
+                  <div className="flex items-center gap-2.5 my-1 px-1.5">
+                    <span className="text-[9px] uppercase tracking-[0.08em] font-extrabold text-emet-blue whitespace-nowrap">
+                      {formatMonthLabel(month)}
+                    </span>
+                    <span className="font-mono text-[9px] text-muted-foreground font-bold px-1.5 py-0.5 rounded-full bg-emet-blue/8">
+                      {evs.length}
+                    </span>
+                    <span className="flex-1 h-px bg-gradient-to-r from-emet-blue/20 to-transparent" />
+                  </div>
+                  <ol>
+                    {evs.map((e, i) => <EventCompactRow key={`h-${month}-${i}`} event={e} />)}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* === ПРАВА КОЛОНКА: Семінари (завжди ВСІ) === */}
+        <div className="glass-card-soft p-3">
+          <div className="flex items-center gap-2 mb-2 px-1.5">
+            <GraduationCap className="h-4 w-4 text-violet-600" />
+            <p className="text-[11px] uppercase tracking-wider font-extrabold text-violet-600">
+              Семінари · {sortedSeminars.length}
+            </p>
+          </div>
+          {sortedSeminars.length === 0 ? (
+            <p className="text-[12px] text-muted-foreground italic px-3 py-2">
+              Семінарів не зафіксовано.
+            </p>
+          ) : (
+            <ol className="space-y-1">
+              {sortedSeminars.map((e, i) => <SeminarRow key={`s-${i}`} event={e} currentYM={ym} />)}
+            </ol>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }
 
-function TimelineEventRow({ event }: { event: TimelineEvent }) {
+/** Tab-кнопка для зустрічі/дзвінки фільтру. */
+function TabBtn({ active, onClick, count, icon, color, children }: {
+  active: boolean; onClick: () => void; count: number;
+  icon?: React.ReactNode; color?: 'emet' | 'emerald';
+  children: React.ReactNode;
+}) {
+  const iconColorClass = color === 'emerald' ? 'text-emerald-600' : color === 'emet' ? 'text-emet-blue' : '';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
+        active
+          ? 'bg-emet-blue text-white border border-emet-blue'
+          : 'bg-transparent border border-transparent text-muted-foreground hover:bg-white/55'
+      }`}
+    >
+      {icon && <span className={active ? '' : iconColorClass}>{icon}</span>}
+      <span>{children}</span>
+      <span className={`font-mono font-bold text-[10px] px-1.5 py-0.5 rounded-full tabular-nums ${
+        active ? 'bg-white/25 text-white' : 'bg-emet-blue/10 text-emet-blue'
+      }`}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
+/** Компактний рядок події (зустріч/дзвінок) — для поточного місяця + історії. */
+function EventCompactRow({ event }: { event: TimelineEvent }) {
   const META = {
-    meeting: { Icon: Calendar,       label: 'Зустріч',  color: 'text-emet-blue' },
-    call:    { Icon: Phone,          label: 'Дзвінок',  color: 'text-emerald-600' },
-    seminar: { Icon: GraduationCap,  label: 'Семінар',  color: 'text-violet-600' },
+    meeting: { Icon: Calendar, label: 'Зустріч', color: 'text-emet-blue' },
+    call:    { Icon: Phone,    label: 'Дзвінок', color: 'text-emerald-600' },
+    seminar: { Icon: GraduationCap, label: 'Семінар', color: 'text-violet-600' },
   } as const;
   const m = META[event.type];
   return (
-    <li className="grid grid-cols-[16px_70px_minmax(60px,auto)_minmax(0,1fr)] gap-3 items-center px-3 py-1.5 rounded-lg hover:bg-white/40 transition-colors">
+    <li className="grid grid-cols-[14px_70px_minmax(56px,auto)_minmax(0,1fr)] gap-3 items-center px-3 py-1.5 rounded-lg hover:bg-white/45 transition-colors">
       <m.Icon className={`h-3.5 w-3.5 ${m.color}`} />
       <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{event.date}</span>
-      <span className={`text-[11px] font-bold uppercase tracking-wider ${m.color}`}>{m.label}</span>
+      <span className={`text-[10px] font-extrabold uppercase tracking-[0.04em] ${m.color}`}>{m.label}</span>
       <span className="text-[12px] text-foreground truncate">
         {event.comment || <span className="text-muted-foreground/60 italic">Без коментаря</span>}
       </span>
+    </li>
+  );
+}
+
+/** Семінар-рядок — на правій колонці. Більше повітря, бо менше штук. */
+function SeminarRow({ event, currentYM }: { event: { date: string; comment: string }; currentYM: string }) {
+  const isCurrent = (event.date || '').slice(0, 7) === currentYM;
+  return (
+    <li className="px-3 py-2 rounded-lg hover:bg-white/45 transition-colors">
+      <div className="flex items-center gap-2">
+        <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{event.date}</span>
+        {isCurrent && (
+          <span className="text-[8px] font-extrabold uppercase tracking-[0.06em] text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded-full">
+            Цей місяць
+          </span>
+        )}
+      </div>
+      <p className="text-[12px] text-foreground leading-snug mt-1">
+        {event.comment || <span className="text-muted-foreground/60 italic">Без коментаря</span>}
+      </p>
     </li>
   );
 }
