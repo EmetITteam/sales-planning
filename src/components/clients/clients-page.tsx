@@ -14,6 +14,9 @@ import { useMemo, useState } from 'react';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2 } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
+import { SEGMENTS } from '@/lib/mock-data';
+
+const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { getClientName, getClientAddress, type ClientFromOneC } from '@/lib/mityng-types';
@@ -48,6 +51,23 @@ function toUICategory(raw: string | null | undefined): UICategory {
   return mapClientCategory(raw);
 }
 
+/**
+ * Переклад 1С-категорії (russian) → українська для chip у рядку клієнта.
+ * Якщо 1С раптом поверне UA-варіант — повертаємо як є.
+ */
+function toUkrainianChip(raw: string | null | undefined): string {
+  if (!raw || !raw.trim()) return 'Без категорії в 1С';
+  const cat = toUICategory(raw);
+  switch (cat) {
+    case 'active':   return 'Активний';
+    case 'sleeping': return 'Сплячий';
+    case 'new':      return 'Новий';
+    case 'lost':     return 'Втрачений';
+    case 'none':     return 'Без закупок';
+    case 'missing':  return 'Без категорії в 1С';
+  }
+}
+
 const CAT_ORDER: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'none', 'missing'];
 
 // Initials з назви клієнта (для аватара) — defensive: 1С іноді повертає undefined
@@ -67,7 +87,7 @@ export function ClientsPage() {
 
   // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
   const clientIds = useMemo(() => clients.map(c => c.ClientID).filter(Boolean), [clients]);
-  const { planByClient, factByClient } = useClientsTotals(
+  const { planByClient, factByClient, loading: totalsLoading } = useClientsTotals(
     sessionUser?.login ?? null,
     clientIds,
   );
@@ -225,6 +245,7 @@ export function ClientsPage() {
               clients={list}
               planByClient={planByClient}
               factByClient={factByClient}
+              totalsLoading={totalsLoading}
               expandedId={expandedId}
               onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
             />
@@ -306,31 +327,58 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, expandedId, onToggleExpand,
+  cat, clients, planByClient, factByClient, totalsLoading, expandedId, onToggleExpand,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
+  totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
 }) {
+  // Sort: спочатку клієнти з планом, потім без. У межах — алфавіт (вже зроблено у parent).
+  const sorted = useMemo(() => {
+    return [...clients].sort((a, b) => {
+      const planA = (planByClient[a.ClientID]?.planTotal ?? 0) > 0 ? 0 : 1;
+      const planB = (planByClient[b.ClientID]?.planTotal ?? 0) > 0 ? 0 : 1;
+      if (planA !== planB) return planA - planB;
+      return getClientName(a).localeCompare(getClientName(b), 'uk');
+    });
+  }, [clients, planByClient]);
+
+  const withPlanCount = sorted.filter(c => (planByClient[c.ClientID]?.planTotal ?? 0) > 0).length;
+  const withoutPlanCount = sorted.length - withPlanCount;
+
   return (
     <section className="space-y-2">
-      <div className="flex items-baseline gap-3 px-1 pt-2">
+      <div className="flex items-baseline gap-3 px-1 pt-2 flex-wrap">
         <span className={`w-2 h-2 rounded-full ${CAT_COLOR[cat].dot}`} />
         <h2 className="text-[13px] font-extrabold uppercase tracking-[0.04em]">
-          {CAT_LABEL[cat]} <span className="text-muted-foreground font-semibold">· {clients.length}</span>
+          {CAT_LABEL[cat]} <span className="text-muted-foreground font-semibold">· {sorted.length}</span>
         </h2>
+        {!totalsLoading && withPlanCount > 0 && (
+          <span className="text-[10px] text-muted-foreground font-medium">
+            у плані: <span className="text-emet-blue font-bold">{withPlanCount}</span>
+            {withoutPlanCount > 0 && (
+              <> · без плану: <span className="text-foreground font-bold">{withoutPlanCount}</span></>
+            )}
+          </span>
+        )}
       </div>
       <div className="flex flex-col gap-2">
-        {clients.map(c => {
+        {sorted.map(c => {
           const plan = planByClient[c.ClientID]?.planTotal ?? null;
           const fact = factByClient[c.ClientID]?.factTotal ?? null;
+          const planBrands = planByClient[c.ClientID]?.brands ?? {};
+          const factBrands = factByClient[c.ClientID]?.brands ?? {};
           return (
             <ClientRow
               key={c.ClientID}
               client={c}
               plan={plan}
               fact={fact}
+              planBrands={planBrands}
+              factBrands={factBrands}
+              totalsLoading={totalsLoading}
               expanded={expandedId === c.ClientID}
               onToggle={() => onToggleExpand(c.ClientID)}
             />
@@ -342,10 +390,13 @@ function CategorySection({
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, expanded, onToggle }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, expanded, onToggle }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
+  planBrands: Record<string, number>;
+  factBrands: Record<string, number>;
+  totalsLoading: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -353,14 +404,18 @@ function ClientRow({ client, plan, fact, expanded, onToggle }: {
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
   const name = getClientName(client);
   const address = getClientAddress(client);
-  const pct: number | null = (plan != null && fact != null && plan > 0)
-    ? (fact / plan) * 100
-    : null;
-  const planTotal = plan;
-  const factTotal = fact;
+  // Стани плану:
+  //   totalsLoading=true → ще тягнемо → '—'
+  //   plan===null/0 (не loading) → реально нема плану → 'Без плану' badge
+  //   plan>0 → реальна сума
+  const hasPlan = plan != null && plan > 0;
+  const pct: number | null = (hasPlan && fact != null) ? (fact / (plan ?? 1)) * 100 : null;
+  // Outline для рядків без плану (приглушений) — щоб менеджер бачив що це
+  // не data-issue, а просто немає планування по бренду цього клієнта.
+  const noPlanRow = !totalsLoading && !hasPlan;
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className={`glass-card overflow-hidden ${noPlanRow ? 'opacity-70' : ''}`}>
       <button
         type="button"
         onClick={onToggle}
@@ -372,15 +427,19 @@ function ClientRow({ client, plan, fact, expanded, onToggle }: {
           {initials(name)}
         </div>
 
-        {/* Name + category-pill | address · phone */}
+        {/* Name + UA-category-chip | address · phone */}
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
-            {/* Chip-категорія — СИРЕ значення з 1С (Активный/Спящий/Новый/Потерянный/Без закупок).
-                Якщо поле порожнє у 1С — показуємо warning "Без категорії в 1С". */}
+            {/* Chip-категорія українською (Активний/Сплячий/Новий/Втрачений/Без закупок) */}
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
-              {client.ClientCategory?.trim() || 'Без категорії в 1С'}
+              {toUkrainianChip(client.ClientCategory)}
             </span>
+            {noPlanRow && (
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-500 border border-dashed border-slate-300" title="Цього клієнта менеджер не виставив у план на цей місяць — пусті колонки не data-issue">
+                Без плану
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 min-w-0">
             <span className="truncate">{address || 'Адреса не вказана в 1С'}</span>
@@ -400,34 +459,58 @@ function ClientRow({ client, plan, fact, expanded, onToggle }: {
           </div>
         </div>
 
-        {/* План / Факт / % — desktop only */}
-        <NumCol label="План" value={planTotal} />
-        <NumCol label="Факт" value={factTotal} />
-        <PctCol pct={pct} />
+        {/* План / Факт / % — desktop only.
+            totalsLoading — '—' gray; loaded+0 — порожньо; >0 — реальне */}
+        <NumCol label="План" value={plan} loading={totalsLoading} emptyAs={noPlanRow ? null : 'zero'} />
+        <NumCol label="Факт" value={fact} loading={totalsLoading} emptyAs="zero" />
+        <PctCol pct={pct} loading={totalsLoading} disabled={noPlanRow} />
 
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
-      {expanded && <ClientExpand clientID={client.ClientID} />}
+      {expanded && (
+        <ClientExpand
+          clientID={client.ClientID}
+          planBrands={planBrands}
+          factBrands={factBrands}
+        />
+      )}
     </div>
   );
 }
 
-/** Колонка з $-сумою (План/Факт). Якщо value=null → «—». Лише на md+ */
-function NumCol({ label, value }: { label: string; value: number | null }) {
+/**
+ * Колонка з $-сумою (План/Факт).
+ *  - loading=true → '—' (gray, ще тягнемо)
+ *  - value=null АБО 0 → залежить від emptyAs
+ *    - 'zero' (default) → '$0'
+ *    - null → нічого не показуємо (для no-plan клієнтів — план не виставлено)
+ *  - value>0 → реальна сума
+ */
+function NumCol({ label, value, loading, emptyAs = 'zero' }: {
+  label: string; value: number | null; loading: boolean; emptyAs?: 'zero' | null;
+}) {
   return (
     <div className="hidden md:block text-right">
       <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold leading-none">{label}</p>
       <p className="text-[13px] font-bold font-mono tabular-nums mt-1 leading-none whitespace-nowrap amount">
-        {value === null ? <span className="text-muted-foreground/50">—</span> : `$${Math.round(value).toLocaleString('en-US')}`}
+        {loading ? (
+          <span className="text-muted-foreground/40">—</span>
+        ) : value && value > 0 ? (
+          `$${Math.round(value).toLocaleString('en-US')}`
+        ) : emptyAs === 'zero' ? (
+          <span className="text-muted-foreground/60">$0</span>
+        ) : (
+          <span className="text-muted-foreground/30">—</span>
+        )}
       </p>
     </div>
   );
 }
 
-/** Колонка з % виконання. Кольорує по traffic-light. Лише на md+. */
-function PctCol({ pct }: { pct: number | null }) {
+/** % виконання. loading → '—' gray; disabled (no plan) → '—' light; реал → traffic-light. */
+function PctCol({ pct, loading, disabled }: { pct: number | null; loading: boolean; disabled: boolean }) {
   let cls = 'text-muted-foreground/50';
-  if (pct !== null) {
+  if (!loading && !disabled && pct !== null) {
     if (pct >= 100) cls = 'text-emerald-700';
     else if (pct >= 80) cls = 'text-emerald-600';
     else if (pct >= 50) cls = 'text-amber-600';
@@ -437,14 +520,18 @@ function PctCol({ pct }: { pct: number | null }) {
     <div className="hidden md:block text-right">
       <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold leading-none">Викон.</p>
       <p className={`text-[13px] font-bold font-mono tabular-nums mt-1 leading-none ${cls}`}>
-        {pct === null ? '—' : `${pct.toFixed(0)}%`}
+        {loading || disabled || pct === null ? '—' : `${pct.toFixed(0)}%`}
       </p>
     </div>
   );
 }
 
 // === Accordion-розгортання з детальним звітом ===
-function ClientExpand({ clientID }: { clientID: string }) {
+function ClientExpand({ clientID, planBrands, factBrands }: {
+  clientID: string;
+  planBrands: Record<string, number>;
+  factBrands: Record<string, number>;
+}) {
   const { report, loading, error } = useClientReport(clientID);
 
   if (loading) {
@@ -489,10 +576,30 @@ function ClientExpand({ clientID }: { clientID: string }) {
         )} />
       </div>
 
-      {/* 3-місячна історія по брендах */}
+      {/* Properties — текстові tag-и з 1С (Валидний viber / у LMS / доступний бренд X тощо) */}
+      {clientInfo.properties && clientInfo.properties.length > 0 && (
+        <div>
+          <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+            Контекст · {clientInfo.properties.length}
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {clientInfo.properties.map((prop, i) => (
+              <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emet-50 text-emet-blue text-[11px] font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emet-blue" />
+                {prop}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ПЛАН × ФАКТ ЦЬОГО МІСЯЦЯ ПО БРЕНДАХ — основний CRM-блок */}
+      <PlanFactByBrand planBrands={planBrands} factBrands={factBrands} />
+
+      {/* 3-місячна історія по брендах — для контексту upsell */}
       <div>
         <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-          Продажі по брендах · {salesReport?.periodStart || '?'} — {salesReport?.periodEnd || '?'}
+          Покупки 3 місяці · {salesReport?.periodStart || '?'} — {salesReport?.periodEnd || '?'}
         </h3>
         {salesReport?.brands?.length ? (
           <div className="space-y-1.5">
@@ -549,6 +656,136 @@ function BrandSalesRow({ brand }: { brand: { brandName: string; totalAmount: num
         <p className="text-[9px] uppercase text-muted-foreground">Всього</p>
         <p className="font-mono font-bold tabular-nums text-[14px]">${brand.totalAmount.toLocaleString('en-US')}</p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Per-brand розбивка План × Факт × Викон. для розгорнутого клієнта.
+ *
+ * Об'єднує бренди з планByClient[clientId].brands (наш Supabase) та
+ * factByClient[clientId].brands (1С getSalesFact). Для кожного бренду:
+ *  - План  > 0 + Факт > 0   → нормальний рядок зі статусом
+ *  - План  > 0 + Факт = 0   → 🔥 «не куплено» (треба дзвонити)
+ *  - План = 0 + Факт > 0   → ⚡ «купив без плану» (можна додати наступним місяцем)
+ *
+ * Sort: спочатку рядки з планом, далі купівлі без плану, у межах — по сумі desc.
+ */
+function PlanFactByBrand({ planBrands, factBrands }: {
+  planBrands: Record<string, number>;
+  factBrands: Record<string, number>;
+}) {
+  // Об'єднуємо ключі (бренд-коди) з обох джерел
+  const allCodes = useMemo(() => {
+    const set = new Set<string>([...Object.keys(planBrands), ...Object.keys(factBrands)]);
+    return Array.from(set);
+  }, [planBrands, factBrands]);
+
+  // Зібрані рядки + сортування
+  const rows = useMemo(() => {
+    return allCodes.map(code => {
+      const plan = planBrands[code] ?? 0;
+      const fact = factBrands[code] ?? 0;
+      const pct = plan > 0 ? (fact / plan) * 100 : null;
+      const status: 'ok' | 'warn' | 'bad' | 'unplanned' =
+        plan === 0 && fact > 0 ? 'unplanned'
+        : plan > 0 && fact === 0 ? 'bad'
+        : pct !== null && pct >= 80 ? 'ok'
+        : 'warn';
+      return {
+        code,
+        name: BRAND_NAMES[code] || code,
+        plan,
+        fact,
+        pct,
+        status,
+      };
+    }).sort((a, b) => {
+      // Сначала з планом, потім незаплановані купівлі
+      const plannedA = a.plan > 0 ? 0 : 1;
+      const plannedB = b.plan > 0 ? 0 : 1;
+      if (plannedA !== plannedB) return plannedA - plannedB;
+      // Усередині — по убутк. величині
+      return (b.plan + b.fact) - (a.plan + a.fact);
+    });
+  }, [allCodes, planBrands, factBrands]);
+
+  if (rows.length === 0) {
+    return (
+      <div>
+        <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+          План × Факт цього місяця по брендах
+        </h3>
+        <p className="text-[12px] text-muted-foreground">
+          Для цього клієнта на поточний місяць нема ні плану, ні фактичних закупівель.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+        План × Факт цього місяця по брендах · {rows.length}
+      </h3>
+      <div className="space-y-1.5">
+        {rows.map(r => (
+          <PlanFactBrandRow key={r.code} row={r} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface BrandRowData {
+  code: string;
+  name: string;
+  plan: number;
+  fact: number;
+  pct: number | null;
+  status: 'ok' | 'warn' | 'bad' | 'unplanned';
+}
+
+function PlanFactBrandRow({ row }: { row: BrandRowData }) {
+  const { name, plan, fact, pct, status } = row;
+  const STATUS_META = {
+    ok:        { dot: 'bg-emerald-500',  label: 'Виконує',         pillBg: 'bg-emerald-50 text-emerald-700' },
+    warn:      { dot: 'bg-amber-500',    label: 'У роботі',        pillBg: 'bg-amber-50 text-amber-700' },
+    bad:       { dot: 'bg-rose-500',     label: '🔥 Не куплено',   pillBg: 'bg-rose-50 text-rose-700' },
+    unplanned: { dot: 'bg-violet-500',   label: '⚡ Без плану',     pillBg: 'bg-violet-50 text-violet-700' },
+  } as const;
+  const meta = STATUS_META[status];
+  return (
+    <div className="glass-card-soft p-3 grid grid-cols-[12px_minmax(0,1.4fr)_1fr_1fr_70px_auto] gap-3 items-center">
+      <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
+      <div className="font-semibold text-[13px] truncate">{name}</div>
+      <div className="text-right">
+        <p className="text-[9px] uppercase text-muted-foreground font-semibold">План</p>
+        <p className="font-mono font-bold tabular-nums text-[12px] mt-0.5 amount">
+          {plan > 0 ? `$${Math.round(plan).toLocaleString('en-US')}` : <span className="text-muted-foreground/40">—</span>}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Факт</p>
+        <p className="font-mono font-bold tabular-nums text-[12px] mt-0.5 amount">
+          {fact > 0 ? `$${Math.round(fact).toLocaleString('en-US')}` : <span className="text-muted-foreground/40">$0</span>}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Викон.</p>
+        <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 ${
+          pct === null ? 'text-muted-foreground/40'
+          : pct >= 100 ? 'text-emerald-700'
+          : pct >= 80 ? 'text-emerald-600'
+          : pct >= 50 ? 'text-amber-600'
+          : 'text-rose-600'
+        }`}>
+          {pct === null ? '—' : `${pct.toFixed(0)}%`}
+        </p>
+      </div>
+      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${meta.pillBg}`}>
+        {meta.label}
+      </span>
     </div>
   );
 }

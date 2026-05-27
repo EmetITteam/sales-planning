@@ -94,6 +94,13 @@ export interface ClientInfoFromReport {
   education: string;
   /** Чи є підписані документи з EMET. */
   documents: boolean;
+  /**
+   * Властивості / прапори клієнта (від 2026-05-27 дороблено у 1С).
+   * Текстові тегі типу «Валидний viber номер», «Зарегестрирован в LMS»,
+   * «Доступна продажа Neuronox». Показуємо у expanded view як chips —
+   * корисний контекст перед/під час дзвінка.
+   */
+  properties?: string[];
 }
 
 /**
