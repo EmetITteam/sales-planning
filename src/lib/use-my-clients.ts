@@ -201,6 +201,57 @@ interface UseClientActivitiesResult {
   error: string | null;
 }
 
+// === Фокуси клієнтів (Action A: getClientFocus) ===
+// Bulk-дія: повертає масив focuses[].items[] на клієнта. Один клієнт може
+// мати кілька активних фокусів одночасно.
+
+export interface ClientFocusItem {
+  focusName: string;
+  since?: string;
+  validUntil?: string | null;
+}
+
+interface UseClientFocusesResult {
+  /** focusByClient[clientId] → items[] (порожній якщо нема активних фокусів). */
+  focusByClient: Record<string, ClientFocusItem[]>;
+  loading: boolean;
+  error: string | null;
+}
+
+export function useClientFocuses(login: string | null, clientIds: string[]): UseClientFocusesResult {
+  // Чанк 200 — як checkActivities (1С спека ~200-500 ID per call).
+  const chunk1 = clientIds.slice(0, 200);
+  const chunk2 = clientIds.slice(200, 400);
+  const chunk3 = clientIds.slice(400, 600);
+  const mkPayload = (chunk: string[]) =>
+    login && chunk.length > 0
+      ? { login, clientIds: chunk }
+      : null;
+
+  const { data: f1, loading: l1, error: e1 } = useOneCData('getClientFocus', mkPayload(chunk1));
+  const { data: f2, loading: l2, error: e2 } = useOneCData('getClientFocus', mkPayload(chunk2));
+  const { data: f3, loading: l3, error: e3 } = useOneCData('getClientFocus', mkPayload(chunk3));
+
+  const focusByClient = useMemo(() => {
+    const out: Record<string, ClientFocusItem[]> = {};
+    for (const res of [f1, f2, f3]) {
+      if (!res?.focuses) continue;
+      for (const f of res.focuses) {
+        if (!f.clientId) continue;
+        out[f.clientId] = Array.isArray(f.items) ? f.items : [];
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f1, f2, f3]);
+
+  return {
+    focusByClient,
+    loading: l1 || l2 || l3,
+    error: e1 || e2 || e3 || null,
+  };
+}
+
 export function useClientActivities(login: string | null, clientIds: string[]): UseClientActivitiesResult {
   const currentPeriod = useAppStore(s => s.currentPeriod);
   const month = currentPeriod.month?.slice(0, 7);

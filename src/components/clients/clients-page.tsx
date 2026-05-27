@@ -12,7 +12,7 @@
 
 import { useMemo, useState } from 'react';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
-import { useMyClients, useClientReport, useClientsTotals, useClientActivities } from '@/lib/use-my-clients';
+import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
@@ -122,7 +122,8 @@ export function ClientsPage() {
   const sessionUser = useAppStore(s => s.user);
   const { clients, loading, error, refetch } = useMyClients();
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<UICategory | 'all'>('all');
+  // 'all' / категорія / 'focused' (у фокусі) / 'with-plan' (з планом)
+  const [activeFilter, setActiveFilter] = useState<UICategory | 'all' | 'focused' | 'with-plan'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
@@ -133,6 +134,8 @@ export function ClientsPage() {
   );
   // Контактна активність (зустрічі/дзвінки цього міс) — для Hero Card 4
   const { activityByClient } = useClientActivities(sessionUser?.login ?? null, clientIds);
+  // Фокуси клієнтів (Action A) — для chip у рядку + блок у expanded
+  const { focusByClient } = useClientFocuses(sessionUser?.login ?? null, clientIds);
 
   // === База клієнтів за правилом: НЕ-резерв + резерв-купуючі (fact>0) ===
   // Резерв-некупуючих виключаємо зі всіх метрик (за домовленістю).
@@ -247,12 +250,29 @@ export function ClientsPage() {
     };
   }, [baseClients, planByClient, factByClient, activityByClient, wd.passedWD, wd.totalWD]);
 
+  // Counts для clickable hero-counters
+  const focusedCount = useMemo(() =>
+    baseClients.filter(c => (focusByClient[c.ClientID]?.length ?? 0) > 0).length,
+    [baseClients, focusByClient]);
+
   // === Filtered + grouped clients (БЕЗ резерв-некупуючих — вони у окремій секції) ===
-  // Defensive: 1С іноді повертає clientName/Phone undefined → ?? '' скрізь.
+  // activeFilter може бути:
+  //   'all' — без фільтру
+  //   UICategory — стандартний категорійний фільтр
+  //   'focused' — тільки клієнти що мають хоч 1 активний фокус
+  //   'with-plan' — тільки клієнти у яких planTotal > 0
   const groupedClients = useMemo(() => {
     const lowSearch = search.trim().toLowerCase();
     const filtered = baseClients.filter(c => {
-      if (activeFilter !== 'all' && toUICategory(c.ClientCategory) !== activeFilter) return false;
+      // Спочатку фільтр (категорія / focused / with-plan)
+      if (activeFilter === 'focused') {
+        if ((focusByClient[c.ClientID]?.length ?? 0) === 0) return false;
+      } else if (activeFilter === 'with-plan') {
+        if ((planByClient[c.ClientID]?.planTotal ?? 0) <= 0) return false;
+      } else if (activeFilter !== 'all') {
+        if (toUICategory(c.ClientCategory) !== activeFilter) return false;
+      }
+      // Потім — пошук
       if (!lowSearch) return true;
       const name = getClientName(c).toLowerCase();
       const phone = (c.Phone ?? '').toLowerCase();
@@ -339,6 +359,9 @@ export function ClientsPage() {
           index={2}
           withPlanCount={heroMetrics.withPlanCnt}
           completedCount={heroMetrics.completedCnt}
+          focusedCount={focusedCount}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
         />
 
         {/* Card 4 — КОНТАКТНА АКТИВНІСТЬ (зустрічі+дзвінки цього міс) */}
@@ -414,6 +437,7 @@ export function ClientsPage() {
                 clients={list}
                 planByClient={planByClient}
                 factByClient={factByClient}
+                focusByClient={focusByClient}
                 totalsLoading={totalsLoading}
                 expandedId={expandedId}
                 onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
@@ -426,6 +450,7 @@ export function ClientsPage() {
               clients={reservedClients}
               planByClient={planByClient}
               factByClient={factByClient}
+              focusByClient={focusByClient}
               totalsLoading={totalsLoading}
               expandedId={expandedId}
               onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
@@ -558,14 +583,21 @@ function HeroBaza({ index, baseTotal, counts, reservedCount, reservedActiveCount
   );
 }
 
-/** Card 3 — Активація + Виконання по клієнтах. */
-function HeroActivation({ index, withPlanCount, completedCount }: {
-  index: number; withPlanCount: number; completedCount: number;
+/** Card 3 — Активація + Виконання по клієнтах + clickable counters. */
+function HeroActivation({ index, withPlanCount, completedCount, focusedCount, activeFilter, onFilterChange }: {
+  index: number;
+  withPlanCount: number;
+  completedCount: number;
+  focusedCount: number;
+  activeFilter: string;
+  onFilterChange: (f: 'all' | 'focused' | 'with-plan') => void;
 }) {
   const pct = withPlanCount > 0 ? Math.round((completedCount / withPlanCount) * 100) : 0;
   let pctColor = 'text-rose-600';
   if (pct >= 80) pctColor = 'text-emerald-600';
   else if (pct >= 50) pctColor = 'text-amber-600';
+  const planFilterActive = activeFilter === 'with-plan';
+  const focusFilterActive = activeFilter === 'focused';
   return (
     <div className={heroCardCls} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
@@ -579,14 +611,36 @@ function HeroActivation({ index, withPlanCount, completedCount }: {
         </p>
         <p className={`text-[14px] font-bold ${pctColor}`}>{pct}%</p>
       </div>
-      <div className="text-[11px] leading-snug">
-        <p className="text-muted-foreground">
-          клієнтів виконали запланований обсяг.
-        </p>
-        <p className="text-muted-foreground/70 text-[10px] mt-1.5">
-          План активації (категорії «Сплячий» / «Втрачений» / «Без закупок»):{' '}
-          <span className="italic">очікуємо дані з 1С</span>
-        </p>
+      <div className="flex flex-col gap-1 text-[11px]">
+        <p className="text-muted-foreground">клієнтів виконали запланований обсяг</p>
+        <div className="flex flex-col gap-1 mt-1.5">
+          <button
+            type="button"
+            onClick={() => onFilterChange(planFilterActive ? 'all' : 'with-plan')}
+            className={`flex items-center justify-between px-2 py-1 -mx-2 rounded-lg text-[11px] transition-colors ${
+              planFilterActive
+                ? 'bg-emet-blue/15 text-emet-blue font-bold'
+                : 'hover:bg-emet-blue/5 text-foreground'
+            }`}
+            title="Клік — відфільтрувати лише клієнтів з планом"
+          >
+            <span>{planFilterActive ? '✓ ' : ''}Клієнтів з планом</span>
+            <span className="font-mono font-bold tabular-nums">{withPlanCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onFilterChange(focusFilterActive ? 'all' : 'focused')}
+            className={`flex items-center justify-between px-2 py-1 -mx-2 rounded-lg text-[11px] transition-colors ${
+              focusFilterActive
+                ? 'bg-violet-500/15 text-violet-700 font-bold'
+                : 'hover:bg-violet-500/5 text-foreground'
+            }`}
+            title="Клік — відфільтрувати лише клієнтів у фокусі"
+          >
+            <span>{focusFilterActive ? '✓ ' : ''}Клієнтів у фокусі</span>
+            <span className="font-mono font-bold tabular-nums">{focusedCount}</span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -665,11 +719,12 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, totalsLoading, expandedId, onToggleExpand,
+  cat, clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
+  focusByClient: Record<string, ClientFocusItem[]>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
 }) {
@@ -743,6 +798,7 @@ function CategorySection({
           const fact = factByClient[c.ClientID]?.factTotal ?? null;
           const planBrands = planByClient[c.ClientID]?.brands ?? {};
           const factBrands = factByClient[c.ClientID]?.brands ?? {};
+          const focuses = focusByClient[c.ClientID] ?? [];
           return (
             <ClientRow
               key={c.ClientID}
@@ -751,6 +807,7 @@ function CategorySection({
               fact={fact}
               planBrands={planBrands}
               factBrands={factBrands}
+              focuses={focuses}
               totalsLoading={totalsLoading}
               expanded={expandedId === c.ClientID}
               onToggle={() => onToggleExpand(c.ClientID)}
@@ -767,10 +824,11 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, totalsLoading, expandedId, onToggleExpand }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
+  focusByClient: Record<string, ClientFocusItem[]>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
 }) {
@@ -806,6 +864,7 @@ function ReservedSection({ clients, planByClient, factByClient, totalsLoading, e
             const fact = factByClient[c.ClientID]?.factTotal ?? null;
             const planBrands = planByClient[c.ClientID]?.brands ?? {};
             const factBrands = factByClient[c.ClientID]?.brands ?? {};
+            const focuses = focusByClient[c.ClientID] ?? [];
             return (
               <ClientRow
                 key={c.ClientID}
@@ -814,6 +873,7 @@ function ReservedSection({ clients, planByClient, factByClient, totalsLoading, e
                 fact={fact}
                 planBrands={planBrands}
                 factBrands={factBrands}
+                focuses={focuses}
                 totalsLoading={totalsLoading}
                 expanded={expandedId === c.ClientID}
                 onToggle={() => onToggleExpand(c.ClientID)}
@@ -827,12 +887,13 @@ function ReservedSection({ clients, planByClient, factByClient, totalsLoading, e
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, expanded, onToggle }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totalsLoading, expanded, onToggle }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
   planBrands: Record<string, number>;
   factBrands: Record<string, number>;
+  focuses: ClientFocusItem[];
   totalsLoading: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -883,6 +944,15 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
                 Резерв
               </span>
             )}
+            {/* Focus-tag (violet) — є хоча б 1 активний фокус */}
+            {focuses.length > 0 && (
+              <span
+                className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-violet-100 text-violet-700 border border-violet-200"
+                title={focuses.map(f => f.focusName).join(' · ')}
+              >
+                У фокусі{focuses.length > 1 ? ` · ${focuses.length}` : ''}
+              </span>
+            )}
             {noPlanNoFact && (
               <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-500 border border-dashed border-slate-300" title="Цього клієнта менеджер не виставив у план і він не купував цього місяця">
                 Без плану
@@ -930,6 +1000,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
           clientID={client.ClientID}
           planBrands={planBrands}
           factBrands={factBrands}
+          focuses={focuses}
         />
       )}
     </div>
@@ -985,10 +1056,11 @@ function PctCol({ pct, loading, disabled }: { pct: number | null; loading: boole
 }
 
 // === Accordion-розгортання з детальним звітом ===
-function ClientExpand({ clientID, planBrands, factBrands }: {
+function ClientExpand({ clientID, planBrands, factBrands, focuses }: {
   clientID: string;
   planBrands: Record<string, number>;
   factBrands: Record<string, number>;
+  focuses: ClientFocusItem[];
 }) {
   const { report, loading, error } = useClientReport(clientID);
 
@@ -1034,6 +1106,9 @@ function ClientExpand({ clientID, planBrands, factBrands }: {
     <div className="border-t border-white/50 px-5 py-4 space-y-4">
       {/* Інформація по клієнту — об'єднує освіту, документи та properties */}
       <ClientInfoBlock clientInfo={clientInfo} />
+
+      {/* Діючі фокуси клієнта — перед План×Факт бо це контекст до планування */}
+      {focuses.length > 0 && <ClientFocusBlock focuses={focuses} />}
 
       {/* ПЛАН × ФАКТ ЦЬОГО МІСЯЦЯ ПО БРЕНДАХ — основний CRM-блок */}
       <PlanFactByBrand planBrands={planBrands} factBrands={factBrands} />
@@ -1142,6 +1217,33 @@ function ClientInfoBlock({ clientInfo }: { clientInfo: import('@/lib/mityng-type
             <span className="w-1.5 h-1.5 rounded-full bg-emet-blue" />
             {prop}
           </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Блок «Діючі фокуси клієнта» — між «Інформація» і «План×Факт».
+ * Показує всі активні фокуси як glass-card-soft рядки з focusName + dates.
+ */
+function ClientFocusBlock({ focuses }: { focuses: ClientFocusItem[] }) {
+  return (
+    <div>
+      <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+        Діючі фокуси клієнта · {focuses.length}
+      </h3>
+      <div className="space-y-1.5">
+        {focuses.map((f, i) => (
+          <div key={i} className="glass-card-soft p-3 grid grid-cols-[8px_minmax(0,1fr)_auto] gap-3 items-center">
+            <span className="w-2 h-2 rounded-full bg-violet-500" />
+            <p className="text-[13px] font-semibold leading-snug">{f.focusName}</p>
+            {(f.since || f.validUntil) && (
+              <p className="text-[10px] text-muted-foreground font-mono tabular-nums whitespace-nowrap">
+                {f.since || '?'} → {f.validUntil || 'безстроково'}
+              </p>
+            )}
+          </div>
         ))}
       </div>
     </div>
