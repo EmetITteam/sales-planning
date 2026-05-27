@@ -17,6 +17,22 @@ import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
+
+/**
+ * Аліаси кодів брендів — нормалізують різні написання тієї самої сутності.
+ * 1С історично присилає 'ДРУГИЕ ТМ' / 'Інші ТМ' як segment-code, у нас канонічно — 'OTHER'.
+ * Розширюй за потреби коли знайдеш ще колізій.
+ */
+const BRAND_CODE_ALIASES: Record<string, string> = {
+  'ДРУГИЕ ТМ': 'OTHER',
+  'другие тм': 'OTHER',
+  'Інші ТМ': 'OTHER',
+  'інші тм': 'OTHER',
+  'OTHER BRANDS': 'OTHER',
+};
+function canonicalSegmentCode(raw: string): string {
+  return BRAND_CODE_ALIASES[raw] ?? BRAND_CODE_ALIASES[raw.toLowerCase()] ?? raw;
+}
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { getClientName, getClientAddress, type ClientFromOneC } from '@/lib/mityng-types';
@@ -633,8 +649,16 @@ function ClientExpand({ clientID, planBrands, factBrands }: {
     );
   }
 
-  const { clientInfo, salesReport, lastMeetings, lastCalls, lastSeminars } = report;
-  const eventCount = (lastMeetings?.length || 0) + (lastCalls?.length || 0) + (lastSeminars?.length || 0);
+  const { clientInfo, salesReport, lastMeetings, lastCalls } = report;
+  // 1С повертає семінари під ключем `seminars` (нове поле з `name`).
+  // Backward-compat — підтримуємо також старий `lastSeminars` з `comment`.
+  const seminarsRaw = report.seminars ?? report.lastSeminars ?? [];
+  // Нормалізуємо до {date, comment} для UI (name → comment)
+  const seminars = seminarsRaw.map((s: { date: string; name?: string; comment?: string }) => ({
+    date: s.date,
+    comment: s.name ?? s.comment ?? '',
+  }));
+  const eventCount = (lastMeetings?.length || 0) + (lastCalls?.length || 0) + seminars.length;
 
   return (
     <div className="border-t border-white/50 px-5 py-4 space-y-4">
@@ -651,7 +675,7 @@ function ClientExpand({ clientID, planBrands, factBrands }: {
       <EventsTimeline
         meetings={lastMeetings ?? []}
         calls={lastCalls ?? []}
-        seminars={lastSeminars ?? []}
+        seminars={seminars}
         totalCount={eventCount}
       />
     </div>
@@ -784,7 +808,7 @@ function ThreeMonthHistory({ salesReport }: { salesReport: import('@/lib/mityng-
   const monthOrder = Array.from(monthSet).sort((a, b) => {
     const ymA = parseMonthLabelToYM(a) ?? '';
     const ymB = parseMonthLabelToYM(b) ?? '';
-    return ymB.localeCompare(ymA); // desc: 04, 03, 02
+    return ymA.localeCompare(ymB); // asc: 02 → 03 → 04 (хронологічно зліва направо)
   });
 
   // Sort бренди за totalAmount desc.
@@ -1099,17 +1123,35 @@ function PlanFactByBrand({ planBrands, factBrands }: {
   planBrands: Record<string, number>;
   factBrands: Record<string, number>;
 }) {
-  // Об'єднуємо ключі (бренд-коди) з обох джерел
+  // Нормалізуємо коди (ДРУГИЕ ТМ → OTHER тощо) і агрегуємо суми
+  const normalizedPlan = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(planBrands)) {
+      const c = canonicalSegmentCode(k);
+      out[c] = (out[c] ?? 0) + (Number(v) || 0);
+    }
+    return out;
+  }, [planBrands]);
+  const normalizedFact = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(factBrands)) {
+      const c = canonicalSegmentCode(k);
+      out[c] = (out[c] ?? 0) + (Number(v) || 0);
+    }
+    return out;
+  }, [factBrands]);
+
+  // Об'єднуємо канонічні ключі з обох джерел
   const allCodes = useMemo(() => {
-    const set = new Set<string>([...Object.keys(planBrands), ...Object.keys(factBrands)]);
+    const set = new Set<string>([...Object.keys(normalizedPlan), ...Object.keys(normalizedFact)]);
     return Array.from(set);
-  }, [planBrands, factBrands]);
+  }, [normalizedPlan, normalizedFact]);
 
   // Зібрані рядки + сортування
   const rows = useMemo(() => {
     return allCodes.map(code => {
-      const plan = planBrands[code] ?? 0;
-      const fact = factBrands[code] ?? 0;
+      const plan = normalizedPlan[code] ?? 0;
+      const fact = normalizedFact[code] ?? 0;
       const pct = plan > 0 ? (fact / plan) * 100 : null;
       const status: 'ok' | 'warn' | 'bad' | 'unplanned' =
         plan === 0 && fact > 0 ? 'unplanned'
@@ -1199,7 +1241,10 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
   } as const;
   const meta = STATUS_META[status];
   return (
-    <div className="glass-card-soft p-3 grid grid-cols-[12px_minmax(0,1.4fr)_1fr_1fr_70px_auto] gap-3 items-center">
+    // Фіксовані ширини колонок План/Факт/Викон/Status — щоб усі рядки
+    // вирівнювались строго (раніше 1fr+auto давало «гуляючі» значення
+    // коли status-pill мав різну довжину).
+    <div className="glass-card-soft p-3 grid grid-cols-[12px_minmax(0,1fr)_110px_110px_75px_150px] gap-3 items-center">
       <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
       <div className="font-semibold text-[13px] truncate">{name}</div>
       <div className="text-right">

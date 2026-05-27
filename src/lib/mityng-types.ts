@@ -77,10 +77,19 @@ export interface BrandSalesHistory {
   salesByMonth: SalesByMonth[];
 }
 
-/** Подія: зустріч / дзвінок / семінар. */
+/** Подія: зустріч / дзвінок. */
 export interface ClientEvent {
   date: string;  // ISO або dd.MM.yyyy — уточнити при першому виклику
   comment: string;
+}
+
+/**
+ * Семінар — окремий shape! 1С повертає `name` (назва семінару), не `comment`.
+ * Поле повертається у `report.seminars` (НЕ `lastSeminars`).
+ */
+export interface ClientSeminar {
+  date: string;
+  name: string;
 }
 
 /** Базова інформація про клієнта у `getClientReport`. */
@@ -119,7 +128,13 @@ export interface ClientReport {
   };
   lastMeetings: ClientEvent[];
   lastCalls: ClientEvent[];
-  lastSeminars: ClientEvent[];
+  /**
+   * ⚠️ 1С повертає під ключем `seminars` (НЕ `lastSeminars`!) і кожен запис
+   * має `name` замість `comment`. Виявлено 2026-05-27.
+   */
+  seminars?: ClientSeminar[];
+  /** Backward-compat — деякі версії 1С можуть повертати під цим ім'ям. */
+  lastSeminars?: ClientEvent[];
   /** Графік 12-міс — shape невідомий до першого виклику. */
   yearlySales?: unknown;
 }
