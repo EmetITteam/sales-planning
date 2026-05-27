@@ -1165,25 +1165,34 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
   planBrands: Record<string, number>;
 }) {
   // Пріоритет: yearlySalesReport (12 міс) → fallback salesReport (3 міс).
-  // Беремо звідки є більше даних.
   const sourceBrands = yearlySalesReport?.brands ?? salesReport?.brands ?? [];
   const currentYM = currentYearMonth();
   const MAX_MONTHS = 6;
 
-  // 1) Виключаємо поточний місяць
-  // 2) Беремо тільки останні 6 (хронологічно)
-  // 3) Recalc totalAmount від фільтрованих
+  // КРОК 1: збираємо усі унікальні місяці з усіх брендів (БЕЗ поточного)
+  // КРОК 2: сортуємо ГЛОБАЛЬНО + беремо останні 6 (не per-brand!)
+  // Інакше різні бренди дають різні місяці → колонок виходить більше 6.
+  const allMonthsSet = new Set<string>();
+  for (const b of sourceBrands) {
+    for (const m of (b.salesByMonth ?? [])) {
+      if (parseMonthLabelToYM(m.month) !== currentYM) {
+        allMonthsSet.add(m.month);
+      }
+    }
+  }
+  const sortedAllMonths = Array.from(allMonthsSet).sort((a, b) => {
+    const ymA = parseMonthLabelToYM(a) ?? '';
+    const ymB = parseMonthLabelToYM(b) ?? '';
+    return ymA.localeCompare(ymB); // asc — старіші ліворуч
+  });
+  const lastSixMonths = sortedAllMonths.slice(-MAX_MONTHS);
+  const allowedMonths = new Set(lastSixMonths);
+
+  // КРОК 3: фільтруємо бренди — лишаємо тільки ті місяці що у allowedMonths
   const brands = sourceBrands.map(b => {
-    const noCurrent = (b.salesByMonth ?? []).filter(m => parseMonthLabelToYM(m.month) !== currentYM);
-    // sort by ym asc, take last 6
-    const sortedByMonth = [...noCurrent].sort((a, b) => {
-      const ymA = parseMonthLabelToYM(a.month) ?? '';
-      const ymB = parseMonthLabelToYM(b.month) ?? '';
-      return ymA.localeCompare(ymB);
-    });
-    const last6 = sortedByMonth.slice(-MAX_MONTHS);
-    const total = last6.reduce((s, m) => s + (Number(m.amount) || 0), 0);
-    return { ...b, salesByMonth: last6, totalAmount: total };
+    const filtered = (b.salesByMonth ?? []).filter(m => allowedMonths.has(m.month));
+    const total = filtered.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+    return { ...b, salesByMonth: filtered, totalAmount: total };
   }).filter(b => b.totalAmount > 0);
 
   // Нормалізуємо planBrands ключі через canonicalSegmentCode (Vitaran Cosmetics→OTHER, etc.)
@@ -1211,14 +1220,8 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
     );
   }
 
-  // Унікальні місяці з усіх брендів, sort asc (старіші ліворуч).
-  const monthSet = new Set<string>();
-  for (const b of brands) for (const m of b.salesByMonth) monthSet.add(m.month);
-  const monthOrder = Array.from(monthSet).sort((a, b) => {
-    const ymA = parseMonthLabelToYM(a) ?? '';
-    const ymB = parseMonthLabelToYM(b) ?? '';
-    return ymA.localeCompare(ymB);
-  });
+  // monthOrder уже готовий = lastSixMonths (топ-6 unique sorted asc)
+  const monthOrder = lastSixMonths;
 
   const sorted = [...brands].sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
 
