@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PeriodFilter } from './period-filter';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield, Users } from 'lucide-react';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
@@ -51,6 +51,8 @@ export function AppHeader() {
   const { user, setUser, liveMode, setLiveMode, activeView, setActiveView } = useAppStore();
   const { mutate } = useSWRConfig();
   const router = useRouter();
+  const pathname = usePathname();
+  const isOnClientsPage = pathname?.startsWith('/clients') ?? false;
   // Cursor-following gradient на всіх glass-card. Один document listener.
   useGlassHover();
   const handleLogout = async () => {
@@ -147,6 +149,34 @@ export function AppHeader() {
             <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_4px_#f59e0b]" />
             LIVE · {new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}
           </span>
+        )}
+
+        {/* Route toggle «Планування ↔ Мої клієнти» — для manager + RM.
+            Admin/Director мають свій view-toggle Планування/Огляд нижче,
+            до /clients вони ходять через user-dropdown. */}
+        {(user.role === 'manager' || user.role === 'rm') && (
+          <div className="hidden md:flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2">
+            <button
+              onClick={() => router.push('/')}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+                !isOnClientsPage
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Планування
+            </button>
+            <button
+              onClick={() => router.push('/clients')}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+                isOnClientsPage
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Мої клієнти
+            </button>
+          </div>
         )}
 
         {/* View toggle — для admin завжди, для решти — за canViewCompanyOverview */}

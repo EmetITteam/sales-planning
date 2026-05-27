@@ -61,11 +61,11 @@ export function MetricCard({
     ? 'text-[22px] font-medium text-muted-foreground align-top mr-0.5'
     : 'text-[14px] font-medium text-muted-foreground align-top mr-0.5';
 
-  // Layout: label (TOP) → value (MIDDLE) → caption+trailing (BOTTOM).
-  // justify-between розводить три зони рівномірно по висоті — раніше було
-  // flex-1+justify-center і все злипалось у центрі картки.
-  // min-h-[140px] — щоб дати запас для нормального дихання трьох зон.
-  const baseCls = 'glass-card p-5 relative min-h-[140px] flex flex-col justify-between gap-3 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
+  // Layout: label / value / caption-trailing — простий flex з gap-3 (БЕЗ
+  // justify-between). justify-between розводив контент по краях → великі
+  // цифри стрибали залежно від обсягу caption/trailing внизу. Тепер всі
+  // hero-картки на дашбордах мають великі цифри на одній вертикальній лінії.
+  const baseCls = 'glass-card p-5 relative flex flex-col gap-3 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
   const cls = index !== undefined ? `${baseCls} fade-stagger` : baseCls;
   const style = index !== undefined ? { ['--i' as string]: index } : undefined;
 
