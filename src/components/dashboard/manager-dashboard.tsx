@@ -234,24 +234,40 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
 
   // Агрегати по категоріях клієнтів (для ClientStatsCard) — з реальних даних 1С
   // або з демо-цифр у DEMO режимі.
+  // 'bought' рахуємо через крос-референс: Action 2 (getClientsForPlanning →
+  // категорії) + Action 3 (getSalesFact → клієнти з купівлями цього міс).
+  // Це робить ClientStatsCard консистентним з /clients page.
   const clientStats: ClientCategoryStats | null = useMemo(() => {
     if (isDemo) return getDemoClientStats();
     if (!clientsResponse) return null;
     const all = adaptClientsForPlanning(clientsResponse);
-    const active = all.filter(c => c.category === 'active').length;
-    const sleeping = all.filter(c => c.category === 'sleeping' || c.category === 'lost').length;
-    const newClients = all.filter(c => c.category === 'new').length;
-    // `bought` поки не маємо джерела — потрібен крос-метод Action 2 + Action 3
-    // (для кожної категорії порахувати скільки купило цього місяця). Зробимо коли
-    // буде відповідний метод/агрегація. Поки 0 щоб не вводити в оману.
+
+    // Set ID-шок клієнтів які купили хоча б щось цього місяця (з Action 3).
+    const boughtIds = new Set<string>();
+    if (factResponse) {
+      const facts = adaptSalesFact(factResponse).facts;
+      for (const f of facts) {
+        for (const c of f.clients) {
+          if (c.amount > 0 && c.clientId) boughtIds.add(c.clientId);
+        }
+      }
+    }
+
+    const active = all.filter(c => c.category === 'active');
+    const sleeping = all.filter(c => c.category === 'sleeping' || c.category === 'lost');
+    const newClients = all.filter(c => c.category === 'new');
+
+    const countBought = (clients: typeof all) =>
+      clients.filter(c => boughtIds.has(c.clientId)).length;
+
     return {
-      active: { total: active, bought: 0 },
-      sleeping: { total: sleeping, bought: 0 },
-      newClients: { total: newClients, bought: 0 },
-      totalBought: 0,
+      active: { total: active.length, bought: countBought(active) },
+      sleeping: { total: sleeping.length, bought: countBought(sleeping) },
+      newClients: { total: newClients.length, bought: countBought(newClients) },
+      totalBought: boughtIds.size,
       totalClients: all.length,
     };
-  }, [isDemo, clientsResponse]);
+  }, [isDemo, clientsResponse, factResponse]);
 
   // План менеджера з нашого Supabase (forecasts + gap_closures) per segment.
   // Використовуємо для:

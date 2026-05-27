@@ -16,6 +16,8 @@ import { useMyClients, useClientReport, useClientsTotals, useClientActivities, u
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { useRegistryPlans } from '@/lib/use-registry-plans';
+import { adaptRegistryPlans } from '@/lib/onec-adapters';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -162,10 +164,35 @@ export function ClientsPage() {
     return counts;
   }, [baseClients]);
 
-  // Working-days metrics для Card 1 (норма + темп). Базуються на поточному
-  // місяці (period з store). Live чи звітний — у CRM-режимі не критично,
-  // використовуємо реальний `now`.
+  // Working-days metrics + Registry Plan для Card 1 (Виконання).
+  // Реєстровий план тягнемо тим самим способом що manager-dashboard —
+  // щоб цифри на /clients ↔ /planning збігались (не сума forecasts менеджера,
+  // а офіційний план з 1С Action 4).
   const currentPeriod = useAppStore(s => s.currentPeriod);
+  const sessionLoginLower = (sessionUser?.login ?? '').toLowerCase().trim();
+  const { dateFrom, dateTo } = useMemo(() => {
+    const monthParts = currentPeriod.month.split('-').map(Number);
+    const py = Number.isFinite(monthParts[0]) && monthParts[0] > 0 ? monthParts[0] : new Date().getFullYear();
+    const pm = Number.isFinite(monthParts[1]) && monthParts[1] > 0 ? monthParts[1] : new Date().getMonth() + 1;
+    const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
+    const lastDay = new Date(py, pm, 0).getDate();
+    const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return { dateFrom, dateTo };
+  }, [currentPeriod.month]);
+  const { data: registryPlansResponse } = useRegistryPlans(
+    sessionLoginLower !== 'anonymous' ? dateFrom : null,
+    sessionLoginLower !== 'anonymous' ? dateTo : null,
+  );
+  // Сума реєстрового плану для поточного менеджера (всі бренди).
+  const registryPlanTotal = useMemo(() => {
+    if (!registryPlansResponse) return 0;
+    let sum = 0;
+    for (const p of adaptRegistryPlans(registryPlansResponse)) {
+      if (p.managerLogin === sessionLoginLower) sum += p.planAmount;
+    }
+    return sum;
+  }, [registryPlansResponse, sessionLoginLower]);
+
   const wd = useMemo(() => {
     const now = new Date();
     const m = currentPeriod.month?.slice(0, 7);
@@ -187,15 +214,16 @@ export function ClientsPage() {
 
   // === Hero metrics обчислюємо по базі ===
   const heroMetrics = useMemo(() => {
-    // Card 1 — Виконання $план/факт/%/темп
-    let planTotal = 0;
+    // Card 1 — Виконання $план/факт/%/темп.
+    // ВАЖЛИВО: planTotal беремо з Registry (Action 4) — щоб збігалось з /planning.
+    // Раніше брали суму planByClient (forecasts+gap_closures менеджера, що
+    // концептуально інше — це його прогноз, не офіційний план від керівника).
+    const planTotal = registryPlanTotal;
     let factTotal = 0;
     for (const c of baseClients) {
-      planTotal += planByClient[c.ClientID]?.planTotal ?? 0;
       factTotal += factByClient[c.ClientID]?.factTotal ?? 0;
     }
     const pct = planTotal > 0 ? (factTotal / planTotal) * 100 : 0;
-    // Темп (run-rate forecast): екстраполюємо до кінця місяця за поточним темпом
     const forecastPct = (planTotal > 0 && wd.passedWD > 0)
       ? (factTotal * wd.totalWD) / (planTotal * wd.passedWD) * 100
       : 0;
@@ -247,7 +275,7 @@ export function ClientsPage() {
       clientsWithCall, clientsWithMeeting, clientsWithAnyEvent,
       coveragePct, noContacts, noContactsWithPlan, noContactsWithoutPlan,
     };
-  }, [baseClients, planByClient, factByClient, activityByClient, wd.passedWD, wd.totalWD]);
+  }, [baseClients, planByClient, factByClient, activityByClient, wd.passedWD, wd.totalWD, registryPlanTotal]);
 
   // Counts для clickable hero-counters
   const focusedCount = useMemo(() =>
