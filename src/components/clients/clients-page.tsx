@@ -45,9 +45,11 @@ function toUICategory(raw: string | null): UICategory {
 
 const CAT_ORDER: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'other'];
 
-// Initials з назви клієнта (для аватара)
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
+// Initials з назви клієнта (для аватара) — defensive: 1С іноді повертає undefined
+function initials(name: string | null | undefined): string {
+  const safe = (name ?? '').trim();
+  if (!safe) return '?';
+  const parts = safe.split(/\s+/).slice(0, 2);
   return parts.map(p => p[0]?.toUpperCase() || '').join('') || '?';
 }
 
@@ -67,24 +69,28 @@ export function ClientsPage() {
   }, [clients]);
 
   // === Filtered + grouped clients ===
+  // ⚠️ defensive coding: 1С іноді повертає клієнтів з undefined для
+  // clientName/Phone/ClientCategory/clientAddress (виявлено у проді).
+  // Скрізь робимо `?? ''` fallback щоб .toLowerCase()/.localeCompare не падали.
   const groupedClients = useMemo(() => {
     const lowSearch = search.trim().toLowerCase();
     const filtered = clients.filter(c => {
       if (activeFilter !== 'all' && toUICategory(c.ClientCategory) !== activeFilter) return false;
       if (!lowSearch) return true;
-      return (
-        c.clientName.toLowerCase().includes(lowSearch)
-        || (c.Phone || '').toLowerCase().includes(lowSearch)
-        || (c.ClientCategory || '').toLowerCase().includes(lowSearch)
-        || (c.clientAddress || '').toLowerCase().includes(lowSearch)
-      );
+      const name = (c.clientName ?? '').toLowerCase();
+      const phone = (c.Phone ?? '').toLowerCase();
+      const cat = (c.ClientCategory ?? '').toLowerCase();
+      const addr = (c.clientAddress ?? '').toLowerCase();
+      return name.includes(lowSearch) || phone.includes(lowSearch) || cat.includes(lowSearch) || addr.includes(lowSearch);
     });
 
     const groups = new Map<UICategory, ClientFromOneC[]>();
     for (const cat of CAT_ORDER) groups.set(cat, []);
     for (const c of filtered) groups.get(toUICategory(c.ClientCategory))!.push(c);
-    // sort alphabetically within group
-    for (const arr of groups.values()) arr.sort((a, b) => a.clientName.localeCompare(b.clientName, 'uk'));
+    // sort alphabetically within group — defensive
+    for (const arr of groups.values()) {
+      arr.sort((a, b) => (a.clientName ?? '').localeCompare(b.clientName ?? '', 'uk'));
+    }
     return groups;
   }, [clients, search, activeFilter]);
 
@@ -330,7 +336,7 @@ function ClientRow({ client, expanded, onToggle }: {
           {initials(client.clientName)}
         </div>
         <div className="min-w-0">
-          <p className="text-[14px] font-bold truncate">{client.clientName}</p>
+          <p className="text-[14px] font-bold truncate">{client.clientName || '— без назви —'}</p>
           <p className="text-[11px] text-muted-foreground truncate">
             {client.clientAddress || 'Адреса не вказана'}
           </p>
