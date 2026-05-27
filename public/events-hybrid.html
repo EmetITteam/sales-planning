@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Події — Hybrid (V1+V3): зустрічі+дзвінки разом, семінари окремо</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --emet-blue: #066aab;
+    --emet-blue-light: #0880cc;
+    --emet-50: #e8f4fc;
+    --bg: #f8fbfd;
+    --fg: #062a3d;
+    --muted: #7c879a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 14px; }
+  body {
+    background:
+      radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+      radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+      radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+      linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
+    min-height: 100dvh;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(6, 42, 61, 0.04), 0 8px 32px rgba(6, 42, 61, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  .glass-card-soft {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 32px 20px; display: flex; flex-direction: column; gap: 20px; }
+
+  .page-title { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .page-title .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--emet-blue); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(6,106,171,0.25); }
+  .page-title h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+  .page-title .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* === Заголовки === */
+  .block-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+
+  /* === Hybrid Layout === */
+  .events-hybrid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 860px) {
+    .events-hybrid { grid-template-columns: 1fr; }
+  }
+
+  /* === Зустрічі+Дзвінки area === */
+  .ce-area .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .ce-area .tabs { display: flex; gap: 4px; }
+  .ce-area .tab {
+    padding: 5px 11px; border-radius: 999px; border: 1px solid transparent;
+    background: transparent; font-size: 11px; font-weight: 700; color: var(--muted);
+    display: inline-flex; align-items: center; gap: 6px; transition: all .15s;
+  }
+  .ce-area .tab:hover { background: rgba(255,255,255,0.55); }
+  .ce-area .tab.active { background: var(--emet-blue); color: white; border-color: var(--emet-blue); }
+  .ce-area .tab .cnt {
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 10px;
+    padding: 0 6px; border-radius: 999px; background: rgba(6,106,171,0.10); color: var(--emet-blue);
+  }
+  .ce-area .tab.active .cnt { background: rgba(255,255,255,0.25); color: white; }
+  .ce-area .tab svg { width: 12px; height: 12px; }
+
+  .month-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--emet-blue); font-weight: 800; margin: 12px 6px 6px; }
+
+  /* Event row — compact */
+  .ev {
+    display: grid;
+    grid-template-columns: 14px 78px minmax(60px, auto) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: background .15s;
+  }
+  .ev:hover { background: rgba(255,255,255,0.45); }
+  .ev .date { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted); }
+  .ev .type { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+  .ev .type.meeting { color: var(--emet-blue); }
+  .ev .type.call { color: #059669; }
+  .ev .comment { font-size: 12px; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .comment.empty { color: var(--muted); font-style: italic; }
+  .ev .icon { width: 14px; height: 14px; }
+  .ev .icon.meeting { color: var(--emet-blue); }
+  .ev .icon.call { color: #059669; }
+
+  .expand-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px;
+    padding: 8px 14px; border-radius: 999px;
+    background: rgba(6,106,171,0.08); border: 1px solid rgba(6,106,171,0.15);
+    color: var(--emet-blue); font-size: 11px; font-weight: 700; cursor: pointer;
+    transition: all .15s;
+  }
+  .expand-btn:hover { background: rgba(6,106,171,0.15); transform: translateY(-1px); }
+  .expand-btn svg { width: 12px; height: 12px; transition: transform .25s; }
+  .ce-area[data-expanded="true"] .expand-btn svg { transform: rotate(180deg); }
+
+  /* Hidden by default — history section */
+  .history-section { display: none; padding: 0 6px; }
+  .ce-area[data-expanded="true"] .history-section { display: block; animation: fade-in .25s ease-out; }
+  @keyframes fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .month-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 10px 0 4px;
+  }
+  .month-divider .label {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--emet-blue); font-weight: 800; white-space: nowrap;
+  }
+  .month-divider .line { flex: 1; height: 1px; background: linear-gradient(to right, rgba(6,106,171,0.22), transparent); }
+  .month-divider .count {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); font-weight: 700;
+    padding: 1px 6px; border-radius: 999px; background: rgba(6,106,171,0.06);
+  }
+
+  /* === Семінари column === */
+  .sem-area .sem-list { display: flex; flex-direction: column; gap: 4px; }
+  .sem-row {
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background .15s;
+  }
+  .sem-row:hover { background: rgba(255,255,255,0.45); }
+  .sem-row .top { display: flex; align-items: center; gap: 6px; }
+  .sem-row .top svg { width: 12px; height: 12px; color: #8b5cf6; }
+  .sem-row .top .date { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+  .sem-row .top .badge { font-size: 9px; font-weight: 800; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.04em; }
+  .sem-row .desc { font-size: 12px; color: var(--fg); margin-top: 3px; line-height: 1.4; }
+
+  .empty-state {
+    text-align: center; padding: 20px 12px;
+    font-size: 12px; color: var(--muted);
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <div class="page-title">
+    <div class="ic">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </div>
+    <div>
+      <h1>Події клієнта — Hybrid layout</h1>
+      <p class="sub">Зустрічі + Дзвінки в одній колонці (toggle-фільтр + поточний місяць → «Показати всі» → V3-timeline). Семінари окремою колонкою — завжди показуємо повністю.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       BLOCK
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="glass-card" style="padding: 18px;">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;">
+      <p class="block-title" style="margin: 0;">Події · 19</p>
+      <span style="font-size: 10px; color: var(--muted);">
+        зустрічі 3 · дзвінки 13 · семінари 3
+      </span>
+    </div>
+
+    <div class="events-hybrid">
+
+      <!-- ═══════ LEFT: Зустрічі + Дзвінки ═══════ -->
+      <div class="ce-area glass-card-soft" data-expanded="false" style="padding: 14px;">
+        <div class="header">
+          <div class="tabs">
+            <button class="tab active" data-filter="all" onclick="filter(this)">Усі<span class="cnt">16</span></button>
+            <button class="tab" data-filter="meeting" onclick="filter(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Зустрічі<span class="cnt">3</span>
+            </button>
+            <button class="tab" data-filter="call" onclick="filter(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              Дзвінки<span class="cnt">13</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ─── Current month (default visible) ─── -->
+        <div class="month-label">Травень 2026 · 4 події</div>
+        <div class="event-list current-month">
+          <div class="ev" data-type="meeting">
+            <svg class="icon meeting" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="date">27.05.2026</span>
+            <span class="type meeting">Зустріч</span>
+            <span class="comment">Обговорили план постачання на червень. Запит на додаткові 30од.</span>
+          </div>
+          <div class="ev" data-type="call">
+            <svg class="icon call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="date">22.05.2026</span>
+            <span class="type call">Дзвінок</span>
+            <span class="comment">Виходящий — узгодили дату зустрічі</span>
+          </div>
+          <div class="ev" data-type="call">
+            <svg class="icon call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="date">15.05.2026</span>
+            <span class="type call">Дзвінок</span>
+            <span class="comment">Входящий — запит на каталог Vitaran</span>
+          </div>
+          <div class="ev" data-type="call">
+            <svg class="icon call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="date">12.05.2026</span>
+            <span class="type call">Дзвінок</span>
+            <span class="comment">Виходящий — нагадування по угоді</span>
+          </div>
+        </div>
+
+        <button class="expand-btn" onclick="toggleHistory(this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="lbl">Показати всю історію (12 раніше)</span>
+        </button>
+
+        <!-- ─── Expanded: monthly history (V3-style) ─── -->
+        <div class="history-section">
+          <div class="month-divider">
+            <span class="label">Грудень 2025</span>
+            <span class="count">1</span>
+            <span class="line"></span>
+          </div>
+          <div class="ev" data-type="meeting">
+            <svg class="icon meeting" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="date">29.12.2025</span>
+            <span class="type meeting">Зустріч</span>
+            <span class="comment">Привітання з новим роком — вручення подарунку. Говорила з Інною…</span>
+          </div>
+
+          <div class="month-divider">
+            <span class="label">Листопад 2025</span>
+            <span class="count">1</span>
+            <span class="line"></span>
+          </div>
+          <div class="ev" data-type="meeting">
+            <svg class="icon meeting" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="date">10.11.2025</span>
+            <span class="type meeting">Зустріч</span>
+            <span class="comment empty">Без коментаря</span>
+          </div>
+
+          <div class="month-divider">
+            <span class="label">Вересень 2025</span>
+            <span class="count">1</span>
+            <span class="line"></span>
+          </div>
+          <div class="ev" data-type="meeting">
+            <svg class="icon meeting" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="date">10.09.2025</span>
+            <span class="type meeting">Зустріч</span>
+            <span class="comment">Прийшла на зустріч і не знала, що у клієнта забрали амбасадорство…</span>
+          </div>
+
+          <div class="month-divider">
+            <span class="label">Серпень 2023</span>
+            <span class="count">1</span>
+            <span class="line"></span>
+          </div>
+          <div class="ev" data-type="call">
+            <svg class="icon call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="date">30.08.2023</span>
+            <span class="type call">Дзвінок</span>
+            <span class="comment">Виходящее</span>
+          </div>
+
+          <div class="month-divider">
+            <span class="label">Грудень 2021</span>
+            <span class="count">2</span>
+            <span class="line"></span>
+          </div>
+          <div class="ev" data-type="call">
+            <svg class="icon call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="date">07.12.2021</span>
+            <span class="type call">Дзвінок</span>
+            <span class="comment">Виходящее</span>
+          </div>
+          <div class="ev" data-type="call">
+            <svg class="icon call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="date">02.12.2021</span>
+            <span class="type call">Дзвінок</span>
+            <span class="comment">Виходящее</span>
+          </div>
+
+          <div class="month-divider">
+            <span class="label">Листопад 2021</span>
+            <span class="count">7</span>
+            <span class="line"></span>
+          </div>
+          <div class="ev" data-type="call">
+            <svg class="icon call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="date">26.11.2021</span>
+            <span class="type call">Дзвінок</span>
+            <span class="comment">Входящее</span>
+          </div>
+          <div style="text-align: center; padding: 6px; font-size: 11px; color: var(--muted);">+ ще 6 за листопад 2021</div>
+
+          <div class="month-divider">
+            <span class="label">Жовтень 2021</span>
+            <span class="count">3</span>
+            <span class="line"></span>
+          </div>
+          <div style="text-align: center; padding: 6px; font-size: 11px; color: var(--muted);">3 дзвінки за жовтень 2021</div>
+        </div>
+      </div>
+
+      <!-- ═══════ RIGHT: Семінари ═══════ -->
+      <div class="sem-area glass-card-soft" style="padding: 14px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          <p style="font-size: 12px; font-weight: 800; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.05em;">Семінари · 3</p>
+        </div>
+        <div class="sem-list">
+          <div class="sem-row">
+            <div class="top">
+              <span class="date">03.05.2026</span>
+              <span class="badge">Цей місяць</span>
+            </div>
+            <p class="desc">Вебінар «Екзосоми 2026 — нові протоколи»</p>
+          </div>
+          <div class="sem-row">
+            <div class="top">
+              <span class="date">18.04.2026</span>
+            </div>
+            <p class="desc">Тренінг по Ellanse — повноденний</p>
+          </div>
+          <div class="sem-row">
+            <div class="top">
+              <span class="date">12.03.2026</span>
+            </div>
+            <p class="desc">Конференція «Дерматологія весна 2026»</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <section style="text-align: center; padding: 12px; font-size: 13px; color: var(--muted); line-height: 1.6;">
+    <p>👈 <b>Зліва (за замовч.):</b> поточний місяць + кнопка «Показати всю історію» → відкривається V3-style timeline за місяцями.</p>
+    <p style="margin-top: 6px;">Tab-фільтр «Усі / Зустрічі / Дзвінки» — фільтрує і поточний місяць, і розгорнуту історію.</p>
+    <p style="margin-top: 6px;">👉 <b>Справа:</b> всі семінари завжди показуються повністю (рідкісних подія — окремо).</p>
+  </section>
+
+</main>
+
+<script>
+function toggleHistory(btn) {
+  const area = btn.closest('.ce-area');
+  const expanded = area.dataset.expanded === 'true';
+  area.dataset.expanded = expanded ? 'false' : 'true';
+  const lbl = btn.querySelector('.lbl');
+  lbl.textContent = expanded ? 'Показати всю історію (12 раніше)' : 'Згорнути історію';
+}
+
+function filter(btn) {
+  const area = btn.closest('.ce-area');
+  // Toggle active state
+  area.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  // Filter rows
+  const type = btn.dataset.filter;
+  area.querySelectorAll('.ev').forEach(ev => {
+    if (type === 'all' || ev.dataset.type === type) {
+      ev.style.display = '';
+    } else {
+      ev.style.display = 'none';
+    }
+  });
+}
+</script>
+
+</body>
+</html>
