@@ -604,43 +604,43 @@ function HeroActivation({ index, withPlanCount, completedCount, focusedCount, ac
         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_6px_#8b5cf6]" />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Активація · Виконання</p>
       </div>
-      <div className="flex items-baseline gap-2">
-        <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-          {completedCount}
-          <span className="text-[22px] font-medium text-muted-foreground"> / {withPlanCount}</span>
-        </p>
-        <p className={`text-[14px] font-bold ${pctColor}`}>{pct}%</p>
+      <div>
+        <div className="flex items-baseline gap-2">
+          <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+            {completedCount}
+            <span className="text-[22px] font-medium text-muted-foreground"> / {withPlanCount}</span>
+          </p>
+          <p className={`text-[14px] font-bold ${pctColor}`}>{pct}%</p>
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1">виконали запланований обсяг</p>
       </div>
       <div className="flex flex-col gap-1 text-[11px]">
-        <p className="text-muted-foreground">клієнтів виконали запланований обсяг</p>
-        <div className="flex flex-col gap-1 mt-1.5">
-          <button
-            type="button"
-            onClick={() => onFilterChange(planFilterActive ? 'all' : 'with-plan')}
-            className={`flex items-center justify-between px-2 py-1 -mx-2 rounded-lg text-[11px] transition-colors ${
-              planFilterActive
-                ? 'bg-emet-blue/15 text-emet-blue font-bold'
-                : 'hover:bg-emet-blue/5 text-foreground'
-            }`}
-            title="Клік — відфільтрувати лише клієнтів з планом"
-          >
-            <span>{planFilterActive ? '✓ ' : ''}Клієнтів з планом</span>
-            <span className="font-mono font-bold tabular-nums">{withPlanCount}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onFilterChange(focusFilterActive ? 'all' : 'focused')}
-            className={`flex items-center justify-between px-2 py-1 -mx-2 rounded-lg text-[11px] transition-colors ${
-              focusFilterActive
-                ? 'bg-violet-500/15 text-violet-700 font-bold'
-                : 'hover:bg-violet-500/5 text-foreground'
-            }`}
-            title="Клік — відфільтрувати лише клієнтів у фокусі"
-          >
-            <span>{focusFilterActive ? '✓ ' : ''}Клієнтів у фокусі</span>
-            <span className="font-mono font-bold tabular-nums">{focusedCount}</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => onFilterChange(planFilterActive ? 'all' : 'with-plan')}
+          className={`flex items-center justify-between px-2 py-1 -mx-2 rounded-lg text-[11px] transition-colors ${
+            planFilterActive
+              ? 'bg-emet-blue/15 text-emet-blue font-bold'
+              : 'hover:bg-emet-blue/5 text-foreground'
+          }`}
+          title="Клік — відфільтрувати лише клієнтів з планом"
+        >
+          <span>{planFilterActive ? '✓ ' : ''}Клієнтів з планом</span>
+          <span className="font-mono font-bold tabular-nums">{withPlanCount}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onFilterChange(focusFilterActive ? 'all' : 'focused')}
+          className={`flex items-center justify-between px-2 py-1 -mx-2 rounded-lg text-[11px] transition-colors ${
+            focusFilterActive
+              ? 'bg-violet-500/15 text-violet-700 font-bold'
+              : 'hover:bg-violet-500/5 text-foreground'
+          }`}
+          title="Клік — відфільтрувати лише клієнтів у фокусі"
+        >
+          <span>{focusFilterActive ? '✓ ' : ''}Клієнтів у фокусі</span>
+          <span className="font-mono font-bold tabular-nums">{focusedCount}</span>
+        </button>
       </div>
     </div>
   );
