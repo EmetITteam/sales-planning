@@ -496,10 +496,10 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
             )}
           </div>
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 min-w-0">
-            <span className="truncate">{address || 'Адреса не вказана в 1С'}</span>
+            {address && <span className="truncate">{address}</span>}
             {client.Phone && (
               <>
-                <span className="text-muted-foreground/40 shrink-0">·</span>
+                {address && <span className="text-muted-foreground/40 shrink-0">·</span>}
                 <a
                   href={`tel:${phoneClean}`}
                   onClick={e => e.stopPropagation()}
@@ -645,6 +645,38 @@ function cleanBrandName(name: string | undefined | null): string {
 }
 
 /**
+ * Парсинг RU/UA month-label ('Май 2026' | 'Травень 2026' | 'АПРЕЛЬ 2026')
+ * у формат YYYY-MM. Якщо не вдалося розпарсити — повертає null.
+ */
+const MONTH_PREFIXES_LOWER = [
+  ['янв', 'січ'],       // 01
+  ['фев', 'лют'],       // 02
+  ['март', 'берез'],    // 03
+  ['апр', 'квіт'],      // 04
+  ['май', 'трав'],      // 05
+  ['июн', 'черв'],      // 06
+  ['июл', 'лип'],       // 07
+  ['авг', 'серп'],      // 08
+  ['сент', 'верес'],    // 09
+  ['окт', 'жовт'],      // 10
+  ['нояб', 'лист'],     // 11
+  ['дек', 'груд'],      // 12
+];
+function parseMonthLabelToYM(label: string | undefined | null): string | null {
+  if (!label) return null;
+  const low = label.toLowerCase().trim();
+  const yearMatch = low.match(/(\d{4})/);
+  if (!yearMatch) return null;
+  const year = yearMatch[1];
+  for (let i = 0; i < 12; i++) {
+    if (MONTH_PREFIXES_LOWER[i].some(p => low.includes(p))) {
+      return `${year}-${String(i + 1).padStart(2, '0')}`;
+    }
+  }
+  return null;
+}
+
+/**
  * Технічні properties які НЕ показуємо менеджеру — це service-info
  * (типу валідність viber-номера) не потрібна під час дзвінка.
  * Перевіряємо case-insensitive includes — щоб маневрувати між RU/UA варіантами.
@@ -698,34 +730,55 @@ function ClientInfoBlock({ clientInfo }: { clientInfo: import('@/lib/mityng-type
   );
 }
 
-/** 3-місячна історія — таблиця у тому ж стилі що План×Факт (без _ prefix). */
+/**
+ * 3-місячна історія — таблиця у тому ж стилі що План×Факт.
+ *
+ * Виключаємо поточний місяць — він вже у блоці «План × Факт цього місяця».
+ * Місяці сортуємо хронологічно desc (свіжі ліворуч): останній попередній → ...
+ */
 function ThreeMonthHistory({ salesReport }: { salesReport: import('@/lib/mityng-types').ClientReport['salesReport'] | undefined }) {
-  const brands = salesReport?.brands ?? [];
+  const rawBrands = salesReport?.brands ?? [];
+  const currentYM = currentYearMonth();
+
+  // 1) Виключаємо поточний місяць з salesByMonth, recalc totalAmount.
+  // 2) Прибираємо бренди де після фільтру нема жодної суми.
+  const brands = rawBrands.map(b => {
+    const filtered = (b.salesByMonth ?? []).filter(m => parseMonthLabelToYM(m.month) !== currentYM);
+    const total = filtered.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+    return { ...b, salesByMonth: filtered, totalAmount: total };
+  }).filter(b => b.totalAmount > 0);
+
   if (brands.length === 0) {
     return (
       <div>
         <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-          Покупки 3 місяці · {salesReport?.periodStart || '?'} — {salesReport?.periodEnd || '?'}
+          Покупки 3 попередні місяці
         </h3>
-        <p className="text-[12px] text-muted-foreground">Покупок за останні 3 місяці не було.</p>
+        <p className="text-[12px] text-muted-foreground">Покупок за останні 3 місяці до поточного не було.</p>
       </div>
     );
   }
-  // Збираємо унікальні місяці з усіх брендів — щоб таблиця мала однаковий шаблон стовпців
+
+  // Унікальні місяці з усіх брендів, sort chronologically desc (новіші ліворуч).
   const monthSet = new Set<string>();
-  for (const b of brands) for (const m of b.salesByMonth ?? []) monthSet.add(m.month);
-  const monthOrder = Array.from(monthSet); // 1С повертає у порядку, лишаємо як є
-  // Sort бренди за totalAmount desc
+  for (const b of brands) for (const m of b.salesByMonth) monthSet.add(m.month);
+  const monthOrder = Array.from(monthSet).sort((a, b) => {
+    const ymA = parseMonthLabelToYM(a) ?? '';
+    const ymB = parseMonthLabelToYM(b) ?? '';
+    return ymB.localeCompare(ymA); // desc: 04, 03, 02
+  });
+
+  // Sort бренди за totalAmount desc.
   const sorted = [...brands].sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
 
   return (
     <div>
       <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-        Покупки 3 місяці · {salesReport?.periodStart || '?'} — {salesReport?.periodEnd || '?'}
+        Покупки 3 попередні місяці
       </h3>
       <div className="space-y-1.5">
         {sorted.map(b => {
-          const byMonth = Object.fromEntries((b.salesByMonth ?? []).map(m => [m.month, m.amount]));
+          const byMonth = Object.fromEntries(b.salesByMonth.map(m => [m.month, m.amount]));
           return (
             <div
               key={b.brandName}
