@@ -1271,9 +1271,11 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
           {pct === null ? '—' : `${pct.toFixed(0)}%`}
         </p>
       </div>
-      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${meta.pillBg}`}>
-        {meta.label}
-      </span>
+      <div className="flex justify-end">
+        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
+          {meta.label}
+        </span>
+      </div>
     </div>
   );
 }
