@@ -1154,10 +1154,10 @@ interface BrandRowData {
 function PlanFactBrandRow({ row }: { row: BrandRowData }) {
   const { name, plan, fact, pct, status } = row;
   const STATUS_META = {
-    ok:        { dot: 'bg-emerald-500',  label: 'Виконує',         pillBg: 'bg-emerald-50 text-emerald-700' },
-    warn:      { dot: 'bg-amber-500',    label: 'У роботі',        pillBg: 'bg-amber-50 text-amber-700' },
-    bad:       { dot: 'bg-rose-500',     label: '🔥 Не куплено',   pillBg: 'bg-rose-50 text-rose-700' },
-    unplanned: { dot: 'bg-violet-500',   label: '⚡ Без плану',     pillBg: 'bg-violet-50 text-violet-700' },
+    ok:        { dot: 'bg-emerald-500',  label: 'Виконано',           pillBg: 'bg-emerald-50 text-emerald-700' },
+    warn:      { dot: 'bg-amber-500',    label: 'В роботі',           pillBg: 'bg-amber-50 text-amber-700' },
+    bad:       { dot: 'bg-rose-500',     label: '🔥 Без закупівлі',   pillBg: 'bg-rose-50 text-rose-700' },
+    unplanned: { dot: 'bg-violet-500',   label: '⚡ Поза плануванням', pillBg: 'bg-violet-50 text-violet-700' },
   } as const;
   const meta = STATUS_META[status];
   return (
