@@ -338,18 +338,20 @@ function CategorySection({
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
 }) {
-  // 3-bucket sort:
-  //   0 — у роботі (план>0, факт<план): top, потребують уваги
-  //   1 — виконав заплановане (факт >= план): mid, успіх
-  //   2 — без плану (план=0 або undefined): bottom
+  // 4-bucket sort:
+  //   0 — у роботі (план>0, факт<план): TOP
+  //   1 — Незаплановані (план=0, факт>0): купив без планування, треба уваги
+  //   2 — виконав заплановане (факт >= план): успіх
+  //   3 — без плану (план=0, факт=0): BOTTOM
   // У межах кожного — алфавіт.
   const sorted = useMemo(() => {
     const bucket = (clientId: string): number => {
       const plan = planByClient[clientId]?.planTotal ?? 0;
       const fact = factByClient[clientId]?.factTotal ?? 0;
-      if (plan === 0) return 2;
-      if (fact >= plan) return 1;
-      return 0;
+      if (plan > 0 && fact >= plan) return 2;
+      if (plan > 0) return 0;
+      if (fact > 0) return 1;
+      return 3;
     };
     return [...clients].sort((a, b) => {
       const bA = bucket(a.ClientID);
@@ -359,14 +361,22 @@ function CategorySection({
     });
   }, [clients, planByClient, factByClient]);
 
-  const withPlanCount = sorted.filter(c => (planByClient[c.ClientID]?.planTotal ?? 0) > 0).length;
+  const inProgressCount = sorted.filter(c => {
+    const plan = planByClient[c.ClientID]?.planTotal ?? 0;
+    const fact = factByClient[c.ClientID]?.factTotal ?? 0;
+    return plan > 0 && fact < plan;
+  }).length;
   const completedCount = sorted.filter(c => {
     const plan = planByClient[c.ClientID]?.planTotal ?? 0;
     const fact = factByClient[c.ClientID]?.factTotal ?? 0;
     return plan > 0 && fact >= plan;
   }).length;
-  const inProgressCount = withPlanCount - completedCount;
-  const withoutPlanCount = sorted.length - withPlanCount;
+  const unplannedCount = sorted.filter(c => {
+    const plan = planByClient[c.ClientID]?.planTotal ?? 0;
+    const fact = factByClient[c.ClientID]?.factTotal ?? 0;
+    return plan === 0 && fact > 0;
+  }).length;
+  const emptyCount = sorted.length - inProgressCount - completedCount - unplannedCount;
 
   return (
     <section className="space-y-2">
@@ -380,11 +390,14 @@ function CategorySection({
             {inProgressCount > 0 && (
               <>у роботі: <span className="text-emet-blue font-bold">{inProgressCount}</span></>
             )}
-            {completedCount > 0 && (
-              <>{inProgressCount > 0 ? ' · ' : ''}виконали: <span className="text-emerald-600 font-bold">{completedCount}</span></>
+            {unplannedCount > 0 && (
+              <>{inProgressCount > 0 ? ' · ' : ''}незаплановані: <span className="text-violet-600 font-bold">{unplannedCount}</span></>
             )}
-            {withoutPlanCount > 0 && (
-              <>{(inProgressCount + completedCount) > 0 ? ' · ' : ''}без плану: <span className="text-foreground font-bold">{withoutPlanCount}</span></>
+            {completedCount > 0 && (
+              <>{(inProgressCount + unplannedCount) > 0 ? ' · ' : ''}виконали: <span className="text-emerald-600 font-bold">{completedCount}</span></>
+            )}
+            {emptyCount > 0 && (
+              <>{(inProgressCount + unplannedCount + completedCount) > 0 ? ' · ' : ''}без плану: <span className="text-foreground font-bold">{emptyCount}</span></>
             )}
           </span>
         )}
@@ -429,21 +442,23 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
   const name = getClientName(client);
   const address = getClientAddress(client);
-  // Стани плану:
+  // Стани плану/факту:
   //   totalsLoading=true → ще тягнемо → '—'
-  //   plan===null/0 (не loading) → реально нема плану → 'Без плану' badge
-  //   plan>0 → реальна сума
+  //   plan>0 → реальна сума (з planом)
+  //   plan===null/0, fact===null/0 → реально нема ні плану ні факту → «Без плану» badge
+  //   plan===null/0, fact>0 → купив без планування → «Незаплановані» badge (warn)
   const hasPlan = plan != null && Number.isFinite(plan) && plan > 0;
-  // Defensive: захист від NaN (якщо у даних щось не так)
+  const hasFact = fact != null && Number.isFinite(fact) && fact > 0;
   const rawPct = (hasPlan && fact != null && Number.isFinite(fact)) ? (fact / (plan as number)) * 100 : null;
   const pct: number | null = (rawPct !== null && Number.isFinite(rawPct)) ? rawPct : null;
   const completed = hasPlan && fact != null && fact >= (plan as number);
-  // Outline для рядків без плану (приглушений) — щоб менеджер бачив що це
-  // не data-issue, а просто немає планування по бренду цього клієнта.
-  const noPlanRow = !totalsLoading && !hasPlan;
+  // 3 стани коли НЕ loading:
+  const noPlanNoFact = !totalsLoading && !hasPlan && !hasFact; // повністю «Без плану»
+  const unplannedFact = !totalsLoading && !hasPlan && hasFact; // купив без планування — «Незаплановані»
+  const dimmedRow = noPlanNoFact; // приглушуємо тільки повністю-порожні
 
   return (
-    <div className={`glass-card overflow-hidden ${noPlanRow ? 'opacity-70' : ''}`}>
+    <div className={`glass-card overflow-hidden ${dimmedRow ? 'opacity-70' : ''}`}>
       <button
         type="button"
         onClick={onToggle}
@@ -463,9 +478,14 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
               {toUkrainianChip(client.ClientCategory)}
             </span>
-            {noPlanRow && (
-              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-500 border border-dashed border-slate-300" title="Цього клієнта менеджер не виставив у план на цей місяць — пусті колонки не data-issue">
+            {noPlanNoFact && (
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-500 border border-dashed border-slate-300" title="Цього клієнта менеджер не виставив у план і він не купував цього місяця">
                 Без плану
+              </span>
+            )}
+            {unplannedFact && (
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-violet-100 text-violet-700" title="Купив без планування — треба додати у план наступним місяцем">
+                Незаплановані
               </span>
             )}
             {!totalsLoading && completed && (
@@ -493,11 +513,10 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, totalsLoading, 
           </div>
         </div>
 
-        {/* План / Факт / % — desktop only.
-            totalsLoading — '—' gray; loaded+0 — порожньо; >0 — реальне */}
-        <NumCol label="План" value={plan} loading={totalsLoading} emptyAs={noPlanRow ? null : 'zero'} />
+        {/* План / Факт / % — desktop only. */}
+        <NumCol label="План" value={plan} loading={totalsLoading} emptyAs={hasFact ? 'zero' : null} />
         <NumCol label="Факт" value={fact} loading={totalsLoading} emptyAs="zero" />
-        <PctCol pct={pct} loading={totalsLoading} disabled={noPlanRow} />
+        <PctCol pct={pct} loading={totalsLoading} disabled={!hasPlan} />
 
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
@@ -625,45 +644,38 @@ function cleanBrandName(name: string | undefined | null): string {
   return (name ?? '').replace(/^_+/, '').trim();
 }
 
-/** Об'єднана картка «Інформація по клієнту»: освіта + документи + properties chips. */
+/**
+ * Об'єднана картка «Інформація по клієнту» — компактна на 1 строчку.
+ * Освіта · ✓ Документи · властивості-chips (inline). На вузьких екранах
+ * (sm-) — wrapping.
+ */
 function ClientInfoBlock({ clientInfo }: { clientInfo: import('@/lib/mityng-types').ClientInfoFromReport }) {
   const props = clientInfo.properties ?? [];
   return (
-    <div>
-      <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-        Інформація по клієнту
-      </h3>
-      <div className="glass-card-soft p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
-          <div>
-            <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Освіта</p>
-            <p className="text-[13px] font-semibold mt-1">{clientInfo.education || '—'}</p>
-          </div>
-          <div>
-            <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Документи</p>
-            <p className="text-[13px] font-semibold mt-1">
-              {clientInfo.documents ? (
-                <span className="text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Є</span>
-              ) : (
-                <span className="text-rose-700">Немає</span>
-              )}
-            </p>
-          </div>
-        </div>
-        {props.length > 0 && (
-          <div className="pt-2 border-t border-white/40">
-            <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground mb-2">Властивості · {props.length}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {props.map((prop, i) => (
-                <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emet-blue/8 text-emet-blue text-[11px] font-semibold border border-emet-blue/15">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emet-blue" />
-                  {prop}
-                </span>
-              ))}
-            </div>
-          </div>
+    <div className="glass-card-soft px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px]">
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Освіта:</span>
+        <span className="font-semibold text-[13px]">{clientInfo.education || '—'}</span>
+      </div>
+      <span className="text-muted-foreground/30">·</span>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {clientInfo.documents ? (
+          <span className="text-emerald-700 inline-flex items-center gap-1 text-[13px] font-semibold">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Документи
+          </span>
+        ) : (
+          <span className="text-rose-700 inline-flex items-center gap-1 text-[13px] font-semibold">
+            <AlertCircle className="h-3.5 w-3.5" /> Без документів
+          </span>
         )}
       </div>
+      {props.length > 0 && <span className="text-muted-foreground/30">·</span>}
+      {props.map((prop, i) => (
+        <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emet-blue/8 text-emet-blue text-[11px] font-semibold border border-emet-blue/15">
+          <span className="w-1.5 h-1.5 rounded-full bg-emet-blue" />
+          {prop}
+        </span>
+      ))}
     </div>
   );
 }
@@ -777,7 +789,7 @@ function EventsTimeline({ meetings, calls, seminars, totalCount }: {
           🤝 {meetings.length} · 📞 {calls.length} · 🎓 {seminars.length}
         </span>
       </div>
-      <ol className="space-y-1.5">
+      <ol className="glass-card-soft py-1">
         {visible.map((e, i) => (
           <TimelineEventRow key={i} event={e} />
         ))}
@@ -797,23 +809,19 @@ function EventsTimeline({ meetings, calls, seminars, totalCount }: {
 
 function TimelineEventRow({ event }: { event: TimelineEvent }) {
   const META = {
-    meeting: { Icon: Calendar,       label: 'Зустріч',  color: 'text-emet-blue',   bg: 'bg-emet-blue/10' },
-    call:    { Icon: Phone,          label: 'Дзвінок',  color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    seminar: { Icon: GraduationCap,  label: 'Семінар',  color: 'text-violet-600',  bg: 'bg-violet-50' },
+    meeting: { Icon: Calendar,       label: 'Зустріч',  color: 'text-emet-blue' },
+    call:    { Icon: Phone,          label: 'Дзвінок',  color: 'text-emerald-600' },
+    seminar: { Icon: GraduationCap,  label: 'Семінар',  color: 'text-violet-600' },
   } as const;
   const m = META[event.type];
   return (
-    <li className="glass-card-soft p-3 grid grid-cols-[28px_88px_1fr] gap-3 items-start">
-      <div className={`w-7 h-7 rounded-lg ${m.bg} ${m.color} flex items-center justify-center shrink-0`}>
-        <m.Icon className="h-3.5 w-3.5" />
-      </div>
-      <div>
-        <p className={`text-[10px] uppercase tracking-wider font-bold ${m.color} leading-tight`}>{m.label}</p>
-        <p className="text-[11px] text-muted-foreground font-mono tabular-nums mt-0.5">{event.date}</p>
-      </div>
-      <p className="text-[12px] text-foreground leading-snug line-clamp-3">
-        {event.comment || <span className="text-muted-foreground italic">Без коментаря</span>}
-      </p>
+    <li className="grid grid-cols-[16px_70px_minmax(60px,auto)_minmax(0,1fr)] gap-3 items-center px-3 py-1.5 rounded-lg hover:bg-white/40 transition-colors">
+      <m.Icon className={`h-3.5 w-3.5 ${m.color}`} />
+      <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{event.date}</span>
+      <span className={`text-[11px] font-bold uppercase tracking-wider ${m.color}`}>{m.label}</span>
+      <span className="text-[12px] text-foreground truncate">
+        {event.comment || <span className="text-muted-foreground/60 italic">Без коментаря</span>}
+      </span>
     </li>
   );
 }

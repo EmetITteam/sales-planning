@@ -125,14 +125,25 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
   );
 
   // 2) Факт з 1С: getSalesFact({login, period, clientIds})
-  // НЕ викликаємо коли clientIds порожній — це не дасть нічого.
-  const factPayload = login && month && clientIds.length > 0
-    ? { login, period: month, clientIds: clientIds.slice(0, 400) } // 1С ліміт 400
-    : null;
-  const { data: factRes, loading: factLoading, error: factErr } = useOneCData('getSalesFact', factPayload);
+  // 1С ліміт — 400 ID за запит. У менеджера може бути 481+ клієнтів →
+  // batch'имо у 3 чанки по 400 (підтримує до 1200 клієнтів).
+  // Hooks rules satisfied: ЗАВЖДИ викликаємо 3 useOneCData (порожні чанки
+  // → payload=null → SWR не fetch'ить).
+  const chunk1 = clientIds.slice(0, 400);
+  const chunk2 = clientIds.slice(400, 800);
+  const chunk3 = clientIds.slice(800, 1200);
+  const mkPayload = (chunk: string[]) =>
+    login && month && chunk.length > 0
+      ? { login, period: month, clientIds: chunk }
+      : null;
+  const { data: f1, loading: l1, error: e1 } = useOneCData('getSalesFact', mkPayload(chunk1));
+  const { data: f2, loading: l2, error: e2 } = useOneCData('getSalesFact', mkPayload(chunk2));
+  const { data: f3, loading: l3, error: e3 } = useOneCData('getSalesFact', mkPayload(chunk3));
+  const factLoading = l1 || l2 || l3;
+  const factErr = e1 || e2 || e3;
 
-  // Денормалізуємо factRes (segments[].clients[]) → factByClient[clientId]
-  const factByClient = useMemoFactBreakdown(factRes);
+  // Об'єднуємо segments з усіх чанків і денормалізуємо у factByClient.
+  const factByClient = useMergedFactBreakdown([f1, f2, f3]);
 
   return {
     planByClient: planRes?.totals ?? {},
@@ -145,23 +156,29 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
 import { useMemo } from 'react';
 import type { OneCActionMap } from './onec-types';
 
-function useMemoFactBreakdown(
-  factRes: OneCActionMap['getSalesFact']['response'] | null | undefined,
+/**
+ * Об'єднує segments[] з кількох getSalesFact-чанків і денормалізує у
+ * map по clientId. Підтримує до 3 чанків (1200 клієнтів).
+ */
+function useMergedFactBreakdown(
+  parts: Array<OneCActionMap['getSalesFact']['response'] | null | undefined>,
 ): Record<string, { factTotal: number; brands: Record<string, number> }> {
   return useMemo(() => {
-    if (!factRes?.segments) return {};
     const out: Record<string, { factTotal: number; brands: Record<string, number> }> = {};
-    for (const seg of factRes.segments) {
-      for (const c of seg.clients ?? []) {
-        // 1С може повертати factAmountUSD як string ("360.00") — coerce до number.
-        // Інакше `+=` робить string concatenation → NaN при пораховому використанні.
-        const amount = Number(c.factAmountUSD) || 0;
-        if (!c.clientId || amount === 0) continue;
-        if (!out[c.clientId]) out[c.clientId] = { factTotal: 0, brands: {} };
-        out[c.clientId].factTotal += amount;
-        out[c.clientId].brands[seg.segmentCode] = (out[c.clientId].brands[seg.segmentCode] || 0) + amount;
+    for (const part of parts) {
+      if (!part?.segments) continue;
+      for (const seg of part.segments) {
+        for (const c of seg.clients ?? []) {
+          // 1С може повертати factAmountUSD як string ("360.00") — coerce.
+          const amount = Number(c.factAmountUSD) || 0;
+          if (!c.clientId || amount === 0) continue;
+          if (!out[c.clientId]) out[c.clientId] = { factTotal: 0, brands: {} };
+          out[c.clientId].factTotal += amount;
+          out[c.clientId].brands[seg.segmentCode] = (out[c.clientId].brands[seg.segmentCode] || 0) + amount;
+        }
       }
     }
     return out;
-  }, [factRes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, parts);
 }
