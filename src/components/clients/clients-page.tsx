@@ -1034,8 +1034,13 @@ function ClientExpand({ clientID, planBrands, factBrands }: {
       {/* ПЛАН × ФАКТ ЦЬОГО МІСЯЦЯ ПО БРЕНДАХ — основний CRM-блок */}
       <PlanFactByBrand planBrands={planBrands} factBrands={factBrands} />
 
-      {/* 3-місячна історія по брендах — для контексту upsell */}
-      <ThreeMonthHistory salesReport={salesReport} />
+      {/* Історія покупок — тягне 12-міс з yearlySalesReport (fallback: salesReport-3-міс).
+          Обрізаємо до останніх 6 міс без поточного. */}
+      <ThreeMonthHistory
+        salesReport={salesReport}
+        yearlySalesReport={report.yearlySalesReport}
+        planBrands={planBrands}
+      />
 
       {/* Події — таймлайн (об'єднання зустрічей/дзвінків/семінарів за датою desc) */}
       <EventsTimeline
@@ -1140,62 +1145,106 @@ function ClientInfoBlock({ clientInfo }: { clientInfo: import('@/lib/mityng-type
 }
 
 /**
- * 3-місячна історія — таблиця у тому ж стилі що План×Факт.
+ * Історія покупок по брендах — таблиця у тому ж стилі що План×Факт.
  *
- * Виключаємо поточний місяць — він вже у блоці «План × Факт цього місяця».
- * Місяці сортуємо хронологічно desc (свіжі ліворуч): останній попередній → ...
+ * Виключаємо поточний місяць — він вже у блоку «План × Факт цього місяця».
+ * Місяці сортуємо хронологічно asc (старіші ліворуч → свіжі праворуч).
+ * Заголовок адаптивний: показує реальну кількість попередніх місяців
+ * які 1С повернула (зараз 3, після розширення Action D — 6).
+ *
+ * Біля кожного бренду — позначка «В плануванні» (emet-blue) або
+ * «Немає в плануванні» (slate). Враховує бренд-аліаси: Vitaran-sub-brands
+ * та IUSE-sub-brands мапляться через canonicalSegmentCode().
+ *
+ * Для матчингу плану по бренду — 1С повертає brand-name (не code), тому
+ * порівнюємо через нормалізовану форму назви.
  */
-function ThreeMonthHistory({ salesReport }: { salesReport: import('@/lib/mityng-types').ClientReport['salesReport'] | undefined }) {
-  const rawBrands = salesReport?.brands ?? [];
+function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
+  salesReport: import('@/lib/mityng-types').ClientReport['salesReport'] | undefined;
+  yearlySalesReport: import('@/lib/mityng-types').ClientReport['yearlySalesReport'];
+  planBrands: Record<string, number>;
+}) {
+  // Пріоритет: yearlySalesReport (12 міс) → fallback salesReport (3 міс).
+  // Беремо звідки є більше даних.
+  const sourceBrands = yearlySalesReport?.brands ?? salesReport?.brands ?? [];
   const currentYM = currentYearMonth();
+  const MAX_MONTHS = 6;
 
-  // 1) Виключаємо поточний місяць з salesByMonth, recalc totalAmount.
-  // 2) Прибираємо бренди де після фільтру нема жодної суми.
-  const brands = rawBrands.map(b => {
-    const filtered = (b.salesByMonth ?? []).filter(m => parseMonthLabelToYM(m.month) !== currentYM);
-    const total = filtered.reduce((s, m) => s + (Number(m.amount) || 0), 0);
-    return { ...b, salesByMonth: filtered, totalAmount: total };
+  // 1) Виключаємо поточний місяць
+  // 2) Беремо тільки останні 6 (хронологічно)
+  // 3) Recalc totalAmount від фільтрованих
+  const brands = sourceBrands.map(b => {
+    const noCurrent = (b.salesByMonth ?? []).filter(m => parseMonthLabelToYM(m.month) !== currentYM);
+    // sort by ym asc, take last 6
+    const sortedByMonth = [...noCurrent].sort((a, b) => {
+      const ymA = parseMonthLabelToYM(a.month) ?? '';
+      const ymB = parseMonthLabelToYM(b.month) ?? '';
+      return ymA.localeCompare(ymB);
+    });
+    const last6 = sortedByMonth.slice(-MAX_MONTHS);
+    const total = last6.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+    return { ...b, salesByMonth: last6, totalAmount: total };
   }).filter(b => b.totalAmount > 0);
+
+  // Нормалізуємо planBrands ключі через canonicalSegmentCode (Vitaran Cosmetics→OTHER, etc.)
+  const planSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const k of Object.keys(planBrands)) {
+      if ((planBrands[k] ?? 0) > 0) s.add(canonicalSegmentCode(k));
+    }
+    return s;
+  }, [planBrands]);
+
+  // Helper: чи цей бренд є у плануванні?
+  const isBrandInPlan = (brandName: string): boolean => {
+    return planSet.has(canonicalSegmentCode(brandName));
+  };
 
   if (brands.length === 0) {
     return (
       <div>
         <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-          Покупки 3 попередні місяці
+          Покупки попередніх місяців
         </h3>
-        <p className="text-[12px] text-muted-foreground">Покупок за останні 3 місяці до поточного не було.</p>
+        <p className="text-[12px] text-muted-foreground">Покупок за попередні місяці не було.</p>
       </div>
     );
   }
 
-  // Унікальні місяці з усіх брендів, sort chronologically desc (новіші ліворуч).
+  // Унікальні місяці з усіх брендів, sort asc (старіші ліворуч).
   const monthSet = new Set<string>();
   for (const b of brands) for (const m of b.salesByMonth) monthSet.add(m.month);
   const monthOrder = Array.from(monthSet).sort((a, b) => {
     const ymA = parseMonthLabelToYM(a) ?? '';
     const ymB = parseMonthLabelToYM(b) ?? '';
-    return ymA.localeCompare(ymB); // asc: 02 → 03 → 04 (хронологічно зліва направо)
+    return ymA.localeCompare(ymB);
   });
 
-  // Sort бренди за totalAmount desc.
   const sorted = [...brands].sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
+
+  // Адаптивний заголовок: показуємо реальну кількість місяців
+  const monthsCount = monthOrder.length;
+  const monthsLabel = monthsCount === 1 ? '1 попередній місяць'
+    : monthsCount < 5 ? `${monthsCount} попередні місяці`
+    : `${monthsCount} попередніх місяців`;
 
   return (
     <div>
       <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-        Покупки 3 попередні місяці
+        Покупки {monthsLabel}
       </h3>
       <div className="space-y-1.5">
         {sorted.map(b => {
           const byMonth = Object.fromEntries(b.salesByMonth.map(m => [m.month, m.amount]));
+          const inPlan = isBrandInPlan(b.brandName);
           return (
             <div
               key={b.brandName}
               className="glass-card-soft p-3 grid items-center gap-3"
-              style={{ gridTemplateColumns: `minmax(0,1.4fr) repeat(${monthOrder.length}, 1fr) 90px` }}
+              style={{ gridTemplateColumns: `minmax(0,1.4fr) repeat(${monthOrder.length}, 1fr) 90px 120px` }}
             >
               <div className="font-semibold text-[13px] truncate flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emet-blue/60" />
+                <span className={`w-2 h-2 rounded-full ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
                 {cleanBrandName(b.brandName)}
               </div>
               {monthOrder.map(m => {
@@ -1214,6 +1263,16 @@ function ThreeMonthHistory({ salesReport }: { salesReport: import('@/lib/mityng-
                 <p className="font-mono font-bold tabular-nums text-[14px] mt-1 leading-none amount">
                   ${Math.round(b.totalAmount || 0).toLocaleString('en-US')}
                 </p>
+              </div>
+              {/* Позначка чи бренд у плануванні цього місяця */}
+              <div className="flex justify-end">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                  inPlan
+                    ? 'bg-emet-blue/10 text-emet-blue border border-emet-blue/20'
+                    : 'bg-slate-100 text-slate-500 border border-slate-200'
+                }`}>
+                  {inPlan ? 'В плануванні' : 'Немає в плані'}
+                </span>
               </div>
             </div>
           );

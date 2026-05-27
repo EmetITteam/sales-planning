@@ -165,8 +165,15 @@ export interface ClientReport {
   seminars?: ClientSeminar[];
   /** Backward-compat — деякі версії 1С можуть повертати під цим ім'ям. */
   lastSeminars?: ClientEvent[];
-  /** Графік 12-міс — shape невідомий до першого виклику. */
-  yearlySales?: unknown;
+  /**
+   * 12-місячна історія продажів — той самий shape що `salesReport` але
+   * охоплює рік замість 3 місяців. Меетинг використовує під назвою
+   * `yearlySalesReport` (НЕ `yearlySales`). У звіті вкладка «Продажі (Год)».
+   */
+  yearlySalesReport?: {
+    brands: BrandSalesHistory[];
+    grandTotal?: number;
+  };
 }
 
 /**
