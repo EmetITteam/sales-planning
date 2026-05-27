@@ -110,11 +110,11 @@ export function ClientsPage() {
     const filtered = clients.filter(c => {
       if (activeFilter !== 'all' && toUICategory(c.ClientCategory) !== activeFilter) return false;
       if (!lowSearch) return true;
+      // Шукаємо лише за назвою + телефоном — категорії є окремими pills,
+      // адреса/місто часто заповнені нерівномірно, тому не використовуємо.
       const name = getClientName(c).toLowerCase();
       const phone = (c.Phone ?? '').toLowerCase();
-      const cat = (c.ClientCategory ?? '').toLowerCase();
-      const addr = getClientAddress(c).toLowerCase();
-      return name.includes(lowSearch) || phone.includes(lowSearch) || cat.includes(lowSearch) || addr.includes(lowSearch);
+      return name.includes(lowSearch) || phone.includes(lowSearch);
     });
 
     const groups = new Map<UICategory, ClientFromOneC[]>();
@@ -201,7 +201,7 @@ export function ClientsPage() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Пошук по назві, телефону, місту…"
+            placeholder="Пошук по назві або телефону…"
             className="w-full pl-9 pr-9 h-10 rounded-xl bg-white/50 border border-white/60 text-[13px] focus:outline-none focus:ring-2 focus:ring-emet-blue/40 focus:border-emet-blue"
             aria-label="Пошук клієнта"
           />
