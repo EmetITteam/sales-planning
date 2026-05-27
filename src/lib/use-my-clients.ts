@@ -242,7 +242,6 @@ export function useClientFocuses(login: string | null, clientIds: string[]): Use
       }
     }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [f1, f2, f3]);
 
   return {
@@ -283,7 +282,6 @@ export function useClientActivities(login: string | null, clientIds: string[]): 
       }
     }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [a1, a2, a3]);
 
   return {

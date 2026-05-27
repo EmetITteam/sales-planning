@@ -58,8 +58,7 @@ function canonicalSegmentCode(raw: string): string {
   return cleaned.toUpperCase();
 }
 import { mapClientCategory } from '@/lib/onec-adapters';
-import { MetricCard } from '@/components/dashboard/metric-card';
-import { getClientName, getClientAddress, isClientReserved, getLastMeetingDate, getLastCallDate, type ClientFromOneC } from '@/lib/mityng-types';
+import { getClientName, getClientAddress, isClientReserved, type ClientFromOneC } from '@/lib/mityng-types';
 
 // === Категорійні групи ===
 // 5 реальних категорій 1С + окремий error-bucket «Без категорії в 1С»
