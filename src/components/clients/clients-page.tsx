@@ -12,7 +12,7 @@
 
 import { useMemo, useState } from 'react';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
-import { useMyClients, useClientReport, useClientsTotals } from '@/lib/use-my-clients';
+import { useMyClients, useClientReport, useClientsTotals, useClientActivities } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
 
@@ -56,7 +56,7 @@ function canonicalSegmentCode(raw: string): string {
 }
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
-import { getClientName, getClientAddress, type ClientFromOneC } from '@/lib/mityng-types';
+import { getClientName, getClientAddress, isClientReserved, type ClientFromOneC } from '@/lib/mityng-types';
 
 // === Категорійні групи ===
 // 5 реальних категорій 1С + окремий error-bucket «Без категорії в 1С»
@@ -128,27 +128,100 @@ export function ClientsPage() {
     sessionUser?.login ?? null,
     clientIds,
   );
+  // Контактна активність (зустрічі/дзвінки цього міс) — для Hero Card 4
+  const { activityByClient } = useClientActivities(sessionUser?.login ?? null, clientIds);
 
-  // === Counts per category ===
+  // === База клієнтів за правилом: НЕ-резерв + резерв-купуючі (fact>0) ===
+  // Резерв-некупуючих виключаємо зі всіх метрик (за домовленістю).
+  const baseClients = useMemo(() => {
+    return clients.filter(c => {
+      if (!isClientReserved(c)) return true;
+      // Резерв-клієнт: включаємо ЯКЩО купив (fact > 0)
+      const fact = factByClient[c.ClientID]?.factTotal ?? 0;
+      return fact > 0;
+    });
+  }, [clients, factByClient]);
+  const reservedCount = clients.filter(isClientReserved).length;
+  const reservedActiveCount = clients.filter(c => {
+    if (!isClientReserved(c)) return false;
+    const fact = factByClient[c.ClientID]?.factTotal ?? 0;
+    return fact > 0;
+  }).length;
+
+  // === Counts per category — по БАЗІ (без резерв-некупуючих) ===
   const countsByCategory = useMemo(() => {
     const counts: Record<UICategory, number> = {
       active: 0, sleeping: 0, new: 0, lost: 0, none: 0, missing: 0,
     };
-    for (const c of clients) counts[toUICategory(c.ClientCategory)]++;
+    for (const c of baseClients) counts[toUICategory(c.ClientCategory)]++;
     return counts;
-  }, [clients]);
+  }, [baseClients]);
 
-  // === Filtered + grouped clients ===
-  // ⚠️ defensive coding: 1С іноді повертає клієнтів з undefined для
-  // clientName/Phone/ClientCategory/clientAddress (виявлено у проді).
-  // Скрізь робимо `?? ''` fallback щоб .toLowerCase()/.localeCompare не падали.
+  // === Hero metrics обчислюємо по базі ===
+  const heroMetrics = useMemo(() => {
+    // Card 1 — Виконання $план/факт/%
+    let planTotal = 0;
+    let factTotal = 0;
+    for (const c of baseClients) {
+      planTotal += planByClient[c.ClientID]?.planTotal ?? 0;
+      factTotal += factByClient[c.ClientID]?.factTotal ?? 0;
+    }
+    const pct = planTotal > 0 ? (factTotal / planTotal) * 100 : 0;
+
+    // Card 3 — Виконання по клієнтах (скільки з планом / виконали)
+    let withPlanCnt = 0;
+    let completedCnt = 0;
+    for (const c of baseClients) {
+      const p = planByClient[c.ClientID]?.planTotal ?? 0;
+      const f = factByClient[c.ClientID]?.factTotal ?? 0;
+      if (p > 0) {
+        withPlanCnt++;
+        if (f >= p) completedCnt++;
+      }
+    }
+
+    // Card 4 — Контактна активність
+    let clientsWithCall = 0;
+    let clientsWithMeeting = 0;
+    let clientsWithAnyEvent = 0;
+    let noContacts = 0;
+    let noContactsWithPlan = 0;
+    let noContactsWithoutPlan = 0;
+    for (const c of baseClients) {
+      const a = activityByClient[c.ClientID];
+      const hasCall = !!a?.hasCall;
+      const hasMeeting = !!a?.hasMeeting;
+      const hasAny = hasCall || hasMeeting;
+      if (hasCall) clientsWithCall++;
+      if (hasMeeting) clientsWithMeeting++;
+      if (hasAny) {
+        clientsWithAnyEvent++;
+      } else {
+        noContacts++;
+        const p = planByClient[c.ClientID]?.planTotal ?? 0;
+        if (p > 0) noContactsWithPlan++;
+        else noContactsWithoutPlan++;
+      }
+    }
+    const coveragePct = baseClients.length > 0
+      ? (clientsWithAnyEvent / baseClients.length) * 100
+      : 0;
+
+    return {
+      planTotal, factTotal, pct,
+      withPlanCnt, completedCnt,
+      clientsWithCall, clientsWithMeeting, clientsWithAnyEvent,
+      coveragePct, noContacts, noContactsWithPlan, noContactsWithoutPlan,
+    };
+  }, [baseClients, planByClient, factByClient, activityByClient]);
+
+  // === Filtered + grouped clients (БЕЗ резерв-некупуючих — вони у окремій секції) ===
+  // Defensive: 1С іноді повертає clientName/Phone undefined → ?? '' скрізь.
   const groupedClients = useMemo(() => {
     const lowSearch = search.trim().toLowerCase();
-    const filtered = clients.filter(c => {
+    const filtered = baseClients.filter(c => {
       if (activeFilter !== 'all' && toUICategory(c.ClientCategory) !== activeFilter) return false;
       if (!lowSearch) return true;
-      // Шукаємо лише за назвою + телефоном — категорії є окремими pills,
-      // адреса/місто часто заповнені нерівномірно, тому не використовуємо.
       const name = getClientName(c).toLowerCase();
       const phone = (c.Phone ?? '').toLowerCase();
       return name.includes(lowSearch) || phone.includes(lowSearch);
@@ -157,12 +230,25 @@ export function ClientsPage() {
     const groups = new Map<UICategory, ClientFromOneC[]>();
     for (const cat of CAT_ORDER) groups.set(cat, []);
     for (const c of filtered) groups.get(toUICategory(c.ClientCategory))!.push(c);
-    // sort alphabetically within group — використовуємо getClientName для case-insensitive
     for (const arr of groups.values()) {
       arr.sort((a, b) => getClientName(a).localeCompare(getClientName(b), 'uk'));
     }
     return groups;
-  }, [clients, search, activeFilter]);
+  }, [baseClients, search, activeFilter]);
+
+  // === Резерв-клієнти (всі резерв, незалежно від купівлі) — для окремої секції ===
+  const reservedClients = useMemo(() => {
+    const lowSearch = search.trim().toLowerCase();
+    return clients
+      .filter(isClientReserved)
+      .filter(c => {
+        if (!lowSearch) return true;
+        const name = getClientName(c).toLowerCase();
+        const phone = (c.Phone ?? '').toLowerCase();
+        return name.includes(lowSearch) || phone.includes(lowSearch);
+      })
+      .sort((a, b) => getClientName(a).localeCompare(getClientName(b), 'uk'));
+  }, [clients, search]);
 
   const totalFiltered = useMemo(() => Array.from(groupedClients.values()).reduce((s, arr) => s + arr.length, 0), [groupedClients]);
 
@@ -194,37 +280,44 @@ export function ClientsPage() {
     <div className="space-y-4">
       <PageTitle subtitle={buildHeaderSubtitle(clients.length)} />
 
-      {/* === HERO BAND === */}
+      {/* === HERO BAND — 4 картки за домовленістю 2026-05-27 === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard
+
+        {/* Card 1 — ВИКОНАННЯ ($план / факт / % / норма / темп / запл.) */}
+        <HeroVykonannya
           index={0}
-          iconColor="text-emet-blue"
-          label="Усього клієнтів"
-          valueSize="lg"
-          value={clients.length}
-          caption={<span className="text-muted-foreground">закріплені за вами у 1С</span>}
+          planTotal={heroMetrics.planTotal}
+          factTotal={heroMetrics.factTotal}
+          pct={heroMetrics.pct}
         />
-        <MetricCard
+
+        {/* Card 2 — БАЗА КЛІЄНТІВ (включно з резерв-купуючими; резерв-sub-row) */}
+        <HeroBaza
           index={1}
-          iconColor="text-emerald-500"
-          label="Активні"
-          valueSize="lg"
-          value={countsByCategory.active}
-          caption={
-            <span className="text-muted-foreground">
-              {clients.length > 0 ? `${((countsByCategory.active / clients.length) * 100).toFixed(0)}%` : '—'} від бази
-            </span>
-          }
+          baseTotal={baseClients.length}
+          counts={countsByCategory}
+          reservedCount={reservedCount}
+          reservedActiveCount={reservedActiveCount}
         />
-        <MetricCard
+
+        {/* Card 3 — АКТИВАЦІЯ + ВИКОНАННЯ ПО КЛІЄНТАХ */}
+        <HeroActivation
           index={2}
-          iconColor="text-amber-500"
-          label="Зона ризику"
-          valueSize="lg"
-          value={countsByCategory.sleeping + countsByCategory.lost}
-          caption={<span className="text-muted-foreground">сплячі ({countsByCategory.sleeping}) + втрачені ({countsByCategory.lost})</span>}
+          withPlanCount={heroMetrics.withPlanCnt}
+          completedCount={heroMetrics.completedCnt}
         />
-        <CategoryBreakdownCard counts={countsByCategory} total={clients.length} />
+
+        {/* Card 4 — КОНТАКТНА АКТИВНІСТЬ (зустрічі+дзвінки цього міс) */}
+        <HeroContacts
+          index={3}
+          baseTotal={baseClients.length}
+          withCall={heroMetrics.clientsWithCall}
+          withMeeting={heroMetrics.clientsWithMeeting}
+          coveragePct={heroMetrics.coveragePct}
+          noContacts={heroMetrics.noContacts}
+          noContactsWithPlan={heroMetrics.noContactsWithPlan}
+          noContactsWithoutPlan={heroMetrics.noContactsWithoutPlan}
+        />
       </div>
 
       {/* === SEARCH + FILTER PILLS (sticky під header-ом) ===
@@ -330,28 +423,161 @@ function buildHeaderSubtitle(clientsCount: number): React.ReactNode {
   );
 }
 
-// === Hero card 4: breakdown за 4 рядки списком ===
-function CategoryBreakdownCard({ counts, total }: { counts: Record<UICategory, number>; total: number }) {
+// === HERO CARDS ===
+
+const fmtUSD = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
+const heroCardCls = 'glass-card p-5 relative min-h-[160px] flex flex-col justify-between gap-3 fade-stagger transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
+
+/** Card 1 — Виконання (план / факт / % виконання). */
+function HeroVykonannya({ index, planTotal, factTotal, pct }: {
+  index: number; planTotal: number; factTotal: number; pct: number;
+}) {
+  let pctColor = 'text-rose-600';
+  if (pct >= 100) pctColor = 'text-emerald-700';
+  else if (pct >= 80) pctColor = 'text-emerald-600';
+  else if (pct >= 50) pctColor = 'text-amber-600';
   return (
-    <div
-      className="glass-card p-5 relative min-h-[140px] flex flex-col justify-between gap-3 fade-stagger transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]"
-      style={{ ['--i' as string]: 3 }}
-    >
+    <div className={heroCardCls} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_6px_#8b5cf6]" />
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">По категоріях</p>
+        <span className="w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_currentColor] text-emet-blue" />
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Виконання</p>
       </div>
-      <div className="flex flex-col gap-1.5">
-        {(['active', 'sleeping', 'new', 'lost'] as UICategory[]).map(c => {
-          const pct = total > 0 ? Math.round((counts[c] / total) * 100) : 0;
+      <div>
+        <p className={`text-[36px] font-bold tracking-[-1px] tabular-nums leading-none ${pctColor}`}>
+          {pct.toFixed(0)}<span className="text-[22px] font-medium text-muted-foreground">%</span>
+        </p>
+      </div>
+      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
+        <span className="text-muted-foreground">План:</span>
+        <span className="font-mono font-semibold text-foreground tabular-nums text-right amount">{fmtUSD(planTotal)}</span>
+        <span className="text-muted-foreground">Факт:</span>
+        <span className="font-mono font-semibold text-foreground tabular-nums text-right amount">{fmtUSD(factTotal)}</span>
+        <span className="text-muted-foreground">Залишок:</span>
+        <span className={`font-mono font-semibold tabular-nums text-right amount ${factTotal >= planTotal ? 'text-emerald-700' : 'text-foreground'}`}>
+          {fmtUSD(Math.max(0, planTotal - factTotal))}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Card 2 — База клієнтів (категорії + резерв-sub-row). */
+function HeroBaza({ index, baseTotal, counts, reservedCount, reservedActiveCount }: {
+  index: number; baseTotal: number;
+  counts: Record<UICategory, number>;
+  reservedCount: number; reservedActiveCount: number;
+}) {
+  const visibleCats: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'none'];
+  return (
+    <div className={heroCardCls} style={{ ['--i' as string]: index }}>
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">База клієнтів</p>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">{baseTotal}</p>
+        <p className="text-[11px] text-muted-foreground">клієнтів</p>
+      </div>
+      <div className="flex flex-col gap-0.5 text-[11px]">
+        {visibleCats.filter(c => counts[c] > 0).map(c => {
+          const pct = baseTotal > 0 ? Math.round((counts[c] / baseTotal) * 100) : 0;
           return (
-            <div key={c} className="grid grid-cols-[8px_1fr_auto] gap-2 items-center text-[12px]">
+            <div key={c} className="grid grid-cols-[8px_1fr_auto_auto] gap-x-2 items-center">
               <span className={`w-1.5 h-1.5 rounded-full ${CAT_COLOR[c].dot}`} />
-              <span className="text-foreground font-medium">{CAT_LABEL[c]}</span>
-              <span className="font-mono font-bold tabular-nums">{counts[c]}<span className="text-muted-foreground font-medium text-[10px] ml-1">{pct}%</span></span>
+              <span className="text-foreground">{CAT_LABEL[c]}</span>
+              <span className="font-mono font-bold tabular-nums">{counts[c]}</span>
+              <span className="text-muted-foreground text-[10px] tabular-nums">{pct}%</span>
             </div>
           );
         })}
+        {reservedCount > 0 && (
+          <div className="grid grid-cols-[8px_1fr_auto_auto] gap-x-2 items-center pt-1 mt-1 border-t border-white/40 text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            <span title={`У базі лише ${reservedActiveCount} які купили (з ${reservedCount})`}>
+              Резерв · купили {reservedActiveCount}/{reservedCount}
+            </span>
+            <span className="font-mono font-bold tabular-nums">{reservedCount}</span>
+            <span className="text-[10px] tabular-nums">{baseTotal > 0 ? Math.round((reservedActiveCount/baseTotal)*100) : 0}%</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Card 3 — Активація + Виконання по клієнтах. */
+function HeroActivation({ index, withPlanCount, completedCount }: {
+  index: number; withPlanCount: number; completedCount: number;
+}) {
+  const pct = withPlanCount > 0 ? Math.round((completedCount / withPlanCount) * 100) : 0;
+  let pctColor = 'text-rose-600';
+  if (pct >= 80) pctColor = 'text-emerald-600';
+  else if (pct >= 50) pctColor = 'text-amber-600';
+  return (
+    <div className={heroCardCls} style={{ ['--i' as string]: index }}>
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_6px_#8b5cf6]" />
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Активація · Виконання</p>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+          {completedCount}
+          <span className="text-[22px] font-medium text-muted-foreground"> / {withPlanCount}</span>
+        </p>
+        <p className={`text-[14px] font-bold ${pctColor}`}>{pct}%</p>
+      </div>
+      <div className="text-[11px] leading-snug">
+        <p className="text-muted-foreground">
+          клієнтів виконали запланований обсяг.
+        </p>
+        <p className="text-muted-foreground/70 text-[10px] mt-1.5">
+          План активації (категорії «Сплячий» / «Втрачений» / «Без закупок»):{' '}
+          <span className="italic">очікуємо дані з 1С</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Card 4 — Контактна активність (зустрічі + дзвінки цього міс). */
+function HeroContacts({ index, baseTotal, withCall, withMeeting, coveragePct, noContacts, noContactsWithPlan, noContactsWithoutPlan }: {
+  index: number; baseTotal: number;
+  withCall: number; withMeeting: number;
+  coveragePct: number; noContacts: number;
+  noContactsWithPlan: number; noContactsWithoutPlan: number;
+}) {
+  let pctColor = 'text-rose-600';
+  if (coveragePct >= 80) pctColor = 'text-emerald-600';
+  else if (coveragePct >= 50) pctColor = 'text-amber-600';
+  return (
+    <div className={heroCardCls} style={{ ['--i' as string]: index }}>
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_#d97706]" />
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Контактна активність</p>
+      </div>
+      <div>
+        <p className={`text-[36px] font-bold tracking-[-1px] tabular-nums leading-none ${pctColor}`}>
+          {coveragePct.toFixed(0)}<span className="text-[22px] font-medium text-muted-foreground">%</span>
+        </p>
+        <p className="text-[10px] text-muted-foreground mt-1">бази покрито подіями</p>
+      </div>
+      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
+        <span className="text-muted-foreground inline-flex items-center gap-1">
+          <Calendar className="h-3 w-3 text-emet-blue" />зустрічі:
+        </span>
+        <span className="font-mono font-bold tabular-nums text-right">{withMeeting}</span>
+        <span className="text-muted-foreground inline-flex items-center gap-1">
+          <Phone className="h-3 w-3 text-emerald-600" />дзвінки:
+        </span>
+        <span className="font-mono font-bold tabular-nums text-right">{withCall}</span>
+        <span className="text-muted-foreground border-t border-white/40 pt-1 mt-0.5">без контактів:</span>
+        <span className="font-mono font-bold tabular-nums text-right text-rose-600 border-t border-white/40 pt-1 mt-0.5">
+          {noContacts}
+        </span>
+        <span className="text-[10px] text-muted-foreground/70 col-span-2 leading-snug">
+          ↳ з планом: <span className="font-bold text-rose-600">{noContactsWithPlan}</span>
+          {' · '}без плану: <span className="font-bold">{noContactsWithoutPlan}</span>
+        </span>
       </div>
     </div>
   );

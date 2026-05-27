@@ -182,3 +182,62 @@ function useMergedFactBreakdown(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, parts);
 }
+
+// === Контактна активність по клієнтах (для Hero Card 4) ===
+// checkActivities(login, period, clientIds[]) → activities[] з hasCall / hasMeeting per client.
+// 1С ліміт ~200 ID — chunk-имо у 3 чанки (підтримує до 600 клієнтів).
+
+export interface ClientActivity {
+  hasCall: boolean;
+  hasMeeting: boolean;
+  lastCallDate: string | null;
+  lastMeetingDate: string | null;
+}
+
+interface UseClientActivitiesResult {
+  /** activityByClient[clientId] → { hasCall, hasMeeting, lastCallDate, lastMeetingDate } */
+  activityByClient: Record<string, ClientActivity>;
+  loading: boolean;
+  error: string | null;
+}
+
+export function useClientActivities(login: string | null, clientIds: string[]): UseClientActivitiesResult {
+  const currentPeriod = useAppStore(s => s.currentPeriod);
+  const month = currentPeriod.month?.slice(0, 7);
+
+  const chunk1 = clientIds.slice(0, 200);
+  const chunk2 = clientIds.slice(200, 400);
+  const chunk3 = clientIds.slice(400, 600);
+  const mkPayload = (chunk: string[]) =>
+    login && month && chunk.length > 0
+      ? { login, period: month, clientIds: chunk }
+      : null;
+
+  const { data: a1, loading: la1, error: ea1 } = useOneCData('checkActivities', mkPayload(chunk1));
+  const { data: a2, loading: la2, error: ea2 } = useOneCData('checkActivities', mkPayload(chunk2));
+  const { data: a3, loading: la3, error: ea3 } = useOneCData('checkActivities', mkPayload(chunk3));
+
+  const activityByClient = useMemo(() => {
+    const out: Record<string, ClientActivity> = {};
+    for (const res of [a1, a2, a3]) {
+      if (!res?.activities) continue;
+      for (const a of res.activities) {
+        if (!a.clientId) continue;
+        out[a.clientId] = {
+          hasCall: !!a.hasCall,
+          hasMeeting: !!a.hasMeeting,
+          lastCallDate: a.lastCallDate ?? null,
+          lastMeetingDate: a.lastMeetingDate ?? null,
+        };
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [a1, a2, a3]);
+
+  return {
+    activityByClient,
+    loading: la1 || la2 || la3,
+    error: ea1 || ea2 || ea3 || null,
+  };
+}

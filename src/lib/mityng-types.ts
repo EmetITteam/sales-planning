@@ -38,8 +38,20 @@ export interface ClientFromOneC {
   clientAddress?: string;
   ClientAddress?: string;
   Phone: string;
-  managerName: string;
-  isMine: boolean;
+  managerName?: string;
+  isMine?: boolean;
+  /**
+   * 🆕 Додано 2026-05-27 з спекою Action C — клієнт у Резерві
+   * (на нього менеджер не звертає уваги, виключений з планування).
+   * Підтримуємо обидва case-варіанти на випадок 1С-розбіжностей.
+   */
+  isReserved?: boolean;
+  IsReserved?: boolean;
+}
+
+/** Helper — узяти isReserved незалежно від casing. */
+export function isClientReserved(c: { isReserved?: boolean; IsReserved?: boolean }): boolean {
+  return c.isReserved === true || c.IsReserved === true;
 }
 
 /** Helper: дістати name незалежно від casing 1С. */
