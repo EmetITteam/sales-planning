@@ -15,7 +15,7 @@ import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader
 import { useMyClients, useClientReport } from '@/lib/use-my-clients';
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
-import type { ClientFromOneC } from '@/lib/mityng-types';
+import { getClientName, type ClientFromOneC } from '@/lib/mityng-types';
 
 // === Категорійні групи (5 з 1С → 4 секції UI як у v3c мокапі) ===
 type UICategory = 'active' | 'sleeping' | 'new' | 'lost' | 'other';
@@ -77,7 +77,7 @@ export function ClientsPage() {
     const filtered = clients.filter(c => {
       if (activeFilter !== 'all' && toUICategory(c.ClientCategory) !== activeFilter) return false;
       if (!lowSearch) return true;
-      const name = (c.clientName ?? '').toLowerCase();
+      const name = getClientName(c).toLowerCase();
       const phone = (c.Phone ?? '').toLowerCase();
       const cat = (c.ClientCategory ?? '').toLowerCase();
       const addr = (c.clientAddress ?? '').toLowerCase();
@@ -87,9 +87,9 @@ export function ClientsPage() {
     const groups = new Map<UICategory, ClientFromOneC[]>();
     for (const cat of CAT_ORDER) groups.set(cat, []);
     for (const c of filtered) groups.get(toUICategory(c.ClientCategory))!.push(c);
-    // sort alphabetically within group — defensive
+    // sort alphabetically within group — використовуємо getClientName для case-insensitive
     for (const arr of groups.values()) {
-      arr.sort((a, b) => (a.clientName ?? '').localeCompare(b.clientName ?? '', 'uk'));
+      arr.sort((a, b) => getClientName(a).localeCompare(getClientName(b), 'uk'));
     }
     return groups;
   }, [clients, search, activeFilter]);
@@ -324,6 +324,7 @@ function ClientRow({ client, expanded, onToggle }: {
 }) {
   const cat = toUICategory(client.ClientCategory);
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
+  const name = getClientName(client);
   return (
     <div className="glass-card overflow-hidden">
       <button
@@ -333,10 +334,10 @@ function ClientRow({ client, expanded, onToggle }: {
         className="w-full grid grid-cols-[40px_minmax(0,1fr)_auto_24px] md:grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_auto_24px] gap-3 md:gap-4 items-center px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         <div className={`w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} flex items-center justify-center text-[12px] font-bold shrink-0`}>
-          {initials(client.clientName)}
+          {initials(name)}
         </div>
         <div className="min-w-0">
-          <p className="text-[14px] font-bold truncate">{client.clientName || '— без назви —'}</p>
+          <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
           <p className="text-[11px] text-muted-foreground truncate">
             {client.clientAddress || 'Адреса не вказана'}
           </p>
