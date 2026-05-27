@@ -155,7 +155,7 @@ export function ClientsPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle subtitle={`${clients.length} клієнтів · Травень 2026 · згруповано по категоріях`} />
+      <PageTitle subtitle={buildHeaderSubtitle(clients.length)} />
 
       {/* === HERO BAND === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -260,7 +260,7 @@ export function ClientsPage() {
 }
 
 // === Page title ===
-function PageTitle({ subtitle }: { subtitle: string }) {
+function PageTitle({ subtitle }: { subtitle: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3">
       <div className="w-10 h-10 rounded-xl bg-emet-blue text-white flex items-center justify-center shadow-[0_4px_12px_rgba(6,106,171,0.25)]">
@@ -268,9 +268,27 @@ function PageTitle({ subtitle }: { subtitle: string }) {
       </div>
       <div>
         <h1 className="text-[18px] font-bold tracking-tight">Мої клієнти</h1>
-        <p className="text-[12px] text-muted-foreground mt-0.5">{subtitle}</p>
+        <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">{subtitle}</div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Helper для заголовка — рядок 1 (поточна дата + місяць) + рядок 2 (як працює LIVE).
+ * Виноситься відразу під «Мої клієнти» щоб менеджер розумів window даних.
+ */
+function buildHeaderSubtitle(clientsCount: number): React.ReactNode {
+  const d = new Date();
+  const monthLabel = `${UA_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  const today = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+  return (
+    <>
+      <span>{clientsCount} клієнтів · {monthLabel} · станом на <span className="font-semibold tabular-nums text-foreground/80">{today}</span></span>
+      <span className="block text-[11px] text-muted-foreground/70 mt-0.5">
+        Дані «План × Факт» — за поточний місяць. Кнопка <strong className="text-foreground/80">LIVE</strong> міняє лише швидкість оновлення, діапазон завжди «з 1-го по сьогодні».
+      </span>
+    </>
   );
 }
 
@@ -1118,9 +1136,7 @@ function PlanFactByBrand({ planBrands, factBrands }: {
   if (rows.length === 0) {
     return (
       <div>
-        <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-          План × Факт цього місяця по брендах
-        </h3>
+        <PlanFactHeader rowsCount={0} />
         <p className="text-[12px] text-muted-foreground">
           Для цього клієнта на поточний місяць нема ні плану, ні фактичних закупівель.
         </p>
@@ -1130,14 +1146,35 @@ function PlanFactByBrand({ planBrands, factBrands }: {
 
   return (
     <div>
-      <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-        План × Факт цього місяця по брендах · {rows.length}
-      </h3>
+      <PlanFactHeader rowsCount={rows.length} />
       <div className="space-y-1.5">
         {rows.map(r => (
           <PlanFactBrandRow key={r.code} row={r} />
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Заголовок блока з під-рядком: дата-зріз факту + примітка про поточний місяць.
+ * Окремий компонент щоб не дублювати між empty/filled станами.
+ */
+function PlanFactHeader({ rowsCount }: { rowsCount: number }) {
+  // Формуємо «сьогодні» у форматі DD.MM.YYYY (UA)
+  const d = new Date();
+  const today = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+  // UA назва поточного місяця для довідки
+  const monthLabel = `${UA_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  return (
+    <div className="mb-2">
+      <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">
+        План × Факт цього місяця по брендах{rowsCount > 0 ? ` · ${rowsCount}` : ''}
+      </h3>
+      <p className="text-[10px] text-muted-foreground/80 mt-1 leading-snug">
+        Факт станом на <span className="font-semibold text-foreground tabular-nums">{today}</span>
+        {' · '}поточний місяць ({monthLabel}). Кнопка <strong>LIVE</strong> у хедері змінює тільки швидкість оновлення — діапазон даних завжди «з 1-го по сьогодні».
+      </p>
     </div>
   );
 }
