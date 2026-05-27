@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { PeriodFilter } from './period-filter';
 import { useRouter } from 'next/navigation';
-import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield } from 'lucide-react';
+import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield, Users } from 'lucide-react';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -212,6 +212,11 @@ export function AppHeader() {
                   Сховати суми (для оперативки)
                 </>
               )}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push('/clients')} className="cursor-pointer">
+              <Users className="mr-2 h-3.5 w-3.5" />
+              Мої клієнти
             </DropdownMenuItem>
             {user.role === 'admin' && (
               <>

@@ -1,0 +1,489 @@
+'use client';
+
+/**
+ * <ClientsPage> — «Мої клієнти» (CRM-режим).
+ *
+ * Дані Stage 1 (цей коміт):
+ *  - `getManagerClients({login})` — bulk список + категорії + телефони
+ *  - `getClientReport({clientID})` — lazy при кліку, для 3-міс історії + подій
+ *
+ * Stage 2 (наступний коміт): план/факт інтеграція + тег «Виконав заплановане».
+ */
+
+import { useMemo, useState } from 'react';
+import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2 } from 'lucide-react';
+import { useMyClients, useClientReport } from '@/lib/use-my-clients';
+import { mapClientCategory } from '@/lib/onec-adapters';
+import { MetricCard } from '@/components/dashboard/metric-card';
+import type { ClientFromOneC } from '@/lib/mityng-types';
+
+// === Категорійні групи (5 з 1С → 4 секції UI як у v3c мокапі) ===
+type UICategory = 'active' | 'sleeping' | 'new' | 'lost' | 'other';
+
+const CAT_LABEL: Record<UICategory, string> = {
+  active: 'Активні',
+  sleeping: 'Сплячі',
+  new: 'Нові',
+  lost: 'Втрачені',
+  other: 'Без категорії',
+};
+const CAT_COLOR: Record<UICategory, { dot: string; ring: string; text: string }> = {
+  active:   { dot: 'bg-emet-blue shadow-[0_0_6px_#066aab]',  ring: 'text-emet-blue',   text: 'text-emet-blue' },
+  sleeping: { dot: 'bg-amber-500 shadow-[0_0_6px_#d97706]',   ring: 'text-amber-600',   text: 'text-amber-600' },
+  new:      { dot: 'bg-emerald-500 shadow-[0_0_6px_#10b981]', ring: 'text-emerald-500', text: 'text-emerald-600' },
+  lost:     { dot: 'bg-rose-500 shadow-[0_0_6px_#e11d48]',    ring: 'text-rose-500',    text: 'text-rose-600' },
+  other:    { dot: 'bg-slate-400 shadow-[0_0_6px_#94a3b8]',   ring: 'text-slate-500',   text: 'text-slate-500' },
+};
+
+function toUICategory(raw: string | null): UICategory {
+  if (!raw) return 'other';
+  // mapClientCategory повертає 'active'|'sleeping'|'lost'|'new'|'none'
+  const norm = mapClientCategory(raw);
+  if (norm === 'none') return 'other';
+  return norm;
+}
+
+const CAT_ORDER: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'other'];
+
+// Initials з назви клієнта (для аватара)
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map(p => p[0]?.toUpperCase() || '').join('') || '?';
+}
+
+export function ClientsPage() {
+  const { clients, loading, error, refetch } = useMyClients();
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState<UICategory | 'all'>('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // === Counts per category ===
+  const countsByCategory = useMemo(() => {
+    const counts: Record<UICategory, number> = {
+      active: 0, sleeping: 0, new: 0, lost: 0, other: 0,
+    };
+    for (const c of clients) counts[toUICategory(c.ClientCategory)]++;
+    return counts;
+  }, [clients]);
+
+  // === Filtered + grouped clients ===
+  const groupedClients = useMemo(() => {
+    const lowSearch = search.trim().toLowerCase();
+    const filtered = clients.filter(c => {
+      if (activeFilter !== 'all' && toUICategory(c.ClientCategory) !== activeFilter) return false;
+      if (!lowSearch) return true;
+      return (
+        c.clientName.toLowerCase().includes(lowSearch)
+        || (c.Phone || '').toLowerCase().includes(lowSearch)
+        || (c.ClientCategory || '').toLowerCase().includes(lowSearch)
+        || (c.clientAddress || '').toLowerCase().includes(lowSearch)
+      );
+    });
+
+    const groups = new Map<UICategory, ClientFromOneC[]>();
+    for (const cat of CAT_ORDER) groups.set(cat, []);
+    for (const c of filtered) groups.get(toUICategory(c.ClientCategory))!.push(c);
+    // sort alphabetically within group
+    for (const arr of groups.values()) arr.sort((a, b) => a.clientName.localeCompare(b.clientName, 'uk'));
+    return groups;
+  }, [clients, search, activeFilter]);
+
+  const totalFiltered = useMemo(() => Array.from(groupedClients.values()).reduce((s, arr) => s + arr.length, 0), [groupedClients]);
+
+  // === Loading / Error states ===
+  if (loading && clients.length === 0) {
+    return (
+      <div className="space-y-4">
+        <PageTitle subtitle="Завантаження клієнтів з 1С…" />
+        <div className="glass-card p-12 text-center">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-emet-blue" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <PageTitle subtitle="Помилка завантаження" />
+        <div className="glass-card p-6">
+          <p className="text-[13px] text-rose-700 mb-3">Не вдалось завантажити список клієнтів: {error}</p>
+          <button onClick={refetch} className="px-4 py-2 rounded-xl bg-emet-blue text-white text-[13px] font-semibold">Спробувати знову</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <PageTitle subtitle={`${clients.length} клієнтів · Травень 2026 · згруповано по категоріях`} />
+
+      {/* === HERO BAND === */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricCard
+          index={0}
+          iconColor="text-emet-blue"
+          label="Усього клієнтів"
+          valueSize="lg"
+          value={clients.length}
+          caption={<span className="text-muted-foreground">закріплені за вами у 1С</span>}
+        />
+        <MetricCard
+          index={1}
+          iconColor="text-emerald-500"
+          label="Активні"
+          valueSize="lg"
+          value={countsByCategory.active}
+          caption={
+            <span className="text-muted-foreground">
+              {clients.length > 0 ? `${((countsByCategory.active / clients.length) * 100).toFixed(0)}%` : '—'} від бази
+            </span>
+          }
+        />
+        <MetricCard
+          index={2}
+          iconColor="text-amber-500"
+          label="Зона ризику"
+          valueSize="lg"
+          value={countsByCategory.sleeping + countsByCategory.lost}
+          caption={<span className="text-muted-foreground">сплячі ({countsByCategory.sleeping}) + втрачені ({countsByCategory.lost})</span>}
+        />
+        <CategoryBreakdownCard counts={countsByCategory} total={clients.length} />
+      </div>
+
+      {/* === SEARCH + FILTER PILLS === */}
+      <div className="glass-card p-3 flex flex-col gap-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Пошук по назві, телефону, місту, категорії…"
+            className="w-full pl-9 pr-9 h-10 rounded-xl bg-white/50 border border-white/60 text-[13px] focus:outline-none focus:ring-2 focus:ring-emet-blue/40 focus:border-emet-blue"
+            aria-label="Пошук клієнта"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Очистити пошук"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <FilterPill active={activeFilter === 'all'} onClick={() => setActiveFilter('all')} count={clients.length}>Усі</FilterPill>
+          {CAT_ORDER.filter(c => c !== 'other' || countsByCategory.other > 0).map(cat => (
+            <FilterPill
+              key={cat}
+              active={activeFilter === cat}
+              onClick={() => setActiveFilter(cat)}
+              count={countsByCategory[cat]}
+              dotClass={CAT_COLOR[cat].dot}
+            >
+              {CAT_LABEL[cat]}
+            </FilterPill>
+          ))}
+        </div>
+      </div>
+
+      {/* === CATEGORY SECTIONS === */}
+      {totalFiltered === 0 ? (
+        <div className="glass-card p-12 text-center text-[13px] text-muted-foreground">
+          {search ? `За запитом «${search}» нічого не знайдено` : 'Немає клієнтів у обраному фільтрі'}
+        </div>
+      ) : (
+        CAT_ORDER.map(cat => {
+          const list = groupedClients.get(cat) || [];
+          if (list.length === 0) return null;
+          return (
+            <CategorySection
+              key={cat}
+              cat={cat}
+              clients={list}
+              expandedId={expandedId}
+              onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
+            />
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+// === Page title ===
+function PageTitle({ subtitle }: { subtitle: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl bg-emet-blue text-white flex items-center justify-center shadow-[0_4px_12px_rgba(6,106,171,0.25)]">
+        <Users className="h-5 w-5" />
+      </div>
+      <div>
+        <h1 className="text-[18px] font-bold tracking-tight">Мої клієнти</h1>
+        <p className="text-[12px] text-muted-foreground mt-0.5">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+// === Hero card 4: breakdown за 4 рядки списком ===
+function CategoryBreakdownCard({ counts, total }: { counts: Record<UICategory, number>; total: number }) {
+  return (
+    <div
+      className="glass-card p-5 relative min-h-[140px] flex flex-col justify-between gap-3 fade-stagger transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]"
+      style={{ ['--i' as string]: 3 }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_6px_#8b5cf6]" />
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">По категоріях</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {(['active', 'sleeping', 'new', 'lost'] as UICategory[]).map(c => {
+          const pct = total > 0 ? Math.round((counts[c] / total) * 100) : 0;
+          return (
+            <div key={c} className="grid grid-cols-[8px_1fr_auto] gap-2 items-center text-[12px]">
+              <span className={`w-1.5 h-1.5 rounded-full ${CAT_COLOR[c].dot}`} />
+              <span className="text-foreground font-medium">{CAT_LABEL[c]}</span>
+              <span className="font-mono font-bold tabular-nums">{counts[c]}<span className="text-muted-foreground font-medium text-[10px] ml-1">{pct}%</span></span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// === Filter pill ===
+function FilterPill({
+  active, onClick, count, dotClass, children,
+}: {
+  active: boolean; onClick: () => void; count: number; dotClass?: string; children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-[12px] font-semibold transition-all ${
+        active
+          ? 'bg-emet-blue text-white shadow-[0_4px_12px_rgba(6,106,171,0.25)] border border-emet-blue'
+          : 'bg-white/50 border border-white/60 hover:bg-white/70 hover:-translate-y-px'
+      }`}
+    >
+      {dotClass && <span className={`w-2 h-2 rounded-full ${dotClass}`} />}
+      <span>{children}</span>
+      <span className={`font-mono font-bold text-[11px] px-1.5 py-0.5 rounded-full tabular-nums ${
+        active ? 'bg-white/25 text-white' : 'bg-emet-blue/10 text-emet-blue'
+      }`}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
+// === Category section header + list ===
+function CategorySection({
+  cat, clients, expandedId, onToggleExpand,
+}: {
+  cat: UICategory; clients: ClientFromOneC[];
+  expandedId: string | null; onToggleExpand: (id: string) => void;
+}) {
+  return (
+    <section className="space-y-2">
+      <div className="flex items-baseline gap-3 px-1 pt-2">
+        <span className={`w-2 h-2 rounded-full ${CAT_COLOR[cat].dot}`} />
+        <h2 className="text-[13px] font-extrabold uppercase tracking-[0.04em]">
+          {CAT_LABEL[cat]} <span className="text-muted-foreground font-semibold">· {clients.length}</span>
+        </h2>
+      </div>
+      <div className="flex flex-col gap-2">
+        {clients.map(c => (
+          <ClientRow
+            key={c.ClientID}
+            client={c}
+            expanded={expandedId === c.ClientID}
+            onToggle={() => onToggleExpand(c.ClientID)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// === One client row with accordion-expand ===
+function ClientRow({ client, expanded, onToggle }: {
+  client: ClientFromOneC; expanded: boolean; onToggle: () => void;
+}) {
+  const cat = toUICategory(client.ClientCategory);
+  const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
+  return (
+    <div className="glass-card overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="w-full grid grid-cols-[40px_minmax(0,1fr)_auto_24px] md:grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_auto_24px] gap-3 md:gap-4 items-center px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+      >
+        <div className={`w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} flex items-center justify-center text-[12px] font-bold shrink-0`}>
+          {initials(client.clientName)}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[14px] font-bold truncate">{client.clientName}</p>
+          <p className="text-[11px] text-muted-foreground truncate">
+            {client.clientAddress || 'Адреса не вказана'}
+          </p>
+        </div>
+        <div className="hidden md:block min-w-0">
+          {client.Phone && (
+            <a
+              href={`tel:${phoneClean}`}
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-emet-blue transition-colors"
+            >
+              <Phone className="h-3 w-3" />
+              <span className="tabular-nums">{client.Phone}</span>
+            </a>
+          )}
+        </div>
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
+          {CAT_LABEL[cat]}
+        </span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+      {expanded && <ClientExpand clientID={client.ClientID} />}
+    </div>
+  );
+}
+
+// === Accordion-розгортання з детальним звітом ===
+function ClientExpand({ clientID }: { clientID: string }) {
+  const { report, loading, error } = useClientReport(clientID);
+
+  if (loading) {
+    return (
+      <div className="border-t border-white/50 px-5 py-6 text-center">
+        <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+        <p className="text-[12px] text-muted-foreground mt-2">Завантаження звіту…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="border-t border-white/50 px-5 py-4">
+        <p className="text-[12px] text-rose-700 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" /> Не вдалось завантажити звіт: {error}
+        </p>
+      </div>
+    );
+  }
+
+  if (!report) {
+    return (
+      <div className="border-t border-white/50 px-5 py-4">
+        <p className="text-[12px] text-muted-foreground">Звіт по клієнту відсутній.</p>
+      </div>
+    );
+  }
+
+  const { clientInfo, salesReport, lastMeetings, lastCalls, lastSeminars } = report;
+  const eventCount = (lastMeetings?.length || 0) + (lastCalls?.length || 0) + (lastSeminars?.length || 0);
+
+  return (
+    <div className="border-t border-white/50 px-5 py-4 space-y-4">
+      {/* Базова інфа: освіта + документи */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[12px]">
+        <InfoCell label="Освіта" value={clientInfo.education || '—'} />
+        <InfoCell label="Документи" value={clientInfo.documents ? (
+          <span className="text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Є</span>
+        ) : (
+          <span className="text-rose-700">Немає</span>
+        )} />
+        <InfoCell label="Категорія" value={clientInfo.category || '—'} />
+      </div>
+
+      {/* 3-місячна історія по брендах */}
+      <div>
+        <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+          Продажі по брендах · {salesReport?.periodStart || '?'} — {salesReport?.periodEnd || '?'}
+        </h3>
+        {salesReport?.brands?.length ? (
+          <div className="space-y-1.5">
+            {salesReport.brands.map(b => (
+              <BrandSalesRow key={b.brandName} brand={b} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-muted-foreground">Покупок за останні 3 місяці не було.</p>
+        )}
+      </div>
+
+      {/* Події */}
+      <div>
+        <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+          Події · {eventCount}
+        </h3>
+        {eventCount === 0 ? (
+          <p className="text-[12px] text-muted-foreground">Зустрічей, дзвінків і семінарів не зафіксовано.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <EventList title="Зустрічі" items={lastMeetings} accent="text-emet-blue" />
+            <EventList title="Дзвінки" items={lastCalls} accent="text-emerald-600" />
+            <EventList title="Семінари" items={lastSeminars} accent="text-violet-600" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InfoCell({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="glass-card-soft p-3">
+      <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">{label}</p>
+      <p className="text-[13px] font-semibold mt-1">{value}</p>
+    </div>
+  );
+}
+
+function BrandSalesRow({ brand }: { brand: { brandName: string; totalAmount: number; salesByMonth: { month: string; amount: number }[] } }) {
+  return (
+    <div className="glass-card-soft p-3 grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_auto] gap-3 items-center">
+      <div className="font-semibold text-[13px] truncate">{brand.brandName}</div>
+      <div className="hidden md:flex gap-3 text-[11px]">
+        {brand.salesByMonth?.slice(-3).map((m, i) => (
+          <div key={i} className="flex flex-col">
+            <span className="text-muted-foreground text-[9px] uppercase">{m.month}</span>
+            <span className="font-mono font-bold tabular-nums">${m.amount.toLocaleString('en-US')}</span>
+          </div>
+        ))}
+      </div>
+      <div className="text-right">
+        <p className="text-[9px] uppercase text-muted-foreground">Всього</p>
+        <p className="font-mono font-bold tabular-nums text-[14px]">${brand.totalAmount.toLocaleString('en-US')}</p>
+      </div>
+    </div>
+  );
+}
+
+function EventList({ title, items, accent }: { title: string; items: { date: string; comment: string }[] | undefined; accent: string }) {
+  return (
+    <div className="glass-card-soft p-3">
+      <p className={`text-[10px] uppercase tracking-wider font-bold ${accent} mb-2`}>{title} · {items?.length || 0}</p>
+      {items?.length ? (
+        <ul className="space-y-2 text-[11px] max-h-[140px] overflow-y-auto">
+          {items.slice(0, 5).map((e, i) => (
+            <li key={i}>
+              <p className="font-semibold tabular-nums">{e.date}</p>
+              <p className="text-muted-foreground line-clamp-2">{e.comment || '—'}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">Немає</p>
+      )}
+    </div>
+  );
+}
