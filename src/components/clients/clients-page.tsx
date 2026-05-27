@@ -191,16 +191,17 @@ export function ClientsPage() {
       </div>
 
       {/* === SEARCH + FILTER PILLS (sticky під header-ом) ===
-          Header висота 56px; запас 6px щоб не залипало впритул. */}
-      <div className="sticky top-[56px] z-30 -mx-1 px-1 pt-1 pb-2 bg-gradient-to-b from-[#f8fbfd] via-[#f8fbfd]/95 to-transparent">
-      <div className="glass-card p-3 flex flex-col gap-3 shadow-[0_4px_20px_rgba(6,42,61,0.06)]">
+          Header висота 56px. Glass-card сама має backdrop-blur — окремий
+          фон-overlay не треба (раніше gradient давав «виступаючі білі кути»). */}
+      <div className="sticky top-[56px] z-30 py-2">
+      <div className="glass-card p-3 flex flex-col gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Пошук по назві, телефону, місту, категорії…"
+            placeholder="Пошук по назві, телефону, місту…"
             className="w-full pl-9 pr-9 h-10 rounded-xl bg-white/50 border border-white/60 text-[13px] focus:outline-none focus:ring-2 focus:ring-emet-blue/40 focus:border-emet-blue"
             aria-label="Пошук клієнта"
           />
