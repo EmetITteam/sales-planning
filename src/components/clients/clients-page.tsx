@@ -12,7 +12,8 @@
 
 import { useMemo, useState } from 'react';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2 } from 'lucide-react';
-import { useMyClients, useClientReport } from '@/lib/use-my-clients';
+import { useMyClients, useClientReport, useClientsTotals } from '@/lib/use-my-clients';
+import { useAppStore } from '@/lib/store';
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { getClientName, getClientAddress, type ClientFromOneC } from '@/lib/mityng-types';
@@ -58,10 +59,18 @@ function initials(name: string | null | undefined): string {
 }
 
 export function ClientsPage() {
+  const sessionUser = useAppStore(s => s.user);
   const { clients, loading, error, refetch } = useMyClients();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<UICategory | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
+  const clientIds = useMemo(() => clients.map(c => c.ClientID).filter(Boolean), [clients]);
+  const { planByClient, factByClient } = useClientsTotals(
+    sessionUser?.login ?? null,
+    clientIds,
+  );
 
   // === Counts per category ===
   const countsByCategory = useMemo(() => {
@@ -214,6 +223,8 @@ export function ClientsPage() {
               key={cat}
               cat={cat}
               clients={list}
+              planByClient={planByClient}
+              factByClient={factByClient}
               expandedId={expandedId}
               onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
             />
@@ -295,9 +306,11 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, expandedId, onToggleExpand,
+  cat, clients, planByClient, factByClient, expandedId, onToggleExpand,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
+  planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
+  factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   expandedId: string | null; onToggleExpand: (id: string) => void;
 }) {
   return (
@@ -309,34 +322,42 @@ function CategorySection({
         </h2>
       </div>
       <div className="flex flex-col gap-2">
-        {clients.map(c => (
-          <ClientRow
-            key={c.ClientID}
-            client={c}
-            expanded={expandedId === c.ClientID}
-            onToggle={() => onToggleExpand(c.ClientID)}
-          />
-        ))}
+        {clients.map(c => {
+          const plan = planByClient[c.ClientID]?.planTotal ?? null;
+          const fact = factByClient[c.ClientID]?.factTotal ?? null;
+          return (
+            <ClientRow
+              key={c.ClientID}
+              client={c}
+              plan={plan}
+              fact={fact}
+              expanded={expandedId === c.ClientID}
+              onToggle={() => onToggleExpand(c.ClientID)}
+            />
+          );
+        })}
       </div>
     </section>
   );
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, expanded, onToggle }: {
-  client: ClientFromOneC; expanded: boolean; onToggle: () => void;
+function ClientRow({ client, plan, fact, expanded, onToggle }: {
+  client: ClientFromOneC;
+  plan: number | null;
+  fact: number | null;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const cat = toUICategory(client.ClientCategory);
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
   const name = getClientName(client);
   const address = getClientAddress(client);
-  // TODO Stage 2b: підключити реальні дані з нового endpoint
-  // (planning_snapshots + getSalesFact per clientId).
-  const planTotal: number | null = null;
-  const factTotal: number | null = null;
-  const pct: number | null = (planTotal != null && factTotal != null && planTotal > 0)
-    ? (factTotal / planTotal) * 100
+  const pct: number | null = (plan != null && fact != null && plan > 0)
+    ? (fact / plan) * 100
     : null;
+  const planTotal = plan;
+  const factTotal = fact;
 
   return (
     <div className="glass-card overflow-hidden">
@@ -355,8 +376,10 @@ function ClientRow({ client, expanded, onToggle }: {
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
+            {/* Chip-категорія — СИРЕ значення з 1С (Активный/Спящий/Новый/Потерянный/Без закупок).
+                Якщо поле порожнє у 1С — показуємо warning "Без категорії в 1С". */}
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
-              {CAT_LABEL[cat]}
+              {client.ClientCategory?.trim() || 'Без категорії в 1С'}
             </span>
           </div>
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 min-w-0">
@@ -456,15 +479,14 @@ function ClientExpand({ clientID }: { clientID: string }) {
 
   return (
     <div className="border-t border-white/50 px-5 py-4 space-y-4">
-      {/* Базова інфа: освіта + документи */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[12px]">
+      {/* Базова інфа: освіта + документи (категорія прибрана — chip вже у рядку клієнта) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12px]">
         <InfoCell label="Освіта" value={clientInfo.education || '—'} />
         <InfoCell label="Документи" value={clientInfo.documents ? (
           <span className="text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Є</span>
         ) : (
           <span className="text-rose-700">Немає</span>
         )} />
-        <InfoCell label="Категорія" value={clientInfo.category || '—'} />
       </div>
 
       {/* 3-місячна історія по брендах */}

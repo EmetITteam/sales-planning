@@ -14,6 +14,7 @@
  *  - revalidate-on-focus
  */
 
+import useSWR from 'swr';
 import { useOneCData } from './use-onec-data';
 import { useAppStore } from './store';
 import type { ClientFromOneC, ClientReport } from './mityng-types';
@@ -78,4 +79,86 @@ export function useClientReport(clientID: string | null): UseClientReportResult 
     error,
     refetch,
   };
+}
+
+// === План по клієнтах (наш Supabase) + Факт по клієнтах (1С Action 3) ===
+
+interface ClientPlanTotal {
+  planTotal: number;
+  brands: Record<string, number>;
+}
+
+interface UseClientsTotalsResult {
+  /** planByClient[clientId] → { planTotal, brands: {segCode: amount} } */
+  planByClient: Record<string, ClientPlanTotal>;
+  /** factByClient[clientId] → { factTotal, brands: {segCode: amount} } */
+  factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
+  loading: boolean;
+  error: string | null;
+}
+
+/**
+ * Тягне ПЛАН (з нашого Supabase) + ФАКТ (з 1С) для усіх клієнтів менеджера.
+ *
+ * @param login Логін менеджера (override з сесії на бекенді — можна не парити)
+ * @param clientIds Список ID контрагентів для яких потрібен факт (з getSalesFact)
+ */
+export function useClientsTotals(login: string | null, clientIds: string[]): UseClientsTotalsResult {
+  const currentPeriod = useAppStore(s => s.currentPeriod);
+  const periodId = currentPeriod.id;
+  const month = currentPeriod.month?.slice(0, 7); // 'YYYY-MM'
+
+  // 1) План з Supabase
+  const planKey = login && periodId ? `clientPlanTotals|${login}|${periodId}` : null;
+  const { data: planRes, error: planErr, isLoading: planLoading } = useSWR(
+    planKey,
+    async () => {
+      const r = await fetch('/api/clients/plan-totals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login, periodId, month }),
+      });
+      if (!r.ok) throw new Error(`plan-totals ${r.status}`);
+      return r.json() as Promise<{ totals: Record<string, ClientPlanTotal> }>;
+    },
+    { revalidateOnFocus: false, dedupingInterval: 30_000 },
+  );
+
+  // 2) Факт з 1С: getSalesFact({login, period, clientIds})
+  // НЕ викликаємо коли clientIds порожній — це не дасть нічого.
+  const factPayload = login && month && clientIds.length > 0
+    ? { login, period: month, clientIds: clientIds.slice(0, 400) } // 1С ліміт 400
+    : null;
+  const { data: factRes, loading: factLoading, error: factErr } = useOneCData('getSalesFact', factPayload);
+
+  // Денормалізуємо factRes (segments[].clients[]) → factByClient[clientId]
+  const factByClient = useMemoFactBreakdown(factRes);
+
+  return {
+    planByClient: planRes?.totals ?? {},
+    factByClient,
+    loading: planLoading || factLoading,
+    error: planErr?.message || factErr || null,
+  };
+}
+
+import { useMemo } from 'react';
+import type { OneCActionMap } from './onec-types';
+
+function useMemoFactBreakdown(
+  factRes: OneCActionMap['getSalesFact']['response'] | null | undefined,
+): Record<string, { factTotal: number; brands: Record<string, number> }> {
+  return useMemo(() => {
+    if (!factRes?.segments) return {};
+    const out: Record<string, { factTotal: number; brands: Record<string, number> }> = {};
+    for (const seg of factRes.segments) {
+      for (const c of seg.clients ?? []) {
+        if (!c.clientId || !c.factAmountUSD) continue;
+        if (!out[c.clientId]) out[c.clientId] = { factTotal: 0, brands: {} };
+        out[c.clientId].factTotal += c.factAmountUSD;
+        out[c.clientId].brands[seg.segmentCode] = (out[c.clientId].brands[seg.segmentCode] || 0) + c.factAmountUSD;
+      }
+    }
+    return out;
+  }, [factRes]);
 }
