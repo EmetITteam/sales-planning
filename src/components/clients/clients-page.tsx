@@ -329,41 +329,93 @@ function ClientRow({ client, expanded, onToggle }: {
   const cat = toUICategory(client.ClientCategory);
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
   const name = getClientName(client);
+  const address = getClientAddress(client);
+  // TODO Stage 2b: підключити реальні дані з нового endpoint
+  // (planning_snapshots + getSalesFact per clientId).
+  const planTotal: number | null = null;
+  const factTotal: number | null = null;
+  const pct: number | null = (planTotal != null && factTotal != null && planTotal > 0)
+    ? (factTotal / planTotal) * 100
+    : null;
+
   return (
     <div className="glass-card overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[40px_minmax(0,1fr)_auto_24px] md:grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_auto_24px] gap-3 md:gap-4 items-center px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[40px_minmax(0,1fr)_24px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3 md:gap-4 items-center px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
+        {/* Avatar */}
         <div className={`w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} flex items-center justify-center text-[12px] font-bold shrink-0`}>
           {initials(name)}
         </div>
+
+        {/* Name + category-pill | address · phone */}
         <div className="min-w-0">
-          <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {getClientAddress(client) || 'Адреса не вказана в 1С'}
-          </p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
+            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
+              {CAT_LABEL[cat]}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 min-w-0">
+            <span className="truncate">{address || 'Адреса не вказана в 1С'}</span>
+            {client.Phone && (
+              <>
+                <span className="text-muted-foreground/40 shrink-0">·</span>
+                <a
+                  href={`tel:${phoneClean}`}
+                  onClick={e => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 hover:text-emet-blue transition-colors shrink-0"
+                >
+                  <Phone className="h-3 w-3" />
+                  <span className="tabular-nums">{client.Phone}</span>
+                </a>
+              </>
+            )}
+          </div>
         </div>
-        <div className="hidden md:block min-w-0">
-          {client.Phone && (
-            <a
-              href={`tel:${phoneClean}`}
-              onClick={e => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-emet-blue transition-colors"
-            >
-              <Phone className="h-3 w-3" />
-              <span className="tabular-nums">{client.Phone}</span>
-            </a>
-          )}
-        </div>
-        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
-          {CAT_LABEL[cat]}
-        </span>
+
+        {/* План / Факт / % — desktop only */}
+        <NumCol label="План" value={planTotal} />
+        <NumCol label="Факт" value={factTotal} />
+        <PctCol pct={pct} />
+
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
       {expanded && <ClientExpand clientID={client.ClientID} />}
+    </div>
+  );
+}
+
+/** Колонка з $-сумою (План/Факт). Якщо value=null → «—». Лише на md+ */
+function NumCol({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div className="hidden md:block text-right">
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold leading-none">{label}</p>
+      <p className="text-[13px] font-bold font-mono tabular-nums mt-1 leading-none whitespace-nowrap amount">
+        {value === null ? <span className="text-muted-foreground/50">—</span> : `$${Math.round(value).toLocaleString('en-US')}`}
+      </p>
+    </div>
+  );
+}
+
+/** Колонка з % виконання. Кольорує по traffic-light. Лише на md+. */
+function PctCol({ pct }: { pct: number | null }) {
+  let cls = 'text-muted-foreground/50';
+  if (pct !== null) {
+    if (pct >= 100) cls = 'text-emerald-700';
+    else if (pct >= 80) cls = 'text-emerald-600';
+    else if (pct >= 50) cls = 'text-amber-600';
+    else cls = 'text-rose-600';
+  }
+  return (
+    <div className="hidden md:block text-right">
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold leading-none">Викон.</p>
+      <p className={`text-[13px] font-bold font-mono tabular-nums mt-1 leading-none ${cls}`}>
+        {pct === null ? '—' : `${pct.toFixed(0)}%`}
+      </p>
     </div>
   );
 }
