@@ -47,13 +47,15 @@ function canonicalSegmentCode(raw: string): string {
   if (BRAND_CODE_ALIASES[lower]) return BRAND_CODE_ALIASES[lower];
 
   // Pattern: «Vitaran <будь-що>» (Cosmetics, БАДи, тощо) → OTHER
-  // Сам 'Vitaran' / 'VITARAN' (без пробілу після) → лишається як є
+  // Сам 'Vitaran' / 'VITARAN' (без пробілу після) → нормалізуємо до UPPERCASE
   if (lower.startsWith('vitaran ')) return 'OTHER';
-
   // Pattern: «IUSE <будь-що>» (Collagen, SkinBooster, Hair) → IUSE main
   if (lower.startsWith('iuse ')) return 'IUSE';
 
-  return cleaned;
+  // Повертаємо UPPERCASE для consistent matching між segment-кодами (VITARAN)
+  // та display-назвами з 1С (Neuramis / Vitaran). Це робить set.has() справжнім
+  // case-insensitive lookup без перевідбудови мапи.
+  return cleaned.toUpperCase();
 }
 import { mapClientCategory } from '@/lib/onec-adapters';
 import { MetricCard } from '@/components/dashboard/metric-card';
@@ -208,18 +210,9 @@ export function ClientsPage() {
       }
     }
 
-    // Card 4 — Контактна активність
-    // ВАЖЛИВЕ ДЖЕРЕЛО: bulk-поля LastMeetingDate/LastCallDate з getManagerClients.
-    // Раніше використовували checkActivities але він баговий — повертає false
-    // навіть для клієнтів які реально мали дзвінки (виявлено 2026-05-27 на Балабан).
-    // Зараз LastMeetingDate точно є; LastCallDate чекаємо щоб 1С додав —
-    // як fallback використовуємо checkActivities коли LastCallDate порожній.
-    const now = new Date();
-    const yyyymm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const isInCurrentMonth = (d: string): boolean => {
-      if (!d) return false;
-      return d.slice(0, 7) === yyyymm;
-    };
+    // Card 4 — Контактна активність (через checkActivities, як було спочатку).
+    // LastMeetingDate bulk-поле виявилось порожнім для більшості — повертаємо
+    // на checkActivities (1С перевіряє чому hasCall=false для тих хто дзвонив).
     let clientsWithCall = 0;
     let clientsWithMeeting = 0;
     let clientsWithAnyEvent = 0;
@@ -227,16 +220,9 @@ export function ClientsPage() {
     let noContactsWithPlan = 0;
     let noContactsWithoutPlan = 0;
     for (const c of baseClients) {
-      // Зустріч: пріоритет — bulk-поле; fallback на checkActivities
-      const lastMeetingD = getLastMeetingDate(c);
-      const hasMeeting = lastMeetingD
-        ? isInCurrentMonth(lastMeetingD)
-        : !!activityByClient[c.ClientID]?.hasMeeting;
-      // Дзвінок: те саме
-      const lastCallD = getLastCallDate(c);
-      const hasCall = lastCallD
-        ? isInCurrentMonth(lastCallD)
-        : !!activityByClient[c.ClientID]?.hasCall;
+      const a = activityByClient[c.ClientID];
+      const hasCall = !!a?.hasCall;
+      const hasMeeting = !!a?.hasMeeting;
       const hasAny = hasCall || hasMeeting;
       if (hasCall) clientsWithCall++;
       if (hasMeeting) clientsWithMeeting++;
