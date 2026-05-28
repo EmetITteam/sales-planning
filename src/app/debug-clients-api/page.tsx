@@ -35,6 +35,17 @@ export default function DebugClientsAPI() {
 
   if (!bootstrapped) return <div className="p-8">Перевіряю сесію…</div>;
   if (!user) return <LoginForm />;
+  // Діагностичний raw-API explorer — лише admin (не для кінцевих менеджерів у проді).
+  if (user.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <AppHeader />
+        <main className="flex-1 flex items-center justify-center p-8">
+          <p className="text-[13px] text-muted-foreground">Сторінка доступна лише адміністратору.</p>
+        </main>
+      </div>
+    );
+  }
 
   async function call(label: string, fn: () => Promise<unknown>) {
     setError(null);
