@@ -4,7 +4,7 @@
 
 **Виконані позиції** → [ARCHIVE_SPECS_RESOLVED.md](./ARCHIVE_SPECS_RESOLVED.md) (Action A `getClientFocus`, Action C `isReserved`, Action 5 `includeAll`, Bug 1 isReserved-sync, Bug 2 checkActivities, clientStats discrepancy).
 
-**Єдине що лишилось pending — Action B (`getClientActivationPlan`).**
+**✅ Усі pending-позиції закриті.** Action B (`getClientActivationPlan`) доставлено 1С і інтегровано 2026-05-28 (commit `6d4a221`, Hero Card 3 на /clients). ⚠️ Дрібниця: 1С шле `totalInCategory` як **string** ("120"), а не number — обробляємо coerce-ом; нам це поле і так не потрібне (категорії рахуємо самі). Спека нижче лишена для довідки.
 
 ---
 
