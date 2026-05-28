@@ -441,6 +441,7 @@ export function ClientsPage() {
           activatedSum={activationData.activatedSum}
           hasDoc={activationData.hasDoc}
           withPlanCount={heroMetrics.withPlanCnt}
+          completedCount={heroMetrics.completedCnt}
           focusedCount={focusedCount}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
@@ -679,13 +680,14 @@ function HeroBaza({ index, baseTotal, counts, reservedCount, reservedActiveCount
 }
 
 /** Card 3 — План активації бази (Action B): план з 1С vs факт активовано. */
-function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCount, focusedCount, activeFilter, onFilterChange }: {
+function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCount, completedCount, focusedCount, activeFilter, onFilterChange }: {
   index: number;
   rows: Array<{ uiCat: string; label: string; dotClass: string; planCount: number; activated: number }>;
   planSum: number;
   activatedSum: number;
   hasDoc: boolean;
   withPlanCount: number;
+  completedCount: number;
   focusedCount: number;
   activeFilter: string;
   onFilterChange: (f: 'all' | 'focused' | 'with-plan') => void;
@@ -694,6 +696,9 @@ function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCo
   let pctColor = 'text-rose-600';
   if (pct >= 80) pctColor = 'text-emerald-600';
   else if (pct >= 50) pctColor = 'text-amber-600';
+  // 2-й параметр (старий): виконали запланований обсяг (factу ≥ план по клієнту).
+  const execPct = withPlanCount > 0 ? Math.round((completedCount / withPlanCount) * 100) : 0;
+  const execColor = execPct >= 80 ? 'text-emerald-600' : execPct >= 50 ? 'text-amber-600' : 'text-rose-600';
   const planFilterActive = activeFilter === 'with-plan';
   const focusFilterActive = activeFilter === 'focused';
   const amb = !hasDoc ? 'accent' : pct >= 80 ? 'good' : pct >= 50 ? 'warn' : 'bad';
@@ -734,6 +739,14 @@ function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCo
           ))}
         </div>
       )}
+      {/* 2-й параметр: виконання запланованого обсягу по клієнтах (старий). */}
+      <div className="flex items-baseline justify-between pt-2 border-t border-slate-200/50">
+        <span className="text-[11px] text-muted-foreground">Виконали запланований обсяг</span>
+        <span className="text-[12px] font-bold tabular-nums">
+          <span className="font-mono">{completedCount}<span className="text-muted-foreground font-normal"> / {withPlanCount}</span></span>
+          <span className={`ml-1.5 ${execColor}`}>{execPct}%</span>
+        </span>
+      </div>
       <div className="flex flex-col gap-1 text-[11px]">
         <button
           type="button"
