@@ -389,6 +389,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
               index={0}
+              ambient="accent"
               valueSize="lg"
               valuePrefix="$"
               icon={<Target />}
@@ -411,6 +412,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             />
             <MetricCard
               index={1}
+              ambient="mint"
               valueSize="lg"
               valuePrefix="$"
               icon={<DollarSign />}
@@ -435,6 +437,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             />
             <MetricCard
               index={2}
+              ambient={totalPct >= calcPctValue ? 'good' : totalPct - calcPctValue >= -15 ? 'warn' : 'bad'}
               valueSize="lg"
               icon={totalPct >= calcPctValue ? <TrendingUp /> : <TrendingDown />}
               iconColor={totalPct >= calcPctValue ? 'text-emerald-500' : 'text-rose-500'}

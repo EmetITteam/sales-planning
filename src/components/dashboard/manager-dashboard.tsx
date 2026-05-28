@@ -481,6 +481,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           index={0}
+          ambient="accent"
           valueSize="lg"
           valuePrefix={isTrial ? undefined : '$'}
           icon={<Target />}
@@ -513,6 +514,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
         />
         <MetricCard
           index={1}
+          ambient="mint"
           valueSize="lg"
           valuePrefix="$"
           icon={<DollarSign />}
@@ -546,6 +548,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
         />
         <MetricCard
           index={2}
+          ambient={isTrial ? 'accent' : totalPct >= totalCalcPct ? 'good' : totalPct - totalCalcPct >= -15 ? 'warn' : 'bad'}
           valueSize="lg"
           icon={isTrial ? <Target /> : (totalPct >= totalCalcPct ? <TrendingUp /> : <TrendingDown />)}
           iconColor={isTrial ? 'text-slate-400' : (totalPct >= totalCalcPct ? 'text-emerald-500' : 'text-rose-500')}

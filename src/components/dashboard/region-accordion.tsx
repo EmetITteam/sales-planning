@@ -51,6 +51,8 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   const pct = pctOf(aggregate.totalFact, aggregate.totalPlan);
   const tl = getTrafficLight(pct, calcPct);
   const dev = pct - calcPct;
+  // Ambient glow за traffic-light станом — лише коли регіон має план.
+  const ambient = aggregate.totalPlan > 0 ? (pct >= calcPct ? 'ambient-good' : 'ambient-bad') : '';
   // Б.2: динаміка vs минулий = заплановане vs минулий факт (forward-looking).
   // Fallback на totalFact якщо нема плану.
   const compareForDyn = regionExpectedAmount > 0 ? regionExpectedAmount : aggregate.totalFact;
@@ -175,7 +177,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   );
 
   return (
-    <div className="glass-card overflow-hidden transition-all hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]">
+    <div className={`glass-card ${ambient} overflow-hidden transition-all hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]`}>
       {/* === DESKTOP/TABLET (md+): grid layout як у BrandRow, з drill-down chevron === */}
       <button
         type="button"

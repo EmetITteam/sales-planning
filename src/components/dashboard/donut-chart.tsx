@@ -97,14 +97,15 @@ export function DonutChart({ title, subtitle, segments, centerLabel, centerSub, 
             )}
           </div>
         </div>
-        <div className="flex-1 flex flex-col gap-1.5 text-[11px] min-w-0">
+        {/* max-w обмежує легенду — інакше на широкій картці flex-1 розпирає
+            рядок і назва/% «розлітаються» по краях. Пунктирний leader з'єднує
+            їх візуально. На вузькому екрані flex-1 просто заповнює доступне. */}
+        <div className="flex-1 max-w-[300px] flex flex-col gap-1.5 text-[11px] min-w-0">
           {arcs.map(arc => (
-            <div key={arc.name} className="flex items-center gap-2 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: arc.color }} />
+            <div key={arc.name} className="flex items-baseline gap-2 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0 translate-y-[1px]" style={{ background: arc.color }} />
               <span className="text-[rgba(6,42,61,0.78)] truncate font-medium min-w-0">{arc.name}</span>
-              {/* Пунктирний leader — візуально з'єднує назву з %, щоб вони не
-                  «розлітались» по краях широкої картки. % лишається у колонці. */}
-              <span aria-hidden className="flex-1 min-w-[12px] border-b border-dotted border-[rgba(6,42,61,0.18)] translate-y-[-1px]" />
+              <span aria-hidden className="flex-1 min-w-[10px] border-b border-dotted border-[rgba(6,42,61,0.28)]" />
               <span className="font-bold tabular-nums font-mono flex-shrink-0 text-foreground">{fmt(arc.value, arc.pct)}</span>
             </div>
           ))}

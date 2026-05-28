@@ -88,6 +88,12 @@ export function BrandRow({
 
   const isInactive = planAmount === 0 && factAmount === 0;
 
+  // Ambient glow за traffic-light станом — лише коли є реальний план (не trial,
+  // не «Без плану», не inactive). Інакше нейтральний glass (без кольору).
+  const ambient = (!isInactive && !isTrial && hasManagerPlan && planAmount > 0)
+    ? (factPercent >= calcPct ? 'ambient-good' : 'ambient-bad')
+    : '';
+
   const Wrapper: React.ElementType = onClick ? 'button' : 'div';
   const buttonProps = onClick ? {
     type: 'button' as const,
@@ -98,7 +104,7 @@ export function BrandRow({
     <Wrapper
       onClick={onClick}
       {...buttonProps}
-      className={`group w-full text-left glass-card p-3 md:p-4 ${
+      className={`group w-full text-left glass-card ${ambient} p-3 md:p-4 ${
         onClick && !readOnly ? 'hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] cursor-pointer hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50' : ''
       } transition-all duration-200 ${isInactive ? 'opacity-50' : ''}`}
     >

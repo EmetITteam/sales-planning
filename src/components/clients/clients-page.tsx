@@ -553,8 +553,9 @@ function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct
   let forecastColor = 'text-rose-600';
   if (forecastPct >= 100) forecastColor = 'text-emerald-700';
   else if (forecastPct >= 80) forecastColor = 'text-amber-600';
+  const amb = pct >= calcPct ? 'good' : pct >= calcPct - 15 ? 'warn' : 'bad';
   return (
-    <div className={heroCardCls} style={{ ['--i' as string]: index }}>
+    <div className={`${heroCardCls} ambient-${amb}`} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-emet-blue shadow-[0_0_6px_currentColor] text-emet-blue" />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Виконання</p>
@@ -586,7 +587,7 @@ function HeroBaza({ index, baseTotal, counts, reservedCount, reservedActiveCount
 }) {
   const visibleCats: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'none'];
   return (
-    <div className={heroCardCls} style={{ ['--i' as string]: index }}>
+    <div className={`${heroCardCls} ambient-accent`} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">База клієнтів</p>
@@ -637,8 +638,9 @@ function HeroActivation({ index, withPlanCount, completedCount, focusedCount, ac
   else if (pct >= 50) pctColor = 'text-amber-600';
   const planFilterActive = activeFilter === 'with-plan';
   const focusFilterActive = activeFilter === 'focused';
+  const amb = pct >= 80 ? 'good' : pct >= 50 ? 'warn' : 'bad';
   return (
-    <div className={heroCardCls} style={{ ['--i' as string]: index }}>
+    <div className={`${heroCardCls} ambient-${amb}`} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_6px_#8b5cf6]" />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Активація · Виконання</p>
@@ -695,8 +697,9 @@ function HeroContacts({ index, baseTotal, withCall, withMeeting, coveragePct, no
   let pctColor = 'text-rose-600';
   if (coveragePct >= 80) pctColor = 'text-emerald-600';
   else if (coveragePct >= 50) pctColor = 'text-amber-600';
+  const amb = coveragePct >= 80 ? 'good' : coveragePct >= 50 ? 'warn' : 'bad';
   return (
-    <div className={heroCardCls} style={{ ['--i' as string]: index }}>
+    <div className={`${heroCardCls} ambient-${amb}`} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_#d97706]" />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Контактна активність</p>
