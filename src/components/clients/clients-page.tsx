@@ -294,6 +294,19 @@ export function ClientsPage() {
     baseClients.filter(c => (focusByClient[c.ClientID]?.length ?? 0) > 0).length,
     [baseClients, focusByClient]);
 
+  // Скільки клієнтів КУПИЛО (fact>0) по кожній категорії + разом — для картки «База».
+  const boughtData = useMemo(() => {
+    const byCat: Record<UICategory, number> = { active: 0, sleeping: 0, new: 0, lost: 0, none: 0, missing: 0 };
+    let total = 0;
+    for (const c of baseClients) {
+      if ((factByClient[c.ClientID]?.factTotal ?? 0) > 0) {
+        byCat[toUICategory(c.ClientCategory)]++;
+        total++;
+      }
+    }
+    return { byCat, total };
+  }, [baseClients, factByClient]);
+
   // === План активації: план з 1С (planCount) vs ФАКТ активовано (наш розрахунок) ===
   // «активовано» = клієнти цієї категорії що купили цього міс (fact>0). totalInCategory
   // з 1С НЕ використовуємо — категорії рахуємо самі (видно у картці «База»).
@@ -418,6 +431,8 @@ export function ClientsPage() {
           index={1}
           baseTotal={baseClients.length}
           counts={countsByCategory}
+          boughtByCategory={boughtData.byCat}
+          totalBought={boughtData.total}
           reservedCount={reservedCount}
           reservedActiveCount={reservedActiveCount}
         />
@@ -624,10 +639,12 @@ function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct
   );
 }
 
-/** Card 2 — База клієнтів (категорії + резерв-sub-row). */
-function HeroBaza({ index, baseTotal, counts, reservedCount, reservedActiveCount }: {
+/** Card 2 — База клієнтів (категорії: всього + купили цього міс + резерв). */
+function HeroBaza({ index, baseTotal, counts, boughtByCategory, totalBought, reservedCount, reservedActiveCount }: {
   index: number; baseTotal: number;
   counts: Record<UICategory, number>;
+  boughtByCategory: Record<UICategory, number>;
+  totalBought: number;
   reservedCount: number; reservedActiveCount: number;
 }) {
   const visibleCats: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'none'];
@@ -642,27 +659,34 @@ function HeroBaza({ index, baseTotal, counts, reservedCount, reservedActiveCount
         <p className="text-[11px] text-muted-foreground">клієнтів</p>
       </div>
       <div className="flex flex-col gap-0.5 text-[11px]">
-        {visibleCats.filter(c => counts[c] > 0).map(c => {
-          const pct = baseTotal > 0 ? Math.round((counts[c] / baseTotal) * 100) : 0;
-          return (
-            <div key={c} className="grid grid-cols-[8px_1fr_auto_auto] gap-x-2 items-center">
-              <span className={`w-1.5 h-1.5 rounded-full ${CAT_COLOR[c].dot}`} />
-              <span className="text-foreground">{CAT_LABEL[c]}</span>
-              <span className="font-mono font-bold tabular-nums">{counts[c]}</span>
-              <span className="text-muted-foreground text-[10px] tabular-nums">{pct}%</span>
-            </div>
-          );
-        })}
+        {/* header колонок: всього у базі / скільки купили цього міс */}
+        <div className="grid grid-cols-[8px_1fr_auto_auto] gap-x-3 text-[9px] uppercase tracking-wider text-muted-foreground/70">
+          <span /><span />
+          <span className="text-right">база</span>
+          <span className="text-right">купили</span>
+        </div>
+        {visibleCats.filter(c => counts[c] > 0).map(c => (
+          <div key={c} className="grid grid-cols-[8px_1fr_auto_auto] gap-x-3 items-center">
+            <span className={`w-1.5 h-1.5 rounded-full ${CAT_COLOR[c].dot}`} />
+            <span className="text-foreground">{CAT_LABEL[c]}</span>
+            <span className="font-mono font-bold tabular-nums text-right">{counts[c]}</span>
+            <span className="font-mono font-bold tabular-nums text-right text-emerald-600">{boughtByCategory[c] ?? 0}</span>
+          </div>
+        ))}
         {reservedCount > 0 && (
-          <div className="grid grid-cols-[8px_1fr_auto_auto] gap-x-2 items-center pt-1 mt-1 border-t border-white/40 text-slate-500">
+          <div className="grid grid-cols-[8px_1fr_auto_auto] gap-x-3 items-center text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-            <span title={`У базі лише ${reservedActiveCount} які купили (з ${reservedCount})`}>
-              Резерв · купили {reservedActiveCount}/{reservedCount}
-            </span>
-            <span className="font-mono font-bold tabular-nums">{reservedCount}</span>
-            <span className="text-[10px] tabular-nums">{baseTotal > 0 ? Math.round((reservedActiveCount/baseTotal)*100) : 0}%</span>
+            <span>Резерв</span>
+            <span className="font-mono font-bold tabular-nums text-right">{reservedCount}</span>
+            <span className="font-mono font-bold tabular-nums text-right text-emerald-600">{reservedActiveCount}</span>
           </div>
         )}
+        {/* Разом купили цього місяця */}
+        <div className="grid grid-cols-[8px_1fr_auto_auto] gap-x-3 items-center pt-1 mt-1 border-t border-white/40 font-bold">
+          <span /><span className="text-foreground">Разом купили</span>
+          <span />
+          <span className="font-mono tabular-nums text-right text-emerald-600">{totalBought}</span>
+        </div>
       </div>
     </div>
   );

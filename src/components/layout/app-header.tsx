@@ -116,7 +116,7 @@ export function AppHeader() {
           <img src="/emet-mark.svg" alt="EMET" className="h-8 w-auto object-contain -translate-y-[3px]" />
           {/* Logo wordmark — solid ink + accent dot замість gradient text.
               Gradient на 15px Windows/Chrome губить anti-aliasing (audit). */}
-          <span className="text-[15px] font-semibold tracking-tight hidden sm:flex items-center gap-1.5 text-[#081E2D]">
+          <span className="text-[15px] font-semibold tracking-tight hidden sm:flex items-center gap-1.5 text-[#081E2D] translate-y-[2px]">
             Планування продажів
             <span className="w-1 h-1 rounded-full bg-emet-blue" />
           </span>
