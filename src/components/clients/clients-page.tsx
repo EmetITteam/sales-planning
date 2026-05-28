@@ -10,7 +10,7 @@
  * Stage 2 (наступний коміт): план/факт інтеграція + тег «Виконав заплановане».
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
@@ -181,27 +181,14 @@ export function ClientsPage() {
     const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     return { dateFrom, dateTo };
   }, [currentPeriod.month]);
-  const { data: registryPlansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useRegistryPlans(
+  // Cold-start 1С обробляє сам хук: передаємо login → isEmptyResponse рахує
+  // «порожньо» = немає плану для ЦЬОГО менеджера, тож вбудований retry
+  // (3× з backoff, тримає loading=true) відновлює план без блимання $0.
+  const { data: registryPlansResponse } = useRegistryPlans(
     sessionLoginLower !== 'anonymous' ? dateFrom : null,
     sessionLoginLower !== 'anonymous' ? dateTo : null,
+    sessionUser?.login ?? null,
   );
-  // Auto-retry для cold-start 1С: на першому getRegistryPlans після логіну 1С
-  // інколи повертає plans[] для ІНШИХ менеджерів, але не для цього → план $0.
-  // Hook-level retry спрацьовує лише коли plans[] глобально порожній, тому тут
-  // окремий per-login retry (дзеркало manager-dashboard) — інакше /clients
-  // показував би План $0 до ручного перезавантаження.
-  const [planRetryAttempt, setPlanRetryAttempt] = useState(0);
-  useEffect(() => {
-    if (!registryPlansResponse || plansLoading || plansError) return;
-    const delays = [1200, 2500, 4000, 6000, 8000, 10000];
-    if (planRetryAttempt >= delays.length) return;
-    const myPlans = adaptRegistryPlans(registryPlansResponse).filter(p => p.managerLogin === sessionLoginLower);
-    if (myPlans.length === 0) {
-      const t = setTimeout(() => { setPlanRetryAttempt(n => n + 1); refetchPlans(); }, delays[planRetryAttempt]);
-      return () => clearTimeout(t);
-    }
-  }, [registryPlansResponse, plansLoading, plansError, sessionLoginLower, planRetryAttempt, refetchPlans]);
-  useEffect(() => { setPlanRetryAttempt(0); }, [sessionLoginLower]);
   // Сума реєстрового плану для поточного менеджера (всі бренди).
   const registryPlanTotal = useMemo(() => {
     if (!registryPlansResponse) return 0;

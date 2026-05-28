@@ -150,6 +150,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   const { data: plansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useRegistryPlans(
     !isDemo && effectiveLogin !== 'anonymous' ? dateFrom : null,
     !isDemo && effectiveLogin !== 'anonymous' ? dateTo : null,
+    effectiveLogin,
   );
 
   // === Prev-month fetch (Б.1, 2026-05-13): окремі виклики Action 3 + Action 4
@@ -164,6 +165,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   const { data: prevPlansResponse } = useRegistryPlans(
     !isDemo && effectiveLogin !== 'anonymous' ? prevDateFrom : null,
     !isDemo && effectiveLogin !== 'anonymous' ? prevDateTo : null,
+    effectiveLogin,
   );
   const { data: prevFactResponse } = useOneCData(
     'getSalesFact',
@@ -176,32 +178,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   // Нормалізуємо логіни до lower-case з обох сторін.
   const effectiveLoginLower = effectiveLogin.toLowerCase().trim();
 
-  // Auto-retry для Action 4: до 6 спроб з backoff якщо 1С повернула порожній
-  // plans[] для нашого login. Аналогічно до Action 5 (region) — на першому
-  // запиті після логіну 1С іноді не встигає індексу (cold-start може тривати
-  // 15-25с, тому 3 спроби інколи не вистачало і план лишався $0 до ручного
-  // оновлення). Бекоф росте, тож 1С не хаммеримо.
-  const [planRetryAttempt, setPlanRetryAttempt] = useState(0);
-  useEffect(() => {
-    if (!plansResponse || plansLoading || plansError) return;
-    const delays = [1200, 2500, 4000, 6000, 8000, 10000];
-    if (planRetryAttempt >= delays.length) return;
-    const myPlans = plansResponse.plans?.filter(p =>
-      (p.managerLogin || '').toLowerCase().trim() === effectiveLoginLower,
-    ) ?? [];
-    if (myPlans.length === 0) {
-      const delay = delays[planRetryAttempt];
-      const t = setTimeout(() => {
-        setPlanRetryAttempt(n => n + 1);
-        refetchPlans();
-      }, delay);
-      return () => clearTimeout(t);
-    }
-  }, [plansResponse, plansLoading, plansError, effectiveLoginLower, planRetryAttempt, refetchPlans]);
-  // Reset retry counter коли план з'явився або змінився login
-  useEffect(() => {
-    setPlanRetryAttempt(0);
-  }, [effectiveLoginLower]);
+  // Cold-start 1С обробляє сам useRegistryPlans (login-aware isEmptyResponse →
+  // вбудований retry, тримає loading=true). Окремий компонентний retry прибрано.
   const myPlansBySegment = useMemo(() => {
     if (!plansResponse) return null;
     const map = new Map<string, number>();
@@ -591,7 +569,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           <h3 className="text-[15px] font-bold">Торгові марки</h3>
           {!clientsLoading && clientsResponse && (
             <button
-              onClick={() => { setPlanRetryAttempt(0); refetchPlans(); refetchFact(); refetchClients(); }}
+              onClick={() => { refetchPlans(); refetchFact(); refetchClients(); }}
               title="Перезавантажити план + факт + клієнтів з 1С (якщо щойно додав/змінив у 1С)"
               className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-emet-blue transition-colors"
             >
