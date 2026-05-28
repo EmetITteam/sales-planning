@@ -97,12 +97,15 @@ export function DonutChart({ title, subtitle, segments, centerLabel, centerSub, 
             )}
           </div>
         </div>
-        <div className="flex-1 flex flex-col gap-1 text-[11px] min-w-0">
+        <div className="flex-1 flex flex-col gap-1.5 text-[11px] min-w-0">
           {arcs.map(arc => (
-            <div key={arc.name} className="flex items-center gap-1.5 min-w-0">
+            <div key={arc.name} className="flex items-center gap-2 min-w-0">
               <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: arc.color }} />
-              <span className="flex-1 text-[rgba(6,42,61,0.78)] truncate font-medium">{arc.name}</span>
-              <span className="font-bold tabular-nums font-mono">{fmt(arc.value, arc.pct)}</span>
+              <span className="text-[rgba(6,42,61,0.78)] truncate font-medium min-w-0">{arc.name}</span>
+              {/* Пунктирний leader — візуально з'єднує назву з %, щоб вони не
+                  «розлітались» по краях широкої картки. % лишається у колонці. */}
+              <span aria-hidden className="flex-1 min-w-[12px] border-b border-dotted border-[rgba(6,42,61,0.18)] translate-y-[-1px]" />
+              <span className="font-bold tabular-nums font-mono flex-shrink-0 text-foreground">{fmt(arc.value, arc.pct)}</span>
             </div>
           ))}
         </div>

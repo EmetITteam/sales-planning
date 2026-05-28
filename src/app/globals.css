@@ -142,7 +142,11 @@
   filter: blur(90px);
   z-index: -1;
   pointer-events: none;
-  opacity: 0.32;
+  /* opacity знижено 0.32 → 0.16: блоб-и (position:fixed) давали локальні
+     кольорові плями, через що напівпрозорі glass-картки тінтились по-різному
+     залежно від позиції у в'юпорті (верх блакитнуватий, низ білий) і «пливли»
+     при скролі. М'якший фон → картки читаються однаково. */
+  opacity: 0.16;
   animation: glass-drift 25s ease-in-out infinite;
 }
 .glass-blob-a { width: 520px; height: 520px; background: rgba(6, 106, 171, 0.35); top: -100px; left: -100px; animation-delay: 0s; }

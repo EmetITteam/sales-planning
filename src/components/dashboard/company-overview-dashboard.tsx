@@ -12,7 +12,7 @@
  * Render внутрішнього `<main>` теж нема — це обгортка parent-а.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { useAppStore } from '@/lib/store';
 import { useCountUp } from '@/hooks/use-count-up';
@@ -69,6 +69,18 @@ export function CompanyOverviewDashboard() {
   const user = useAppStore(s => s.user);
   const currentPeriod = useAppStore(s => s.currentPeriod);
   const liveMode = useAppStore(s => s.liveMode);
+  const setLiveMode = useAppStore(s => s.setLiveMode);
+
+  // Огляд компанії авто-вмикає LIVE при вході (зріз «на сьогодні» доречніший
+  // за звітний період для огляду стану всієї компанії). Перемикач у шапці
+  // лишається робочим — користувач може вимкнути вручну. При виході назад на
+  // Планування відновлюємо попередній стан, щоб не «забруднити» планувальний
+  // режим (там правило live лишається як було).
+  useEffect(() => {
+    const prevLive = useAppStore.getState().liveMode;
+    setLiveMode(true);
+    return () => setLiveMode(prevLive);
+  }, [setLiveMode]);
 
   const now = new Date();
   // Period беремо з глобального стору (той самий що у шапці). Live-режим = поточний місяць.

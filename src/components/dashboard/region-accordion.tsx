@@ -159,7 +159,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               key={m.login}
               onClick={(e) => { e.stopPropagation(); onManagerClick(m.login); }}
               title={tip}
-              className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap rounded px-1 -mx-1 hover:bg-emet-50 cursor-pointer text-left min-w-0"
+              className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap rounded-md px-1.5 py-0.5 -mx-1.5 hover:bg-emet-blue/[0.06] transition-colors cursor-pointer text-left min-w-0"
             >
               {inner}
             </button>
@@ -196,8 +196,9 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
             </div>
           </div>
 
-          {/* 2. Бейдж traffic-light */}
-          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center ${tl.bg} ${tl.color}`}>
+          {/* 2. Бейдж traffic-light — justify-self-center: pill хугне текст і
+              центрується у своїй колонці, лишаючи відступ до колонки з % */}
+          <span className={`justify-self-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center ${tl.bg} ${tl.color}`}>
             {tl.label}
           </span>
 
@@ -327,7 +328,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
             </div>
             <p className="text-[10px] text-muted-foreground">{managersBrief.length} менеджерів</p>
           </div>
-          <div className="flex items-baseline gap-1.5 shrink-0">
+          <div className="flex items-baseline gap-1.5 shrink-0 ml-2">
             <span className="text-lg font-extrabold tracking-tight">{pct.toFixed(1)}%</span>
             <span className={`text-[11px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
