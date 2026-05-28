@@ -203,6 +203,23 @@ export function useClientFocuses(login: string | null, clientIds: string[]): Use
   };
 }
 
+// === План активації бази (Action B: getClientActivationPlan) ===
+// login-bound, один документ на менеджера+місяць. Повертає raw-план;
+// «активовано» рахуємо у компоненті (факт по категоріях), бо totalInCategory
+// з 1С нам не потрібен — категорії рахуємо самі.
+
+interface UseActivationPlanResult {
+  plan: import('./onec-types').GetClientActivationPlanResponse | null;
+  loading: boolean;
+  error: string | null;
+}
+
+export function useClientActivationPlan(login: string | null, month: string | null): UseActivationPlanResult {
+  const payload = login && month ? { login, period: month } : null;
+  const { data, loading, error } = useOneCData('getClientActivationPlan', payload);
+  return { plan: data ?? null, loading, error };
+}
+
 export function useClientActivities(login: string | null, clientIds: string[]): UseClientActivitiesResult {
   const currentPeriod = useAppStore(s => s.currentPeriod);
   const month = currentPeriod.month?.slice(0, 7);

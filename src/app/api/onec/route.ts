@@ -41,6 +41,7 @@ const ALLOWED_ACTIONS = new Set([
   'getClientReport',           // 3-міс історія + events + clientInfo (clientID)
   'getAllMeetingsForClient',   // всі зустрічі по клієнту (clientID)
   'getClientFocus',            // фокуси по клієнтах bulk (login + clientIds[])
+  'getClientActivationPlan',   // план активації бази по категоріях (login + period) — Action B
 ]);
 
 // Action → яке поле у payload.login треба ОВЕРРАЙДНУТИ з сесії.
@@ -52,6 +53,7 @@ const LOGIN_BOUND_ACTIONS = new Set([
   'checkActivities',
   'getManagerClients',
   'getClientFocus',  // приймає {login, clientIds} — login ОБОВ'ЯЗКОВО override з сесії
+  'getClientActivationPlan',  // приймає {login, period} — login override з сесії
 ]);
 
 // `findClient` — окремий випадок: поле зветься `managerLogin`, не `login`.

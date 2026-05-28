@@ -12,7 +12,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
-import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, type ClientFocusItem } from '@/lib/use-my-clients';
+import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
@@ -210,6 +210,12 @@ export function ClientsPage() {
     return sum;
   }, [registryPlansResponse, sessionLoginLower]);
 
+  // План активації бази (Action B) — login-bound, 1 документ на менеджера+місяць.
+  const { plan: activationPlan } = useClientActivationPlan(
+    sessionUser?.login ?? null,
+    currentPeriod.month?.slice(0, 7) ?? null,
+  );
+
   const wd = useMemo(() => {
     const now = new Date();
     const m = currentPeriod.month?.slice(0, 7);
@@ -298,6 +304,35 @@ export function ClientsPage() {
   const focusedCount = useMemo(() =>
     baseClients.filter(c => (focusByClient[c.ClientID]?.length ?? 0) > 0).length,
     [baseClients, focusByClient]);
+
+  // === План активації: план з 1С (planCount) vs ФАКТ активовано (наш розрахунок) ===
+  // «активовано» = клієнти цієї категорії що купили цього міс (fact>0). totalInCategory
+  // з 1С НЕ використовуємо — категорії рахуємо самі (видно у картці «База»).
+  const activationData = useMemo(() => {
+    const activatedByCat: Partial<Record<UICategory, number>> = {};
+    for (const c of baseClients) {
+      if ((factByClient[c.ClientID]?.factTotal ?? 0) > 0) {
+        const uc = toUICategory(c.ClientCategory);
+        activatedByCat[uc] = (activatedByCat[uc] ?? 0) + 1;
+      }
+    }
+    const rows = (activationPlan?.activations ?? []).map(a => {
+      const uc = toUICategory(a.category);
+      return {
+        uiCat: uc,
+        label: CAT_LABEL[uc],
+        dotClass: CAT_COLOR[uc].dot,
+        planCount: a.planCount,
+        activated: activatedByCat[uc] ?? 0,
+      };
+    });
+    return {
+      rows,
+      planSum: rows.reduce((s, r) => s + r.planCount, 0),
+      activatedSum: rows.reduce((s, r) => s + r.activated, 0),
+      hasDoc: !!activationPlan?.documentNumber,
+    };
+  }, [activationPlan, baseClients, factByClient]);
 
   // === Filtered + grouped clients (БЕЗ резерв-некупуючих — вони у окремій секції) ===
   // activeFilter може бути:
@@ -398,11 +433,14 @@ export function ClientsPage() {
           reservedActiveCount={reservedActiveCount}
         />
 
-        {/* Card 3 — АКТИВАЦІЯ + ВИКОНАННЯ ПО КЛІЄНТАХ */}
+        {/* Card 3 — ПЛАН АКТИВАЦІЇ (Action B: план з 1С vs факт активовано) */}
         <HeroActivation
           index={2}
+          rows={activationData.rows}
+          planSum={activationData.planSum}
+          activatedSum={activationData.activatedSum}
+          hasDoc={activationData.hasDoc}
           withPlanCount={heroMetrics.withPlanCnt}
-          completedCount={heroMetrics.completedCnt}
           focusedCount={focusedCount}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
@@ -640,38 +678,62 @@ function HeroBaza({ index, baseTotal, counts, reservedCount, reservedActiveCount
   );
 }
 
-/** Card 3 — Активація + Виконання по клієнтах + clickable counters. */
-function HeroActivation({ index, withPlanCount, completedCount, focusedCount, activeFilter, onFilterChange }: {
+/** Card 3 — План активації бази (Action B): план з 1С vs факт активовано. */
+function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCount, focusedCount, activeFilter, onFilterChange }: {
   index: number;
+  rows: Array<{ uiCat: string; label: string; dotClass: string; planCount: number; activated: number }>;
+  planSum: number;
+  activatedSum: number;
+  hasDoc: boolean;
   withPlanCount: number;
-  completedCount: number;
   focusedCount: number;
   activeFilter: string;
   onFilterChange: (f: 'all' | 'focused' | 'with-plan') => void;
 }) {
-  const pct = withPlanCount > 0 ? Math.round((completedCount / withPlanCount) * 100) : 0;
+  const pct = planSum > 0 ? Math.round((activatedSum / planSum) * 100) : 0;
   let pctColor = 'text-rose-600';
   if (pct >= 80) pctColor = 'text-emerald-600';
   else if (pct >= 50) pctColor = 'text-amber-600';
   const planFilterActive = activeFilter === 'with-plan';
   const focusFilterActive = activeFilter === 'focused';
-  const amb = pct >= 80 ? 'good' : pct >= 50 ? 'warn' : 'bad';
+  const amb = !hasDoc ? 'accent' : pct >= 80 ? 'good' : pct >= 50 ? 'warn' : 'bad';
   return (
     <div className={`${heroCardCls} ambient-${amb}`} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_6px_#8b5cf6]" />
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Активація · Виконання</p>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">План активації</p>
       </div>
-      <div>
-        <div className="flex items-baseline gap-2">
-          <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
-            {completedCount}
-            <span className="text-[22px] font-medium text-muted-foreground"> / {withPlanCount}</span>
-          </p>
-          <p className={`text-[14px] font-bold ${pctColor}`}>{pct}%</p>
+      {hasDoc && planSum > 0 ? (
+        <div>
+          <div className="flex items-baseline gap-2">
+            <p className="text-[36px] font-bold tracking-[-1px] tabular-nums leading-none">
+              {activatedSum}
+              <span className="text-[22px] font-medium text-muted-foreground"> / {planSum}</span>
+            </p>
+            <p className={`text-[14px] font-bold ${pctColor}`}>{pct}%</p>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">активовано клієнтів з плану</p>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1">виконали запланований обсяг</p>
-      </div>
+      ) : (
+        <div className="py-1">
+          <p className="text-[13px] font-semibold text-muted-foreground">План активації не заведено в 1С</p>
+        </div>
+      )}
+      {/* Розклад по категоріях: активовано / план */}
+      {rows.length > 0 && (
+        <div className="flex flex-col gap-0.5 text-[11px]">
+          {rows.map(r => (
+            <div key={r.uiCat} className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${r.dotClass}`} />
+              <span className="text-foreground flex-1 truncate">{r.label}</span>
+              <span className="font-mono font-bold tabular-nums">
+                <span className={r.activated >= r.planCount ? 'text-emerald-600' : 'text-foreground'}>{r.activated}</span>
+                <span className="text-muted-foreground font-normal"> / {r.planCount}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex flex-col gap-1 text-[11px]">
         <button
           type="button"

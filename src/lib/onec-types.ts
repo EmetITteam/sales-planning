@@ -306,6 +306,35 @@ export interface GetClientFocusResponse {
   }>;
 }
 
+// === getClientActivationPlan (Action B) ===
+// План активації бази клієнтів по категоріях (документ «Планування активації
+// бази клієнтів» у 1С). login-bound. ⚠️ 1С шле totalInCategory як STRING
+// ("120") — coerce у споживачі. category — у RU-формулюванні (мапимо RU→UA).
+export interface GetClientActivationPlanRequest {
+  login: string;
+  /** YYYY-MM */
+  period: string;
+}
+
+export interface OneCActivationRow {
+  /** RU-категорія: Спящий / Потерянный / Без закупок / Активный / Новый */
+  category: string;
+  /** Скільки клієнтів цієї категорії менеджер планує активувати. */
+  planCount: number;
+  /** Скільки всього клієнтів цієї категорії зараз. ⚠️ 1С інколи шле string. */
+  totalInCategory: number | string;
+}
+
+export interface GetClientActivationPlanResponse {
+  period: string;
+  documentNumber: string | null;
+  documentDate: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  region: string | null;
+  activations: OneCActivationRow[];
+}
+
 export interface OneCActionMap {
   login: { request: LoginRequest; response: LoginResponse };
   getClientsForPlanning: { request: GetClientsForPlanningRequest; response: GetClientsForPlanningResponse };
@@ -320,6 +349,7 @@ export interface OneCActionMap {
   getClientReport: { request: GetClientReportRequest; response: ClientReport };
   getAllMeetingsForClient: { request: GetAllMeetingsForClientRequest; response: GetAllMeetingsForClientResponse };
   getClientFocus: { request: GetClientFocusRequest; response: GetClientFocusResponse };
+  getClientActivationPlan: { request: GetClientActivationPlanRequest; response: GetClientActivationPlanResponse };
 }
 
 export type OneCAction = keyof OneCActionMap;
