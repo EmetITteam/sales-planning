@@ -15,9 +15,23 @@
  */
 
 import useSWR from 'swr';
+import { useMemo } from 'react';
 import { useOneCData } from './use-onec-data';
 import { useAppStore } from './store';
 import type { ClientFromOneC, ClientReport } from './mityng-types';
+import {
+  chunkClientIds,
+  mergeFactBreakdown,
+  mergeFocuses,
+  mergeActivities,
+  type ClientPlanTotal,
+  type ClientFactTotal,
+  type ClientActivity,
+  type ClientFocusItem,
+} from './client-batching';
+
+// Re-export типів для споживачів (clients-page імпортує ClientFocusItem звідси).
+export type { ClientActivity, ClientFocusItem };
 
 interface UseMyClientsResult {
   clients: ClientFromOneC[];
@@ -83,16 +97,11 @@ export function useClientReport(clientID: string | null): UseClientReportResult 
 
 // === План по клієнтах (наш Supabase) + Факт по клієнтах (1С Action 3) ===
 
-interface ClientPlanTotal {
-  planTotal: number;
-  brands: Record<string, number>;
-}
-
 interface UseClientsTotalsResult {
   /** planByClient[clientId] → { planTotal, brands: {segCode: amount} } */
   planByClient: Record<string, ClientPlanTotal>;
   /** factByClient[clientId] → { factTotal, brands: {segCode: amount} } */
-  factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
+  factByClient: Record<string, ClientFactTotal>;
   loading: boolean;
   error: string | null;
 }
@@ -129,9 +138,7 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
   // batch'имо у 3 чанки по 400 (підтримує до 1200 клієнтів).
   // Hooks rules satisfied: ЗАВЖДИ викликаємо 3 useOneCData (порожні чанки
   // → payload=null → SWR не fetch'ить).
-  const chunk1 = clientIds.slice(0, 400);
-  const chunk2 = clientIds.slice(400, 800);
-  const chunk3 = clientIds.slice(800, 1200);
+  const [chunk1, chunk2, chunk3] = chunkClientIds(clientIds, 400, 3);
   const mkPayload = (chunk: string[]) =>
     login && month && chunk.length > 0
       ? { login, period: month, clientIds: chunk }
@@ -143,7 +150,7 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
   const factErr = e1 || e2 || e3;
 
   // Об'єднуємо segments з усіх чанків і денормалізуємо у factByClient.
-  const factByClient = useMergedFactBreakdown([f1, f2, f3]);
+  const factByClient = useMemo(() => mergeFactBreakdown([f1, f2, f3]), [f1, f2, f3]);
 
   return {
     planByClient: planRes?.totals ?? {},
@@ -153,46 +160,9 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
   };
 }
 
-import { useMemo } from 'react';
-import type { OneCActionMap } from './onec-types';
-
-/**
- * Об'єднує segments[] з кількох getSalesFact-чанків і денормалізує у
- * map по clientId. Підтримує до 3 чанків (1200 клієнтів).
- */
-function useMergedFactBreakdown(
-  parts: Array<OneCActionMap['getSalesFact']['response'] | null | undefined>,
-): Record<string, { factTotal: number; brands: Record<string, number> }> {
-  return useMemo(() => {
-    const out: Record<string, { factTotal: number; brands: Record<string, number> }> = {};
-    for (const part of parts) {
-      if (!part?.segments) continue;
-      for (const seg of part.segments) {
-        for (const c of seg.clients ?? []) {
-          // 1С може повертати factAmountUSD як string ("360.00") — coerce.
-          const amount = Number(c.factAmountUSD) || 0;
-          if (!c.clientId || amount === 0) continue;
-          if (!out[c.clientId]) out[c.clientId] = { factTotal: 0, brands: {} };
-          out[c.clientId].factTotal += amount;
-          out[c.clientId].brands[seg.segmentCode] = (out[c.clientId].brands[seg.segmentCode] || 0) + amount;
-        }
-      }
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, parts);
-}
-
 // === Контактна активність по клієнтах (для Hero Card 4) ===
 // checkActivities(login, period, clientIds[]) → activities[] з hasCall / hasMeeting per client.
 // 1С ліміт ~200 ID — chunk-имо у 3 чанки (підтримує до 600 клієнтів).
-
-export interface ClientActivity {
-  hasCall: boolean;
-  hasMeeting: boolean;
-  lastCallDate: string | null;
-  lastMeetingDate: string | null;
-}
 
 interface UseClientActivitiesResult {
   /** activityByClient[clientId] → { hasCall, hasMeeting, lastCallDate, lastMeetingDate } */
@@ -205,12 +175,6 @@ interface UseClientActivitiesResult {
 // Bulk-дія: повертає масив focuses[].items[] на клієнта. Один клієнт може
 // мати кілька активних фокусів одночасно.
 
-export interface ClientFocusItem {
-  focusName: string;
-  since?: string;
-  validUntil?: string | null;
-}
-
 interface UseClientFocusesResult {
   /** focusByClient[clientId] → items[] (порожній якщо нема активних фокусів). */
   focusByClient: Record<string, ClientFocusItem[]>;
@@ -220,9 +184,7 @@ interface UseClientFocusesResult {
 
 export function useClientFocuses(login: string | null, clientIds: string[]): UseClientFocusesResult {
   // Чанк 200 — як checkActivities (1С спека ~200-500 ID per call).
-  const chunk1 = clientIds.slice(0, 200);
-  const chunk2 = clientIds.slice(200, 400);
-  const chunk3 = clientIds.slice(400, 600);
+  const [chunk1, chunk2, chunk3] = chunkClientIds(clientIds, 200, 3);
   const mkPayload = (chunk: string[]) =>
     login && chunk.length > 0
       ? { login, clientIds: chunk }
@@ -232,17 +194,7 @@ export function useClientFocuses(login: string | null, clientIds: string[]): Use
   const { data: f2, loading: l2, error: e2 } = useOneCData('getClientFocus', mkPayload(chunk2));
   const { data: f3, loading: l3, error: e3 } = useOneCData('getClientFocus', mkPayload(chunk3));
 
-  const focusByClient = useMemo(() => {
-    const out: Record<string, ClientFocusItem[]> = {};
-    for (const res of [f1, f2, f3]) {
-      if (!res?.focuses) continue;
-      for (const f of res.focuses) {
-        if (!f.clientId) continue;
-        out[f.clientId] = Array.isArray(f.items) ? f.items : [];
-      }
-    }
-    return out;
-  }, [f1, f2, f3]);
+  const focusByClient = useMemo(() => mergeFocuses([f1, f2, f3]), [f1, f2, f3]);
 
   return {
     focusByClient,
@@ -255,9 +207,7 @@ export function useClientActivities(login: string | null, clientIds: string[]): 
   const currentPeriod = useAppStore(s => s.currentPeriod);
   const month = currentPeriod.month?.slice(0, 7);
 
-  const chunk1 = clientIds.slice(0, 200);
-  const chunk2 = clientIds.slice(200, 400);
-  const chunk3 = clientIds.slice(400, 600);
+  const [chunk1, chunk2, chunk3] = chunkClientIds(clientIds, 200, 3);
   const mkPayload = (chunk: string[]) =>
     login && month && chunk.length > 0
       ? { login, period: month, clientIds: chunk }
@@ -267,22 +217,7 @@ export function useClientActivities(login: string | null, clientIds: string[]): 
   const { data: a2, loading: la2, error: ea2 } = useOneCData('checkActivities', mkPayload(chunk2));
   const { data: a3, loading: la3, error: ea3 } = useOneCData('checkActivities', mkPayload(chunk3));
 
-  const activityByClient = useMemo(() => {
-    const out: Record<string, ClientActivity> = {};
-    for (const res of [a1, a2, a3]) {
-      if (!res?.activities) continue;
-      for (const a of res.activities) {
-        if (!a.clientId) continue;
-        out[a.clientId] = {
-          hasCall: !!a.hasCall,
-          hasMeeting: !!a.hasMeeting,
-          lastCallDate: a.lastCallDate ?? null,
-          lastMeetingDate: a.lastMeetingDate ?? null,
-        };
-      }
-    }
-    return out;
-  }, [a1, a2, a3]);
+  const activityByClient = useMemo(() => mergeActivities([a1, a2, a3]), [a1, a2, a3]);
 
   return {
     activityByClient,
