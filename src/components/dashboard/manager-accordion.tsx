@@ -107,11 +107,11 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
         <div className="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
           {/* Фіксовані min-width на колонках для вертикального вирівнювання різних рядів. */}
           <div className="text-right min-w-[180px]">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Факт / План</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">План / Факт</p>
             <p className="text-[14px] font-bold font-mono leading-none mt-1.5 whitespace-nowrap">
-              <span className="amount">{formatUSD(totalFact)}</span>
-              <span className="text-muted-foreground/50 font-normal"> / </span>
               <span className="amount text-muted-foreground/70">{formatUSD(totalPlan)}</span>
+              <span className="text-muted-foreground/50 font-normal"> / </span>
+              <span className="amount">{formatUSD(totalFact)}</span>
             </p>
           </div>
           <div className="text-right min-w-[130px]">

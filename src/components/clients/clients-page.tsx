@@ -742,12 +742,12 @@ function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCo
         </div>
       )}
       {/* 2-й параметр: виконання запланованого обсягу по клієнтах (старий). */}
-      <div className="flex items-baseline justify-between pt-2 border-t border-slate-200/50">
-        <span className="text-[11px] text-muted-foreground">Виконали запланований обсяг</span>
-        <span className="text-[12px] font-bold tabular-nums">
-          <span className="font-mono">{completedCount}<span className="text-muted-foreground font-normal"> / {withPlanCount}</span></span>
-          <span className={`ml-1.5 ${execColor}`}>{execPct}%</span>
-        </span>
+      <div className="pt-2 border-t border-slate-200/50">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[15px] font-bold font-mono tabular-nums">{completedCount}<span className="text-muted-foreground font-normal"> / {withPlanCount}</span></span>
+          <span className={`text-[12px] font-bold ${execColor}`}>{execPct}%</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-0.5">клієнтів виконали запланований обсяг продажів</p>
       </div>
       <div className="flex flex-col gap-1 text-[11px]">
         <button

@@ -892,7 +892,7 @@ export function CompanyOverviewDashboard() {
                               <td key={code} className={`rounded-lg p-2 text-center min-h-[44px] font-mono font-bold ${heatColor(pct)}`}>
                                 <div className="text-[11px]">{pct !== null ? fmtPct(pct) : 'н/д'}</div>
                                 {seg.plan > 0 && (
-                                  <div className="text-[9px] opacity-75 mt-0.5 font-medium">{fmtUSD(seg.fact)}/{fmtUSD(seg.plan)}</div>
+                                  <div className="text-[9px] opacity-75 mt-0.5 font-medium">{fmtUSD(seg.plan)}/{fmtUSD(seg.fact)}</div>
                                 )}
                               </td>
                             );
@@ -939,7 +939,7 @@ export function CompanyOverviewDashboard() {
                 <div className="grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center px-4 text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
                   <span />
                   <span>Підрозділ</span>
-                  <span className="text-right">Факт / План</span>
+                  <span className="text-right">План / Факт</span>
                   <span className="text-right">Виконан.</span>
                   <span />
                 </div>
@@ -961,8 +961,8 @@ export function CompanyOverviewDashboard() {
                           {!g.hasFact && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider bg-slate-100/70 text-slate-600 px-2 py-0.5 rounded-full">Без факту</span>}
                         </span>
                         <span className="font-mono tabular-nums text-[12px] text-right">
-                          {g.hasFact ? <><strong>{fmtUSD(g.totalFact)}</strong> / </> : '— / '}
                           <span className="text-muted-foreground">{fmtUSD(g.totalPlan)}</span>
+                          {g.hasFact ? <> / <strong>{fmtUSD(g.totalFact)}</strong></> : ' / —'}
                         </span>
                         <span className={`text-[13px] font-bold tabular-nums text-right ${pct === null ? 'text-slate-400' : pct >= 80 ? 'text-teal-700' : pct >= 60 ? 'text-lime-700' : pct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
                           {pct !== null ? fmtPct(pct) : 'н/д'}
@@ -979,7 +979,7 @@ export function CompanyOverviewDashboard() {
                                 <span />
                                 <span>Регіон</span>
                                 <span className="text-right">% групи</span>
-                                <span className="text-right">Факт / План</span>
+                                <span className="text-right">План / Факт</span>
                                 <span className="text-right">Виконан.</span>
                               </div>
                               <div className="space-y-2">
@@ -1009,8 +1009,8 @@ export function CompanyOverviewDashboard() {
                                           {d.hasFact ? fmtPct(shareOfGroup) : '—'}
                                         </span>
                                         <span className="font-mono tabular-nums text-[11px] text-right">
-                                          {d.hasFact ? <><strong>{fmtUSD(d.totalFact)}</strong> / </> : '— / '}
                                           <span className="text-muted-foreground">{fmtUSD(d.totalPlan)}</span>
+                                          {d.hasFact ? <> / <strong>{fmtUSD(d.totalFact)}</strong></> : ' / —'}
                                         </span>
                                         <span className={`text-[12px] font-bold tabular-nums text-right ${childPct === null ? 'text-slate-400' : childPct >= 80 ? 'text-teal-700' : childPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
                                           {childPct !== null ? fmtPct(childPct) : 'н/д'}
@@ -1021,7 +1021,7 @@ export function CompanyOverviewDashboard() {
                                           <div className="grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center px-3 text-[9px] uppercase tracking-wider text-muted-foreground font-bold mb-2 mt-2">
                                             <span>Бренд</span>
                                             <span className="text-right">% регіону</span>
-                                            <span className="text-right">Факт / План</span>
+                                            <span className="text-right">План / Факт</span>
                                             <span className="text-right">Виконан.</span>
                                           </div>
                                           <div className="space-y-1.5">
@@ -1037,7 +1037,7 @@ export function CompanyOverviewDashboard() {
                                                     {s.fact > 0 ? fmtPct(shareOfRegion) : '—'}
                                                   </span>
                                                   <span className="font-mono tabular-nums text-[11px] text-right">
-                                                    <strong>{fmtUSD(s.fact)}</strong> / <span className="text-muted-foreground">{fmtUSD(s.plan)}</span>
+                                                    <span className="text-muted-foreground">{fmtUSD(s.plan)}</span> / <strong>{fmtUSD(s.fact)}</strong>
                                                   </span>
                                                   <span className={`text-[11px] font-bold tabular-nums text-right ${brandPct === null ? 'text-slate-400' : brandPct >= 80 ? 'text-teal-700' : brandPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
                                                     {brandPct !== null ? fmtPct(brandPct) : 'н/д'}
@@ -1077,7 +1077,7 @@ export function CompanyOverviewDashboard() {
                                   <div className="grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center px-3 text-[9px] uppercase tracking-wider text-muted-foreground font-bold mb-2">
                                     <span>Бренд</span>
                                     <span className="text-right">% підрозділу</span>
-                                    <span className="text-right">Факт / План</span>
+                                    <span className="text-right">План / Факт</span>
                                     <span className="text-right">Виконан.</span>
                                   </div>
                                   <div className="space-y-2">
@@ -1091,7 +1091,7 @@ export function CompanyOverviewDashboard() {
                                             {s.fact > 0 ? fmtPct(shareOfDiv) : '—'}
                                           </span>
                                           <span className="font-mono tabular-nums text-[11px] text-right">
-                                            <strong>{fmtUSD(s.fact)}</strong> / <span className="text-muted-foreground">{fmtUSD(s.plan)}</span>
+                                            <span className="text-muted-foreground">{fmtUSD(s.plan)}</span> / <strong>{fmtUSD(s.fact)}</strong>
                                           </span>
                                           <span className={`text-[12px] font-bold tabular-nums text-right ${segPct === null ? 'text-slate-400' : segPct >= 80 ? 'text-teal-700' : segPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
                                             {segPct !== null ? fmtPct(segPct) : 'н/д'}
@@ -1118,7 +1118,7 @@ export function CompanyOverviewDashboard() {
                 <div className="grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center px-4 text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
                   <span />
                   <span>Бренд</span>
-                  <span className="text-right">Факт / План</span>
+                  <span className="text-right">План / Факт</span>
                   <span className="text-right">Виконан.</span>
                   <span />
                 </div>
@@ -1138,8 +1138,8 @@ export function CompanyOverviewDashboard() {
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                         <span className="font-bold text-[14px]">{b.name}</span>
                         <span className="font-mono tabular-nums text-[12px] text-right">
+                          <span className="text-muted-foreground">{fmtUSD(b.totalPlan)} / </span>
                           <strong>{fmtUSD(b.totalFact)}</strong>
-                          <span className="text-muted-foreground"> / {fmtUSD(b.totalPlan)}</span>
                         </span>
                         <span className={`text-[13px] font-bold tabular-nums text-right ${pct === null ? 'text-slate-400' : pct >= 80 ? 'text-teal-700' : pct >= 60 ? 'text-lime-700' : pct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
                           {pct !== null ? fmtPct(pct) : 'н/д'}
@@ -1154,7 +1154,7 @@ export function CompanyOverviewDashboard() {
                             <div className="grid grid-cols-[1fr_70px_180px_70px] gap-3 items-center px-3 text-[9px] uppercase tracking-wider text-muted-foreground font-bold mb-2">
                               <span>Підрозділ</span>
                               <span className="text-right">% бренду</span>
-                              <span className="text-right">Факт / План</span>
+                              <span className="text-right">План / Факт</span>
                               <span className="text-right">Виконан.</span>
                             </div>
                             <div className="space-y-2">
@@ -1169,7 +1169,7 @@ export function CompanyOverviewDashboard() {
                                       {d.fact > 0 ? fmtPct(shareOfBrand) : '—'}
                                     </span>
                                     <span className="font-mono tabular-nums text-[11px] text-right">
-                                      <strong>{fmtUSD(d.fact)}</strong> / <span className="text-muted-foreground">{fmtUSD(d.plan)}</span>
+                                      <span className="text-muted-foreground">{fmtUSD(d.plan)}</span> / <strong>{fmtUSD(d.fact)}</strong>
                                     </span>
                                     <span className={`text-[12px] font-bold tabular-nums text-right ${divPct === null ? 'text-slate-400' : divPct >= 80 ? 'text-teal-700' : divPct >= 40 ? 'text-orange-700' : 'text-rose-700'}`}>
                                       {divPct !== null ? fmtPct(divPct) : 'н/д'}
