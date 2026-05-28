@@ -65,7 +65,6 @@ export function LoginForm() {
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emet-blue to-emet-blue-light bg-clip-text text-transparent">
             Планування продажів
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Прогноз, закриття розриву, факт</p>
         </div>
 
         {/* Form */}
