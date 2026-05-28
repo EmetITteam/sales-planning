@@ -2,7 +2,9 @@
 
 Чинні (невиконані) специфікації і баги що чекають на 1С-розробника.
 
-**Виконані позиції** → [ARCHIVE_SPECS_RESOLVED.md](./ARCHIVE_SPECS_RESOLVED.md) (Action A `getClientFocus`, Action C `isReserved`, Action 5 `includeAll`, Bug 1).
+**Виконані позиції** → [ARCHIVE_SPECS_RESOLVED.md](./ARCHIVE_SPECS_RESOLVED.md) (Action A `getClientFocus`, Action C `isReserved`, Action 5 `includeAll`, Bug 1 isReserved-sync, Bug 2 checkActivities, clientStats discrepancy).
+
+**Єдине що лишилось pending — Action B (`getClientActivationPlan`).**
 
 ---
 
@@ -147,24 +149,6 @@ UI: блок «План активації» зверху або у sidebar — 
 | Без закупок | 3 | 0 | 0% |
 
 Допоможе менеджеру бачити чи виконує план активації.
-
----
-
-# Bug 2: `checkActivities.hasCall` завжди `false`
-
-**Виявлено:** 2026-05-27 під час тестування сторінки `/clients`.
-
-**Що:** Для клієнта Балабан (`000014595`):
-- `getClientReport.lastCalls` повертає **2 дзвінки у поточному місяці** (27.05.2026 та 20.05.2026, тип «Исходящее»)
-- `checkActivities` з тим самим clientID повертає `hasCall: false, hasMeeting: false, lastCallDate: null, lastMeetingDate: null`
-
-**Очікувано:** `checkActivities` має шукати дзвінки **з того ж джерела** що `getClientReport.lastCalls`.
-
-**Поточна поведінка:** Sales Planning hero «Контактна активність» показує **0 дзвінків** для 481 клієнтів, хоча реально дзвінки є.
-
-**Workaround у sales-planning:** На сторінці `/clients` Hero Card 4 переробили на bulk `LastMeetingDate` з `getManagerClients` (без `checkActivities`). Це частково обходить проблему — але для зустрічей, не для дзвінків. Дзвінки досі недоступні bulk-методом.
-
-**Що треба:** Андрій має перевірити логіку `checkActivities` — чому `hasCall` повертає `false` при наявності реальних дзвінків. Підозра: розбіжність джерел (різні документи / регістри в 1С).
 
 ---
 

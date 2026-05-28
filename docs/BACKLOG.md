@@ -20,9 +20,9 @@
 | # | Що | Файли | Зусилля | Стан |
 |---|---|---|---|---|
 | ~~**B1**~~ | ~~Director Dashboard race condition~~ | — | — | ✅ **ЗАКРИТО** (верифіковано 28.05): auto-retry 3× backoff у `use-onec-data.ts:71-79` вже покриває cold-start |
-| **TD-11** | God component `clients-page.tsx` ~1855 рядків — розбити на модулі (HeroBand, ClientsList, ClientRow, ReservedSection, BrandPlanFactTable) | `src/components/clients/clients-page.tsx` | 8-12 год | Відкрито |
-| **TD-12** 🆕 | God component `planning-form.tsx` **2272 рядки** — найбільший у проекті (більший за clients-page!). Розбити. Виявлено аудитом 28.05 | `src/components/planning/planning-form.tsx` | 10-14 год | Відкрито |
-| **B3** | Плоскі бейджи замість glass-chip («Без плану» `brand-row.tsx:118`, статус-pill-и у clients-page, donut-бейджи). ~39 flat `bg-*-50/100`. Прохід для glass-consistency | `dashboard/`, `planning/`, `clients/` | 3-4 год | Відкрито (підтверджено 28.05) |
+| **B3** ⭐ | Плоскі бейджи замість glass-chip («Без плану» `brand-row.tsx:118`, статус-pill-и у clients-page, donut-бейджи). ~39 flat `bg-*-50/100`. Прохід для glass-consistency | `dashboard/`, `planning/`, `clients/` | 3-4 год | **NEXT** (затверджено 28.05) |
+
+> **Розбиття god-components (TD-11 clients-page 1855, TD-12 planning-form 2272, TD-13 company-overview 1176) — відкладено до v3** (наступний повний редизайн продукту, рішення 28.05). Не чіпаємо до того.
 
 ---
 
@@ -33,14 +33,13 @@
 | # | Що | Файли | Зусилля | Стан |
 |---|---|---|---|---|
 | **TD-3** | Свіжий `DATABASE_URL` (Supabase pooler password стейлий) — `apply-migrations.mjs` не працює, кожну міграцію вручну через Dashboard | `.env` | 0.5 год | Відкрито |
-| **TD-7** | Свята 2027+ — placeholder у `working-days.ts` (критично перед 31.12.2026) | `src/lib/working-days.ts:24` | 0.5 год | Відкрито |
 
 ### Bugs / Дані
 
 | # | Що | Залежить | Стан |
 |---|---|---|---|
-| **B2** | Розбіжність clientStats: сума категорій (12769) ≠ totalClients (9111) у Представництвах. Категорія per-клієнт у 1С, але дані не сходяться | 1С-розробник, [SPEC_CLIENTSTATS_DISCREPANCY.md](./SPEC_CLIENTSTATS_DISCREPANCY.md) | Чекаємо Андрія |
-| **Bug 2 checkActivities** | `checkActivities.hasCall` завжди false. Workaround у sales-planning — Hero Card 4 використовує bulk LastMeetingDate. Дзвінки досі недоступні bulk | 1С-розробник, [SPEC_PENDING_1C_ITEMS.md](./SPEC_PENDING_1C_ITEMS.md) | Чекаємо Андрія |
+| ~~**B2**~~ | ~~Розбіжність clientStats~~ | — | ✅ **ЗАКРИТО** (27.05): 1С виправив, дані сходяться |
+| ~~**Bug 2 checkActivities**~~ | ~~hasCall завжди false~~ | — | ✅ **ЗАКРИТО** (27.05): 1С виправив, дзвінки приходять через checkActivities. Card 4 використовує checkActivities напряму |
 
 ### Тести
 
@@ -72,15 +71,12 @@
 | # | Що | Зусилля | Стан |
 |---|---|---|---|
 | ~~**BF-1**~~ | ~~«Запл. 0% · $0» у regional-accordion~~ | — | ✅ **ЗАКРИТО** (верифіковано 28.05): `region-accordion.tsx:239-247` показує завжди |
-| **BF-2** | Edit log для M9 stage edits — хто/коли міняв stage після фіналу | 8-12 год | Відкрито |
-| **BF-3** | Resnapshot для решти 15 менеджерів (зараз тільки Некова) | 2-3 год | Відкрито |
-| **BF-4** | `/admin/audit` — сторінка зі всіма UPDATEами forecasts/gap_closures | 6-8 год | Відкрито |
 
 ### Нові feature-метрики з Митинг-actions (Top-5 з ARCHIVE_PLANS.md)
 
 | # | Що | Джерело | Зусилля | Стан |
 |---|---|---|---|---|
-| **F-1** | «Холодні клієнти» (last touch > 30 днів) — картка на РМ-дашборді | `getClientReport.lastMeetings/lastCalls` | 3 год | Відкрито |
+| ~~**F-1**~~ | ~~«Холодні клієнти» (last touch > 30 днів)~~ | — | — | ❌ **НЕ робимо** (рішення 28.05) |
 | **F-2** | Авто-prefill прогнозу з 3-міс історії у формі планування | `getClientReport.salesReport.brands.salesByMonth` | 6 год | Відкрито |
 | **F-3** | «Активні + нема контактів» — картка на менеджерському дашборді | `getAllMeetingsForClient` + наш plan | 2 год | Відкрито |
 | **F-4** | Conversion: дзвінки/зустрічі → продажі (admin KPI) | кореляція дат + Action 5 факт | 5 год | Відкрито |
@@ -95,9 +91,7 @@
 | # | Що | Зусилля | Стан |
 |---|---|---|---|
 | **TD-4** | RLS вимкнено, скрізь service_role bypass — увімкнути політики | 20-30 год | Відкрито (P0 якщо публічний доступ) |
-| ~~**TD-6**~~ | ~~DEPRECATED колонки forecasts.action / gap_closures.action~~ | — | ✅ **імовірно ЗАКРИТО** (28.05): не знайдено у коді/SQL. Підтвердити одним SELECT у БД |
-| **TD-13** 🆕 | `company-overview-dashboard.tsx` 1176 рядків — третій god-component, теж розбити | 6-8 год | Відкрито |
-| **R-1-confirm** 🆕 | Brand plan/fact extraction дублюється у 4 місцях: `brand-manager-group`, `brand-region-group`, `company-overview-dashboard`, `clients-page` (підтверджено 28.05) | — | див. R-1 вище |
+| **TD-6** | DEPRECATED колонка `gap_closures.action` (всі null, у коді не читається). `forecasts.action` вже дропнуто. Потрібен `ALTER TABLE gap_closures DROP COLUMN IF EXISTS action`. Перевірено SELECT-ом 28.05 | міграція + БД | 0.25 год | Відкрито (частково — лишилась 1 колонка) |
 | **TD-8** | Region codes (DNP/KYV/...) — заглушки, fallback на heuristic. Запитати справжні у Андрія | 2-3 год + 1С | Відкрито |
 
 ### UX
@@ -106,7 +100,6 @@
 |---|---|---|---|
 | **NTH-1.1** | Збереження collapsed/expanded state регіонів між сесіями (localStorage) | 2 год | Відкрито |
 | **NTH-1.2** | Keyboard shortcuts (Cmd+S, Esc для виходу з форми) | 2 год | Відкрито |
-| **NTH-1.3** | Темна тема | 8-12 год | Відкрито |
 | **NTH-1.4** | Friendly URL за регіоном (`/region/KYV`) | 4 год | Відкрито |
 
 ### Infrastructure

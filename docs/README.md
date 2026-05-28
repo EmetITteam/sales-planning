@@ -29,15 +29,14 @@
 
 | Файл | Призначення |
 |---|---|
-| [SPEC_PENDING_1C_ITEMS.md](./SPEC_PENDING_1C_ITEMS.md) | Невиконані специфікації — Action B `getClientActivationPlan` + Bug 2 `checkActivities.hasCall`. |
-| [SPEC_CLIENTSTATS_DISCREPANCY.md](./SPEC_CLIENTSTATS_DISCREPANCY.md) | Open question: розбіжність totalClients vs sum-of-categories у Action 5 clientStats. Чекаємо відповіді від Андрія. |
+| [SPEC_PENDING_1C_ITEMS.md](./SPEC_PENDING_1C_ITEMS.md) | Єдине невиконане — Action B `getClientActivationPlan` (план активації по категоріях). |
 
 ## Архіви
 
 | Файл | Призначення |
 |---|---|
 | [ARCHIVE_PLANS.md](./ARCHIVE_PLANS.md) | Виконані плани (PLAN V2 21-26.05 + План clients-page 26.05). |
-| [ARCHIVE_SPECS_RESOLVED.md](./ARCHIVE_SPECS_RESOLVED.md) | Виконані специфікації (Action 5 `includeAll`, Action A `getClientFocus`, Action C `isReserved`, Bug 1). |
+| [ARCHIVE_SPECS_RESOLVED.md](./ARCHIVE_SPECS_RESOLVED.md) | Виконані специфікації (Action 5 `includeAll`, Action A `getClientFocus`, Action C `isReserved`, Bug 1 isReserved-sync, Bug 2 checkActivities, clientStats discrepancy). |
 
 ---
 
