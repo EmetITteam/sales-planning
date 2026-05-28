@@ -424,6 +424,8 @@ export function ClientsPage() {
           pct={heroMetrics.pct}
           calcPct={wd.calcPct}
           forecastPct={heroMetrics.forecastPct}
+          completedCount={heroMetrics.completedCnt}
+          withPlanCount={heroMetrics.withPlanCnt}
         />
 
         {/* Card 2 — БАЗА КЛІЄНТІВ (включно з резерв-купуючими; резерв-sub-row) */}
@@ -445,7 +447,6 @@ export function ClientsPage() {
           activatedSum={activationData.activatedSum}
           hasDoc={activationData.hasDoc}
           withPlanCount={heroMetrics.withPlanCnt}
-          completedCount={heroMetrics.completedCnt}
           focusedCount={focusedCount}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
@@ -600,10 +601,11 @@ const fmtUSD = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 const heroCardCls = 'glass-card p-5 relative flex flex-col gap-3 fade-stagger';
 
 /** Card 1 — Виконання (план / факт / % / норма / темп). */
-function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct }: {
+function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct, completedCount, withPlanCount }: {
   index: number;
   planTotal: number; factTotal: number; pct: number;
   calcPct: number; forecastPct: number;
+  completedCount: number; withPlanCount: number;
 }) {
   let pctColor = 'text-rose-600';
   if (pct >= 100) pctColor = 'text-emerald-700';
@@ -613,6 +615,9 @@ function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct
   let forecastColor = 'text-rose-600';
   if (forecastPct >= 100) forecastColor = 'text-emerald-700';
   else if (forecastPct >= 80) forecastColor = 'text-amber-600';
+  // Клієнти що виконали запланований обсяг продажів (fact ≥ план по клієнту).
+  const execPct = withPlanCount > 0 ? Math.round((completedCount / withPlanCount) * 100) : 0;
+  const execColor = execPct >= 80 ? 'text-emerald-600' : execPct >= 50 ? 'text-amber-600' : 'text-rose-600';
   const amb = pct >= calcPct ? 'good' : pct >= calcPct - 15 ? 'warn' : 'bad';
   return (
     <div className={`${heroCardCls} ambient-${amb}`} style={{ ['--i' as string]: index }}>
@@ -634,6 +639,14 @@ function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct
         <span className="font-mono font-semibold text-foreground tabular-nums text-right">{calcPct.toFixed(0)}%</span>
         <span className="text-muted-foreground">Темп:</span>
         <span className={`font-mono font-semibold tabular-nums text-right ${forecastColor}`}>{forecastPct.toFixed(0)}%</span>
+      </div>
+      {/* Клієнти що виконали запланований обсяг продажів (fact ≥ план по клієнту) */}
+      <div className="pt-2 border-t border-slate-200/50">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[15px] font-bold font-mono tabular-nums">{completedCount}<span className="text-muted-foreground font-normal"> / {withPlanCount}</span></span>
+          <span className={`text-[12px] font-bold ${execColor}`}>{execPct}%</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-0.5">клієнтів виконали запланований обсяг продажів</p>
       </div>
     </div>
   );
@@ -660,13 +673,13 @@ function HeroBaza({ index, baseTotal, counts, boughtByCategory, totalBought, res
       </div>
       <div className="flex flex-col gap-0.5 text-[11px]">
         {/* header колонок: всього у базі / скільки купили цього міс */}
-        <div className="grid grid-cols-[8px_1fr_auto_auto] gap-x-3 text-[9px] uppercase tracking-wider text-muted-foreground/70">
+        <div className="grid grid-cols-[8px_1fr_3.25rem_3.25rem] gap-x-2 text-[9px] uppercase tracking-wider text-muted-foreground/70">
           <span /><span />
           <span className="text-right">база</span>
           <span className="text-right">купили</span>
         </div>
         {visibleCats.filter(c => counts[c] > 0).map(c => (
-          <div key={c} className="grid grid-cols-[8px_1fr_auto_auto] gap-x-3 items-center">
+          <div key={c} className="grid grid-cols-[8px_1fr_3.25rem_3.25rem] gap-x-2 items-center">
             <span className={`w-1.5 h-1.5 rounded-full ${CAT_COLOR[c].dot}`} />
             <span className="text-foreground">{CAT_LABEL[c]}</span>
             <span className="font-mono font-bold tabular-nums text-right">{counts[c]}</span>
@@ -674,7 +687,7 @@ function HeroBaza({ index, baseTotal, counts, boughtByCategory, totalBought, res
           </div>
         ))}
         {reservedCount > 0 && (
-          <div className="grid grid-cols-[8px_1fr_auto_auto] gap-x-3 items-center text-slate-500">
+          <div className="grid grid-cols-[8px_1fr_3.25rem_3.25rem] gap-x-2 items-center text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
             <span>Резерв</span>
             <span className="font-mono font-bold tabular-nums text-right">{reservedCount}</span>
@@ -682,7 +695,7 @@ function HeroBaza({ index, baseTotal, counts, boughtByCategory, totalBought, res
           </div>
         )}
         {/* Разом купили цього місяця */}
-        <div className="grid grid-cols-[8px_1fr_auto_auto] gap-x-3 items-center pt-1 mt-1 border-t border-white/40 font-bold">
+        <div className="grid grid-cols-[8px_1fr_3.25rem_3.25rem] gap-x-2 items-center pt-1 mt-1 border-t border-white/40 font-bold">
           <span /><span className="text-foreground">Разом купили</span>
           <span />
           <span className="font-mono tabular-nums text-right text-emerald-600">{totalBought}</span>
@@ -693,14 +706,13 @@ function HeroBaza({ index, baseTotal, counts, boughtByCategory, totalBought, res
 }
 
 /** Card 3 — План активації бази (Action B): план з 1С vs факт активовано. */
-function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCount, completedCount, focusedCount, activeFilter, onFilterChange }: {
+function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCount, focusedCount, activeFilter, onFilterChange }: {
   index: number;
   rows: Array<{ uiCat: string; label: string; dotClass: string; planCount: number; activated: number }>;
   planSum: number;
   activatedSum: number;
   hasDoc: boolean;
   withPlanCount: number;
-  completedCount: number;
   focusedCount: number;
   activeFilter: string;
   onFilterChange: (f: 'all' | 'focused' | 'with-plan') => void;
@@ -709,9 +721,6 @@ function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCo
   let pctColor = 'text-rose-600';
   if (pct >= 80) pctColor = 'text-emerald-600';
   else if (pct >= 50) pctColor = 'text-amber-600';
-  // 2-й параметр (старий): виконали запланований обсяг (factу ≥ план по клієнту).
-  const execPct = withPlanCount > 0 ? Math.round((completedCount / withPlanCount) * 100) : 0;
-  const execColor = execPct >= 80 ? 'text-emerald-600' : execPct >= 50 ? 'text-amber-600' : 'text-rose-600';
   const planFilterActive = activeFilter === 'with-plan';
   const focusFilterActive = activeFilter === 'focused';
   const amb = !hasDoc ? 'accent' : pct >= 80 ? 'good' : pct >= 50 ? 'warn' : 'bad';
@@ -752,14 +761,6 @@ function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCo
           ))}
         </div>
       )}
-      {/* 2-й параметр: виконання запланованого обсягу по клієнтах (старий). */}
-      <div className="pt-2 border-t border-slate-200/50">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-[15px] font-bold font-mono tabular-nums">{completedCount}<span className="text-muted-foreground font-normal"> / {withPlanCount}</span></span>
-          <span className={`text-[12px] font-bold ${execColor}`}>{execPct}%</span>
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-0.5">клієнтів виконали запланований обсяг продажів</p>
-      </div>
       <div className="flex flex-col gap-1 text-[11px]">
         <button
           type="button"
@@ -1422,30 +1423,22 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
   const currentYM = currentYearMonth();
   const MAX_MONTHS = 6;
 
-  // КРОК 1: збираємо усі унікальні місяці з усіх брендів (БЕЗ поточного)
-  // КРОК 2: сортуємо ГЛОБАЛЬНО + беремо останні 6 (не per-brand!)
-  // Інакше різні бренди дають різні місяці → колонок виходить більше 6.
-  const allMonthsSet = new Set<string>();
-  for (const b of sourceBrands) {
-    for (const m of (b.salesByMonth ?? [])) {
-      if (parseMonthLabelToYM(m.month) !== currentYM) {
-        allMonthsSet.add(m.month);
-      }
-    }
-  }
-  const sortedAllMonths = Array.from(allMonthsSet).sort((a, b) => {
-    const ymA = parseMonthLabelToYM(a) ?? '';
-    const ymB = parseMonthLabelToYM(b) ?? '';
-    return ymA.localeCompare(ymB); // asc — старіші ліворуч
-  });
-  const lastSixMonths = sortedAllMonths.slice(-MAX_MONTHS);
-  const allowedMonths = new Set(lastSixMonths);
+  // Статичне вікно: 6 ПОСЛІДОВНИХ місяців ДО поточного (без нього), asc.
+  // Раніше бралися лише місяці що 1С повернула → колонки виходили розріджені
+  // (травень, червень, вересень, березень...) ще й RU-назвами. Тепер фіксований
+  // піврічний ряд; місяць без покупок = $0.
+  const monthOrder = lastNMonthsBefore(currentYM, MAX_MONTHS);
+  const windowSet = new Set(monthOrder);
 
-  // КРОК 3: фільтруємо бренди — лишаємо тільки ті місяці що у allowedMonths
+  // Кожен бренд: сума по YM у межах вікна (0 якщо місяця нема у даних 1С).
   const brands = sourceBrands.map(b => {
-    const filtered = (b.salesByMonth ?? []).filter(m => allowedMonths.has(m.month));
-    const total = filtered.reduce((s, m) => s + (Number(m.amount) || 0), 0);
-    return { ...b, salesByMonth: filtered, totalAmount: total };
+    const byYM: Record<string, number> = {};
+    for (const m of (b.salesByMonth ?? [])) {
+      const ym = parseMonthLabelToYM(m.month);
+      if (ym && windowSet.has(ym)) byYM[ym] = (byYM[ym] ?? 0) + (Number(m.amount) || 0);
+    }
+    const total = monthOrder.reduce((s, ym) => s + (byYM[ym] ?? 0), 0);
+    return { ...b, byYM, totalAmount: total };
   }).filter(b => b.totalAmount > 0);
 
   // Нормалізуємо planBrands ключі через canonicalSegmentCode (Vitaran Cosmetics→OTHER, etc.)
@@ -1473,25 +1466,16 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
     );
   }
 
-  // monthOrder уже готовий = lastSixMonths (топ-6 unique sorted asc)
-  const monthOrder = lastSixMonths;
-
   const sorted = [...brands].sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
-
-  // Адаптивний заголовок: показуємо реальну кількість місяців
-  const monthsCount = monthOrder.length;
-  const monthsLabel = monthsCount === 1 ? '1 попередній місяць'
-    : monthsCount < 5 ? `${monthsCount} попередні місяці`
-    : `${monthsCount} попередніх місяців`;
 
   return (
     <div>
       <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-        Покупки {monthsLabel}
+        Покупки за останні 6 місяців
       </h3>
       <div className="space-y-1.5">
         {sorted.map(b => {
-          const byMonth = Object.fromEntries(b.salesByMonth.map(m => [m.month, m.amount]));
+          const byMonth = b.byYM;
           const inPlan = isBrandInPlan(b.brandName);
           return (
             <div
@@ -1507,7 +1491,7 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
                 const amount = byMonth[m] ?? 0;
                 return (
                   <div key={m} className="text-right">
-                    <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{m}</p>
+                    <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{fmtYMShort(m)}</p>
                     <p className={`font-mono font-bold tabular-nums text-[12px] mt-1 leading-none amount ${amount > 0 ? '' : 'text-muted-foreground/40'}`}>
                       {amount > 0 ? `$${Math.round(amount).toLocaleString('en-US')}` : '—'}
                     </p>
@@ -1561,6 +1545,23 @@ function formatMonthLabel(yyyymm: string): string {
 function currentYearMonth(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// UA-назва місяця для YYYY-MM (статичні колонки історії покупок).
+const UA_MONTHS_SHORT = ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'];
+function fmtYMShort(ym: string): string {
+  const [y, m] = ym.split('-').map(Number);
+  return `${UA_MONTHS_SHORT[(m - 1) % 12] ?? '?'} ${y}`;
+}
+// Останні N ПОСЛІДОВНИХ місяців ДО currentYM (без нього), у порядку asc.
+function lastNMonthsBefore(currentYM: string, n: number): string[] {
+  const [cy, cm] = currentYM.split('-').map(Number);
+  const out: string[] = [];
+  for (let i = n; i >= 1; i--) {
+    const d = new Date(cy, (cm - 1) - i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return out;
 }
 
 function EventsTimeline({ meetings, calls, seminars, totalCount }: {
