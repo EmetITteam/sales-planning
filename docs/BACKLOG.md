@@ -19,9 +19,10 @@
 
 | # | Що | Файли | Зусилля | Стан |
 |---|---|---|---|---|
-| **B1** | Director Dashboard порожній при першому логіні поки не зробиш refresh — дослідити race condition між session bootstrap і SWR fetch | `src/components/dashboard/director-dashboard.tsx`, `src/lib/use-onec-data.ts` | 2-3 год | Відкрито |
-| **TD-11** | God component `clients-page.tsx` 1846 рядків — розбити на модулі (HeroBand, ClientsList, ClientRow, ReservedSection, BrandPlanFactTable) | `src/components/clients/clients-page.tsx` | 8-12 год | Відкрито |
-| **B3** | Brand donut/badge стилі — деякі залишилися «синіми прямокутниками» (наприклад «В ПЛАНІ» badge), потрібен прохід для glass-style consistency | компоненти `dashboard/`, `planning/` | 3-4 год | Відкрито |
+| ~~**B1**~~ | ~~Director Dashboard race condition~~ | — | — | ✅ **ЗАКРИТО** (верифіковано 28.05): auto-retry 3× backoff у `use-onec-data.ts:71-79` вже покриває cold-start |
+| **TD-11** | God component `clients-page.tsx` ~1855 рядків — розбити на модулі (HeroBand, ClientsList, ClientRow, ReservedSection, BrandPlanFactTable) | `src/components/clients/clients-page.tsx` | 8-12 год | Відкрито |
+| **TD-12** 🆕 | God component `planning-form.tsx` **2272 рядки** — найбільший у проекті (більший за clients-page!). Розбити. Виявлено аудитом 28.05 | `src/components/planning/planning-form.tsx` | 10-14 год | Відкрито |
+| **B3** | Плоскі бейджи замість glass-chip («Без плану» `brand-row.tsx:118`, статус-pill-и у clients-page, donut-бейджи). ~39 flat `bg-*-50/100`. Прохід для glass-consistency | `dashboard/`, `planning/`, `clients/` | 3-4 год | Відкрито (підтверджено 28.05) |
 
 ---
 
@@ -70,7 +71,7 @@
 
 | # | Що | Зусилля | Стан |
 |---|---|---|---|
-| **BF-1** | «Запл. 0% · $0» завжди показувати у regional-accordion | 1 год | Можливо вже зроблено — перевірити |
+| ~~**BF-1**~~ | ~~«Запл. 0% · $0» у regional-accordion~~ | — | ✅ **ЗАКРИТО** (верифіковано 28.05): `region-accordion.tsx:239-247` показує завжди |
 | **BF-2** | Edit log для M9 stage edits — хто/коли міняв stage після фіналу | 8-12 год | Відкрито |
 | **BF-3** | Resnapshot для решти 15 менеджерів (зараз тільки Некова) | 2-3 год | Відкрито |
 | **BF-4** | `/admin/audit` — сторінка зі всіма UPDATEами forecasts/gap_closures | 6-8 год | Відкрито |
@@ -94,7 +95,9 @@
 | # | Що | Зусилля | Стан |
 |---|---|---|---|
 | **TD-4** | RLS вимкнено, скрізь service_role bypass — увімкнути політики | 20-30 год | Відкрито (P0 якщо публічний доступ) |
-| **TD-6** | Прибрати DEPRECATED колонки `forecasts.action` / `gap_closures.action` після M3 | 1 год | Відкрито |
+| ~~**TD-6**~~ | ~~DEPRECATED колонки forecasts.action / gap_closures.action~~ | — | ✅ **імовірно ЗАКРИТО** (28.05): не знайдено у коді/SQL. Підтвердити одним SELECT у БД |
+| **TD-13** 🆕 | `company-overview-dashboard.tsx` 1176 рядків — третій god-component, теж розбити | 6-8 год | Відкрито |
+| **R-1-confirm** 🆕 | Brand plan/fact extraction дублюється у 4 місцях: `brand-manager-group`, `brand-region-group`, `company-overview-dashboard`, `clients-page` (підтверджено 28.05) | — | див. R-1 вище |
 | **TD-8** | Region codes (DNP/KYV/...) — заглушки, fallback на heuristic. Запитати справжні у Андрія | 2-3 год + 1С | Відкрито |
 
 ### UX
