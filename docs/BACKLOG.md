@@ -91,7 +91,7 @@
 | # | Що | Зусилля | Стан |
 |---|---|---|---|
 | **TD-4** | RLS вимкнено, скрізь service_role bypass — увімкнути політики | 20-30 год | Відкрито (P0 якщо публічний доступ) |
-| **TD-6** | DEPRECATED колонка `gap_closures.action` (всі null, у коді не читається). `forecasts.action` вже дропнуто. Потрібен `ALTER TABLE gap_closures DROP COLUMN IF EXISTS action`. Перевірено SELECT-ом 28.05 | міграція + БД | 0.25 год | Відкрито (частково — лишилась 1 колонка) |
+| ~~**TD-6**~~ | ~~DEPRECATED колонка `gap_closures.action`~~ | — | ✅ **ЗАКРИТО** (28.05, міграція `20260528_012`): DROP COLUMN застосовано через Dashboard. Знайшлось 5 non-null (демо-логін feshchenko@emet.com — моки, не реальні), бекап перед DROP. `forecasts.action` + `gap_closures.action` обидві дропнуто |
 | **TD-8** | Region codes (DNP/KYV/...) — заглушки, fallback на heuristic. Запитати справжні у Андрія | 2-3 год + 1С | Відкрито |
 
 ### UX
