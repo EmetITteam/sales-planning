@@ -396,6 +396,7 @@ export function CompanyOverviewDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
               index={0}
+              ambient="accent"
               icon={<Target />}
               iconColor="text-emet-blue"
               label={`План ${groupLabel}`}
@@ -412,6 +413,7 @@ export function CompanyOverviewDashboard() {
 
             <MetricCard
               index={1}
+              ambient="mint"
               icon={<DollarSign />}
               iconColor="text-emerald-500"
               label={`Факт ${groupLabel}`}
@@ -430,6 +432,7 @@ export function CompanyOverviewDashboard() {
 
             <MetricCard
               index={2}
+              ambient={deviation >= 0 ? 'good' : deviation >= -15 ? 'warn' : 'bad'}
               icon={totalPct >= calcPct ? <TrendingUp /> : <TrendingDown />}
               iconColor={totalPct >= calcPct ? 'text-emerald-500' : 'text-rose-500'}
               label="Виконання"
@@ -472,6 +475,7 @@ export function CompanyOverviewDashboard() {
                 return (
                   <MetricCard
                     index={3}
+                    ambient={behind.length === 0 ? 'good' : 'warn'}
                     icon={<AlertTriangle />}
                     iconColor="text-orange-500"
                     label="Відстають від плану"
@@ -504,6 +508,7 @@ export function CompanyOverviewDashboard() {
                 return (
                   <MetricCard
                     index={3}
+                    ambient="accent"
                     icon={<CalendarDays />}
                     iconColor="text-violet-500"
                     label="Робочі дні"
@@ -537,6 +542,7 @@ export function CompanyOverviewDashboard() {
               return (
                 <MetricCard
                   index={3}
+                  ambient="mint"
                   icon={<Users />}
                   iconColor="text-orange-500"
                   label={`Покупці місяця · ${groupLabel}`}

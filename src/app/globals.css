@@ -142,11 +142,7 @@
   filter: blur(90px);
   z-index: -1;
   pointer-events: none;
-  /* opacity знижено 0.32 → 0.16: блоб-и (position:fixed) давали локальні
-     кольорові плями, через що напівпрозорі glass-картки тінтились по-різному
-     залежно від позиції у в'юпорті (верх блакитнуватий, низ білий) і «пливли»
-     при скролі. М'якший фон → картки читаються однаково. */
-  opacity: 0.16;
+  opacity: 0.3;
   animation: glass-drift 25s ease-in-out infinite;
 }
 .glass-blob-a { width: 520px; height: 520px; background: rgba(6, 106, 171, 0.35); top: -100px; left: -100px; animation-delay: 0s; }
@@ -197,6 +193,21 @@
   border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 12px;
 }
+
+/* === Ambient color glow per card (еталон glass-detailed.html #kpi) ===
+   Кожна картка має м'який кольоровий halo який відповідає її стану. Градієнт
+   135° від напівпрозорого white до tint-кольору стану. Вища специфічність
+   (.glass-card.ambient-*) гарантовано перекриває базовий white-фон.
+     accent — EMET-синій (план / нейтральні метрики)
+     mint   — EMET-бірюза (факт)
+     good   — зелений (у плані)
+     warn   — помаранчевий (близько до норми)
+     bad    — червоний (відставання) */
+.glass-card.ambient-accent { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(6,106,171,0.13)); }
+.glass-card.ambient-mint   { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(91,213,188,0.18)); }
+.glass-card.ambient-good   { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(20,184,166,0.16)); }
+.glass-card.ambient-warn   { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(251,146,60,0.15)); }
+.glass-card.ambient-bad    { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(225,29,72,0.14)); }
 
 /* Cursor-following highlight для glass-card (preview шаблон з glass-detailed.html).
    --mouse-x / --mouse-y виставляє useGlassHover хук у JS.

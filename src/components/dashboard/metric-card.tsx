@@ -35,6 +35,14 @@ interface MetricCardProps {
   index?: number;
   /** Опційний slot нижче caption — типово delta-pill (↑/↓ vs мин.міс.) */
   trailing?: ReactNode;
+  /**
+   * Ambient color glow — м'який кольоровий градієнт фону за станом картки
+   * (еталон glass-detailed.html #kpi). Робить hero-картки кольоровими за
+   * даними замість плаского white. Якщо undefined — звичайний glass-card.
+   *   accent — синій (план), mint — бірюза (факт),
+   *   good — зелений, warn — помаранчевий, bad — червоний (виконання за станом)
+   */
+  ambient?: 'accent' | 'mint' | 'good' | 'warn' | 'bad';
 }
 
 /**
@@ -53,6 +61,7 @@ export function MetricCard({
   valuePrefix,
   index,
   trailing,
+  ambient,
 }: MetricCardProps) {
   const valueClass = valueSize === 'lg'
     ? 'text-[36px] font-bold tracking-[-1px] tabular-nums leading-none'
@@ -65,7 +74,7 @@ export function MetricCard({
   // justify-between). justify-between розводив контент по краях → великі
   // цифри стрибали залежно від обсягу caption/trailing внизу. Тепер всі
   // hero-картки на дашбордах мають великі цифри на одній вертикальній лінії.
-  const baseCls = 'glass-card p-5 relative flex flex-col gap-3';
+  const baseCls = `glass-card p-5 relative flex flex-col gap-3${ambient ? ` ambient-${ambient}` : ''}`;
   const cls = index !== undefined ? `${baseCls} fade-stagger` : baseCls;
   const style = index !== undefined ? { ['--i' as string]: index } : undefined;
 
