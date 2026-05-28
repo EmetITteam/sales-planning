@@ -68,7 +68,9 @@ export function DonutChart({ title, subtitle, segments, centerLabel, centerSub, 
     <div className="glass-card p-5">
       <h3 className="text-[13px] font-bold">{title}</h3>
       {subtitle && <p className="text-[10.5px] text-muted-foreground mb-3 leading-snug">{subtitle}</p>}
-      <div className="flex items-center gap-4">
+      {/* justify-center: донат+легенда центруються як група, щоб порожнє місце
+          на широкій картці розподілялось симетрично (а не висіло праворуч). */}
+      <div className="flex items-center justify-center gap-6">
         <div className="relative w-[140px] h-[140px] flex-shrink-0">
           <svg viewBox="0 0 36 36" className="w-full h-full block">
             {arcs.map((arc, i) => (

@@ -115,7 +115,7 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
 
   if (loading) {
     return (
-      <div className="glass-card overflow-hidden">
+      <div className="glass-card ambient-accent overflow-hidden">
         {title && <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
           <h3 className="text-[14px] font-bold">Розклад по категоріях клієнтів</h3>
           <span className="text-[11px] text-muted-foreground">{title}</span>
@@ -132,7 +132,7 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
   }
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-card ambient-accent overflow-hidden">
       {title && (
         <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
           <h3 className="text-[14px] font-bold">Розклад по категоріях клієнтів</h3>

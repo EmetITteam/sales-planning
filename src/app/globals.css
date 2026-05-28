@@ -223,7 +223,16 @@
 .glass-card.ambient-mint   { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(91,213,188,0.18)); }
 .glass-card.ambient-good   { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(20,184,166,0.16)); }
 .glass-card.ambient-warn   { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(251,146,60,0.15)); }
-.glass-card.ambient-bad    { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(225,29,72,0.14)); }
+.glass-card.ambient-bad    { background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(225,29,72,0.12)); }
+
+/* Делікатніший glow для ШИРОКИХ рядків списку (бренди/регіони). На повну
+   ширину 135° градієнт заливав кольором праву половину рядка — забагато.
+   Тут колір лише ліворуч (де статус-точка/бейдж) і швидко згасає до білого,
+   тож числа справа лишаються на чистому фоні. */
+.glass-card.row-good   { background: linear-gradient(90deg, rgba(20,184,166,0.11), rgba(255,255,255,0.55) 16%); }
+.glass-card.row-bad    { background: linear-gradient(90deg, rgba(225,29,72,0.10), rgba(255,255,255,0.55) 16%); }
+/* Нейтральний легкий відтінок для широких рядків без стану (менеджери). */
+.glass-card.row-accent { background: linear-gradient(90deg, rgba(6,106,171,0.09), rgba(255,255,255,0.55) 16%); }
 
 /* Cursor-following highlight для glass-card (preview шаблон з glass-detailed.html).
    --mouse-x / --mouse-y виставляє useGlassHover хук у JS.

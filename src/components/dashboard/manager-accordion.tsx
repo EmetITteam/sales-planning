@@ -84,7 +84,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
   const hasExpected = !isTrial && totalExpected > 0;
 
   return (
-    <div className="glass-card overflow-hidden transition-all hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]">
+    <div className="glass-card row-accent overflow-hidden transition-all hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]">
       {/* === DESKTOP === */}
       <button
         type="button"

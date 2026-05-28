@@ -91,7 +91,7 @@ export function BrandRow({
   // Ambient glow за traffic-light станом — лише коли є реальний план (не trial,
   // не «Без плану», не inactive). Інакше нейтральний glass (без кольору).
   const ambient = (!isInactive && !isTrial && hasManagerPlan && planAmount > 0)
-    ? (factPercent >= calcPct ? 'ambient-good' : 'ambient-bad')
+    ? (factPercent >= calcPct ? 'row-good' : 'row-bad')
     : '';
 
   const Wrapper: React.ElementType = onClick ? 'button' : 'div';

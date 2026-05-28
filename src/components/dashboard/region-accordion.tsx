@@ -52,7 +52,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   const tl = getTrafficLight(pct, calcPct);
   const dev = pct - calcPct;
   // Ambient glow за traffic-light станом — лише коли регіон має план.
-  const ambient = aggregate.totalPlan > 0 ? (pct >= calcPct ? 'ambient-good' : 'ambient-bad') : '';
+  const ambient = aggregate.totalPlan > 0 ? (pct >= calcPct ? 'row-good' : 'row-bad') : '';
   // Б.2: динаміка vs минулий = заплановане vs минулий факт (forward-looking).
   // Fallback на totalFact якщо нема плану.
   const compareForDyn = regionExpectedAmount > 0 ? regionExpectedAmount : aggregate.totalFact;
