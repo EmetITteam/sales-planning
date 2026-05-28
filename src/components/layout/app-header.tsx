@@ -111,7 +111,9 @@ export function AppHeader() {
         {/* Logo: EMET-знак + назва продукту */}
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/emet-mark.svg" alt="EMET" className="h-8 w-auto object-contain" />
+          {/* -translate-y: акцент над «e» зверху тягне геом-центр глифа вгору,
+              тож «e»-тіло візуально сидить нижче тексту — компенсуємо нуджем. */}
+          <img src="/emet-mark.svg" alt="EMET" className="h-8 w-auto object-contain -translate-y-[3px]" />
           {/* Logo wordmark — solid ink + accent dot замість gradient text.
               Gradient на 15px Windows/Chrome губить anti-aliasing (audit). */}
           <span className="text-[15px] font-semibold tracking-tight hidden sm:flex items-center gap-1.5 text-[#081E2D]">

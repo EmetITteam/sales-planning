@@ -106,7 +106,7 @@ export function LoginForm() {
             <Button
               type="submit"
               disabled={loading || !login || !password}
-              className="w-full h-10 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-emet-blue shadow-md shadow-emet-blue/20 transition-all disabled:opacity-50"
+              className="w-full h-10 bg-[#081E2D] hover:bg-[#0d2a3d] text-white shadow-md shadow-[#081E2D]/25 transition-all disabled:opacity-50"
             >
               {loading ? (
                 <>
