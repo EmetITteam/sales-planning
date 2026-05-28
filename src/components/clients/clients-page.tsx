@@ -35,6 +35,8 @@ const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s =>
 const BRAND_CODE_ALIASES: Record<string, string> = {
   'ДРУГИЕ ТМ': 'OTHER',
   'другие тм': 'OTHER',
+  'ДРУГИЕТМ': 'OTHER',   // 1С шле без пробілу — основний код Action 3/4
+  'другиетм': 'OTHER',
   'Інші ТМ': 'OTHER',
   'інші тм': 'OTHER',
   'OTHER BRANDS': 'OTHER',
