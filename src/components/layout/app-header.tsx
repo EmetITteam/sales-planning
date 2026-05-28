@@ -145,7 +145,7 @@ export function AppHeader() {
         </button>
 
         {liveMode && (
-          <span className="hidden md:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+          <span className="hidden md:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/12 border border-amber-300/40 text-amber-800 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider">
             <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_4px_#f59e0b]" />
             LIVE · {new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}
           </span>

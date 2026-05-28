@@ -409,7 +409,7 @@ export function CompanyOverviewDashboard() {
               value={<span className="amount">{Math.round(animFact).toLocaleString('en-US')}</span>}
               trailing={
                 filteredTotalPrevFact > 0 ? (
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${factDelta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-sm border ${factDelta >= 0 ? 'bg-teal-500/12 border-teal-300/40 text-teal-800' : 'bg-rose-500/12 border-rose-300/40 text-rose-800'}`}>
                     {factDelta >= 0 ? '↑' : '↓'} {fmtUSD(Math.abs(factDelta))} vs мин.міс.
                   </span>
                 ) : null
@@ -434,7 +434,7 @@ export function CompanyOverviewDashboard() {
                 </div>
               }
               trailing={
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${deviation >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-sm border ${deviation >= 0 ? 'bg-teal-500/12 border-teal-300/40 text-teal-800' : 'bg-rose-500/12 border-rose-300/40 text-rose-800'}`}>
                   {deviation >= 0 ? '+' : ''}{deviation.toFixed(1)}% vs норма
                 </span>
               }
@@ -533,7 +533,7 @@ export function CompanyOverviewDashboard() {
                   caption={<span className="text-muted-foreground">клієнтів зробили закупки цього місяця</span>}
                   trailing={
                     agg.prevTotalBought > 0 ? (
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${deltaBought >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-sm border ${deltaBought >= 0 ? 'bg-teal-500/12 border-teal-300/40 text-teal-800' : 'bg-rose-500/12 border-rose-300/40 text-rose-800'}`}>
                         {deltaBought >= 0 ? '↑' : '↓'} {Math.abs(deltaBought)} клієнтів vs мин.міс.
                       </span>
                     ) : null
@@ -620,7 +620,7 @@ export function CompanyOverviewDashboard() {
                               {c.curT > 0 ? `${pct.toFixed(1)}% купили` : 'купили'}
                             </p>
                             {hasPrev && (
-                              <span className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold self-start ${delta >= 0 ? 'bg-teal-100/70 text-teal-800' : 'bg-rose-100/70 text-rose-800'}`}>
+                              <span className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold self-start backdrop-blur-sm border ${delta >= 0 ? 'bg-teal-500/12 border-teal-300/40 text-teal-800' : 'bg-rose-500/12 border-rose-300/40 text-rose-800'}`}>
                                 {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)} vs {agg.prev.totalBought > 0 ? `мин.міс ($${c.prevB})` : 'мин.міс'}
                               </span>
                             )}

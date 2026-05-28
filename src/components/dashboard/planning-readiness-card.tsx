@@ -94,9 +94,9 @@ const textClass: Record<string, string> = {
   rose: 'text-rose-600',
 };
 const badgeBgClass: Record<string, string> = {
-  green: 'bg-emerald-50 text-emerald-700',
-  amber: 'bg-amber-50 text-amber-700',
-  rose: 'bg-rose-50 text-rose-700',
+  green: 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm',
+  amber: 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm',
+  rose: 'bg-rose-500/12 border border-rose-300/40 text-rose-700 backdrop-blur-sm',
 };
 
 const brandName = (code: string) => SEGMENTS.find(s => s.code === code)?.name ?? code;
@@ -199,7 +199,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
               {total.mgrAll} менеджерів · усі {totalBrands} брендів закрито
             </p>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-50 text-emerald-700">✓ ФІНАЛ</span>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm">✓ ФІНАЛ</span>
         </div>
       </div>
     );
@@ -363,7 +363,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                           <span className={`font-semibold flex-1 truncate ${nameClass}`}>{m.name || m.login}</span>
                           {m.isTrial && (
                             <span
-                              className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 shrink-0"
+                              className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-400/12 border border-slate-300/50 text-slate-600 backdrop-blur-sm shrink-0"
                               title="1С виставила $1 sentinel на всі бренди — менеджер на випробувальному, план ще не складено"
                             >
                               Новачок

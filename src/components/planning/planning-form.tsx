@@ -1211,7 +1211,7 @@ export function PlanningForm({
         <span className="text-[15px] font-bold">{segment?.name}</span>
         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emet-50 text-emet-blue">{periodLabel}</span>
         {readOnlyProp && (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 flex items-center gap-1">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm flex items-center gap-1">
             <Eye className="h-3 w-3" /> Перегляд
           </span>
         )}
@@ -1298,7 +1298,7 @@ export function PlanningForm({
               <div className="flex items-center gap-2.5 mb-2">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br ${m.grad} text-white`}>{m.icon}</div>
                 {m.badge && (
-                  <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${m.badge.ok ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                  <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm border ${m.badge.ok ? 'bg-emerald-500/12 border-emerald-300/40 text-emerald-600' : 'bg-rose-500/12 border-rose-300/40 text-rose-600'}`}>
                     {m.badge.ok ? <ArrowUpRight className="inline h-2.5 w-2.5" /> : <ArrowDownRight className="inline h-2.5 w-2.5" />} {m.badge.text}
                   </span>
                 )}
@@ -1539,7 +1539,7 @@ export function PlanningForm({
                   {/* Статус */}
                   {row.stage ? (
                     <div className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold ${
-                      row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
                     }`}>
                       <StageIcon className="h-3 w-3" />
                       {row.stageDone ? 'Виконано' : 'Очікується'}
@@ -1681,7 +1681,7 @@ export function PlanningForm({
                       </Select>
                       {row.stage && (
                         <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${
-                          row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                          row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
                         }`}>
                           <StageIcon className="h-3 w-3" />
                           {row.stageDone ? 'Викон.' : 'Очік.'}
@@ -1767,11 +1767,11 @@ export function PlanningForm({
             <div className="flex items-center gap-3">
               <h3 className="text-[15px] font-bold">Закриття розриву</h3>
               {gapAfterForecast > 0 ? (
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600">
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/12 border border-rose-300/40 text-rose-600 backdrop-blur-sm">
                   <AlertTriangle className="h-3 w-3" /> <span className="amount">{formatUSD(Math.round(gapAfterForecast))}</span>
                 </span>
               ) : (
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600">Покрито</span>
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/12 border border-emerald-300/40 text-emerald-600 backdrop-blur-sm">Покрито</span>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1880,7 +1880,7 @@ export function PlanningForm({
                         </p>
                       )}
                       <div className="flex items-center gap-2 mt-0.5">
-                        {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}
+                        {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm font-semibold">{row.category}</span>}
                         <span className="text-[10px] text-muted-foreground truncate">
                           {row.lastPurchaseDate ? <>{formatDate(row.lastPurchaseDate)} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span></> : ''}
                         </span>
@@ -1920,7 +1920,7 @@ export function PlanningForm({
                     {/* Статус */}
                     {row.stage ? (
                       <div className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold ${
-                        row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                        row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
                       }`}>
                         <StageIcon className="h-3 w-3" />
                         {row.stageDone ? 'Виконано' : 'Очікується'}
@@ -2013,7 +2013,7 @@ export function PlanningForm({
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-0.5">
-                          {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}
+                          {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm font-semibold">{row.category}</span>}
                           {row.lastPurchaseDate && (
                             <span className="text-[10px] text-muted-foreground">{formatDate(row.lastPurchaseDate)} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span></span>
                           )}
@@ -2061,7 +2061,7 @@ export function PlanningForm({
                           </SelectContent>
                         </Select>
                         {row.stage && (
-                          <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'}`}>
                             <StageIcon className="h-3 w-3" />
                             {row.stageDone ? 'Викон.' : 'Очік.'}
                           </div>
@@ -2167,8 +2167,8 @@ export function PlanningForm({
             </span>
           )}
           {saveResult && (
-            <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${
-              saveResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+            <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg backdrop-blur-sm border ${
+              saveResult.ok ? 'bg-emerald-500/12 border-emerald-300/40 text-emerald-700' : 'bg-rose-500/12 border-rose-300/40 text-rose-700'
             }`} role="status">
               {saveResult.msg}
             </span>

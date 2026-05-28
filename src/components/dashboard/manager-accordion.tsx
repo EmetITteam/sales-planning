@@ -167,7 +167,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
           <div className="w-[100px]">
             <div className="h-[12px] leading-none mb-1.5" aria-hidden />
             {isTrial ? (
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-slate-100 text-slate-600" title="1С виставила $1 sentinel — менеджер на випробувальному">Новачок</span>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-slate-400/12 border border-slate-300/50 text-slate-600 backdrop-blur-sm" title="1С виставила $1 sentinel — менеджер на випробувальному">Новачок</span>
             ) : (
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
             )}
@@ -201,7 +201,7 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             <div className="flex items-center gap-2 mb-1">
               <p className="text-[14px] font-bold truncate flex-1">{manager.name || manager.login}</p>
               {isTrial ? (
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase whitespace-nowrap bg-slate-100 text-slate-600">Новачок</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase whitespace-nowrap bg-slate-400/12 border border-slate-300/50 text-slate-600 backdrop-blur-sm">Новачок</span>
               ) : (
                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase whitespace-nowrap ${tl.bg} ${tl.color}`}>{tl.label}</span>
               )}

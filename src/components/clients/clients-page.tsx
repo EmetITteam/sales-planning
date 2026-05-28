@@ -979,31 +979,31 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
             </span>
             {/* Резерв-tag (нейтральний slate, бо на цих клієнтів менеджер не звертає уваги) */}
             {isClientReserved(client) && (
-              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-600 border border-slate-200" title="Клієнт у Резерві — виключений з планування">
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-400/12 text-slate-600 border border-slate-300/50 backdrop-blur-sm" title="Клієнт у Резерві — виключений з планування">
                 Резерв
               </span>
             )}
             {/* Focus-tag (violet) — є хоча б 1 активний фокус */}
             {focuses.length > 0 && (
               <span
-                className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-violet-100 text-violet-700 border border-violet-200"
+                className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-violet-500/12 text-violet-700 border border-violet-300/40 backdrop-blur-sm"
                 title={focuses.map(f => f.focusName).join(' · ')}
               >
                 У фокусі{focuses.length > 1 ? ` · ${focuses.length}` : ''}
               </span>
             )}
             {noPlanNoFact && (
-              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-100 text-slate-500 border border-dashed border-slate-300" title="Цього клієнта менеджер не виставив у план і він не купував цього місяця">
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-400/10 text-slate-500 border border-dashed border-slate-300/60 backdrop-blur-sm" title="Цього клієнта менеджер не виставив у план і він не купував цього місяця">
                 Без плану
               </span>
             )}
             {unplannedFact && (
-              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-violet-100 text-violet-700" title="Купив без планування — треба додати у план наступним місяцем">
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-violet-500/12 text-violet-700 border border-violet-300/40 backdrop-blur-sm" title="Купив без планування — треба додати у план наступним місяцем">
                 Незаплановані
               </span>
             )}
             {!totalsLoading && completed && (
-              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-emerald-100 text-emerald-700">
+              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-emerald-500/12 text-emerald-700 border border-emerald-300/40 backdrop-blur-sm">
                 <CheckCircle2 className="h-2.5 w-2.5" />
                 Виконав
               </span>
@@ -1414,10 +1414,10 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
               </div>
               {/* Позначка чи бренд у плануванні цього місяця */}
               <div className="flex justify-end">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap backdrop-blur-sm ${
                   inPlan
                     ? 'bg-emet-blue/10 text-emet-blue border border-emet-blue/20'
-                    : 'bg-slate-100 text-slate-500 border border-slate-200'
+                    : 'bg-slate-400/10 text-slate-500 border border-slate-300/50'
                 }`}>
                   {inPlan ? 'В плануванні' : 'Немає в плані'}
                 </span>
@@ -1669,7 +1669,7 @@ function SeminarRow({ event, currentYM }: { event: { date: string; comment: stri
       <div className="flex items-center gap-2">
         <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{event.date}</span>
         {isCurrent && (
-          <span className="text-[8px] font-extrabold uppercase tracking-[0.06em] text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded-full">
+          <span className="text-[8px] font-extrabold uppercase tracking-[0.06em] text-violet-700 bg-violet-500/12 border border-violet-300/40 backdrop-blur-sm px-1.5 py-0.5 rounded-full">
             Цей місяць
           </span>
         )}
@@ -1807,10 +1807,10 @@ interface BrandRowData {
 function PlanFactBrandRow({ row }: { row: BrandRowData }) {
   const { name, plan, fact, pct, status } = row;
   const STATUS_META = {
-    ok:        { dot: 'bg-emerald-500',  label: 'Виконано',           pillBg: 'bg-emerald-50 text-emerald-700' },
-    warn:      { dot: 'bg-amber-500',    label: 'В роботі',           pillBg: 'bg-amber-50 text-amber-700' },
-    bad:       { dot: 'bg-rose-500',     label: '🔥 Без закупівлі',   pillBg: 'bg-rose-50 text-rose-700' },
-    unplanned: { dot: 'bg-violet-500',   label: '⚡ Поза плануванням', pillBg: 'bg-violet-50 text-violet-700' },
+    ok:        { dot: 'bg-emerald-500',  label: 'Виконано',           pillBg: 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' },
+    warn:      { dot: 'bg-amber-500',    label: 'В роботі',           pillBg: 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm' },
+    bad:       { dot: 'bg-rose-500',     label: '🔥 Без закупівлі',   pillBg: 'bg-rose-500/12 border border-rose-300/40 text-rose-700 backdrop-blur-sm' },
+    unplanned: { dot: 'bg-violet-500',   label: '⚡ Поза плануванням', pillBg: 'bg-violet-500/12 border border-violet-300/40 text-violet-700 backdrop-blur-sm' },
   } as const;
   const meta = STATUS_META[status];
   return (

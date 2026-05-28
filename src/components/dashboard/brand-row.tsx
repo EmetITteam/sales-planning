@@ -115,7 +115,7 @@ export function BrandRow({
 
         {/* 2. Бейдж — або стандартний світлофор, або «План не виставлено» */}
         {planAmount === 0 ? (
-          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center bg-slate-100 text-slate-500" title="План на цей сегмент ще не заведено в 1С">
+          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center bg-slate-400/12 border border-slate-300/50 text-slate-500 backdrop-blur-sm" title="План на цей сегмент ще не заведено в 1С">
             Без плану
           </span>
         ) : (
