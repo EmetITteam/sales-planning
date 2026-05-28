@@ -51,6 +51,7 @@ const LOGIN_BOUND_ACTIONS = new Set([
   'getRegionData',
   'checkActivities',
   'getManagerClients',
+  'getClientFocus',  // приймає {login, clientIds} — login ОБОВ'ЯЗКОВО override з сесії
 ]);
 
 // `findClient` — окремий випадок: поле зветься `managerLogin`, не `login`.

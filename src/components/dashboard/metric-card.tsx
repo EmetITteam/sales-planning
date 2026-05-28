@@ -65,7 +65,7 @@ export function MetricCard({
   // justify-between). justify-between розводив контент по краях → великі
   // цифри стрибали залежно від обсягу caption/trailing внизу. Тепер всі
   // hero-картки на дашбордах мають великі цифри на одній вертикальній лінії.
-  const baseCls = 'glass-card p-5 relative flex flex-col gap-3 transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
+  const baseCls = 'glass-card p-5 relative flex flex-col gap-3';
   const cls = index !== undefined ? `${baseCls} fade-stagger` : baseCls;
   const style = index !== undefined ? { ['--i' as string]: index } : undefined;
 

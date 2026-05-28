@@ -447,21 +447,42 @@ export function ClientsPage() {
       </div>
       </div>
 
-      {/* === CATEGORY SECTIONS === */}
-      {totalFiltered === 0 && reservedClients.length === 0 ? (
-        <div className="glass-card p-12 text-center text-[13px] text-muted-foreground">
-          {search ? `За запитом «${search}» нічого не знайдено` : 'Немає клієнтів у обраному фільтрі'}
-        </div>
-      ) : (
-        <>
-          {CAT_ORDER.map(cat => {
-            const list = groupedClients.get(cat) || [];
-            if (list.length === 0) return null;
-            return (
-              <CategorySection
-                key={cat}
-                cat={cat}
-                clients={list}
+      {/* === CATEGORY SECTIONS ===
+          Резерв-секцію показуємо ТІЛЬКИ у режимі 'all' — бо це окремий
+          розділ «не звертай уваги», а не категорія. При активному фільтрі
+          (категорія/focused/with-plan) Резерв ховаємо щоб empty-state
+          коректно спрацьовував. */}
+      {(() => {
+        const showReserved = activeFilter === 'all' && reservedClients.length > 0;
+        if (totalFiltered === 0 && !showReserved) {
+          return (
+            <div className="glass-card p-12 text-center text-[13px] text-muted-foreground">
+              {search ? `За запитом «${search}» нічого не знайдено` : 'Немає клієнтів у обраному фільтрі'}
+            </div>
+          );
+        }
+        return (
+          <>
+            {CAT_ORDER.map(cat => {
+              const list = groupedClients.get(cat) || [];
+              if (list.length === 0) return null;
+              return (
+                <CategorySection
+                  key={cat}
+                  cat={cat}
+                  clients={list}
+                  planByClient={planByClient}
+                  factByClient={factByClient}
+                  focusByClient={focusByClient}
+                  totalsLoading={totalsLoading}
+                  expandedId={expandedId}
+                  onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
+                />
+              );
+            })}
+            {showReserved && (
+              <ReservedSection
+                clients={reservedClients}
                 planByClient={planByClient}
                 factByClient={factByClient}
                 focusByClient={focusByClient}
@@ -469,22 +490,10 @@ export function ClientsPage() {
                 expandedId={expandedId}
                 onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
               />
-            );
-          })}
-          {/* Окрема секція РЕЗЕРВ — collapsed за замовч (на цих клієнтів менеджер не звертає увагу) */}
-          {reservedClients.length > 0 && (
-            <ReservedSection
-              clients={reservedClients}
-              planByClient={planByClient}
-              factByClient={factByClient}
-              focusByClient={focusByClient}
-              totalsLoading={totalsLoading}
-              expandedId={expandedId}
-              onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
-            />
-          )}
-        </>
-      )}
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -528,7 +537,7 @@ const fmtUSD = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 // flex-col + gap-3 — БЕЗ justify-between. Великі цифри сидять одразу під label
 // на одному вертикальному рівні у всіх 4 картках (раніше justify-between
 // розводив зверху-знизу і цифри стрибали залежно від обсягу нижнього контенту).
-const heroCardCls = 'glass-card p-5 relative flex flex-col gap-3 fade-stagger transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]';
+const heroCardCls = 'glass-card p-5 relative flex flex-col gap-3 fade-stagger';
 
 /** Card 1 — Виконання (план / факт / % / норма / темп). */
 function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct }: {
