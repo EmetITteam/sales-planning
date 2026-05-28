@@ -60,7 +60,7 @@ export function LoginForm() {
         <div className="text-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/emet-logo.svg" alt="EMET" className="mx-auto mb-6 h-14 w-auto max-w-full" />
-          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emet-blue to-emet-blue-light bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold tracking-tight text-[#081E2D]">
             Планування продажів
           </h1>
         </div>
