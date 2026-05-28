@@ -20,7 +20,7 @@
 | # | Що | Файли | Зусилля | Стан |
 |---|---|---|---|---|
 | ~~**B1**~~ | ~~Director Dashboard race condition~~ | — | — | ✅ **ЗАКРИТО** (верифіковано 28.05): auto-retry 3× backoff у `use-onec-data.ts:71-79` вже покриває cold-start |
-| **B3** ⭐ | Плоскі бейджи замість glass-chip («Без плану» `brand-row.tsx:118`, статус-pill-и у clients-page, donut-бейджи). ~39 flat `bg-*-50/100`. Прохід для glass-consistency | `dashboard/`, `planning/`, `clients/` | 3-4 год | **NEXT** (затверджено 28.05) |
+| ~~**B3**~~ ⭐ | ~~Плоскі бейджи замість glass-chip~~ | — | — | ✅ **ЗАКРИТО** (28.05, `c3862af`): статус-бейджи у format.ts (traffic/prob), planning-form, client-search-modal, company-overview, planning-readiness, app-header, clients-page, brand-row, manager-accordion переведено на glass-chip (`bg-*-500/12 + border + backdrop-blur`). Icon-фони/банери/hover — лишено |
 
 > **Розбиття god-components (TD-11 clients-page 1855, TD-12 planning-form 2272, TD-13 company-overview 1176) — відкладено до v3** (наступний повний редизайн продукту, рішення 28.05). Не чіпаємо до того.
 
@@ -132,12 +132,12 @@
 
 | Категорія | Пунктів | Годин (оцінка) |
 |---|---|---|
-| 🔴 P0 (критично) | 3 | 13-19 |
-| 🟡 P1 (тиждень) | 6 | 7-13 |
+| 🔴 P0 (критично) | 0 відкрито (B1+B3 ✅, TD-11/12/13 → v3) | — |
+| 🟡 P1 (тиждень) | 3 (TD-3, T-1, T-2) | 5.5-9.5 |
 | 🟢 P2 (місяць) | 14 | 50-70 |
 | 🟢 P3 (nice) | 12 | 35-50 |
 | ❓ Залежності | 4 | + час 1С / бюджет |
-| **ВСЬОГО** | **39 пунктів** | **~105-152 год** |
+| **ВСЬОГО** | **~33 відкритих** | **~90-130 год** |
 
 ---
 
