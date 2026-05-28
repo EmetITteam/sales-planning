@@ -56,12 +56,10 @@ export function LoginForm() {
       <div className="fixed bottom-[-150px] left-[-100px] w-[400px] h-[400px] rounded-full bg-emet-100/40 blur-3xl" />
 
       <div className="w-full max-w-[380px] relative">
-        {/* Logo */}
+        {/* Logo — горизонтальний lockup на всю ширину блоку */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg shadow-emet-blue/15 border border-border/50 mb-4 p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/emet-logo.png" alt="EMET" className="w-full h-full object-contain" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/emet-logo.svg" alt="EMET" className="mx-auto mb-6 h-14 w-auto max-w-full" />
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emet-blue to-emet-blue-light bg-clip-text text-transparent">
             Планування продажів
           </h1>
