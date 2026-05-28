@@ -185,9 +185,10 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
         aria-expanded={expanded}
         className="hidden xl:block w-full text-left px-3 md:px-4 py-3 md:py-4 cursor-pointer hover:bg-white/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
       >
-        {/* Row 1: name+icon | badge | factPct+dev | progress | plan | fact | menagers | мин.міс | chevron | drill-down */}
-        <div className="grid grid-cols-[180px_95px_115px_minmax(160px,1fr)_85px_85px_70px_170px_20px_28px] gap-3 items-center">
-          {/* 1. Region name + MapPin */}
+        {/* Row 1: name+icon+badge | factPct+dev | progress | plan | fact | menagers | мин.міс | chevron | drill-down */}
+        <div className="grid grid-cols-[250px_115px_minmax(160px,1fr)_85px_85px_70px_170px_20px_28px] gap-3 items-center">
+          {/* 1. Region name + MapPin + бейдж (одразу після назви — ближче до регіону,
+              а не в окремій колонці впритул до % як було раніше) */}
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-emet-50 flex items-center justify-center shrink-0">
               <MapPin className="h-4 w-4 text-emet-blue" />
@@ -196,15 +197,12 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               <p className="text-[14px] font-bold truncate">{aggregate.regionName}</p>
               <p className="text-[10px] text-muted-foreground">{managersBrief.length} менеджерів</p>
             </div>
+            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${tl.bg} ${tl.color}`}>
+              {tl.label}
+            </span>
           </div>
 
-          {/* 2. Бейдж traffic-light — justify-self-center: pill хугне текст і
-              центрується у своїй колонці, лишаючи відступ до колонки з % */}
-          <span className={`justify-self-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center ${tl.bg} ${tl.color}`}>
-            {tl.label}
-          </span>
-
-          {/* 3. Факт% + dev */}
+          {/* 2. Факт% + dev */}
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl font-extrabold tracking-tight">{pct.toFixed(1)}%</span>
             <span className={`text-[11px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
