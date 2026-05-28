@@ -957,7 +957,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
   const dimmedRow = noPlanNoFact; // приглушуємо тільки повністю-порожні
 
   return (
-    <div className={`glass-card overflow-hidden ${dimmedRow ? 'opacity-70' : ''}`}>
+    <div className={`glass-card-flat overflow-hidden ${dimmedRow ? 'opacity-70' : ''}`}>
       <button
         type="button"
         onClick={onToggle}

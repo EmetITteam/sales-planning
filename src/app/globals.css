@@ -194,6 +194,22 @@
   border-radius: 12px;
 }
 
+/* Варіант glass-card БЕЗ backdrop-filter — для довгих списків (десятки+
+   рядків). blur(24px) на кожному з ~280 рядків /clients вбивав scroll: при
+   швидкій прокрутці компонувальник не встигав перемалювати блюр і рядки
+   «зникали», лишаючи самі плашки. Над світлим mesh-фоном напівсолідний white
+   виглядає майже так само, але прокрутка плавна. Перехід/lift лишаємо. */
+.glass-card-flat {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  box-shadow:
+    0 4px 20px rgba(6, 42, 61, 0.04),
+    0 8px 32px rgba(6, 42, 61, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+
 /* === Ambient color glow per card (еталон glass-detailed.html #kpi) ===
    Кожна картка має м'який кольоровий halo який відповідає її стану. Градієнт
    135° від напівпрозорого white до tint-кольору стану. Вища специфічність
