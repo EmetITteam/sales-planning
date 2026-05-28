@@ -18,6 +18,7 @@ import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { useRegistryPlans } from '@/lib/use-registry-plans';
 import { adaptRegistryPlans } from '@/lib/onec-adapters';
+import { isTrialManager } from '@/lib/trial-manager';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -136,7 +137,7 @@ export function ClientsPage() {
     clientIds,
   );
   // Контактна активність (зустрічі/дзвінки цього міс) — для Hero Card 4
-  const { activityByClient } = useClientActivities(sessionUser?.login ?? null, clientIds);
+  const { activityByClient, loading: activitiesLoading } = useClientActivities(sessionUser?.login ?? null, clientIds);
   // Фокуси клієнтів (Action A) — для chip у рядку + блок у expanded
   const { focusByClient } = useClientFocuses(sessionUser?.login ?? null, clientIds);
 
@@ -189,14 +190,20 @@ export function ClientsPage() {
     sessionLoginLower !== 'anonymous' ? dateTo : null,
     sessionUser?.login ?? null,
   );
-  // Сума реєстрового плану для поточного менеджера (всі бренди).
-  const registryPlanTotal = useMemo(() => {
-    if (!registryPlansResponse) return 0;
-    let sum = 0;
+  // Реєстровий план менеджера: total (сума по сегментах) + isTrial-детект.
+  // Акумулюємо per-segment (як manager-dashboard) — total збігається з /planning.
+  // isTrial: 1С виставляє $1-sentinel на КОЖЕН сегмент новачкам на випробувальному
+  // (план≈$9, факт=$1143 → 12700%). Без guard Картка «Виконання» вибухає.
+  const registryPlan = useMemo(() => {
+    if (!registryPlansResponse) return { total: 0, isTrial: false };
+    const bySegment = new Map<string, number>();
     for (const p of adaptRegistryPlans(registryPlansResponse)) {
-      if (p.managerLogin === sessionLoginLower) sum += p.planAmount;
+      if (p.managerLogin === sessionLoginLower) {
+        bySegment.set(p.segmentCode, (bySegment.get(p.segmentCode) ?? 0) + p.planAmount);
+      }
     }
-    return sum;
+    const vals = [...bySegment.values()];
+    return { total: vals.reduce((s, v) => s + v, 0), isTrial: isTrialManager(vals) };
   }, [registryPlansResponse, sessionLoginLower]);
 
   // План активації бази (Action B) — login-bound, 1 документ на менеджера+місяць.
@@ -230,7 +237,7 @@ export function ClientsPage() {
     // ВАЖЛИВО: planTotal беремо з Registry (Action 4) — щоб збігалось з /planning.
     // Раніше брали суму planByClient (forecasts+gap_closures менеджера, що
     // концептуально інше — це його прогноз, не офіційний план від керівника).
-    const planTotal = registryPlanTotal;
+    const planTotal = registryPlan.total;
     let factTotal = 0;
     for (const c of baseClients) {
       factTotal += factByClient[c.ClientID]?.factTotal ?? 0;
@@ -287,7 +294,7 @@ export function ClientsPage() {
       clientsWithCall, clientsWithMeeting, clientsWithAnyEvent,
       coveragePct, noContacts, noContactsWithPlan, noContactsWithoutPlan,
     };
-  }, [baseClients, planByClient, factByClient, activityByClient, wd.passedWD, wd.totalWD, registryPlanTotal]);
+  }, [baseClients, planByClient, factByClient, activityByClient, wd.passedWD, wd.totalWD, registryPlan.total]);
 
   // Counts для clickable hero-counters
   const focusedCount = useMemo(() =>
@@ -426,6 +433,7 @@ export function ClientsPage() {
           forecastPct={heroMetrics.forecastPct}
           completedCount={heroMetrics.completedCnt}
           withPlanCount={heroMetrics.withPlanCnt}
+          isTrial={registryPlan.isTrial}
         />
 
         {/* Card 2 — БАЗА КЛІЄНТІВ (включно з резерв-купуючими; резерв-sub-row) */}
@@ -455,6 +463,7 @@ export function ClientsPage() {
         {/* Card 4 — КОНТАКТНА АКТИВНІСТЬ (зустрічі+дзвінки цього міс) */}
         <HeroContacts
           index={3}
+          loading={activitiesLoading}
           baseTotal={baseClients.length}
           withCall={heroMetrics.clientsWithCall}
           withMeeting={heroMetrics.clientsWithMeeting}
@@ -601,12 +610,29 @@ const fmtUSD = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 const heroCardCls = 'glass-card p-5 relative flex flex-col gap-3 fade-stagger';
 
 /** Card 1 — Виконання (план / факт / % / норма / темп). */
-function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct, completedCount, withPlanCount }: {
+function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct, completedCount, withPlanCount, isTrial }: {
   index: number;
   planTotal: number; factTotal: number; pct: number;
   calcPct: number; forecastPct: number;
   completedCount: number; withPlanCount: number;
+  isTrial: boolean;
 }) {
+  // Trial-новачок: 1С виставила $1-sentinel замість плану → % безглуздий.
+  if (isTrial) {
+    return (
+      <div className={`${heroCardCls} ambient-accent`} style={{ ['--i' as string]: index }}>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Виконання</p>
+        </div>
+        <p className="text-[36px] font-bold tracking-[-1px] leading-none text-slate-400">—</p>
+        <div className="flex flex-col gap-1">
+          <span className="inline-flex self-start px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-400/12 border border-slate-300/50 text-slate-600 backdrop-blur-sm">Новачок</span>
+          <p className="text-[11px] text-muted-foreground leading-snug">1С ще не виставила план — менеджер на випробувальному. Факт: <span className="amount font-semibold text-foreground">{fmtUSD(factTotal)}</span></p>
+        </div>
+      </div>
+    );
+  }
   let pctColor = 'text-rose-600';
   if (pct >= 100) pctColor = 'text-emerald-700';
   else if (pct >= calcPct) pctColor = 'text-emerald-600';
@@ -794,8 +820,8 @@ function HeroActivation({ index, rows, planSum, activatedSum, hasDoc, withPlanCo
 }
 
 /** Card 4 — Контактна активність (зустрічі + дзвінки цього міс). */
-function HeroContacts({ index, baseTotal, withCall, withMeeting, coveragePct, noContacts, noContactsWithPlan, noContactsWithoutPlan }: {
-  index: number; baseTotal: number;
+function HeroContacts({ index, loading, baseTotal, withCall, withMeeting, coveragePct, noContacts, noContactsWithPlan, noContactsWithoutPlan }: {
+  index: number; loading: boolean; baseTotal: number;
   withCall: number; withMeeting: number;
   coveragePct: number; noContacts: number;
   noContactsWithPlan: number; noContactsWithoutPlan: number;
@@ -803,13 +829,21 @@ function HeroContacts({ index, baseTotal, withCall, withMeeting, coveragePct, no
   let pctColor = 'text-rose-600';
   if (coveragePct >= 80) pctColor = 'text-emerald-600';
   else if (coveragePct >= 50) pctColor = 'text-amber-600';
-  const amb = coveragePct >= 80 ? 'good' : coveragePct >= 50 ? 'warn' : 'bad';
+  // Поки активності вантажаться (3 чанки 1С) — activityByClient неповний, тож
+  // «без контактів» рахувало б усю базу як red. Показуємо лоадер, не цифри.
+  const amb = loading ? 'accent' : coveragePct >= 80 ? 'good' : coveragePct >= 50 ? 'warn' : 'bad';
   return (
     <div className={`${heroCardCls} ambient-${amb}`} style={{ ['--i' as string]: index }}>
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_#d97706]" />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Контактна активність</p>
       </div>
+      {loading ? (
+        <div className="py-2">
+          <p className="text-[36px] font-bold tracking-[-1px] leading-none text-slate-300 animate-pulse">—</p>
+          <p className="text-[10px] text-muted-foreground mt-2">рахуємо контактну активність…</p>
+        </div>
+      ) : (<>
       <div>
         <p className={`text-[36px] font-bold tracking-[-1px] tabular-nums leading-none ${pctColor}`}>
           {coveragePct.toFixed(0)}<span className="text-[22px] font-medium text-muted-foreground">%</span>
@@ -834,6 +868,7 @@ function HeroContacts({ index, baseTotal, withCall, withMeeting, coveragePct, no
           {' · '}без плану: <span className="font-bold">{noContactsWithoutPlan}</span>
         </span>
       </div>
+      </>)}
     </div>
   );
 }

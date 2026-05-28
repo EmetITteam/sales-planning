@@ -183,8 +183,8 @@ interface UseClientFocusesResult {
 }
 
 export function useClientFocuses(login: string | null, clientIds: string[]): UseClientFocusesResult {
-  // Чанк 200 — як checkActivities (1С спека ~200-500 ID per call).
-  const [chunk1, chunk2, chunk3] = chunkClientIds(clientIds, 200, 3);
+  // 4 чанки по 200 = до 800 клієнтів (як checkActivities). Порожні чанки → без запиту.
+  const [chunk1, chunk2, chunk3, chunk4] = chunkClientIds(clientIds, 200, 4);
   const mkPayload = (chunk: string[]) =>
     login && chunk.length > 0
       ? { login, clientIds: chunk }
@@ -193,13 +193,14 @@ export function useClientFocuses(login: string | null, clientIds: string[]): Use
   const { data: f1, loading: l1, error: e1 } = useOneCData('getClientFocus', mkPayload(chunk1));
   const { data: f2, loading: l2, error: e2 } = useOneCData('getClientFocus', mkPayload(chunk2));
   const { data: f3, loading: l3, error: e3 } = useOneCData('getClientFocus', mkPayload(chunk3));
+  const { data: f4, loading: l4, error: e4 } = useOneCData('getClientFocus', mkPayload(chunk4));
 
-  const focusByClient = useMemo(() => mergeFocuses([f1, f2, f3]), [f1, f2, f3]);
+  const focusByClient = useMemo(() => mergeFocuses([f1, f2, f3, f4]), [f1, f2, f3, f4]);
 
   return {
     focusByClient,
-    loading: l1 || l2 || l3,
-    error: e1 || e2 || e3 || null,
+    loading: l1 || l2 || l3 || l4,
+    error: e1 || e2 || e3 || e4 || null,
   };
 }
 
@@ -224,7 +225,9 @@ export function useClientActivities(login: string | null, clientIds: string[]): 
   const currentPeriod = useAppStore(s => s.currentPeriod);
   const month = currentPeriod.month?.slice(0, 7);
 
-  const [chunk1, chunk2, chunk3] = chunkClientIds(clientIds, 200, 3);
+  // 4 чанки по 200 = до 800 клієнтів. Порожні чанки → payload null → без запиту
+  // (безкоштовно для менших менеджерів). Раніше 3 (600) — впритул до найбільших.
+  const [chunk1, chunk2, chunk3, chunk4] = chunkClientIds(clientIds, 200, 4);
   const mkPayload = (chunk: string[]) =>
     login && month && chunk.length > 0
       ? { login, period: month, clientIds: chunk }
@@ -233,12 +236,13 @@ export function useClientActivities(login: string | null, clientIds: string[]): 
   const { data: a1, loading: la1, error: ea1 } = useOneCData('checkActivities', mkPayload(chunk1));
   const { data: a2, loading: la2, error: ea2 } = useOneCData('checkActivities', mkPayload(chunk2));
   const { data: a3, loading: la3, error: ea3 } = useOneCData('checkActivities', mkPayload(chunk3));
+  const { data: a4, loading: la4, error: ea4 } = useOneCData('checkActivities', mkPayload(chunk4));
 
-  const activityByClient = useMemo(() => mergeActivities([a1, a2, a3]), [a1, a2, a3]);
+  const activityByClient = useMemo(() => mergeActivities([a1, a2, a3, a4]), [a1, a2, a3, a4]);
 
   return {
     activityByClient,
-    loading: la1 || la2 || la3,
-    error: ea1 || ea2 || ea3 || null,
+    loading: la1 || la2 || la3 || la4,
+    error: ea1 || ea2 || ea3 || ea4 || null,
   };
 }
