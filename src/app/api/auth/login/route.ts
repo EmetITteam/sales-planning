@@ -96,11 +96,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     // Fetch fail / timeout — 1С не відповідає. Це НЕ проблема пароля.
+    // У проді не показуємо internal error message (DNS / timeout details leak infra info).
+    console.error('[login] 1С fetch failed:', e instanceof Error ? e.message : String(e));
     return Response.json(
       {
         error: '1С тимчасово недоступний. Спробуйте через 1-2 хвилини або зверніться до адміністратора.',
         code: 'onec_unavailable',
-        detail: e instanceof Error ? e.message : String(e),
+        ...(process.env.NODE_ENV !== 'production' && {
+          detail: e instanceof Error ? e.message : String(e),
+        }),
       },
       { status: 502 },
     );

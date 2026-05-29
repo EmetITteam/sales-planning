@@ -26,7 +26,7 @@ export function DashboardSkeleton({ role }: SkeletonProps) {
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-muted-foreground">
-      <Loader2 className="h-7 w-7 animate-spin text-[#066aab]" />
+      <Loader2 className="h-7 w-7 animate-spin text-emet-blue" />
       <p className="text-[13px] font-medium">{label}</p>
     </div>
   );

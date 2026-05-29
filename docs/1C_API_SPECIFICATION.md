@@ -1,10 +1,17 @@
 # ТЗ для 1С-розробника: HTTP-сервіси для Sales Planning (Спринт 1)
 
-> **Версія:** 2.6 від 11.05.2026
+> **Версія:** 2.7 від 28.05.2026
 > **Контекст:** Уніфікований HTTP-сервіс для 3 систем (СРМ Мітинг, Планування, Аналітика).
 > Спринт 1 — Планування. Розширюємо існуючий сервіс з Мітингу, нічого не ламаємо.
 
-> ### 🆕 Зміни у v2.6 (11.05.2026)
+> ### 🆕 Зміни у v2.7 (25-28.05.2026) — Митинг integration + Action 5 includeAll + CRM-сторінка
+> - **Action 5 розширено: `includeAll: boolean` payload** — якщо true, повертає ВСІ підрозділи компанії (включно з архівними). Andriy задеплоїв 25.05. Backward-compatible. Деталі: [ARCHIVE_SPECS_RESOLVED.md §1](./ARCHIVE_SPECS_RESOLVED.md).
+> - **Нові 5 actions у whitelist** (для сторінки `/clients` — CRM-режим менеджера): `getManagerClients`, `findClient`, `getClientReport`, `getAllMeetingsForClient`, `getClientFocus`. Перші 4 — існуючі у 1С (з Митинга 4.0), просто додано у наш whitelist. `getClientFocus` — нова дія (Action A) від 28.05.
+> - **Action C extension**: `getManagerClients` тепер повертає `isReserved: boolean` + `LastMeetingDate`. Підтримує bulk-перевірку резерв-клієнтів і дату останньої зустрічі без `checkActivities`.
+> - **Зведена таблиця:** 7 → 12 actions (5 нових з Митинга integration).
+> - **Pending питання:** Action B `getClientActivationPlan` + Bug 2 `checkActivities.hasCall` завжди false → [SPEC_PENDING_1C_ITEMS.md](./SPEC_PENDING_1C_ITEMS.md).
+
+> ### Зміни у v2.6 (11.05.2026)
 > - **Новий Action 7: `checkActivities`** — підтвердження що менеджер виконав запланований Дзвінок чи Зустріч з конкретним клієнтом у поточному місяці. Sales Planning використовує для авто-бейджа «Виконано» у формі планування (без ручного клік-чекбокса). Деталі — у секції «Action 7: checkActivities». Пріоритет: post-launch (немає зараз — буде ручна позначка `Очікується` для всіх етапів).
 >
 > ### Зміни у v2.5 (07.05.2026, вечір)
@@ -57,21 +64,23 @@ Authorization: Basic <base64(login:password)>
 
 ## Існуючі методи СРМ (НЕ ЗМІНЮВАТИ)
 
-Ці методи вже працюють у Мітинг 4.0, їх не чіпаємо:
+Ці методи вже працюють у Мітинг 4.0:
 
-| Action | Опис |
-|--------|------|
-| `getInitialData` | Зустрічі за період + дані для форм |
-| `saveNewMeeting` | Створення зустрічі |
-| `updateMeeting` | Оновлення зустрічі |
-| `startMeeting` | Старт зустрічі |
-| `updateMeetingCalendarId` | Прив'язка Google Calendar |
-| `saveClientSurvey` | Опитувальник зустрічі |
-| `getAllMeetingsForClient` | Історія зустрічей клієнта |
-| `getManagerClients` | Список клієнтів менеджера |
-| `findClient` | Пошук клієнта |
-| `registerNewClient` | Реєстрація клієнта |
-| `getClientReport` | Звіт по клієнту |
+| Action | Опис | Використовуємо у sales-planning |
+|--------|------|---|
+| `getInitialData` | Зустрічі за період + дані для форм | Ні |
+| `saveNewMeeting` | Створення зустрічі | Ні |
+| `updateMeeting` | Оновлення зустрічі | Ні |
+| `startMeeting` | Старт зустрічі | Ні |
+| `updateMeetingCalendarId` | Прив'язка Google Calendar | Ні |
+| `saveClientSurvey` | Опитувальник зустрічі | Ні |
+| `getAllMeetingsForClient` | Історія зустрічей клієнта | **Так** (whitelisted v2.7, shape unverified) |
+| `getManagerClients` | Список клієнтів менеджера | **Так** (v2.7 + `isReserved`/`LastMeetingDate`) |
+| `findClient` | Пошук клієнта | **Так** (v2.7) |
+| `registerNewClient` | Реєстрація клієнта | Ні |
+| `getClientReport` | Звіт по клієнту | **Так** (v2.7 + `properties`/`seminars`/`yearlySalesReport`) |
+
+Деталі по кожному з whitelisted Митинг-actions → секція «Митинг integration actions (8-12, v2.7)» нижче.
 
 ---
 
@@ -846,6 +855,255 @@ Authorization: Basic <base64(login:password)>
 
 ---
 
+## Митинг integration actions (Actions 8-12, v2.7)
+
+Це actions які **вже існують у 1С** (з Митинга 4.0), просто додано у whitelist `/api/onec/route.ts` для використання у sales-planning. Окрім `getClientFocus` (Action A) — це нова дія від 28.05.2026.
+
+Усі п'ять actions використовуються на сторінці `/clients` (CRM-режим менеджера). Whitelist + типи у:
+- [src/app/api/onec/route.ts:29-44](../src/app/api/onec/route.ts) — `ALLOWED_ACTIONS` set + login-bound лоджика
+- [src/lib/onec-types.ts:262-326](../src/lib/onec-types.ts) — `OneCActionMap` з усіма new actions
+- [src/lib/mityng-types.ts](../src/lib/mityng-types.ts) — повний shape з усіма edge-case полями + helpers
+
+### Action 8: `getManagerClients` (+ `isReserved`, `LastMeetingDate`)
+
+**Призначення:** bulk-список клієнтів закріплених за менеджером.
+
+**Запит:**
+```json
+{
+  "action": "getManagerClients",
+  "payload": { "login": "manager@emet.in.ua" }
+}
+```
+
+**Override з сесії:** `login` обов'язково перезаписується сесійним логіном на бекенді (`LOGIN_BOUND_ACTIONS`). Менеджер не може запросити чужий список.
+
+**Відповідь:**
+```json
+{
+  "status": "success",
+  "data": {
+    "clients": [{
+      "ClientID": "000014595",
+      "ClientName": "Балабан Олена",
+      "ClientCategory": "Активный",
+      "ClientAddress": "Київ, вул. Перемоги 1",
+      "Phone": "+380501234567",
+      "isReserved": false,
+      "LastMeetingDate": "2026-05-20"
+    }]
+  }
+}
+```
+
+| Поле | Тип | Опис |
+|---|---|---|
+| `ClientID` | string | Код контрагента |
+| `ClientName` | string | ПіБ / Назва (1С повертає у PascalCase у getManagerClients; у findClient — camelCase. Helper `getClientName(c)` обробляє обидва) |
+| `ClientCategory` | string \| null | "Активный" / "Спящий" / "Потерянный" / "Новый" / "Без закупок" / null |
+| `Phone` | string | Телефон |
+| `isReserved` | boolean | 🆕 v2.7: клієнт у Резерві (виключений з планування). Frontend показує окрему секцію + Резерв-tag. |
+| `LastMeetingDate` | string | 🆕 v2.7: остання дата зустрічі формат "YYYY-MM-DD" (або порожня). Bulk-альтернатива `checkActivities` для зустрічей. |
+
+**Login-bound:** Так (через сесію). Кожен менеджер бачить тільки своїх.
+
+**Використання у нашому коді:**
+```ts
+// src/lib/use-my-clients.ts
+const { clients, loading, error, refetch } = useMyClients();
+// автоматично передає сесійний логін, retry до 3 разів якщо порожній відповідь
+```
+
+---
+
+### Action 9: `findClient`
+
+**Призначення:** глобальний пошук клієнта (по всіх менеджерах) — для випадку коли треба знайти клієнта що зараз закріплений за іншим.
+
+**Запит:**
+```json
+{
+  "action": "findClient",
+  "payload": {
+    "searchTerm": "Балабан",
+    "managerLogin": "manager@emet.in.ua"
+  }
+}
+```
+
+**Override з сесії:** `managerLogin` обов'язково перезаписується сесійним логіном (`MANAGER_LOGIN_BOUND_ACTIONS`).
+
+**Відповідь:**
+```json
+{
+  "status": "success",
+  "data": {
+    "found": true,
+    "clients": [{
+      "ClientID": "000014595",
+      "clientName": "Балабан Олена",
+      "ClientCategory": "Активный",
+      "clientAddress": "Київ, вул. Перемоги 1",
+      "Phone": "+380501234567",
+      "managerName": "Сірик Людмила",
+      "isMine": false
+    }]
+  }
+}
+```
+
+**Особливості:**
+- camelCase замість PascalCase для `clientName`/`clientAddress` (відмінність з `getManagerClients`)
+- Додаткові поля `managerName` / `isMine` — щоб показати «належить такому-то менеджеру, тут readonly»
+- При `isMine: false` UI показує клієнта як read-only chip
+
+**Login-bound:** Так (через `managerLogin`).
+
+---
+
+### Action 10: `getClientReport` (з `yearlySalesReport`, `seminars`, `properties`)
+
+**Призначення:** detailed-звіт по одному клієнту (3-міс історія + 12-міс рік + події + клієнт-інфо).
+
+**Запит:**
+```json
+{
+  "action": "getClientReport",
+  "payload": { "clientID": "000014595" }
+}
+```
+
+**Login-bound:** Ні (1С не валідовує що цей `clientID` належить menager-у, що робить запит). SECURITY-NOTE у коментарях `route.ts:64-67`: ризик прийнятний — UI показує тільки ID-шки з `getManagerClients`. Якщо хтось наскрипчить — побачить чужий звіт. TODO: попросити Андрія додати `login` у payload для валідації.
+
+**Відповідь:**
+```json
+{
+  "status": "success",
+  "data": {
+    "clientInfo": {
+      "id": "000014595",
+      "name": "Балабан Олена",
+      "address": "Київ, вул. Перемоги 1",
+      "category": "Активный",
+      "phone": "+380501234567",
+      "education": "дерматолог",
+      "documents": true,
+      "properties": ["Валидный viber номер", "Зарегестрирован в LMS"]
+    },
+    "salesReport": {
+      "periodStart": "2026-03-01",
+      "periodEnd": "2026-05-31",
+      "brands": [{
+        "brandName": "Vitaran",
+        "totalAmount": 1200,
+        "salesByMonth": [
+          { "month": "Березень 2026", "amount": 420 },
+          { "month": "Квітень 2026", "amount": 380 },
+          { "month": "Травень 2026", "amount": 400 }
+        ]
+      }]
+    },
+    "lastMeetings": [{ "date": "2026-05-20", "comment": "..." }],
+    "lastCalls": [{ "date": "2026-05-27", "comment": "..." }],
+    "seminars": [{ "date": "2026-05-15", "name": "ELLANSE Step 2" }],
+    "yearlySalesReport": {
+      "brands": [
+        { "brandName": "Vitaran", "totalAmount": 5400, "salesByMonth": [...] }
+      ],
+      "grandTotal": 12800
+    }
+  }
+}
+```
+
+**Edge cases / нюанси shape:**
+- ⚠️ 1С повертає семінари під ключем `seminars` (НЕ `lastSeminars`!), кожен запис з `name` замість `comment` (виявлено 2026-05-27). Тримаємо обидва опційні у TypeScript.
+- ⚠️ Поле `yearlySalesReport` (НЕ `yearlySales`!) — той самий shape що `salesReport` але за рік. Меетинг використовує цю назву.
+- `properties[]` додано 27.05 — текстові tag-и («Резерв», «Валидный viber номер»). Показуємо chips у expanded view.
+
+**Використання:**
+```ts
+const { report, loading, error } = useClientReport(clientID);
+// Lazy — викликати ТІЛЬКИ коли клієнт вибрано у UI. payload=null → SWR не fetch.
+```
+
+---
+
+### Action 11: `getAllMeetingsForClient` (whitelisted, shape unknown)
+
+**Призначення:** список усіх зустрічей по клієнту. Whitelist додано на майбутнє — для метрики «Активні + нема контактів» (#3 з backlog).
+
+**Запит:**
+```json
+{
+  "action": "getAllMeetingsForClient",
+  "payload": { "clientID": "000014595" }
+}
+```
+
+**Login-bound:** Ні (така ж security-NOTE як `getClientReport`).
+
+**Відповідь:** Shape поки що НЕ верифікований у проді — типізовано як `unknown` у `onec-types.ts:287`. Реальний shape треба перевіряти при першому виклику.
+
+**Поточне використання:** Жодного callsite у frontend поки що — whitelist готовий для майбутнього feature.
+
+---
+
+### Action 12: `getClientFocus` (Action A, реалізовано 28.05)
+
+**Призначення:** Bulk-повернення активних фокусів клієнтів. Один клієнт може мати кілька активних фокусів одночасно (записи з регістру відомостей у 1С).
+
+**Запит:**
+```json
+{
+  "action": "getClientFocus",
+  "payload": {
+    "login": "manager.dnepr@emet.in.ua",
+    "clientIds": ["C001", "C002", "C003"]
+  }
+}
+```
+
+**Login-bound:** Так. `login` обов'язково — фокус прив'язаний до менеджера.
+
+**Відповідь:**
+```json
+{
+  "status": "success",
+  "data": {
+    "focuses": [
+      {
+        "clientId": "C001",
+        "items": [
+          { "focusName": "У фокусі: Neuronox", "since": "2026-04-15", "validUntil": "2026-07-15" },
+          { "focusName": "Реактивація", "since": "2026-05-01", "validUntil": null }
+        ]
+      },
+      { "clientId": "C002", "items": [] }
+    ]
+  }
+}
+```
+
+**Особливості:**
+- `focuses.length === clientIds.length` (для кожного — рядок, навіть з порожнім `items`)
+- `validUntil: null` — безстроковий фокус
+- Тільки **активні на сьогодні** фокуси (фільтр `Дата ≤ TODAY AND (ДатаЗакінчення IS NULL OR ДатаЗакінчення ≥ TODAY)`)
+- 1С повертає тільки фокуси цього менеджера (privacy)
+
+**Performance:** Цільова швидкодія < 300мс на ~500 clientIds. Frontend chunk-ає по 200 ID.
+
+**Використання:**
+```ts
+// src/lib/use-my-clients.ts
+const { focusByClient, loading, error } = useClientFocuses(login, clientIds);
+// focusByClient[clientId] → ClientFocusItem[]
+```
+
+UI: у рядку клієнта поряд з category-chip — невеликі chip-и з кожним активним фокусом.
+
+---
+
 ## Зведена таблиця
 
 | # | Action | Тип | Пріоритет | Оцінка (год) |
@@ -854,10 +1112,15 @@ Authorization: Basic <base64(login:password)>
 | 2 | `getClientsForPlanning` | Новий | 🔴 Високий | 8–10 |
 | 3 | `getSalesFact` (+ `asOfDate`, `totalClientCount` 🆕) | Новий | 🔴 Високий | 6–8 |
 | 4 | `getRegistryPlans` | Новий | 🔴 Високий | 4–6 |
-| 5 | `getRegionData` (+ `asOfDate`, prevMonth 🆕) | Новий | 🟡 Середній | 8–10 |
-| 6 | `getTrainings` 🆕 | Новий | 🟡 Середній | 3–4 |
-| 7 | `checkActivities` 🆕 (v2.6) | Новий | 🟢 Низький (post-launch) | 6–8 |
-| | **Разом** | | | **39–52** |
+| 5 | `getRegionData` (+ `asOfDate`, prevMonth, `includeAll` v2.7) | Новий | 🟡 Середній | 8–10 |
+| 6 | `getTrainings` | Новий | 🟡 Середній | 3–4 |
+| 7 | `checkActivities` (v2.6) | Новий | 🟢 Низький (post-launch) | 6–8 |
+| 8 | `getManagerClients` (+ `isReserved`, `LastMeetingDate` v2.7) | Існував у Митингу + extension | 🟡 Середній | 0 (existed) + 2 (extension) |
+| 9 | `findClient` | Існував у Митингу | 🟢 Низький | 0 (existed) |
+| 10 | `getClientReport` (+ `properties[]`, `seminars`, `yearlySalesReport` v2.7) | Існував у Митингу + extension | 🟡 Середній | 0 + 1 |
+| 11 | `getAllMeetingsForClient` | Існував у Митингу | 🟢 Низький | 0 (whitelisted, shape unverified) |
+| 12 | `getClientFocus` (Action A, v2.7) | Новий | 🟡 Середній | 4–6 |
+| | **Разом** | | | **46–62** (з 39-52 + v2.7 7-10) |
 
 **Зміни оцінки проти v2.0 (+3–5 год):**
 - Action 3 `asOfDate` + `totalClientCount`: +0.5 год (додавання COUNT DISTINCT і WHERE).

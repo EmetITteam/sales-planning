@@ -254,8 +254,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   if (loading && !regionResp) return <DashboardSkeleton role="rm" />;
 
   // === Error state ===
-  const errorBanner = error ? (
-    <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
+  // Session-expired показуємо через модал у AppHeader (не дубль).
+  const errorBanner = error && !error.includes('Сесія завершилась') ? (
+    <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700 flex items-center gap-2">
       <span>Помилка 1С (getRegionData): {error}</span>
       <button onClick={refetch} className="ml-auto font-semibold underline hover:no-underline">
         Спробувати ще
@@ -301,12 +302,12 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
       {/* Region header — селектор регіонів коли РМ закріплений за кількома
           (приклад: Пашковська — Одеса + Миколаїв). */}
       <div className="flex items-center gap-2.5 flex-wrap">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emet-blue to-emet-blue-light text-white shadow-lg shadow-emet-blue/15">
           <MapPin className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg font-bold">Регіон: {region?.regionName || user?.region || '—'}</h2>
+            <h1 className="text-lg font-bold">Регіон: {region?.regionName || user?.region || '—'}</h1>
             {!regionCode && availableRegions.length > 1 && (
               <div className="flex items-center gap-1 ml-1">
                 {availableRegions.map(r => {
@@ -317,8 +318,8 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                       onClick={() => setSelectedRegionCode(r.regionCode)}
                       className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors ${
                         active
-                          ? 'bg-[#066aab] text-white'
-                          : 'bg-[#e8f4fc] text-[#066aab] hover:bg-[#c5e3f6]'
+                          ? 'bg-emet-blue text-white'
+                          : 'bg-emet-50 text-emet-blue hover:bg-emet-100'
                       }`}
                     >
                       {r.regionName}
@@ -334,7 +335,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
         </div>
         <button
           onClick={() => setView('myPlanning')}
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#e8f4fc] hover:bg-[#c5e3f6] text-[#066aab] text-[12px] font-semibold transition-colors"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emet-50 hover:bg-emet-100 text-emet-blue text-[12px] font-semibold transition-colors"
         >
           <ClipboardList className="h-3.5 w-3.5" /> Моє планування
         </button>
@@ -342,7 +343,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           <button
             onClick={refetch}
             title="Оновити з 1С"
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-emet-blue transition-colors"
           >
             <RefreshCw className="h-3 w-3" /> Оновити
           </button>
@@ -352,22 +353,22 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
       {/* Mobile fallback for 'Моє планування' (sm:hidden, header has hidden sm:flex) */}
       <button
         onClick={() => setView('myPlanning')}
-        className="sm:hidden flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[#e8f4fc] text-[#066aab] text-[13px] font-semibold"
+        className="sm:hidden flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-emet-50 text-emet-blue text-[13px] font-semibold"
       >
         <ClipboardList className="h-4 w-4" /> Моє планування
         <ChevronRight className="h-4 w-4 ml-auto" />
       </button>
 
       {loading && !region && (
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-12 text-center">
+        <div className="glass-card p-12 text-center">
           <div className="inline-flex flex-col items-center gap-3">
-            <RefreshCw className="h-6 w-6 animate-spin text-[#066aab]" />
+            <RefreshCw className="h-6 w-6 animate-spin text-emet-blue" />
             <p className="text-[13px] font-medium text-muted-foreground">Завантажуємо дані регіону…</p>
           </div>
         </div>
       )}
       {noRegion && (
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-3">
+        <div className="glass-card p-8 text-center space-y-3">
           <p className="text-[15px] font-bold">Дані регіону не знайдено</p>
           <p className="text-[13px] text-muted-foreground">
             1С не повернула жодного регіону для логіну <span className="font-mono">{user?.login}</span>.
@@ -375,7 +376,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           </p>
           <button
             onClick={handleManualRetry}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-[#066aab]/15 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-emet-blue/15 transition-all"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Спробувати ще
           </button>
@@ -387,11 +388,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
           {/* Hero metrics — 4 картки (4-та = ClientStatsCard через Action 2 агрегат) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
+              index={0}
+              ambient="accent"
+              valueSize="lg"
+              valuePrefix="$"
               icon={<Target />}
-              iconColor="text-[#066aab]"
+              iconColor="text-emet-blue"
               label="План регіону"
-              value={formatUSD(totalPlan)}
-              isAmount
+              value={<span className="amount">{Math.round(totalPlan).toLocaleString('en-US')}</span>}
               caption={(() => {
                 // ТІЛЬКИ finalized — чернетки до натискання «Фінальне збереження»
                 // не йдуть у звітність.
@@ -407,11 +411,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               })()}
             />
             <MetricCard
+              index={1}
+              ambient="mint"
+              valueSize="lg"
+              valuePrefix="$"
               icon={<DollarSign />}
               iconColor="text-emerald-500"
               label="Факт"
-              value={formatUSD(totalFact)}
-              isAmount
+              value={<span className="amount">{Math.round(totalFact).toLocaleString('en-US')}</span>}
               caption={totalPrevFact > 0 ? (
                 <span className="space-y-0.5 block">
                   <span className="text-muted-foreground block">
@@ -429,6 +436,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               ) : null}
             />
             <MetricCard
+              index={2}
+              ambient={totalPct >= calcPctValue ? 'good' : totalPct - calcPctValue >= -15 ? 'warn' : 'bad'}
+              valueSize="lg"
               icon={totalPct >= calcPctValue ? <TrendingUp /> : <TrendingDown />}
               iconColor={totalPct >= calcPctValue ? 'text-emerald-500' : 'text-rose-500'}
               label="Виконання"
@@ -441,12 +451,18 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                 </span>
               )}
               caption={(
-                <div className="space-y-0.5">
-                  <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
-                  <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-                  <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
+                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                  <span className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}:</span>
+                  <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(calcPctValue)}</span>
+                  <span className="text-muted-foreground">Норма на ранок:</span>
+                  <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(morningPctValue)}</span>
+                  <span className="text-muted-foreground">Прогноз (темп):</span>
+                  <span className="font-semibold text-amber-600 tabular-nums text-right">{formatPct(totalForecastPct)}</span>
                   {totalExpectedPct !== null && (
-                    <p className="text-muted-foreground">Запланований: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+                    <>
+                      <span className="text-muted-foreground">Запланований:</span>
+                      <span className="font-semibold text-emet-blue tabular-nums text-right">{formatPct(totalExpectedPct)}</span>
+                    </>
                   )}
                 </div>
               )}

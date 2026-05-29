@@ -987,7 +987,7 @@ export function PlanningForm({
   const totalCatPct = pctOf(totalCatAmount, planAmount);
 
   const CAT_ICONS: Record<string, React.ReactNode> = {
-    active: <Users className="h-4 w-4 text-[#066aab]" />,
+    active: <Users className="h-4 w-4 text-emet-blue" />,
     new: <UserPlus className="h-4 w-4 text-emerald-600" />,
     sleeping_lost: <RefreshCw className="h-4 w-4 text-amber-600" />,
   };
@@ -1209,9 +1209,9 @@ export function PlanningForm({
         </button>
         <span className="text-muted-foreground/40">/</span>
         <span className="text-[15px] font-bold">{segment?.name}</span>
-        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e8f4fc] text-[#066aab]">{periodLabel}</span>
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emet-50 text-emet-blue">{periodLabel}</span>
         {readOnlyProp && (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 flex items-center gap-1">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm flex items-center gap-1">
             <Eye className="h-3 w-3" /> Перегляд
           </span>
         )}
@@ -1226,15 +1226,15 @@ export function PlanningForm({
       {/* Whose-plan banner — коли admin/RM/Director дивиться чужого менеджера,
           явно показуємо ім'я і логін щоб не загубитись (Етап 2.6, 2026-05-13). */}
       {targetUserLogin && targetUserLogin !== (user?.login || '') && (
-        <div className="bg-[#e8f4fc] border border-[#066aab]/20 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#066aab] text-white flex items-center justify-center shrink-0">
+        <div className="bg-emet-50 border border-emet-blue/20 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emet-blue text-white flex items-center justify-center shrink-0">
             <Users className="h-4 w-4" />
           </div>
           <div className="flex-1">
-            <p className="text-[14px] font-bold text-[#066aab]">
+            <p className="text-[14px] font-bold text-emet-blue">
               План менеджера: {targetUserName || targetUserLogin}
             </p>
-            <p className="text-[12px] text-[#066aab]/70 mt-0.5">
+            <p className="text-[12px] text-emet-blue/70 mt-0.5">
               Логін: {targetUserLogin}
               {isAdmin ? ' · режим адміна — редагування дозволено' : ''}
             </p>
@@ -1244,8 +1244,8 @@ export function PlanningForm({
 
       {/* Finalized banner — Пакет А Етап 2 (2026-05-13) */}
       {isFinalized && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+        <div className="bg-emerald-50/55 backdrop-blur-xl border border-emerald-200/70 rounded-2xl p-4 flex items-start gap-3 shadow-[0_4px_20px_rgba(6,95,70,0.04)]">
+          <div className="w-9 h-9 rounded-xl bg-emerald-100/80 backdrop-blur-sm flex items-center justify-center shrink-0">
             <Check className="h-4 w-4 text-emerald-700" />
           </div>
           <div className="flex-1">
@@ -1288,17 +1288,17 @@ export function PlanningForm({
             subline?: string;
           };
           const metrics: Metric[] = [
-            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true, subline: planSubline ?? undefined },
-            { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-[#066aab] to-[#0880cc]', isAmount: true },
+            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-emet-blue to-emet-blue-light', isAmount: true, subline: planSubline ?? undefined },
+            { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-emet-blue to-emet-blue-light', isAmount: true },
             { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true, subline: factSubline ?? undefined },
             { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
           ];
           return metrics.map(m => (
-            <div key={m.label} className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] relative overflow-hidden">
+            <div key={m.label} className="glass-card p-4 relative overflow-hidden">
               <div className="flex items-center gap-2.5 mb-2">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br ${m.grad} text-white`}>{m.icon}</div>
                 {m.badge && (
-                  <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${m.badge.ok ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                  <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm border ${m.badge.ok ? 'bg-emerald-500/12 border-emerald-300/40 text-emerald-600' : 'bg-rose-500/12 border-rose-300/40 text-rose-600'}`}>
                     {m.badge.ok ? <ArrowUpRight className="inline h-2.5 w-2.5" /> : <ArrowDownRight className="inline h-2.5 w-2.5" />} {m.badge.text}
                   </span>
                 )}
@@ -1314,11 +1314,11 @@ export function PlanningForm({
       </div>
 
       {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
           <h3 className="text-[14px] font-bold">Дані по клієнтах по ТМ</h3>
           {clientsLoading && (
-            <span className="flex items-center gap-1.5 text-[11px] text-[#066aab] font-medium">
+            <span className="flex items-center gap-1.5 text-[11px] text-emet-blue font-medium">
               <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1341,7 +1341,7 @@ export function PlanningForm({
               <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Заплан.</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
               <div className="text-right basis-[90px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
               <div className="text-right basis-[80px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-emerald-700">{formatUSD(cat.factAmount)}</p></div>
-              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-[#066aab]">{cat.planCoveragePercent.toFixed(1)}%</p></div>
+              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-emet-blue">{cat.planCoveragePercent.toFixed(1)}%</p></div>
             </div>
           ))}
           {/* Незаплановані — покупці яких немає у плані менеджера, але вони
@@ -1393,7 +1393,7 @@ export function PlanningForm({
             <p className="text-[14px] font-bold text-right">{totalCatClients}</p>
             <p className="text-[14px] font-bold font-mono text-right amount">{formatUSD(totalCatAmount)}</p>
             <p className="text-[14px] font-bold font-mono text-right amount text-emerald-700">{formatUSD(totalCatFact)}</p>
-            <p className="text-[14px] font-bold text-[#066aab] text-right">{totalCatPct.toFixed(1)}%</p>
+            <p className="text-[14px] font-bold text-emet-blue text-right">{totalCatPct.toFixed(1)}%</p>
           </div>
         </div>
         )}
@@ -1408,7 +1408,7 @@ export function PlanningForm({
           </div>
           {!lockEdit && (
             <Button onClick={() => setSearchOpen(true)}
-              className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
+              className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-9 px-4 text-[13px]">
               <Search className="h-3.5 w-3.5" /> Додати клієнта
             </Button>
           )}
@@ -1417,7 +1417,7 @@ export function PlanningForm({
         {/* Bulk action bar — fixed над save bar щоб не треба було скролити
             нагору для кнопки видалення при довгих списках. */}
         {!lockEdit && selectedForecasts.size > 0 && (
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50 border-2 border-rose-300 shadow-2xl">
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50/85 backdrop-blur-xl border-2 border-rose-300/80 shadow-[0_10px_40px_rgba(159,18,57,0.18)]">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedForecasts.size}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedForecasts(new Set())}
@@ -1457,8 +1457,8 @@ export function PlanningForm({
         </div>
 
         {clientsLoading && sortedForecasts.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground bg-white rounded-2xl border border-[#e8ebf4]">
-            <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground glass-card border border-[#e8ebf4]/50">
+            <svg className="h-5 w-5 animate-spin text-emet-blue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
@@ -1474,7 +1474,7 @@ export function PlanningForm({
           {sortedForecasts.map((row) => {
             const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
             return (
-              <div key={row.clientId1c} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
+              <div key={row.clientId1c} className={`glass-card overflow-hidden transition-all duration-200 ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
                 {/* === DESKTOP (md+) === */}
                 <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                   {/* Чекбокс multi-select (тільки для незавершених) */}
@@ -1539,7 +1539,7 @@ export function PlanningForm({
                   {/* Статус */}
                   {row.stage ? (
                     <div className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold ${
-                      row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
                     }`}>
                       <StageIcon className="h-3 w-3" />
                       {row.stageDone ? 'Виконано' : 'Очікується'}
@@ -1681,7 +1681,7 @@ export function PlanningForm({
                       </Select>
                       {row.stage && (
                         <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${
-                          row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                          row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
                         }`}>
                           <StageIcon className="h-3 w-3" />
                           {row.stageDone ? 'Викон.' : 'Очік.'}
@@ -1767,11 +1767,11 @@ export function PlanningForm({
             <div className="flex items-center gap-3">
               <h3 className="text-[15px] font-bold">Закриття розриву</h3>
               {gapAfterForecast > 0 ? (
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600">
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/12 border border-rose-300/40 text-rose-600 backdrop-blur-sm">
                   <AlertTriangle className="h-3 w-3" /> <span className="amount">{formatUSD(Math.round(gapAfterForecast))}</span>
                 </span>
               ) : (
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600">Покрито</span>
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/12 border border-emerald-300/40 text-emerald-600 backdrop-blur-sm">Покрито</span>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1780,15 +1780,15 @@ export function PlanningForm({
           </div>
           {!lockEdit && (
             <Button onClick={() => setGapSearchOpen(true)}
-              className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-9 px-4 text-[13px]">
+              className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-9 px-4 text-[13px]">
               <Search className="h-3.5 w-3.5" /> Додати клієнта
             </Button>
           )}
         </div>
 
         {clientsLoading && gapClosures.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground bg-white rounded-2xl border border-[#e8ebf4]">
-            <svg className="h-5 w-5 animate-spin text-[#066aab]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground glass-card border border-[#e8ebf4]/50">
+            <svg className="h-5 w-5 animate-spin text-emet-blue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
@@ -1797,7 +1797,7 @@ export function PlanningForm({
         )}
         {/* Bulk action bar для gap-closures — fixed над save bar */}
         {!lockEdit && selectedGaps.size > 0 && (
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50 border-2 border-rose-300 shadow-2xl">
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50/85 backdrop-blur-xl border-2 border-rose-300/80 shadow-[0_10px_40px_rgba(159,18,57,0.18)]">
             <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedGaps.size}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedGaps(new Set())}
@@ -1847,7 +1847,7 @@ export function PlanningForm({
               const hasFact = row.factAmount > 0;
               const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
               return (
-                <div key={row.clientId1c || `idx-${i}`} className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
+                <div key={row.clientId1c || `idx-${i}`} className={`glass-card overflow-hidden ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
                   {/* === DESKTOP (md+) === */}
                   <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
                     {/* Чекбокс multi-select */}
@@ -1880,7 +1880,7 @@ export function PlanningForm({
                         </p>
                       )}
                       <div className="flex items-center gap-2 mt-0.5">
-                        {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}
+                        {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm font-semibold">{row.category}</span>}
                         <span className="text-[10px] text-muted-foreground truncate">
                           {row.lastPurchaseDate ? <>{formatDate(row.lastPurchaseDate)} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span></> : ''}
                         </span>
@@ -1920,7 +1920,7 @@ export function PlanningForm({
                     {/* Статус */}
                     {row.stage ? (
                       <div className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold ${
-                        row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                        row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
                       }`}>
                         <StageIcon className="h-3 w-3" />
                         {row.stageDone ? 'Виконано' : 'Очікується'}
@@ -2013,7 +2013,7 @@ export function PlanningForm({
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-0.5">
-                          {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">{row.category}</span>}
+                          {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm font-semibold">{row.category}</span>}
                           {row.lastPurchaseDate && (
                             <span className="text-[10px] text-muted-foreground">{formatDate(row.lastPurchaseDate)} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span></span>
                           )}
@@ -2061,7 +2061,7 @@ export function PlanningForm({
                           </SelectContent>
                         </Select>
                         {row.stage && (
-                          <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${row.stageDone ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'}`}>
                             <StageIcon className="h-3 w-3" />
                             {row.stageDone ? 'Викон.' : 'Очік.'}
                           </div>
@@ -2133,7 +2133,7 @@ export function PlanningForm({
       </div>
 
       {/* Дії для закриття */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-5 py-3 border-b border-[#e2e7ef]">
           <h3 className="text-[14px] font-bold">Дії для закриття розриву</h3>
         </div>
@@ -2167,8 +2167,8 @@ export function PlanningForm({
             </span>
           )}
           {saveResult && (
-            <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg ${
-              saveResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+            <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg backdrop-blur-sm border ${
+              saveResult.ok ? 'bg-emerald-500/12 border-emerald-300/40 text-emerald-700' : 'bg-rose-500/12 border-rose-300/40 text-rose-700'
             }`} role="status">
               {saveResult.msg}
             </span>
@@ -2176,7 +2176,7 @@ export function PlanningForm({
           <Button
             onClick={handleSave}
             disabled={saving || finalizing}
-            className="gap-2 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white shadow-lg shadow-[#066aab]/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+            className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
           >
             {saving ? (
               <>

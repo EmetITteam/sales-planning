@@ -50,26 +50,23 @@ export function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#e8f4fc] via-white to-[#e8f4fc] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emet-50 via-white to-emet-50 p-4">
       {/* Decorative circles */}
-      <div className="fixed top-[-200px] right-[-100px] w-[500px] h-[500px] rounded-full bg-[#c5e3f6]/40 blur-3xl" />
-      <div className="fixed bottom-[-150px] left-[-100px] w-[400px] h-[400px] rounded-full bg-[#c5e3f6]/40 blur-3xl" />
+      <div className="fixed top-[-200px] right-[-100px] w-[500px] h-[500px] rounded-full bg-emet-100/40 blur-3xl" />
+      <div className="fixed bottom-[-150px] left-[-100px] w-[400px] h-[400px] rounded-full bg-emet-100/40 blur-3xl" />
 
       <div className="w-full max-w-[380px] relative">
-        {/* Logo */}
+        {/* Logo — горизонтальний lockup на всю ширину блоку */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg shadow-[#066aab]/15 border border-border/50 mb-4 p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/emet-logo.png" alt="EMET" className="w-full h-full object-contain" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-[#066aab] to-[#0880cc] bg-clip-text text-transparent">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/emet-logo.svg" alt="EMET" className="mx-auto mb-6 h-14 w-auto max-w-full" />
+          <h1 className="text-2xl font-bold tracking-tight text-[#081E2D]">
             Планування продажів
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Прогноз, закриття розриву, факт</p>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-2xl shadow-xl shadow-[#066aab]/10 border border-border/50 p-6">
+        <div className="bg-white rounded-2xl shadow-xl shadow-emet-blue/10 border border-border/50 p-6">
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
@@ -109,7 +106,7 @@ export function LoginForm() {
             <Button
               type="submit"
               disabled={loading || !login || !password}
-              className="w-full h-10 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#066aab] shadow-md shadow-[#066aab]/20 transition-all disabled:opacity-50"
+              className="w-full h-10 bg-[#081E2D] hover:bg-[#0d2a3d] text-white shadow-md shadow-[#081E2D]/25 transition-all disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -142,7 +139,7 @@ export function LoginForm() {
                     key={item.key}
                     onClick={() => quickLogin(item.key)}
                     disabled={loading}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/60 hover:bg-[#e8f4fc] hover:border-[#c5e3f6] transition-all text-sm font-medium text-foreground/80 cursor-pointer disabled:opacity-50"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/60 hover:bg-emet-50 hover:border-emet-100 transition-all text-sm font-medium text-foreground/80 cursor-pointer disabled:opacity-50"
                   >
                     <span className="text-base">{item.icon}</span>
                     {item.label}

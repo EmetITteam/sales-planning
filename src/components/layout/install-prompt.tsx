@@ -73,8 +73,8 @@ export function InstallPrompt() {
   if (!deferredPrompt && !showIosHint) return null;
 
   return (
-    <div className="bg-gradient-to-r from-[#066aab]/5 via-[#0880cc]/5 to-[#066aab]/5 border border-[#066aab]/15 rounded-2xl p-3 md:p-4 flex items-center gap-3">
-      <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shrink-0">
+    <div className="bg-gradient-to-r from-emet-blue/5 via-emet-blue-light/5 to-emet-blue/5 border border-emet-blue/15 rounded-2xl p-3 md:p-4 flex items-center gap-3">
+      <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-emet-blue to-emet-blue-light text-white shrink-0">
         <Download className="h-4 w-4" />
       </div>
       <div className="flex-1 min-w-0">
@@ -93,7 +93,7 @@ export function InstallPrompt() {
       {deferredPrompt && (
         <button
           onClick={handleInstall}
-          className="bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap shrink-0"
+          className="bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap shrink-0"
         >
           Встановити
         </button>
@@ -101,7 +101,7 @@ export function InstallPrompt() {
       <button
         onClick={handleDismiss}
         aria-label="Закрити"
-        className="p-1.5 rounded-lg hover:bg-[#066aab]/10 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0"
+        className="p-1.5 rounded-lg hover:bg-emet-blue/10 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0"
       >
         <X className="h-4 w-4" />
       </button>

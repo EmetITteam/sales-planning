@@ -282,9 +282,29 @@ POST `/api/planning/route.ts` зберігає **CURRENT STATE** форми:
 
 ---
 
-## 13. Версія документу
+## 14. Сторінка /clients (CRM-режим менеджера)
+
+- Route: `/clients` (src/app/clients/page.tsx + src/components/clients/clients-page.tsx)
+- Auth-gate: будь-який залогінений
+- Тягне дані через 5 нових 1С-actions (getManagerClients, getClientReport,
+  checkActivities, getClientFocus + getSalesFact)
+- API endpoint: /api/clients/plan-totals — план з Supabase forecasts+gap_closures
+- Hooks: src/lib/use-my-clients.ts (useMyClients, useClientReport,
+  useClientsTotals, useClientActivities, useClientFocuses)
+- Резерв-логіка: baseClients = NON-reserved ∪ Reserved-з-фактом>0
+  - clientStats counts по baseClients (резерв-non-buyers виключені)
+  - Окрема секція Reserved внизу списку (collapsed)
+- Brand normalization: canonicalSegmentCode() мапить Vitaran-sub-products
+  → OTHER, IUSE-sub-products → IUSE для consistent matching
+- Hero Card 1 planTotal: з Registry (Action 4 getRegistryPlans) — НЕ з
+  forecasts+gap_closures. Це щоб збігалось з manager-dashboard.
+
+---
+
+## 15. Версія документу
 
 - **2026-05-08** — створено після Day 9. Покриває стан після відновлення архітектури 0767809→ec81eed.
 - **2026-05-12** — додано секції 6-10 (M7 monthly pid, M8 archived_at, per-segment classification, BrandRow contract, save flow). Git tag: `etalon-2026-05-12`.
 - **2026-05-12 v2** — додано секції 11-12 (Action 7 + PlanningReadinessCard). Git tag: `etalon-2026-05-12-v2`.
+- **2026-05-28** — додано секцію 14 (Сторінка /clients) після merge feat/clients-page.
 - Оновлювати при суттєвих змінах архітектури (нові ролі, нові дашборди, нові accordion-патерни, нові migrations).

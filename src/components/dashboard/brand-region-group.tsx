@@ -91,7 +91,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
   const hasBrandPlan = !!planByLogin && brand.totalPlan > 0;
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+    <div className="glass-card overflow-hidden">
       <BrandRow
         segmentName={brand.segmentName}
         planAmount={brand.totalPlan}
@@ -108,7 +108,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
         expanded={expanded}
       />
       {expanded && (
-        <div className="px-3 md:px-5 py-3 space-y-3 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-3 md:px-5 py-3 space-y-3 bg-white/30 backdrop-blur-md border-t border-white/40">
           {/* Розклад по категоріях клієнтів — перед списком регіонів */}
           {(planCategoriesForBrand || factCategoriesForBrand || categoriesLoading) && (
             <CategoryStatsTable
@@ -159,7 +159,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                   {onManagerClick && r.managers.length > 0 && (
                     <button
                       onClick={() => setExpandedRegion(isRegionExpanded ? null : r.regionCode)}
-                      className="p-2 rounded-lg hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
+                      className="p-2 rounded-lg hover:bg-emet-50 text-muted-foreground/40 hover:text-emet-blue transition-colors cursor-pointer shrink-0"
                       title={isRegionExpanded ? 'Сховати менеджерів' : 'Показати менеджерів регіону'}
                     >
                       <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isRegionExpanded ? 'rotate-180' : ''}`} />
@@ -172,7 +172,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                       <button
                         key={m.login}
                         onClick={() => onManagerClick(m.login, brand.segmentCode)}
-                        className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-white hover:bg-[#e8f4fc] border border-[#f0f2f8] text-[12px] text-left transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-white hover:bg-emet-50 border border-[#f0f2f8] text-[12px] text-left transition-colors cursor-pointer"
                       >
                         <span className="font-medium truncate flex-1">{m.name || m.login}</span>
                         <span className="text-muted-foreground tabular-nums shrink-0">

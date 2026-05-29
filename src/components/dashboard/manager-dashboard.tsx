@@ -150,6 +150,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   const { data: plansResponse, loading: plansLoading, error: plansError, refetch: refetchPlans } = useRegistryPlans(
     !isDemo && effectiveLogin !== 'anonymous' ? dateFrom : null,
     !isDemo && effectiveLogin !== 'anonymous' ? dateTo : null,
+    effectiveLogin,
   );
 
   // === Prev-month fetch (Б.1, 2026-05-13): окремі виклики Action 3 + Action 4
@@ -164,6 +165,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   const { data: prevPlansResponse } = useRegistryPlans(
     !isDemo && effectiveLogin !== 'anonymous' ? prevDateFrom : null,
     !isDemo && effectiveLogin !== 'anonymous' ? prevDateTo : null,
+    effectiveLogin,
   );
   const { data: prevFactResponse } = useOneCData(
     'getSalesFact',
@@ -176,29 +178,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   // Нормалізуємо логіни до lower-case з обох сторін.
   const effectiveLoginLower = effectiveLogin.toLowerCase().trim();
 
-  // Auto-retry для Action 4: до 3 спроб з backoff якщо 1С повернула порожній
-  // plans[] для нашого login. Аналогічно до Action 5 (region) — на першому
-  // запиті після логіну 1С іноді не встигає індексу.
-  const [planRetryAttempt, setPlanRetryAttempt] = useState(0);
-  useEffect(() => {
-    if (!plansResponse || plansLoading || plansError) return;
-    if (planRetryAttempt >= 3) return;
-    const myPlans = plansResponse.plans?.filter(p =>
-      (p.managerLogin || '').toLowerCase().trim() === effectiveLoginLower,
-    ) ?? [];
-    if (myPlans.length === 0) {
-      const delay = planRetryAttempt === 0 ? 1200 : planRetryAttempt === 1 ? 2500 : 5000;
-      const t = setTimeout(() => {
-        setPlanRetryAttempt(n => n + 1);
-        refetchPlans();
-      }, delay);
-      return () => clearTimeout(t);
-    }
-  }, [plansResponse, plansLoading, plansError, effectiveLoginLower, planRetryAttempt, refetchPlans]);
-  // Reset retry counter коли план з'явився або змінився login
-  useEffect(() => {
-    setPlanRetryAttempt(0);
-  }, [effectiveLoginLower]);
+  // Cold-start 1С обробляє сам useRegistryPlans (login-aware isEmptyResponse →
+  // вбудований retry, тримає loading=true). Окремий компонентний retry прибрано.
   const myPlansBySegment = useMemo(() => {
     if (!plansResponse) return null;
     const map = new Map<string, number>();
@@ -234,24 +215,40 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
 
   // Агрегати по категоріях клієнтів (для ClientStatsCard) — з реальних даних 1С
   // або з демо-цифр у DEMO режимі.
+  // 'bought' рахуємо через крос-референс: Action 2 (getClientsForPlanning →
+  // категорії) + Action 3 (getSalesFact → клієнти з купівлями цього міс).
+  // Це робить ClientStatsCard консистентним з /clients page.
   const clientStats: ClientCategoryStats | null = useMemo(() => {
     if (isDemo) return getDemoClientStats();
     if (!clientsResponse) return null;
     const all = adaptClientsForPlanning(clientsResponse);
-    const active = all.filter(c => c.category === 'active').length;
-    const sleeping = all.filter(c => c.category === 'sleeping' || c.category === 'lost').length;
-    const newClients = all.filter(c => c.category === 'new').length;
-    // `bought` поки не маємо джерела — потрібен крос-метод Action 2 + Action 3
-    // (для кожної категорії порахувати скільки купило цього місяця). Зробимо коли
-    // буде відповідний метод/агрегація. Поки 0 щоб не вводити в оману.
+
+    // Set ID-шок клієнтів які купили хоча б щось цього місяця (з Action 3).
+    const boughtIds = new Set<string>();
+    if (factResponse) {
+      const facts = adaptSalesFact(factResponse).facts;
+      for (const f of facts) {
+        for (const c of f.clients) {
+          if (c.amount > 0 && c.clientId) boughtIds.add(c.clientId);
+        }
+      }
+    }
+
+    const active = all.filter(c => c.category === 'active');
+    const sleeping = all.filter(c => c.category === 'sleeping' || c.category === 'lost');
+    const newClients = all.filter(c => c.category === 'new');
+
+    const countBought = (clients: typeof all) =>
+      clients.filter(c => boughtIds.has(c.clientId)).length;
+
     return {
-      active: { total: active, bought: 0 },
-      sleeping: { total: sleeping, bought: 0 },
-      newClients: { total: newClients, bought: 0 },
-      totalBought: 0,
+      active: { total: active.length, bought: countBought(active) },
+      sleeping: { total: sleeping.length, bought: countBought(sleeping) },
+      newClients: { total: newClients.length, bought: countBought(newClients) },
+      totalBought: boughtIds.size,
       totalClients: all.length,
     };
-  }, [isDemo, clientsResponse]);
+  }, [isDemo, clientsResponse, factResponse]);
 
   // План менеджера з нашого Supabase (forecasts + gap_closures) per segment.
   // Використовуємо для:
@@ -393,19 +390,19 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     return (
       <div className="space-y-4">
         {isViewing && (
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50/60 backdrop-blur-md border border-amber-200/70 text-[13px] text-amber-800">
             <span className="font-semibold">👁 Перегляд менеджера:</span>
             <span className="font-bold">{targetUserName || targetUserLogin}</span>
           </div>
         )}
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-2">
+        <div className="glass-card p-8 text-center space-y-2">
           <p className="text-[15px] font-bold text-foreground">У 1С не знайдено закріплених клієнтів</p>
           <p className="text-[13px] text-muted-foreground max-w-md mx-auto">
             Логін <span className="font-mono font-semibold">{effectiveLogin}</span> не має жодного клієнта у регістрі планування 1С.
             Зверніться до адміністратора 1С щоб закріпити клієнтів за вашим логіном.
           </p>
           <button onClick={refetchClients}
-            className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#066aab] hover:underline">
+            className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-emet-blue hover:underline">
             <RefreshCw className="h-3 w-3" /> Спробувати ще раз
           </button>
         </div>
@@ -418,7 +415,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       <MaintenanceBanner />
       <WindowLockBanner />
       {isViewing && (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-800">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50/60 backdrop-blur-md border border-amber-200/70 text-[13px] text-amber-800">
           <span className="font-semibold">👁 Перегляд менеджера:</span>
           <span className="font-bold">{targetUserName || targetUserLogin}</span>
           <span className="ml-auto text-[11px] text-amber-700">
@@ -433,6 +430,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
         </div>
       )}
       {(factError || plansError || clientsError) && (() => {
+        // Якщо це сесія завершилась — модал у AppHeader покаже зрозуміле
+        // повідомлення, банер тут зайвий (буде дубль + JSON dump страх).
+        const isSessionError = [factError, plansError, clientsError].some(
+          e => e && e.includes('Сесія завершилась'),
+        );
+        if (isSessionError) return null;
+
         // Об'єднуємо всі помилки 1С в один баннер з одним Retry — не псуємо
         // ще більше і так стресовий момент сепаратними червоними блоками.
         const sources: string[] = [];
@@ -445,7 +449,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           if (clientsError) refetchClients();
         };
         return (
-          <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
+          <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700 flex items-center gap-2">
             <span>Помилка 1С: {sources.join('; ')}</span>
             <button onClick={retryAll} className="ml-auto font-semibold underline hover:no-underline">
               Спробувати ще
@@ -457,11 +461,14 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       {/* Hero metrics — компактні картки у стилі watermark */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
+          index={0}
+          ambient="accent"
+          valueSize="lg"
+          valuePrefix={isTrial ? undefined : '$'}
           icon={<Target />}
-          iconColor="text-[#066aab]"
+          iconColor="text-emet-blue"
           label="План місяця"
-          value={isTrial ? '—' : formatUSD(totalPlan)}
-          isAmount={!isTrial}
+          value={isTrial ? '—' : <span className="amount">{Math.round(totalPlan).toLocaleString('en-US')}</span>}
           caption={(() => {
             // Trial-новачок: 1С ще не виставила реальний план ($1 sentinel на кожен сегмент).
             // Не показуємо суму/факти/проценти — все одно безглузді.
@@ -487,11 +494,14 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           })()}
         />
         <MetricCard
+          index={1}
+          ambient="mint"
+          valueSize="lg"
+          valuePrefix="$"
           icon={<DollarSign />}
           iconColor="text-emerald-500"
           label="Факт"
-          value={formatUSD(totalFact)}
-          isAmount
+          value={<span className="amount">{Math.round(totalFact).toLocaleString('en-US')}</span>}
           caption={totalPrevFact > 0 && (() => {
             // Б.2: ЗАВЖДИ заплановане vs минулий факт (ТІЛЬКИ finalized).
             // Якщо план=$0 — dyn = -prevFact, наочно показує «у плані нічого нема».
@@ -518,6 +528,9 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           })()}
         />
         <MetricCard
+          index={2}
+          ambient={isTrial ? 'accent' : totalPct >= totalCalcPct ? 'good' : totalPct - totalCalcPct >= -15 ? 'warn' : 'bad'}
+          valueSize="lg"
           icon={isTrial ? <Target /> : (totalPct >= totalCalcPct ? <TrendingUp /> : <TrendingDown />)}
           iconColor={isTrial ? 'text-slate-400' : (totalPct >= totalCalcPct ? 'text-emerald-500' : 'text-rose-500')}
           label="Виконання"
@@ -532,10 +545,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           caption={isTrial ? (
             <p className="text-[11px] text-muted-foreground">Без реального плану відсотки не рахуються</p>
           ) : (
-            <div className="space-y-0.5">
-              <p className="text-muted-foreground">Норма на {asOfLabel}: <span className="font-semibold text-foreground">{formatPct(totalCalcPct)}</span></p>
-              <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-              <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span> · Запланований: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+              <span className="text-muted-foreground">Норма на {asOfLabel}:</span>
+              <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(totalCalcPct)}</span>
+              <span className="text-muted-foreground">Норма на ранок:</span>
+              <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(morningPctValue)}</span>
+              <span className="text-muted-foreground">Прогноз (темп):</span>
+              <span className="font-semibold text-amber-600 tabular-nums text-right">{formatPct(totalForecastPct)}</span>
+              <span className="text-muted-foreground">Запланований:</span>
+              <span className="font-semibold text-emet-blue tabular-nums text-right">{formatPct(totalExpectedPct)}</span>
             </div>
           )}
         />
@@ -551,9 +569,9 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           <h3 className="text-[15px] font-bold">Торгові марки</h3>
           {!clientsLoading && clientsResponse && (
             <button
-              onClick={refetchClients}
-              title="Перезавантажити клієнтів з 1С (якщо щойно додав/змінив у 1С)"
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors"
+              onClick={() => { refetchPlans(); refetchFact(); refetchClients(); }}
+              title="Перезавантажити план + факт + клієнтів з 1С (якщо щойно додав/змінив у 1С)"
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-emet-blue transition-colors"
             >
               <RefreshCw className="h-3 w-3" /> Оновити з 1С
             </button>

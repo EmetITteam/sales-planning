@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Overview · Уся компанія · Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root {
+  --ink: #062a3d;
+  --ink-soft: rgba(6,42,61,0.78);
+  --ink-muted: rgba(6,42,61,0.58);
+  --ink-faded: rgba(6,42,61,0.38);
+  --accent: #066aab;
+  --accent2: #5bd5bc;
+  --good: #14b8a6;
+  --warn: #fb923c;
+  --bad: #e11d48;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: #f8fbfd;
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+.mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.amount { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+.mesh-bg {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+    radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+    radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+    radial-gradient(at 20% 90%, #e0f7fa 0%, transparent 55%),
+    linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
+}
+.blob {
+  position: fixed; border-radius: 50%;
+  filter: blur(90px); z-index: -1; pointer-events: none;
+  opacity: 0.32; animation: drift 25s ease-in-out infinite;
+}
+.blob.a { width: 520px; height: 520px; background: rgba(6,106,171,0.35); top: -100px; left: -100px; }
+.blob.b { width: 440px; height: 440px; background: rgba(91,213,188,0.4); top: 30%; right: -80px; animation-delay: -8s; }
+.blob.c { width: 380px; height: 380px; background: rgba(8,128,204,0.3); bottom: -100px; left: 30%; animation-delay: -16s; }
+@keyframes drift {
+  0%,100% { transform: translate(0,0) scale(1); }
+  25% { transform: translate(80px,-60px) scale(1.1); }
+  50% { transform: translate(-40px,100px) scale(0.95); }
+  75% { transform: translate(60px,40px) scale(1.05); }
+}
+
+.glass {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(6,42,61,0.04), 0 8px 32px rgba(6,42,61,0.04), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.glass-soft {
+  background: rgba(255,255,255,0.4);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 14px;
+}
+
+/* HEADER */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  padding: 16px 32px;
+  display: flex; align-items: center; gap: 24px;
+  background: rgba(248,251,253,0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255,255,255,0.5);
+}
+.topbar .brand {
+  display: flex; align-items: center; gap: 12px;
+  font-weight: 700;
+}
+.topbar .brand-dot {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: linear-gradient(135deg, #066aab, #5bd5bc);
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800;
+}
+.topbar .crumb { font-size: 13px; color: var(--ink-muted); }
+.topbar .crumb strong { color: var(--ink); }
+.topbar .right { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+.topbar .role {
+  font-size: 11px; font-weight: 700;
+  padding: 4px 12px; border-radius: 999px;
+  background: rgba(225,29,72,0.12); color: #9f1239;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+.page { padding: 24px 32px 80px; max-width: 1400px; margin: 0 auto; }
+.title-block { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
+.title-block h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.7px; }
+.title-block .sub { font-size: 13px; color: var(--ink-muted); margin-top: 4px; }
+
+/* FILTERS */
+.filters {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+}
+.filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-group .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-muted); }
+.chip {
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: rgba(255,255,255,0.6); color: var(--ink-soft);
+  border: 1px solid rgba(255,255,255,0.5);
+  cursor: pointer; transition: all 0.15s;
+}
+.chip:hover { background: rgba(255,255,255,0.9); }
+.chip.active { background: linear-gradient(135deg, #066aab, #0880cc); color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(6,106,171,0.25); }
+
+/* HERO */
+.hero {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  margin-bottom: 24px;
+}
+.hero .card {
+  padding: 24px;
+  position: relative; overflow: hidden;
+}
+.hero .label {
+  font-size: 11px; font-weight: 700; color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: 1.1px;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.hero .label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 4px var(--accent); }
+.hero .label .dot.mint { background: var(--accent2); box-shadow: 0 0 4px var(--accent2); }
+.hero .label .dot.warn { background: var(--warn); box-shadow: 0 0 4px var(--warn); }
+.hero .val { font-size: 36px; font-weight: 700; letter-spacing: -1px; line-height: 1; font-variant-numeric: tabular-nums; }
+.hero .val sup { font-size: 20px; font-weight: 500; vertical-align: top; color: var(--ink-muted); margin-right: 2px; }
+.hero .sub { font-size: 12px; color: var(--ink-muted); margin-top: 10px; }
+.hero .delta {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 10px; padding: 4px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+  background: rgba(20,184,166,0.18); color: #115e59;
+}
+.hero .delta.warn { background: rgba(251,146,60,0.2); color: #9a3412; }
+.hero .delta.bad { background: rgba(225,29,72,0.18); color: #9f1239; }
+
+/* TOP SECTION: 2 col — donut + top/bottom */
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+/* DONUT */
+.donut-wrap { padding: 24px; }
+.donut-wrap h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.donut-wrap .sub { font-size: 11px; color: var(--ink-muted); margin-bottom: 16px; }
+.donut { display: flex; align-items: center; gap: 24px; }
+.donut svg { width: 180px; height: 180px; flex-shrink: 0; }
+.donut-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.donut-legend .lg-row { display: flex; align-items: center; gap: 8px; }
+.donut-legend .lg-row .swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.donut-legend .lg-row .nm { flex: 1; color: var(--ink-soft); }
+.donut-legend .lg-row .pct { font-weight: 700; }
+
+/* TOP/BOTTOM */
+.tb-wrap { padding: 24px; }
+.tb-wrap h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.tb-wrap .sub { font-size: 11px; color: var(--ink-muted); margin-bottom: 16px; }
+.tb-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.tb-col h4 {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--ink-muted); margin-bottom: 8px;
+}
+.tb-col h4.good { color: #115e59; }
+.tb-col h4.bad { color: #9f1239; }
+.tb-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(6,42,61,0.06);
+}
+.tb-item:last-child { border-bottom: 0; }
+.tb-item .num { font-size: 14px; font-weight: 800; color: var(--ink-muted); width: 16px; font-variant-numeric: tabular-nums; }
+.tb-item .info { flex: 1; min-width: 0; }
+.tb-item .name { font-size: 12px; font-weight: 600; }
+.tb-item .meta { font-size: 10px; color: var(--ink-muted); }
+.tb-item .pct { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tb-item .pct.good { color: var(--good); }
+.tb-item .pct.bad { color: var(--bad); }
+
+/* SECTION TITLE */
+.sec-title {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin: 32px 4px 16px;
+}
+.sec-title h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.sec-title .meta { font-size: 11px; color: var(--ink-muted); }
+
+/* TABS for grouping mode */
+.tabs {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,0.6);
+  padding: 4px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.5);
+  width: fit-content; margin-bottom: 16px;
+}
+.tab-btn {
+  padding: 8px 18px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; color: var(--ink-soft);
+  background: transparent; border: none; cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active {
+  background: linear-gradient(135deg, #066aab, #0880cc);
+  color: white;
+  box-shadow: 0 2px 8px rgba(6,106,171,0.25);
+}
+
+/* HEATMAP */
+.heatmap-wrap { padding: 24px; margin-bottom: 24px; }
+.heatmap-wrap h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.heatmap-wrap .sub { font-size: 11px; color: var(--ink-muted); margin-bottom: 16px; }
+.heatmap-table { width: 100%; border-collapse: separate; border-spacing: 4px; font-size: 11px; }
+.heatmap-table th, .heatmap-table td { padding: 8px; text-align: center; }
+.heatmap-table th {
+  font-size: 10px; font-weight: 700; color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+.heatmap-table th.div-label { text-align: left; }
+.heatmap-table td.div-label {
+  text-align: left; font-weight: 700; color: var(--ink); font-size: 12px;
+  white-space: nowrap;
+}
+.heatmap-table td.cell {
+  border-radius: 8px;
+  font-weight: 700; font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', monospace;
+  position: relative;
+  cursor: default;
+  transition: transform 0.1s;
+}
+.heatmap-table td.cell:hover { transform: scale(1.05); z-index: 1; }
+.heatmap-table td.cell .pct { display: block; font-size: 11px; }
+.heatmap-table td.cell .sm { display: block; font-size: 9px; opacity: 0.7; margin-top: 1px; font-weight: 500; }
+
+/* Heatmap colors */
+.hm-best  { background: rgba(20,184,166,0.55);  color: #064e3b; } /* >100% */
+.hm-good  { background: rgba(20,184,166,0.32);  color: #115e59; } /* 80-100 */
+.hm-ok    { background: rgba(132,204,22,0.28);  color: #3f6212; } /* 60-80 */
+.hm-warn  { background: rgba(251,146,60,0.28);  color: #9a3412; } /* 40-60 */
+.hm-bad   { background: rgba(225,29,72,0.32);   color: #881337; } /* <40 */
+.hm-na    { background: rgba(148,163,184,0.18); color: #475569; font-weight: 500 !important; }
+
+.hm-legend { display: flex; gap: 16px; font-size: 10px; color: var(--ink-muted); margin-top: 12px; flex-wrap: wrap; }
+.hm-legend .lg { display: flex; align-items: center; gap: 6px; }
+.hm-legend .sw { width: 14px; height: 14px; border-radius: 3px; }
+
+/* ACCORDION (Підрозділи / Бренди rows) */
+.accordion-list { display: flex; flex-direction: column; gap: 8px; }
+.acc-row {
+  padding: 14px 18px;
+  transition: all 0.2s;
+}
+.acc-row.expanded { border-color: rgba(6,106,171,0.3); }
+.acc-row-header {
+  display: grid;
+  grid-template-columns: 24px 1fr 100px 140px 140px 90px 80px 20px;
+  gap: 12px; align-items: center;
+  cursor: pointer;
+}
+.acc-row-header .chev {
+  font-size: 14px; color: var(--ink-muted);
+  transition: transform 0.2s;
+}
+.acc-row.expanded .acc-row-header .chev { transform: rotate(90deg); }
+.acc-name { font-size: 14px; font-weight: 700; }
+.acc-status {
+  font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  text-align: center;
+  background: rgba(20,184,166,0.18); color: #115e59;
+}
+.acc-status.warn { background: rgba(251,146,60,0.2); color: #9a3412; }
+.acc-status.bad { background: rgba(225,29,72,0.18); color: #9f1239; }
+.acc-status.na { background: rgba(148,163,184,0.18); color: #475569; }
+.acc-numbers { font-size: 12px; text-align: right; color: var(--ink-soft); font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.acc-numbers strong { color: var(--ink); font-weight: 700; }
+.acc-bar-wrap {
+  width: 100%; height: 6px; background: rgba(6,42,61,0.08);
+  border-radius: 3px; overflow: hidden; position: relative;
+}
+.acc-bar {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #066aab, #5bd5bc);
+  box-shadow: 0 0 4px rgba(6,106,171,0.3);
+}
+.acc-bar.warn { background: linear-gradient(90deg, #fb923c, #fbbf24); }
+.acc-bar.bad { background: linear-gradient(90deg, #e11d48, #fb7185); }
+.acc-bar.na { background: rgba(148,163,184,0.4); box-shadow: none; }
+.acc-pct { font-size: 14px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.acc-pct.warn { color: var(--warn); }
+.acc-pct.bad { color: var(--bad); }
+.acc-pct.na { color: #94a3b8; font-size: 12px; }
+.acc-dev { font-size: 11px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.acc-dev.good { color: var(--good); }
+.acc-dev.bad { color: var(--bad); }
+.acc-dev.na { color: #94a3b8; }
+
+.acc-body {
+  display: none;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid rgba(6,42,61,0.06);
+  display: none;
+  gap: 6px;
+}
+.acc-row.expanded .acc-body { display: flex; flex-direction: column; }
+.acc-child {
+  display: grid;
+  grid-template-columns: 12px 1fr 100px 140px 140px 90px 80px 20px;
+  gap: 12px; align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.acc-child .dot { width: 6px; height: 6px; border-radius: 50%; }
+.acc-child .nm { color: var(--ink-soft); }
+.acc-child .acc-numbers { font-size: 11px; }
+.acc-child .acc-pct { font-size: 12px; }
+.acc-child .acc-bar-wrap { height: 4px; }
+
+/* FOOTER NOTE */
+.note {
+  margin-top: 32px; padding: 16px 20px;
+  background: rgba(251,191,36,0.1);
+  border: 1px solid rgba(251,191,36,0.3);
+  border-radius: 14px;
+  font-size: 12px; color: #713f12; line-height: 1.5;
+}
+.note b { font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="mesh-bg"></div>
+<div class="blob a"></div>
+<div class="blob b"></div>
+<div class="blob c"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-dot">SP</div>
+    <span>EMET · Sales Planning</span>
+  </div>
+  <span class="crumb">Адмін-панель · <strong>Огляд по всій компанії</strong></span>
+  <div class="right">
+    <span class="role">Admin</span>
+  </div>
+</header>
+
+<div class="page">
+
+  <div class="title-block">
+    <div>
+      <h1>Уся компанія</h1>
+      <p class="sub">13 підрозділів · план/факт/прогноз без фільтра по «активних». Read-only.</p>
+    </div>
+    <div style="font-size: 11px; color: var(--ink-muted); font-family: 'JetBrains Mono', monospace;">оновлено: 17.05.2026 18:42</div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters glass-soft">
+    <div class="filter-group">
+      <span class="lbl">Період</span>
+      <button class="chip active">Травень 2026</button>
+      <button class="chip">Квітень</button>
+      <button class="chip">Q2 2026</button>
+      <button class="chip">Рік</button>
+    </div>
+    <div style="flex: 1;"></div>
+    <div class="filter-group">
+      <span class="lbl">Група</span>
+      <button class="chip active">Усі</button>
+      <button class="chip">Представництва</button>
+      <button class="chip">Колл-центр</button>
+      <button class="chip">Лазерхауз</button>
+      <button class="chip">Адасса</button>
+      <button class="chip">Дистрибутори</button>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="card glass">
+      <div class="label"><span class="dot"></span>План усієї компанії</div>
+      <div class="val"><sup>$</sup>1,574,715</div>
+      <div class="sub">13 підрозділів · 21 робочий день</div>
+    </div>
+    <div class="card glass">
+      <div class="label"><span class="dot mint"></span>Факт</div>
+      <div class="val"><sup>$</sup>787,777</div>
+      <div class="sub">по 9 з 13 підрозділів (де є факт)</div>
+      <span class="delta">↑ +$48,331 vs мин.міс.</span>
+    </div>
+    <div class="card glass">
+      <div class="label"><span class="dot mint"></span>Виконання</div>
+      <div class="val">73.9%</div>
+      <div class="sub">з $1,066,150 активних планів</div>
+      <span class="delta">+21.5% vs норма (52.4%)</span>
+    </div>
+    <div class="card glass">
+      <div class="label"><span class="dot warn"></span>Без факту</div>
+      <div class="val">4 / 13</div>
+      <div class="sub">Колл-центр, Адасса, Чугуй, Хайленко</div>
+      <span class="delta warn">1С не повертає факт</span>
+    </div>
+  </div>
+
+  <!-- DONUT + TOP/BOTTOM -->
+  <div class="row-2">
+    <div class="donut-wrap glass">
+      <h3>Частка обороту по підрозділах</h3>
+      <p class="sub">Хто скільки приносить факту (травень 2026)</p>
+      <div class="donut">
+        <svg viewBox="0 0 36 36">
+          <!-- Donut segments — calculated from real fact data -->
+          <!-- Total fact = $787,777, ring circumference = 100 -->
+          <!-- Київ $337,696 = 42.9% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#066aab" stroke-width="4" stroke-dasharray="42.9 100" stroke-dashoffset="0" transform="rotate(-90 18 18)"/>
+          <!-- Одеса $163,176 = 20.7% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#0880cc" stroke-width="4" stroke-dasharray="20.7 100" stroke-dashoffset="-42.9" transform="rotate(-90 18 18)"/>
+          <!-- Харків $57,042 = 7.2% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#5bd5bc" stroke-width="4" stroke-dasharray="7.2 100" stroke-dashoffset="-63.6" transform="rotate(-90 18 18)"/>
+          <!-- Дніпро $56,893 = 7.2% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#14b8a6" stroke-width="4" stroke-dasharray="7.2 100" stroke-dashoffset="-70.8" transform="rotate(-90 18 18)"/>
+          <!-- Вінниця $55,972 = 7.1% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#0d9488" stroke-width="4" stroke-dasharray="7.1 100" stroke-dashoffset="-78.0" transform="rotate(-90 18 18)"/>
+          <!-- Запоріжжя $51,918 = 6.6% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#0e7490" stroke-width="4" stroke-dasharray="6.6 100" stroke-dashoffset="-85.1" transform="rotate(-90 18 18)"/>
+          <!-- Миколаєв $29,785 = 3.8% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#67e8f9" stroke-width="4" stroke-dasharray="3.8 100" stroke-dashoffset="-91.7" transform="rotate(-90 18 18)"/>
+          <!-- Житомир $18,843 = 2.4% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#a7f3d0" stroke-width="4" stroke-dasharray="2.4 100" stroke-dashoffset="-95.5" transform="rotate(-90 18 18)"/>
+          <!-- Лазерхауз $16,412 = 2.1% -->
+          <circle cx="18" cy="18" r="15.92" fill="none" stroke="#cbd5e1" stroke-width="4" stroke-dasharray="2.1 100" stroke-dashoffset="-97.9" transform="rotate(-90 18 18)"/>
+          <text x="18" y="18" text-anchor="middle" dominant-baseline="central" style="font-size: 4.2px; font-weight: 700; fill: var(--ink); font-family: 'JetBrains Mono';">$788K</text>
+          <text x="18" y="22.5" text-anchor="middle" dominant-baseline="central" style="font-size: 1.8px; fill: var(--ink-muted);">факт компанії</text>
+        </svg>
+        <div class="donut-legend">
+          <div class="lg-row"><span class="swatch" style="background:#066aab;"></span><span class="nm">Київ</span><span class="pct">42.9%</span></div>
+          <div class="lg-row"><span class="swatch" style="background:#0880cc;"></span><span class="nm">Одеса</span><span class="pct">20.7%</span></div>
+          <div class="lg-row"><span class="swatch" style="background:#5bd5bc;"></span><span class="nm">Харків</span><span class="pct">7.2%</span></div>
+          <div class="lg-row"><span class="swatch" style="background:#14b8a6;"></span><span class="nm">Дніпро</span><span class="pct">7.2%</span></div>
+          <div class="lg-row"><span class="swatch" style="background:#0d9488;"></span><span class="nm">Вінниця</span><span class="pct">7.1%</span></div>
+          <div class="lg-row"><span class="swatch" style="background:#0e7490;"></span><span class="nm">Запоріжжя</span><span class="pct">6.6%</span></div>
+          <div class="lg-row"><span class="swatch" style="background:#67e8f9;"></span><span class="nm">Миколаєв</span><span class="pct">3.8%</span></div>
+          <div class="lg-row"><span class="swatch" style="background:#a7f3d0;"></span><span class="nm">Житомир</span><span class="pct">2.4%</span></div>
+          <div class="lg-row"><span class="swatch" style="background:#cbd5e1;"></span><span class="nm">Лазерхауз</span><span class="pct">2.1%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tb-wrap glass">
+      <h3>Менеджери — лідери та аутсайдери</h3>
+      <p class="sub">У межах Представництв (за % виконання плану)</p>
+      <div class="tb-cols">
+        <div class="tb-col">
+          <h4 class="good">🏆 ТОП-3</h4>
+          <div class="tb-item">
+            <span class="num">1</span>
+            <div class="info">
+              <div class="name">Лопушанська Світлана</div>
+              <div class="meta">Миколаєв · план $11K</div>
+            </div>
+            <span class="pct good">100%</span>
+          </div>
+          <div class="tb-item">
+            <span class="num">2</span>
+            <div class="info">
+              <div class="name">Фиголь Іветта</div>
+              <div class="meta">Вінниця · план $63K</div>
+            </div>
+            <span class="pct good">88.8%</span>
+          </div>
+          <div class="tb-item">
+            <span class="num">3</span>
+            <div class="info">
+              <div class="name">Бойко Ольга</div>
+              <div class="meta">Київ · план $76K</div>
+            </div>
+            <span class="pct good">85.9%</span>
+          </div>
+        </div>
+        <div class="tb-col">
+          <h4 class="bad">⚠️ Худші 3</h4>
+          <div class="tb-item">
+            <span class="num">1</span>
+            <div class="info">
+              <div class="name">Кравченко Катерина</div>
+              <div class="meta">Київ · новачок</div>
+            </div>
+            <span class="pct bad">—</span>
+          </div>
+          <div class="tb-item">
+            <span class="num">2</span>
+            <div class="info">
+              <div class="name">Свідзинська Юлія</div>
+              <div class="meta">Київ · план $87K</div>
+            </div>
+            <span class="pct bad">45.2%</span>
+          </div>
+          <div class="tb-item">
+            <span class="num">3</span>
+            <div class="info">
+              <div class="name">Клименко Марина</div>
+              <div class="meta">Миколаєв · план $42K</div>
+            </div>
+            <span class="pct bad">46.7%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       ВАРІАНТ A: З HEATMAP
+       ======================================================== -->
+  <div class="sec-title">
+    <h2>📊 Варіант A — з тепловою картою</h2>
+    <span class="meta">Швидкий one-glance для аудиту</span>
+  </div>
+
+  <div class="heatmap-wrap glass">
+    <h3>Теплова карта · Підрозділ × Бренд</h3>
+    <p class="sub">Колір = % виконання плану. Сірий = немає плану / факту.</p>
+    <table class="heatmap-table">
+      <thead>
+        <tr>
+          <th class="div-label">Підрозділ</th>
+          <th>Petaran</th>
+          <th>Ellanse</th>
+          <th>EXOXE</th>
+          <th>ESSE</th>
+          <th>Neuramis</th>
+          <th>Neuronox</th>
+          <th>Vitaran</th>
+          <th>IUSE</th>
+          <th>Інші ТМ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="div-label">Київ</td>
+          <td class="cell hm-bad"><span class="pct">37%</span><span class="sm">$8K/$22K</span></td>
+          <td class="cell hm-ok"><span class="pct">78%</span><span class="sm">$25K/$32K</span></td>
+          <td class="cell hm-good"><span class="pct">92%</span><span class="sm">$11K/$12K</span></td>
+          <td class="cell hm-ok"><span class="pct">66%</span><span class="sm">$10K/$15K</span></td>
+          <td class="cell hm-warn"><span class="pct">58%</span><span class="sm">$15K/$26K</span></td>
+          <td class="cell hm-best"><span class="pct">104%</span><span class="sm">$83K/$80K</span></td>
+          <td class="cell hm-good"><span class="pct">85%</span><span class="sm">$129K/$152K</span></td>
+          <td class="cell hm-warn"><span class="pct">52%</span><span class="sm">$20K/$38K</span></td>
+          <td class="cell hm-ok"><span class="pct">71%</span><span class="sm">$9K/$13K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label">Одеса</td>
+          <td class="cell hm-bad"><span class="pct">22%</span><span class="sm">$3K/$15K</span></td>
+          <td class="cell hm-good"><span class="pct">81%</span><span class="sm">$14K/$17K</span></td>
+          <td class="cell hm-ok"><span class="pct">72%</span><span class="sm">$5K/$7K</span></td>
+          <td class="cell hm-warn"><span class="pct">55%</span><span class="sm">$7K/$13K</span></td>
+          <td class="cell hm-warn"><span class="pct">48%</span><span class="sm">$9K/$19K</span></td>
+          <td class="cell hm-good"><span class="pct">88%</span><span class="sm">$54K/$61K</span></td>
+          <td class="cell hm-ok"><span class="pct">77%</span><span class="sm">$54K/$71K</span></td>
+          <td class="cell hm-bad"><span class="pct">35%</span><span class="sm">$9K/$25K</span></td>
+          <td class="cell hm-good"><span class="pct">82%</span><span class="sm">$8K/$10K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label">Дніпро</td>
+          <td class="cell hm-bad"><span class="pct">28%</span><span class="sm">$2K/$7K</span></td>
+          <td class="cell hm-ok"><span class="pct">68%</span><span class="sm">$5K/$8K</span></td>
+          <td class="cell hm-good"><span class="pct">82%</span><span class="sm">$3K/$4K</span></td>
+          <td class="cell hm-ok"><span class="pct">60%</span><span class="sm">$3K/$5K</span></td>
+          <td class="cell hm-warn"><span class="pct">52%</span><span class="sm">$3K/$6K</span></td>
+          <td class="cell hm-good"><span class="pct">85%</span><span class="sm">$22K/$26K</span></td>
+          <td class="cell hm-warn"><span class="pct">55%</span><span class="sm">$15K/$28K</span></td>
+          <td class="cell hm-bad"><span class="pct">38%</span><span class="sm">$3K/$8K</span></td>
+          <td class="cell hm-ok"><span class="pct">70%</span><span class="sm">$2K/$3K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label">Харків</td>
+          <td class="cell hm-warn"><span class="pct">42%</span><span class="sm">$3K/$8K</span></td>
+          <td class="cell hm-good"><span class="pct">88%</span><span class="sm">$5K/$6K</span></td>
+          <td class="cell hm-good"><span class="pct">85%</span><span class="sm">$3K/$3K</span></td>
+          <td class="cell hm-ok"><span class="pct">72%</span><span class="sm">$3K/$4K</span></td>
+          <td class="cell hm-ok"><span class="pct">68%</span><span class="sm">$3K/$5K</span></td>
+          <td class="cell hm-best"><span class="pct">102%</span><span class="sm">$18K/$18K</span></td>
+          <td class="cell hm-good"><span class="pct">82%</span><span class="sm">$15K/$18K</span></td>
+          <td class="cell hm-warn"><span class="pct">55%</span><span class="sm">$3K/$6K</span></td>
+          <td class="cell hm-good"><span class="pct">80%</span><span class="sm">$2K/$3K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label">Запоріжжя</td>
+          <td class="cell hm-bad"><span class="pct">25%</span><span class="sm">$2K/$8K</span></td>
+          <td class="cell hm-ok"><span class="pct">62%</span><span class="sm">$5K/$8K</span></td>
+          <td class="cell hm-ok"><span class="pct">75%</span><span class="sm">$3K/$4K</span></td>
+          <td class="cell hm-warn"><span class="pct">48%</span><span class="sm">$2K/$5K</span></td>
+          <td class="cell hm-warn"><span class="pct">45%</span><span class="sm">$3K/$6K</span></td>
+          <td class="cell hm-good"><span class="pct">82%</span><span class="sm">$18K/$22K</span></td>
+          <td class="cell hm-warn"><span class="pct">52%</span><span class="sm">$14K/$27K</span></td>
+          <td class="cell hm-bad"><span class="pct">32%</span><span class="sm">$2K/$6K</span></td>
+          <td class="cell hm-ok"><span class="pct">68%</span><span class="sm">$2K/$3K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label">Вінниця</td>
+          <td class="cell hm-good"><span class="pct">85%</span><span class="sm">$4K/$5K</span></td>
+          <td class="cell hm-best"><span class="pct">105%</span><span class="sm">$6K/$5K</span></td>
+          <td class="cell hm-best"><span class="pct">110%</span><span class="sm">$2K/$2K</span></td>
+          <td class="cell hm-good"><span class="pct">82%</span><span class="sm">$3K/$3K</span></td>
+          <td class="cell hm-ok"><span class="pct">72%</span><span class="sm">$3K/$4K</span></td>
+          <td class="cell hm-good"><span class="pct">90%</span><span class="sm">$15K/$17K</span></td>
+          <td class="cell hm-good"><span class="pct">88%</span><span class="sm">$19K/$22K</span></td>
+          <td class="cell hm-ok"><span class="pct">68%</span><span class="sm">$3K/$4K</span></td>
+          <td class="cell hm-good"><span class="pct">85%</span><span class="sm">$2K/$2K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label">Миколаєв</td>
+          <td class="cell hm-warn"><span class="pct">45%</span><span class="sm">$2K/$5K</span></td>
+          <td class="cell hm-ok"><span class="pct">65%</span><span class="sm">$3K/$5K</span></td>
+          <td class="cell hm-warn"><span class="pct">55%</span><span class="sm">$1K/$2K</span></td>
+          <td class="cell hm-bad"><span class="pct">35%</span><span class="sm">$1K/$3K</span></td>
+          <td class="cell hm-bad"><span class="pct">38%</span><span class="sm">$2K/$5K</span></td>
+          <td class="cell hm-warn"><span class="pct">52%</span><span class="sm">$8K/$15K</span></td>
+          <td class="cell hm-warn"><span class="pct">48%</span><span class="sm">$8K/$16K</span></td>
+          <td class="cell hm-bad"><span class="pct">28%</span><span class="sm">$1K/$4K</span></td>
+          <td class="cell hm-ok"><span class="pct">62%</span><span class="sm">$1K/$2K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label">Житомир</td>
+          <td class="cell hm-warn"><span class="pct">42%</span><span class="sm">$1K/$3K</span></td>
+          <td class="cell hm-ok"><span class="pct">68%</span><span class="sm">$2K/$3K</span></td>
+          <td class="cell hm-good"><span class="pct">82%</span><span class="sm">$1K/$1K</span></td>
+          <td class="cell hm-ok"><span class="pct">65%</span><span class="sm">$1K/$2K</span></td>
+          <td class="cell hm-warn"><span class="pct">55%</span><span class="sm">$1K/$2K</span></td>
+          <td class="cell hm-good"><span class="pct">85%</span><span class="sm">$5K/$6K</span></td>
+          <td class="cell hm-good"><span class="pct">82%</span><span class="sm">$5K/$6K</span></td>
+          <td class="cell hm-warn"><span class="pct">52%</span><span class="sm">$1K/$2K</span></td>
+          <td class="cell hm-good"><span class="pct">78%</span><span class="sm">$1K/$1K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label">Лазерхауз</td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-best"><span class="pct">105%</span><span class="sm">$2K/$2K</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-best"><span class="pct">110%</span><span class="sm">$3K/$3K</span></td>
+          <td class="cell hm-best"><span class="pct">102%</span><span class="sm">$5K/$5K</span></td>
+          <td class="cell hm-best"><span class="pct">108%</span><span class="sm">$4K/$4K</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-best"><span class="pct">101%</span><span class="sm">$2K/$2K</span></td>
+        </tr>
+        <tr>
+          <td class="div-label" style="color: var(--ink-muted);">Колл-центр</td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+        </tr>
+        <tr>
+          <td class="div-label" style="color: var(--ink-muted);">Адасса</td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+        </tr>
+        <tr>
+          <td class="div-label" style="color: var(--ink-muted);">Чугуй (Полтава)</td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+        </tr>
+        <tr>
+          <td class="div-label" style="color: var(--ink-muted);">Хайленко (Чернівці)</td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+          <td class="cell hm-na"><span class="pct">н/д</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="hm-legend">
+      <span class="lg"><span class="sw hm-best"></span>&gt; 100%</span>
+      <span class="lg"><span class="sw hm-good"></span>80-100%</span>
+      <span class="lg"><span class="sw hm-ok"></span>60-80%</span>
+      <span class="lg"><span class="sw hm-warn"></span>40-60%</span>
+      <span class="lg"><span class="sw hm-bad"></span>&lt; 40%</span>
+      <span class="lg"><span class="sw hm-na"></span>немає факту з 1С</span>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       ВАРІАНТ B: БЕЗ HEATMAP — тільки accordion
+       ======================================================== -->
+  <div class="sec-title">
+    <h2>📋 Варіант B — без теплової карти, тільки accordion</h2>
+    <span class="meta">Чистіше, експандиш у деталі коли треба</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active">По підрозділах → бренди</button>
+    <button class="tab-btn">По брендах → підрозділи</button>
+  </div>
+
+  <div class="accordion-list">
+    <!-- Підрозділ: Київ (expanded) -->
+    <div class="acc-row glass expanded">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Київ</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$337,696</strong> / $401,845</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width: 84%;"></div></div>
+        <span class="acc-pct">84.0%</span>
+        <span class="acc-dev good">+31.6%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+      <div class="acc-body">
+        <div class="acc-child"><span class="dot" style="background:#066aab;"></span><span class="nm">Petaran</span><span></span><div class="acc-numbers">$8K / $22K</div><div class="acc-bar-wrap"><div class="acc-bar bad" style="width:37%;"></div></div><span class="acc-pct bad">37%</span><span></span><span></span></div>
+        <div class="acc-child"><span class="dot" style="background:#14b8a6;"></span><span class="nm">Ellanse</span><span></span><div class="acc-numbers">$25K / $32K</div><div class="acc-bar-wrap"><div class="acc-bar" style="width:78%;"></div></div><span class="acc-pct">78%</span><span></span><span></span></div>
+        <div class="acc-child"><span class="dot" style="background:#14b8a6;"></span><span class="nm">Neuronox</span><span></span><div class="acc-numbers">$83K / $80K</div><div class="acc-bar-wrap"><div class="acc-bar" style="width:100%;"></div></div><span class="acc-pct">104%</span><span></span><span></span></div>
+        <div class="acc-child"><span class="dot" style="background:#14b8a6;"></span><span class="nm">Vitaran</span><span></span><div class="acc-numbers">$129K / $152K</div><div class="acc-bar-wrap"><div class="acc-bar" style="width:85%;"></div></div><span class="acc-pct">85%</span><span></span><span></span></div>
+        <div class="acc-child" style="opacity:0.6;"><span class="dot" style="background:#94a3b8;"></span><span class="nm">+ 5 інших брендів</span><span></span><div></div><div></div><span style="font-size:11px; color:var(--ink-muted);">розгорнути усі</span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Одеса</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$163,176</strong> / $237,719</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:68.6%;"></div></div>
+        <span class="acc-pct">68.6%</span>
+        <span class="acc-dev good">+16.2%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Дніпро</span>
+        <span class="acc-status warn">Норма</span>
+        <div class="acc-numbers"><strong>$56,893</strong> / $97,416</div>
+        <div class="acc-bar-wrap"><div class="acc-bar warn" style="width:58.4%;"></div></div>
+        <span class="acc-pct warn">58.4%</span>
+        <span class="acc-dev good">+6.0%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Харків</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$57,042</strong> / $74,819</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:76.2%;"></div></div>
+        <span class="acc-pct">76.2%</span>
+        <span class="acc-dev good">+23.8%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Запоріжжя</span>
+        <span class="acc-status warn">Норма</span>
+        <div class="acc-numbers"><strong>$51,918</strong> / $94,032</div>
+        <div class="acc-bar-wrap"><div class="acc-bar warn" style="width:55.2%;"></div></div>
+        <span class="acc-pct warn">55.2%</span>
+        <span class="acc-dev good">+2.8%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Вінниця</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$55,972</strong> / $63,050</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:88.8%;"></div></div>
+        <span class="acc-pct">88.8%</span>
+        <span class="acc-dev good">+36.4%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Миколаєв</span>
+        <span class="acc-status warn">Норма</span>
+        <div class="acc-numbers"><strong>$29,785</strong> / $53,984</div>
+        <div class="acc-bar-wrap"><div class="acc-bar warn" style="width:55.2%;"></div></div>
+        <span class="acc-pct warn">55.2%</span>
+        <span class="acc-dev good">+2.8%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Житомир</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$18,843</strong> / $27,060</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:69.6%;"></div></div>
+        <span class="acc-pct">69.6%</span>
+        <span class="acc-dev good">+17.2%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass" style="border-top: 1px dashed rgba(6,42,61,0.15); border-radius: 20px; padding-top: 20px; margin-top: 12px;">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Лазерхауз</span>
+        <span class="acc-status">В плані</span>
+        <div class="acc-numbers"><strong>$16,412</strong> / $16,016</div>
+        <div class="acc-bar-wrap"><div class="acc-bar" style="width:100%;"></div></div>
+        <span class="acc-pct">102.5%</span>
+        <span class="acc-dev good">+50.1%</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Колл-центр</span>
+        <span class="acc-status na">Без факту</span>
+        <div class="acc-numbers">— / $39,201</div>
+        <div class="acc-bar-wrap"><div class="acc-bar na" style="width:100%;"></div></div>
+        <span class="acc-pct na">н/д</span>
+        <span class="acc-dev na">—</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Адасса</span>
+        <span class="acc-status na">Без факту</span>
+        <div class="acc-numbers">— / $8,487</div>
+        <div class="acc-bar-wrap"><div class="acc-bar na" style="width:100%;"></div></div>
+        <span class="acc-pct na">н/д</span>
+        <span class="acc-dev na">—</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Чугуй <span style="font-weight: 400; color: var(--ink-muted); font-size: 11px;">(дистр., Полтава)</span></span>
+        <span class="acc-status na">Без факту</span>
+        <div class="acc-numbers">— / $133,646</div>
+        <div class="acc-bar-wrap"><div class="acc-bar na" style="width:100%;"></div></div>
+        <span class="acc-pct na">н/д</span>
+        <span class="acc-dev na">—</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+
+    <div class="acc-row glass">
+      <div class="acc-row-header">
+        <span class="chev">▶</span>
+        <span class="acc-name">Хайленко <span style="font-weight: 400; color: var(--ink-muted); font-size: 11px;">(дистр., Чернівці)</span></span>
+        <span class="acc-status na">Без факту</span>
+        <div class="acc-numbers">— / $327,440</div>
+        <div class="acc-bar-wrap"><div class="acc-bar na" style="width:100%;"></div></div>
+        <span class="acc-pct na">н/д</span>
+        <span class="acc-dev na">—</span>
+        <span style="text-align:center;">›</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <p><b>⚠️ Що чекаємо від 1С:</b> для 4 підрозділів (Колл-центр, Адасса, Чугуй, Хайленко) Action 5 не повертає факту — є лише плани з Action 4. Хочемо: попросити Олексія розширити Action 5 (новий прапор <code>includeAll=true</code> або параметр <code>category</code>). Поки що ці рядки на дашборді показуються як <b>н/д</b>.</p>
+  </div>
+
+  <div class="note" style="background: rgba(99,91,255,0.08); border-color: rgba(99,91,255,0.3); color: #312e81;">
+    <p><b>🤔 Що обираємо?</b> Глянь обидва варіанти (heatmap і без), скажи що залишаємо. Я б рекомендував <b>залишити обидва</b> — heatmap зверху для quick-glance, далі accordion для drill-down. Не conflict-ують.</p>
+  </div>
+
+</div>
+
+<script>
+// Toggle accordion expand
+document.querySelectorAll('.acc-row-header').forEach(h => {
+  h.addEventListener('click', () => h.parentElement.classList.toggle('expanded'));
+});
+// Toggle filter chips
+document.querySelectorAll('.filter-group').forEach(group => {
+  group.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => {
+      group.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+    });
+  });
+});
+// Toggle tabs
+document.querySelectorAll('.tabs').forEach(group => {
+  group.querySelectorAll('.tab-btn').forEach(t => {
+    t.addEventListener('click', () => {
+      group.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+});
+</script>
+</body>
+</html>

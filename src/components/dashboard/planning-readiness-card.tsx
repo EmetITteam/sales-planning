@@ -94,9 +94,9 @@ const textClass: Record<string, string> = {
   rose: 'text-rose-600',
 };
 const badgeBgClass: Record<string, string> = {
-  green: 'bg-emerald-50 text-emerald-700',
-  amber: 'bg-amber-50 text-amber-700',
-  rose: 'bg-rose-50 text-rose-700',
+  green: 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm',
+  amber: 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm',
+  rose: 'bg-rose-500/12 border border-rose-300/40 text-rose-700 backdrop-blur-sm',
 };
 
 const brandName = (code: string) => SEGMENTS.find(s => s.code === code)?.name ?? code;
@@ -188,7 +188,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
   const allFinalized = total.mgrFin + total.mgrTrial === total.mgrAll && total.mgrAll > 0 && total.mgrEmpty === 0 && total.mgrPartial === 0;
   if (allFinalized) {
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-3.5">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
             <ClipboardCheck className="h-5 w-5 text-emerald-600" />
@@ -199,7 +199,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
               {total.mgrAll} менеджерів · усі {totalBrands} брендів закрито
             </p>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-50 text-emerald-700">✓ ФІНАЛ</span>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm">✓ ФІНАЛ</span>
         </div>
       </div>
     );
@@ -216,15 +216,17 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
   const overallLabel = overallStatus === 'green' ? 'ГОТОВО' : overallStatus === 'amber' ? 'У РОБОТІ' : 'ВІДСТАВАННЯ';
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+    <div className="glass-card overflow-hidden">
       {/* Header */}
-      <div
+      <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        aria-expanded={expanded}
+        className="w-full flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
       >
         <div className="flex items-center gap-3 min-w-0 shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
-            <ClipboardCheck className="h-5 w-5 text-[#066aab]" />
+          <div className="w-10 h-10 rounded-xl bg-emet-50 flex items-center justify-center shrink-0">
+            <ClipboardCheck className="h-5 w-5 text-emet-blue" />
           </div>
           <div className="min-w-0">
             <p className="text-[14px] font-bold truncate">Готовність планування</p>
@@ -291,11 +293,11 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
             <ChevronDown className={`h-4 w-4 text-muted-foreground/40 transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </div>
         </div>
-      </div>
+      </button>
 
       {/* Expanded — список регіонів */}
       {expanded && (
-        <div className="px-5 pb-4 pt-3 space-y-2 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-5 pb-4 pt-3 space-y-2 bg-white/30 backdrop-blur-md border-t border-white/40">
           {stats.map(r => {
             const s = regionStatusColor(r.managersFinalized + r.managersTrial, r.managersPartial, r.totalManagers);
             const isRegionExpanded = expandedRegions.has(r.regionName);
@@ -305,7 +307,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
             const rFinPct = allTrial ? 100 : Math.round((r.managersFinalized / rDenom) * 100);
             const rPartialPct = allTrial ? 0 : Math.round((r.managersPartial / rDenom) * 100);
             return (
-              <div key={r.regionName} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div key={r.regionName} className="glass-card overflow-hidden">
                 <button
                   onClick={() => {
                     setExpandedRegions(prev => {
@@ -315,7 +317,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                       return next;
                     });
                   }}
-                  className="w-full grid grid-cols-[20px_1fr_220px_100px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-[#fafbfe] text-left"
+                  className="w-full grid grid-cols-[20px_1fr_220px_100px_20px] gap-3 items-center px-4 py-3 cursor-pointer hover:bg-white/40 text-left"
                 >
                   <span className={`w-2.5 h-2.5 rounded-full shadow-sm ${dotClass[s]}`} />
                   <span className="text-[14px] font-bold">{r.regionName}</span>
@@ -361,7 +363,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                           <span className={`font-semibold flex-1 truncate ${nameClass}`}>{m.name || m.login}</span>
                           {m.isTrial && (
                             <span
-                              className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 shrink-0"
+                              className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-400/12 border border-slate-300/50 text-slate-600 backdrop-blur-sm shrink-0"
                               title="1С виставила $1 sentinel на всі бренди — менеджер на випробувальному, план ще не складено"
                             >
                               Новачок

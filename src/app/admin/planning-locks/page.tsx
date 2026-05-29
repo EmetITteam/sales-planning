@@ -28,7 +28,7 @@ interface SettingsResp {
   updatedBy: string | null;
 }
 
-const HEADERS_JSON = { 'Content-Type': 'application/json', 'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '' };
+const HEADERS_JSON = { 'Content-Type': 'application/json' };  // same-origin auth via Sec-Fetch-Site (api-auth.ts)
 
 export default function AdminPlanningLocksPage() {
   const router = useRouter();
@@ -147,9 +147,9 @@ export default function AdminPlanningLocksPage() {
         </div>
 
         {/* Window-days settings */}
-        <section className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <section className="glass-card p-5">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-[#e8f4fc] flex items-center justify-center"><Clock className="h-4 w-4 text-[#066aab]" /></div>
+            <div className="w-8 h-8 rounded-xl bg-emet-50 flex items-center justify-center"><Clock className="h-4 w-4 text-emet-blue" /></div>
             <h2 className="text-[14px] font-bold">Графік планування</h2>
           </div>
           <p className="text-[12px] text-muted-foreground mb-4">
@@ -169,7 +169,7 @@ export default function AdminPlanningLocksPage() {
             <Button
               onClick={saveSettings}
               disabled={savingSettings || windowDaysDraft === null}
-              className="gap-2 h-10 bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white"
+              className="gap-2 h-10 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white"
             >
               <Save className="h-4 w-4" /> {savingSettings ? 'Збереження…' : 'Зберегти'}
             </Button>
@@ -187,7 +187,7 @@ export default function AdminPlanningLocksPage() {
         </section>
 
         {/* Month selector */}
-        <section className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <section className="glass-card p-5">
           <div className="flex items-center gap-3">
             <label className="text-[12px] font-medium text-muted-foreground">Місяць</label>
             <Input
@@ -200,7 +200,7 @@ export default function AdminPlanningLocksPage() {
         </section>
 
         {/* New lock form */}
-        <section className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <section className="glass-card p-5">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center"><Plus className="h-4 w-4 text-rose-700" /></div>
             <h2 className="text-[14px] font-bold">Додати лок</h2>
@@ -255,9 +255,9 @@ export default function AdminPlanningLocksPage() {
         </section>
 
         {/* Locks list */}
-        <section className="bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)]">
+        <section className="glass-card p-5">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-[#e8f4fc] flex items-center justify-center"><Settings2 className="h-4 w-4 text-[#066aab]" /></div>
+            <div className="w-8 h-8 rounded-xl bg-emet-50 flex items-center justify-center"><Settings2 className="h-4 w-4 text-emet-blue" /></div>
             <h2 className="text-[14px] font-bold">Активні локи · {month.slice(0, 7)}</h2>
           </div>
           {locks.length === 0 ? (

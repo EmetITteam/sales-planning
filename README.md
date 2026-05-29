@@ -16,7 +16,7 @@
 3. [Структура проекту](#3-структура-проекту)
 4. [Ролі та доступи](#4-ролі-та-доступи)
 5. [Архітектура взаємодії](#5-архітектура-взаємодії)
-6. [Інтеграція з 1С (7 actions)](#6-інтеграція-з-1с-7-actions)
+6. [Інтеграція з 1С (12 actions)](#6-інтеграція-з-1с-12-actions)
 7. [Схема БД (Supabase)](#7-схема-бд-supabase)
 8. [API routes](#8-api-routes)
 9. [Frontend компоненти](#9-frontend-компоненти)
@@ -52,6 +52,8 @@
 
 ## 2. Tech stack
 
+Підсумок: ми пишемо на TypeScript, у Next.js обгортці, для React UI, з Supabase БД, на Vercel хостингу. Усе нативно інтегровано.
+
 | Шар | Технологія | Версія | Примітка |
 |---|---|---|---|
 | Framework | Next.js | 16.2.2 | App Router, Turbopack у dev, **webpack у prod** (`next build --webpack`) |
@@ -63,7 +65,7 @@
 | Стан | Zustand + SWR | 5 / 2.4 | Zustand — UI state, SWR — server cache (5-min dedup) |
 | Auth | JWT (jose) | 6.2 | HttpOnly cookie `sp_session`, SameSite=Lax |
 | БД | Supabase (Postgres) | — | Free plan, REST API через кастомний клієнт |
-| Інтеграція | 1С Підприємство УТП | v2.6 | HTTP-сервіси з Basic Auth |
+| Інтеграція | 1С Підприємство УТП | v2.7 | HTTP-сервіси з Basic Auth |
 | Тестування | node:test + tsx + Playwright | — | unit (180+) + e2e (qa-review.mjs) |
 | Деплой | Vercel | — | auto-deploy з `master`, Node 22 |
 | CI | GitHub Actions | — | backup workflow 2×день |
@@ -87,6 +89,8 @@ sales-planning/
 │   │   ├── manifest.ts         # PWA manifest
 │   │   ├── icon.tsx + apple-icon.tsx
 │   │   ├── admin/              # admin-only сторінки (планування lock-ів)
+│   │   ├── clients/            # сторінка «Мої клієнти» (CRM-режим менеджера)
+│   │   ├── debug-clients-api/  # debug-сторінка для тестування 1С actions
 │   │   └── api/                # API routes (див. §8)
 │   ├── components/
 │   │   ├── dashboard/          # дашборди по ролях + building blocks
@@ -153,19 +157,33 @@ sales-planning/
 
 ---
 
-## 6. Інтеграція з 1С (7 actions)
+## 6. Інтеграція з 1С (12 actions)
 
-Усі actions через єдиний proxy endpoint `POST /api/onec` з body `{action, ...payload}`. Whitelist у [src/app/api/onec/route.ts](./src/app/api/onec/route.ts), типи у [src/lib/onec-types.ts](./src/lib/onec-types.ts), адаптери (1С → UI shape) у [src/lib/onec-adapters.ts](./src/lib/onec-adapters.ts).
+Усі actions через єдиний proxy endpoint `POST /api/onec` з body `{action, ...payload}`. Whitelist у [src/app/api/onec/route.ts](./src/app/api/onec/route.ts), типи у [src/lib/onec-types.ts](./src/lib/onec-types.ts) + [src/lib/mityng-types.ts](./src/lib/mityng-types.ts), адаптери (1С → UI shape) у [src/lib/onec-adapters.ts](./src/lib/onec-adapters.ts).
+
+### Sales Planning core (Actions 1-7)
 
 | # | Action | Що повертає | Хто викликає |
 |---|---|---|---|
 | 1 | `login` | session + role + region + region_manager_logins | login form |
 | 2 | `getClientsForPlanning` | список клієнтів закріплених за логіном (з категоріями A/B/C/D/нова) | client-search modal |
-| 3 | `getSalesFact` | сума факту продажів за період по сегменту | manager-dashboard hero |
-| 4 | `getRegistryPlans` | план з 1С реєстру по логіну + сегменту | manager-dashboard, planning-form |
-| 5 | `getRegionData` | агрегат по регіону: менеджери + їх плани + факт | rm-dashboard, director-dashboard |
+| 3 | `getSalesFact` | сума факту продажів за період по сегменту | manager-dashboard hero, clients-page (chunked 400) |
+| 4 | `getRegistryPlans` | план з 1С реєстру по логіну + сегменту | manager-dashboard, planning-form, clients-page Hero1 |
+| 5 | `getRegionData` | агрегат по регіону: менеджери + їх плани + факт (+ `includeAll` v2.7) | rm-dashboard, director-dashboard, /admin/company-overview |
 | 6 | `getTrainings` | (не використовується активно) | — |
 | 7 | `checkActivities` | hasCall/hasMeeting per клієнт за період | planning-form auto-confirm |
+
+### CRM-сторінка integration (Actions 8-12, v2.7)
+
+Whitelisted з Митинга 4.0 — використовується на сторінці `/clients` (CRM-режим менеджера).
+
+| # | Action | Що повертає | Хто викликає |
+|---|---|---|---|
+| 8 | `getManagerClients` | bulk-список клієнтів + категорії + `isReserved` + `LastMeetingDate` (v2.7) | clients-page Hero, useMyClients |
+| 9 | `findClient` | глобальний пошук клієнта (по всіх менеджерах) | clients-page search |
+| 10 | `getClientReport` | 3-міс історія + події + clientInfo + `properties[]` + `seminars` + `yearlySalesReport` (v2.7) | clients-page expanded row, useClientReport (lazy) |
+| 11 | `getAllMeetingsForClient` | усі зустрічі по клієнту (shape unverified, whitelisted) | (поки не використовується) |
+| 12 | `getClientFocus` | bulk-фокуси клієнтів (Action A, v2.7) | clients-page chips, useClientFocuses (chunked 200) |
 
 Детальна специфікація: [docs/1C_API_SPECIFICATION.md](./docs/1C_API_SPECIFICATION.md).
 
@@ -264,6 +282,8 @@ src/app/api/
 ├── admin/
 │   ├── planning-locks/route.ts      GET/POST/DELETE для window-lock CRUD
 │   └── planning-settings/route.ts   глобальні налаштування
+├── clients/
+│   └── plan-totals/route.ts   POST  → план з Supabase forecasts+gap_closures per-client (для /clients page)
 └── archive/route.ts           POST  → soft-delete forecast/gap (set archived_at)
 ```
 
@@ -304,6 +324,11 @@ src/app/api/
 - [planning-form.tsx](./src/components/planning/planning-form.tsx) — головна форма (~2150 рядків): forecast + gap rows, stage selector, finalize button, save bar, dialog confirmations
 - [client-search-modal.tsx](./src/components/planning/client-search-modal.tsx) — пошук + додавання клієнтів з Action 2
 
+### Клієнти-сторінка (CRM-режим менеджера)
+
+- [src/app/clients/page.tsx](./src/app/clients/page.tsx) — entry-point з auth-gate
+- [src/components/clients/clients-page.tsx](./src/components/clients/clients-page.tsx) — основний компонент (~1846 рядків): 4-картковий Hero band, Reserved-секція, expandable client rows, brand plan/fact table, search, focus chips. TD-11: god component — розбити на модулі (див. BACKLOG.md).
+
 ### Інше
 
 - [window-lock-banner.tsx](./src/components/window-lock-banner.tsx) — три-tier: admin (ніколи) / director (global-block тільки) / manager+rm (завжди коли locked)
@@ -323,8 +348,10 @@ src/app/api/
 | [api-auth.ts](./src/lib/api-auth.ts) | Перевірка ролі у API routes |
 | [onec-client.ts](./src/lib/onec-client.ts) | HTTP до 1С з Basic Auth |
 | [onec-adapters.ts](./src/lib/onec-adapters.ts) | Адаптери 1С → UI shape (фільтр архівних регіонів) |
-| [onec-types.ts](./src/lib/onec-types.ts) | TypeScript типи усіх 7 actions |
+| [onec-types.ts](./src/lib/onec-types.ts) | TypeScript типи усіх 12 actions (Sales Planning core + Митинг integration) |
+| [mityng-types.ts](./src/lib/mityng-types.ts) | Типи Митинг-actions (`ClientFromOneC`, `ClientReport`, `BrandSalesHistory`, `ClientEvent`, `ClientSeminar`) + helpers (`isClientReserved`, `getClientName`, `getClientAddress`, `getLastMeetingDate`, `getLastCallDate`) |
 | [use-onec-data.ts](./src/lib/use-onec-data.ts) | SWR-хук для 1С call'ів |
+| [use-my-clients.ts](./src/lib/use-my-clients.ts) | 5 hooks для CRM-сторінки: `useMyClients` (bulk-список), `useClientReport` (lazy 1-client deep), `useClientsTotals` (план+факт chunked 400), `useClientActivities` (chunked 200), `useClientFocuses` (chunked 200) |
 | [use-planning-aggregate.ts](./src/lib/use-planning-aggregate.ts) | SWR-хук для `/api/planning/aggregate` |
 | [use-clients-for-planning.ts](./src/lib/use-clients-for-planning.ts) | SWR Action 2 |
 | [use-registry-plans.ts](./src/lib/use-registry-plans.ts) | SWR Action 4 |
@@ -466,11 +493,17 @@ Playwright headed-mode скрипт [scripts/qa-review.mjs](./scripts/qa-review.
 | [CHANGELOG.md](./CHANGELOG.md) | хронологія етапних релізів і фічей |
 | [CLAUDE.md](./CLAUDE.md) | інструкції для AI-агентів |
 | [AGENTS.md](./AGENTS.md) | загальне нагадування для AI |
-| [docs/ARCHITECTURE_INVARIANTS.md](./docs/ARCHITECTURE_INVARIANTS.md) | список захищених від видалення компонентів |
-| [docs/1C_API_SPECIFICATION.md](./docs/1C_API_SPECIFICATION.md) | специфікація 7 actions з прикладами |
+| [docs/README.md](./docs/README.md) | навігаційний індекс по docs/ |
+| [docs/ARCHITECTURE_INVARIANTS.md](./docs/ARCHITECTURE_INVARIANTS.md) | список захищених від видалення компонентів (15 розділів архітектурних правил) |
+| [docs/1C_API_SPECIFICATION.md](./docs/1C_API_SPECIFICATION.md) | специфікація 12 actions 1С з прикладами (v2.7) |
 | [docs/1C_EMBED_SPEC.md](./docs/1C_EMBED_SPEC.md) | embed нашого UI у 1С (якщо знадобиться) |
 | [docs/BACKUPS.md](./docs/BACKUPS.md) | стратегія резервного копіювання |
 | [docs/CHECKLIST_NEXT_PROJECT.md](./docs/CHECKLIST_NEXT_PROJECT.md) | чек-ліст для наступних схожих проектів |
+| [docs/BACKLOG.md](./docs/BACKLOG.md) | поточний backlog (P0/P1/P2/P3) — тех-борг, баги, нові фічі |
+| [docs/SPEC_PENDING_1C_ITEMS.md](./docs/SPEC_PENDING_1C_ITEMS.md) | pending специфікації до 1С — Action B + Bug 2 |
+| [docs/SPEC_CLIENTSTATS_DISCREPANCY.md](./docs/SPEC_CLIENTSTATS_DISCREPANCY.md) | open question Action 5 clientStats |
+| [docs/ARCHIVE_PLANS.md](./docs/ARCHIVE_PLANS.md) | архів виконаних планів (PLAN V2 + clients-page) |
+| [docs/ARCHIVE_SPECS_RESOLVED.md](./docs/ARCHIVE_SPECS_RESOLVED.md) | архів виконаних специфікацій (Action 5 includeAll, getClientFocus, isReserved) |
 | [public/manual.html](./public/manual.html) | інструкція для кінцевих користувачів |
 | [public/presentation.html](./public/presentation.html) | презентація системи для команди |
 

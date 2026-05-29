@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Події — 3 варіанти групування</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --emet-blue: #066aab;
+    --emet-blue-light: #0880cc;
+    --emet-50: #e8f4fc;
+    --bg: #f8fbfd;
+    --fg: #062a3d;
+    --muted: #7c879a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 14px; }
+  body {
+    background:
+      radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+      radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+      radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+      linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
+    min-height: 100dvh;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  /* === Glass-card === */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(6, 42, 61, 0.04), 0 8px 32px rgba(6, 42, 61, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  .glass-card-soft {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+  .glass-card-mini {
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+  }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 32px 20px; display: flex; flex-direction: column; gap: 32px; }
+
+  .page-title { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .page-title .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--emet-blue); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(6,106,171,0.25); }
+  .page-title h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+  .page-title .sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .variant-title { display: flex; align-items: baseline; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid var(--emet-blue); margin-bottom: 16px; }
+  .variant-title h2 { font-size: 18px; font-weight: 800; color: var(--emet-blue); }
+  .variant-title .sub { font-size: 12px; color: var(--muted); }
+
+  .block-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+
+  /* Колір-токени */
+  .c-emet { color: var(--emet-blue); }
+  .c-emerald { color: #059669; }
+  .c-violet { color: #8b5cf6; }
+  .bg-emet-50 { background: var(--emet-50); }
+  .bg-emerald-50 { background: #d1fae5; }
+  .bg-violet-50 { background: #ede9fe; }
+
+  /* ========== V1 — TABS ========== */
+  .tabs-row { display: flex; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.5); }
+  .tab { padding: 6px 12px; border-radius: 999px; border: 1px solid transparent; background: transparent; font-size: 12px; font-weight: 600; color: var(--muted); display: inline-flex; align-items: center; gap: 8px; transition: all .15s; }
+  .tab:hover { background: rgba(255,255,255,0.5); }
+  .tab.active { background: var(--emet-blue); color: white; border-color: var(--emet-blue); }
+  .tab .count { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px; padding: 1px 6px; border-radius: 999px; background: rgba(6,106,171,0.08); color: var(--emet-blue); }
+  .tab.active .count { background: rgba(255,255,255,0.25); color: white; }
+  .tab svg { width: 14px; height: 14px; }
+
+  .event-row {
+    display: grid;
+    grid-template-columns: 16px 78px minmax(60px, auto) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background .15s;
+  }
+  .event-row:hover { background: rgba(255,255,255,0.4); }
+  .event-row .date { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted); }
+  .event-row .type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .event-row .type.meeting { color: var(--emet-blue); }
+  .event-row .type.call { color: #059669; }
+  .event-row .type.seminar { color: #8b5cf6; }
+  .event-row .comment { font-size: 12px; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .event-row .comment.empty { color: var(--muted); font-style: italic; }
+  .event-row svg { width: 14px; height: 14px; }
+
+  /* ========== V2 — COLLAPSIBLE ========== */
+  .group-card { margin-bottom: 8px; }
+  .group-header {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto auto;
+    gap: 14px;
+    align-items: center;
+    cursor: pointer;
+    text-align: left;
+    transition: background .15s;
+    border-radius: 16px;
+  }
+  .group-header:hover { background: rgba(255,255,255,0.45); }
+  .group-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .group-icon svg { width: 14px; height: 14px; }
+  .group-meta .title { font-size: 13px; font-weight: 800; }
+  .group-meta .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .group-counter { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 18px; color: var(--fg); }
+  .chev-down { color: var(--muted); transition: transform .25s; }
+  .group-card[data-open="false"] .chev-down { transform: rotate(-90deg); }
+  .group-content { padding: 0 16px 12px; display: block; }
+  .group-card[data-open="false"] .group-content { display: none; }
+  .group-content .event-row { grid-template-columns: 78px minmax(0, 1fr); }
+  .group-content .event-row .type { display: none; }
+  .group-content .event-row svg { display: none; }
+
+  /* ========== V3 — MONTHLY TIMELINE ========== */
+  .month-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 8px;
+    padding: 0 6px;
+  }
+  .month-divider .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--emet-blue);
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+  .month-divider .line { flex: 1; height: 1px; background: linear-gradient(to right, rgba(6,106,171,0.25), transparent); }
+  .month-divider .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(6,106,171,0.06);
+  }
+
+  .timeline-rail {
+    position: relative;
+    padding-left: 16px;
+  }
+  .timeline-rail::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: rgba(6,106,171,0.12);
+    border-radius: 1px;
+  }
+  .timeline-event {
+    position: relative;
+    display: grid;
+    grid-template-columns: 78px minmax(60px, auto) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    transition: background .15s;
+  }
+  .timeline-event:hover { background: rgba(255,255,255,0.4); }
+  .timeline-event::before {
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--emet-blue);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.6);
+  }
+  .timeline-event.meeting::before { border-color: var(--emet-blue); }
+  .timeline-event.call::before { border-color: #059669; }
+  .timeline-event.seminar::before { border-color: #8b5cf6; }
+  .timeline-event .date { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted); }
+  .timeline-event .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    width: max-content;
+  }
+  .timeline-event .pill svg { width: 11px; height: 11px; }
+  .timeline-event.meeting .pill { background: var(--emet-50); color: var(--emet-blue); }
+  .timeline-event.call .pill { background: #d1fae5; color: #059669; }
+  .timeline-event.seminar .pill { background: #ede9fe; color: #8b5cf6; }
+  .timeline-event .comment { font-size: 12px; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .timeline-event .comment.empty { color: var(--muted); font-style: italic; }
+
+  /* Variant note callout */
+  .pros-cons { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; }
+  .pros, .cons { padding: 12px 14px; border-radius: 12px; }
+  .pros { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); }
+  .cons { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); }
+  .pros .h, .cons .h { font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .pros .h { color: #047857; }
+  .cons .h { color: #b45309; }
+  .pros ul, .cons ul { padding-left: 16px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<main>
+  <div class="page-title">
+    <div class="ic">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </div>
+    <div>
+      <h1>Події клієнта — 3 варіанти групування</h1>
+      <p class="sub">Той самий набір даних · 16 подій (3 зустрічі, 13 дзвінків, 0 семінарів). Скажи який варіант більше у тему.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       VARIANT 1 — TABS (інстантна фільтрація по типу)
+       ════════════════════════════════════════════════════════════════════ -->
+  <section class="glass-card" style="padding: 20px;">
+    <div class="variant-title">
+      <h2>Варіант 1 · Tabs by type</h2>
+      <span class="sub">Tab-фільтр зверху → інстантна фільтрація по типу. Sort за датою desc.</span>
+    </div>
+
+    <p class="block-title">Події · 16</p>
+    <div class="tabs-row">
+      <button class="tab active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        Усі <span class="count">16</span>
+      </button>
+      <button class="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Зустрічі <span class="count">3</span>
+      </button>
+      <button class="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Дзвінки <span class="count">13</span>
+      </button>
+      <button class="tab" style="opacity: 0.5;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        Семінари <span class="count">0</span>
+      </button>
+    </div>
+
+    <div class="glass-card-soft" style="padding: 4px 8px; margin-top: 12px;">
+      <!-- Спочатку як «Усі» — пересортовано за датою -->
+      <div class="event-row">
+        <svg class="c-emet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span class="date">29.12.2025</span>
+        <span class="type meeting">Зустріч</span>
+        <span class="comment">Привітання з новим роком — вручення подарунку. Говорила з Інною, що маленька кількість клієнтів…</span>
+      </div>
+      <div class="event-row">
+        <svg class="c-emet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span class="date">10.11.2025</span>
+        <span class="type meeting">Зустріч</span>
+        <span class="comment empty">Без коментаря</span>
+      </div>
+      <div class="event-row">
+        <svg class="c-emet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span class="date">10.09.2025</span>
+        <span class="type meeting">Зустріч</span>
+        <span class="comment">Прийшла на зустріч і не знала, що у клієнта забрали амбасадорство. Анна любить ESSE і…</span>
+      </div>
+      <div class="event-row">
+        <svg class="c-emerald" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span class="date">30.08.2023</span>
+        <span class="type call">Дзвінок</span>
+        <span class="comment">Виходящее</span>
+      </div>
+      <div class="event-row">
+        <svg class="c-emerald" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span class="date">07.12.2021</span>
+        <span class="type call">Дзвінок</span>
+        <span class="comment">Виходящее</span>
+      </div>
+      <div class="event-row">
+        <svg class="c-emerald" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span class="date">26.11.2021</span>
+        <span class="type call">Дзвінок</span>
+        <span class="comment">Входящее</span>
+      </div>
+      <div class="event-row">
+        <svg class="c-emerald" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span class="date">29.10.2021</span>
+        <span class="type call">Дзвінок</span>
+        <span class="comment">Виходящее</span>
+      </div>
+      <button style="background: transparent; border: none; padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--emet-blue);">Показати ще 9</button>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <p class="h">✓ Сильні сторони</p>
+        <ul>
+          <li>Інстантний фільтр — клік-клік</li>
+          <li>Один шаблон рядка — однорідний візуал</li>
+          <li>Компактно: 8 рядків ≈ 280px</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <p class="h">⚠ Слабкі сторони</p>
+        <ul>
+          <li>Не видно «розкладку» між типами одразу</li>
+          <li>Якщо менеджеру треба «зустрічі + дзвінки разом» — переключай</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       VARIANT 2 — COLLAPSIBLE GROUPS BY TYPE
+       ════════════════════════════════════════════════════════════════════ -->
+  <section class="glass-card" style="padding: 20px;">
+    <div class="variant-title">
+      <h2>Варіант 2 · Collapsible groups</h2>
+      <span class="sub">3 секції за типом (зустрічі / дзвінки / семінари). За замовч — «зустрічі» розгорнуті, решта згорнуті.</span>
+    </div>
+
+    <p class="block-title">Події · 16</p>
+
+    <!-- Группа: ЗУСТРІЧІ (open) -->
+    <div class="glass-card-soft group-card" data-open="true">
+      <button class="group-header" onclick="toggleGroup(this)">
+        <div class="group-icon bg-emet-50 c-emet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div class="group-meta">
+          <p class="title">Зустрічі</p>
+          <p class="sub">Остання — 29.12.2025 · 5 міс тому</p>
+        </div>
+        <span class="group-counter">3</span>
+        <svg class="chev-down" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="group-content">
+        <div class="event-row"><span></span><span class="date">29.12.2025</span><span class="comment">Привітання з новим роком — вручення подарунку. Говорила з Інною…</span></div>
+        <div class="event-row"><span></span><span class="date">10.11.2025</span><span class="comment empty">Без коментаря</span></div>
+        <div class="event-row"><span></span><span class="date">10.09.2025</span><span class="comment">Прийшла на зустріч і не знала, що у клієнта забрали амбасадорство…</span></div>
+      </div>
+    </div>
+
+    <!-- Группа: ДЗВІНКИ (collapsed) -->
+    <div class="glass-card-soft group-card" data-open="false">
+      <button class="group-header" onclick="toggleGroup(this)">
+        <div class="group-icon bg-emerald-50 c-emerald">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <div class="group-meta">
+          <p class="title">Дзвінки</p>
+          <p class="sub">Остання — 30.08.2023 · 2 роки тому</p>
+        </div>
+        <span class="group-counter">13</span>
+        <svg class="chev-down" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="group-content">
+        <div class="event-row"><span></span><span class="date">30.08.2023</span><span class="comment">Виходящее</span></div>
+        <div class="event-row"><span></span><span class="date">07.12.2021</span><span class="comment">Виходящее</span></div>
+        <div class="event-row"><span></span><span class="date">26.11.2021</span><span class="comment">Входящее</span></div>
+      </div>
+    </div>
+
+    <!-- Группа: СЕМІНАРИ (empty) -->
+    <div class="glass-card-soft group-card" data-open="false" style="opacity: 0.55;">
+      <button class="group-header" style="cursor: default;">
+        <div class="group-icon bg-violet-50 c-violet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        </div>
+        <div class="group-meta">
+          <p class="title">Семінари</p>
+          <p class="sub">Жодного не зафіксовано</p>
+        </div>
+        <span class="group-counter">0</span>
+        <span style="width: 16px;"></span>
+      </button>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <p class="h">✓ Сильні сторони</p>
+        <ul>
+          <li>Одразу видно «розкладку» — 3 зустрічі, 13 дзвінків, 0 семінарів</li>
+          <li>«Остання — N днів тому» зверху — швидкий ситуаційний контекст</li>
+          <li>Дані ущільнюються — можна закрити дзвінки якщо не цікаво</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <p class="h">⚠ Слабкі сторони</p>
+        <ul>
+          <li>Хронологію між типами видно тільки коли все розкрите</li>
+          <li>Якщо клієнт мав 50 дзвінків — все одно довго гортати у середині</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       VARIANT 3 — MONTHLY TIMELINE
+       ════════════════════════════════════════════════════════════════════ -->
+  <section class="glass-card" style="padding: 20px;">
+    <div class="variant-title">
+      <h2>Варіант 3 · Monthly timeline</h2>
+      <span class="sub">Вертикальна стрічка з місячними роздільниками. Кольорові точки за типом. Хронологія desc.</span>
+    </div>
+
+    <p class="block-title">Події · 16</p>
+
+    <div class="glass-card-soft" style="padding: 14px 16px;">
+      <!-- ГРУДЕНЬ 2025 -->
+      <div class="month-divider">
+        <span class="label">Грудень 2025</span>
+        <span class="count">1</span>
+        <span class="line"></span>
+      </div>
+      <div class="timeline-rail">
+        <div class="timeline-event meeting">
+          <span class="date">29.12.2025</span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Зустріч
+          </span>
+          <span class="comment">Привітання з новим роком — вручення подарунку. Говорила з Інною…</span>
+        </div>
+      </div>
+
+      <!-- ЛИСТОПАД 2025 -->
+      <div class="month-divider">
+        <span class="label">Листопад 2025</span>
+        <span class="count">1</span>
+        <span class="line"></span>
+      </div>
+      <div class="timeline-rail">
+        <div class="timeline-event meeting">
+          <span class="date">10.11.2025</span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Зустріч
+          </span>
+          <span class="comment empty">Без коментаря</span>
+        </div>
+      </div>
+
+      <!-- ВЕРЕСЕНЬ 2025 -->
+      <div class="month-divider">
+        <span class="label">Вересень 2025</span>
+        <span class="count">1</span>
+        <span class="line"></span>
+      </div>
+      <div class="timeline-rail">
+        <div class="timeline-event meeting">
+          <span class="date">10.09.2025</span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Зустріч
+          </span>
+          <span class="comment">Прийшла на зустріч і не знала, що у клієнта забрали амбасадорство…</span>
+        </div>
+      </div>
+
+      <!-- СЕРПЕНЬ 2023 -->
+      <div class="month-divider">
+        <span class="label">Серпень 2023</span>
+        <span class="count">1</span>
+        <span class="line"></span>
+      </div>
+      <div class="timeline-rail">
+        <div class="timeline-event call">
+          <span class="date">30.08.2023</span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Дзвінок
+          </span>
+          <span class="comment">Виходящее</span>
+        </div>
+      </div>
+
+      <!-- ГРУДЕНЬ 2021 -->
+      <div class="month-divider">
+        <span class="label">Грудень 2021</span>
+        <span class="count">1</span>
+        <span class="line"></span>
+      </div>
+      <div class="timeline-rail">
+        <div class="timeline-event call">
+          <span class="date">07.12.2021</span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Дзвінок
+          </span>
+          <span class="comment">Виходящее</span>
+        </div>
+      </div>
+
+      <!-- ЛИСТОПАД 2021 -->
+      <div class="month-divider">
+        <span class="label">Листопад 2021</span>
+        <span class="count">2</span>
+        <span class="line"></span>
+      </div>
+      <div class="timeline-rail">
+        <div class="timeline-event call">
+          <span class="date">26.11.2021</span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Дзвінок
+          </span>
+          <span class="comment">Входящее</span>
+        </div>
+        <div class="timeline-event call">
+          <span class="date">15.11.2021</span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Дзвінок
+          </span>
+          <span class="comment">Виходящее</span>
+        </div>
+      </div>
+
+      <button style="background: transparent; border: none; padding: 8px 6px; font-size: 11px; font-weight: 700; color: var(--emet-blue); margin-top: 4px;">Показати ще 9 (за 2021-2020)</button>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <p class="h">✓ Сильні сторони</p>
+        <ul>
+          <li>Хронологія читається миттєво — видно «розриви» місяцями</li>
+          <li>Місячні роздільники + кольорові точки = легко сканувати</li>
+          <li>Видно «перерви у контактах» (5 міс простою → сигнал)</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <p class="h">⚠ Слабкі сторони</p>
+        <ul>
+          <li>Сирий простір у місяцях де 1 подія — не максимально компактно</li>
+          <li>Фільтр по типу — окрема дія (потрібен tab/toggle зверху)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section style="text-align: center; padding: 20px; font-size: 13px; color: var(--muted);">
+    Скажи який варіант більше підходить — або яку комбінацію (наприклад, V3 з фільтром-tabs згори).
+  </section>
+
+</main>
+
+<script>
+function toggleGroup(btn) {
+  const card = btn.closest('.group-card');
+  if (card.dataset.open === 'true') card.dataset.open = 'false';
+  else card.dataset.open = 'true';
+}
+</script>
+
+</body>
+</html>

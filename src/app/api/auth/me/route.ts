@@ -23,20 +23,22 @@ export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session) return Response.json({ user: null });
 
-  // Fetch fresh permission flag з БД (не з JWT — щоб toggle админа діяв одразу
-  // після наступного /api/auth/me, без re-login). Якщо колонки ще немає (до
-  // applы M9) — fallback false.
+  // Fetch fresh permission flags з БД (не з JWT — щоб toggle админа діяв одразу
+  // після наступного /api/auth/me, без re-login). Якщо колонок ще немає
+  // (до applі M9/M10) — fallback false.
   let canEditStagesAfterFinalize = false;
+  let canViewCompanyOverview = false;
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('can_edit_stages_after_finalize')
+      .select('can_edit_stages_after_finalize, can_view_company_overview')
       .eq('login', session.login);
     if (!error && Array.isArray(data) && data.length > 0) {
       canEditStagesAfterFinalize = !!data[0].can_edit_stages_after_finalize;
+      canViewCompanyOverview = !!data[0].can_view_company_overview;
     }
   } catch {
-    // Колонка не існує (M9 ще не applied) — мовчки залишаємо false.
+    // Колонки не існують — мовчки лишаємо false.
   }
 
   return Response.json({
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
       regionCode: session.regionCode,
       managedUsers: session.managedUsers,
       canEditStagesAfterFinalize,
+      canViewCompanyOverview,
     },
   });
 }

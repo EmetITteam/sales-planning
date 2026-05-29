@@ -37,9 +37,9 @@ export function PeriodFilter() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#e2e7ef] hover:border-[#066aab]/30 hover:shadow-sm transition-all cursor-pointer"
+        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/60 backdrop-blur-md border border-white/50 hover:border-emet-blue/30 hover:bg-white/80 transition-all cursor-pointer"
       >
-        <Calendar className="h-4 w-4 text-[#066aab]" />
+        <Calendar className="h-4 w-4 text-emet-blue" />
         <span className="text-[13px] font-semibold text-foreground">{currentLabel}</span>
         <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -47,7 +47,7 @@ export function PeriodFilter() {
       {open && (
         <>
           {/* Dropdown */}
-          <div className="absolute top-full mt-2 left-0 z-50 w-[320px] bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] border border-[#e2e7ef] overflow-hidden">
+          <div className="absolute top-full mt-2 left-0 z-50 w-[320px] glass-card overflow-hidden shadow-[0_8px_40px_rgba(6,42,61,0.12)]">
             {/* Month selector */}
             <div className="px-4 py-3 border-b border-[#e2e7ef]">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Місяць</p>
@@ -58,8 +58,8 @@ export function PeriodFilter() {
                     onClick={() => setSelectedMonth(m.value)}
                     className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all cursor-pointer ${
                       selectedMonth === m.value
-                        ? 'bg-[#066aab] text-white shadow-sm'
-                        : 'bg-[#f4f7fb] text-muted-foreground hover:bg-[#e8f4fc]'
+                        ? 'bg-emet-blue text-white shadow-sm'
+                        : 'bg-[#f4f7fb] text-muted-foreground hover:bg-emet-50'
                     }`}
                   >
                     {m.label.split(' ')[0]}
@@ -79,24 +79,24 @@ export function PeriodFilter() {
                     onClick={() => { setCurrentPeriod(w); setOpen(false); }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#e8f4fc] text-[#066aab]'
+                        ? 'bg-emet-50 text-emet-blue'
                         : 'hover:bg-[#f4f7fb] text-foreground'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <span className={`flex items-center justify-center w-7 h-7 rounded-lg text-[11px] font-bold ${
-                        isSelected ? 'bg-[#066aab] text-white' : 'bg-[#f0f2f8] text-muted-foreground'
+                        isSelected ? 'bg-emet-blue text-white' : 'bg-[#f0f2f8] text-muted-foreground'
                       }`}>
                         {i + 1}
                       </span>
                       <div>
                         <p className="text-[13px] font-semibold">{formatWeekShort(w.weekStart, w.weekEnd)}</p>
                         {w.isActive && (
-                          <span className="text-[10px] text-[#066aab] font-medium">Поточний тиждень</span>
+                          <span className="text-[10px] text-emet-blue font-medium">Поточний тиждень</span>
                         )}
                       </div>
                     </div>
-                    {isSelected && <Check className="h-4 w-4 text-[#066aab]" />}
+                    {isSelected && <Check className="h-4 w-4 text-emet-blue" />}
                   </button>
                 );
               })}
@@ -119,7 +119,7 @@ export function PeriodFilter() {
                   });
                   setOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#066aab]/5 to-[#0880cc]/5 hover:from-[#066aab]/10 hover:to-[#0880cc]/10 border border-[#066aab]/10 text-[13px] font-semibold text-[#066aab] transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-emet-blue/5 to-emet-blue-light/5 hover:from-emet-blue/10 hover:to-emet-blue-light/10 border border-emet-blue/10 text-[13px] font-semibold text-emet-blue transition-all cursor-pointer"
               >
                 <Calendar className="h-3.5 w-3.5" />
                 Весь {currentMonthLabel.toLowerCase()}

@@ -28,7 +28,7 @@ interface UserRow {
   canEditStagesAfterFinalize: boolean;
 }
 
-const HEADERS_JSON = { 'Content-Type': 'application/json', 'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '' };
+const HEADERS_JSON = { 'Content-Type': 'application/json' };  // same-origin auth via Sec-Fetch-Site (api-auth.ts)
 
 export default function AdminStageEditPermissionsPage() {
   const router = useRouter();
@@ -99,7 +99,7 @@ export default function AdminStageEditPermissionsPage() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emet-blue to-emet-blue-light text-white flex items-center justify-center shadow-lg shadow-blue-500/15">
             <Settings2 className="h-5 w-5" />
           </div>
           <div>
@@ -110,7 +110,7 @@ export default function AdminStageEditPermissionsPage() {
           </div>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-[12px] text-amber-800">
+        <div className="bg-amber-50/60 backdrop-blur-md border border-amber-200/70 rounded-2xl px-4 py-3 text-[12px] text-amber-800">
           <p className="font-semibold">Як це працює:</p>
           <ul className="mt-1 space-y-0.5 list-disc list-inside">
             <li>Галочка ON → менеджер у формі бачить розблокований dropdown «Етап»</li>
@@ -119,7 +119,7 @@ export default function AdminStageEditPermissionsPage() {
           </ul>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <div className="px-4 py-3 border-b border-[#f0f2f8] flex items-center gap-3">
             <Search className="h-4 w-4 text-muted-foreground/60 shrink-0" />
             <Input

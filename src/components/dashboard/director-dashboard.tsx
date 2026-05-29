@@ -246,8 +246,9 @@ export function DirectorDashboard() {
   // === Loading skeleton ===
   if (loading && !regionResp) return <DashboardSkeleton role="director" />;
 
-  const errorBanner = error ? (
-    <div className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-[12px] text-rose-700 flex items-center gap-2">
+  // Session-expired показуємо через модал у AppHeader (не дубль).
+  const errorBanner = error && !error.includes('Сесія завершилась') ? (
+    <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700 flex items-center gap-2">
       <span>Помилка 1С (getRegionData): {error}</span>
       <button onClick={refetch} className="ml-auto font-semibold underline hover:no-underline">
         Спробувати ще
@@ -303,11 +304,11 @@ export function DirectorDashboard() {
 
       {/* Header */}
       <div className="flex items-center gap-2.5">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-[#0880cc] text-white shadow-lg shadow-[#066aab]/15">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emet-blue to-emet-blue-light text-white shadow-lg shadow-emet-blue/15">
           <Users className="h-5 w-5" />
         </div>
         <div className="flex-1">
-          <h2 className="text-lg font-bold">Огляд по компанії</h2>
+          <h1 className="text-lg font-bold">Огляд по представництвах</h1>
           <p className="text-[12px] text-muted-foreground">
             {company?.regionAggregates.length ?? 0} {(company?.regionAggregates.length ?? 0) === 1 ? 'регіон' : 'регіонів'}
             {' · '}{totalManagers} менеджерів · {periodLabel}
@@ -317,7 +318,7 @@ export function DirectorDashboard() {
           <button
             onClick={handleRefreshAll}
             title="Оновити всі дані (1С + статистика регіонів)"
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-[#066aab] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-emet-blue transition-colors cursor-pointer"
           >
             <RefreshCw className="h-3 w-3" /> Оновити
           </button>
@@ -325,15 +326,15 @@ export function DirectorDashboard() {
       </div>
 
       {loading && (
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-12 text-center">
+        <div className="glass-card p-12 text-center">
           <div className="inline-flex flex-col items-center gap-3">
-            <RefreshCw className="h-6 w-6 animate-spin text-[#066aab]" />
+            <RefreshCw className="h-6 w-6 animate-spin text-emet-blue" />
             <p className="text-[13px] font-medium text-muted-foreground">Завантажуємо дані компанії…</p>
           </div>
         </div>
       )}
       {noData && (
-        <div className="bg-white rounded-2xl border border-[#e2e7ef] p-8 text-center space-y-3">
+        <div className="glass-card p-8 text-center space-y-3">
           <p className="text-[15px] font-bold">Дані по компанії не знайдено</p>
           <p className="text-[13px] text-muted-foreground">
             1С не повернула жодного регіону для логіну <span className="font-mono">{user?.login}</span>.
@@ -341,7 +342,7 @@ export function DirectorDashboard() {
           </p>
           <button
             onClick={handleManualRetry}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#066aab] to-[#0880cc] hover:from-[#055a91] hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-[#066aab]/15 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white text-[13px] font-semibold shadow-md shadow-emet-blue/15 transition-all"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Спробувати ще
           </button>
@@ -353,11 +354,14 @@ export function DirectorDashboard() {
           {/* Hero metrics — 4 картки (4-та = ClientStatsCard через Action 2 агрегат) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
+              index={0}
+              ambient="accent"
+              valueSize="lg"
+              valuePrefix="$"
               icon={<Target />}
-              iconColor="text-[#066aab]"
-              label="План компанії"
-              value={formatUSD(totalPlan)}
-              isAmount
+              iconColor="text-emet-blue"
+              label="План представництв"
+              value={<span className="amount">{Math.round(totalPlan).toLocaleString('en-US')}</span>}
               caption={(() => {
                 // ТІЛЬКИ finalized — це реальне зобов'язання менеджерів.
                 // Чернетки до натискання «Фінальне збереження» не йдуть у звітність.
@@ -373,11 +377,14 @@ export function DirectorDashboard() {
               })()}
             />
             <MetricCard
+              index={1}
+              ambient="mint"
+              valueSize="lg"
+              valuePrefix="$"
               icon={<DollarSign />}
               iconColor="text-emerald-500"
               label="Факт"
-              value={formatUSD(totalFact)}
-              isAmount
+              value={<span className="amount">{Math.round(totalFact).toLocaleString('en-US')}</span>}
               caption={totalPrevFact > 0 ? (
                 <span className="space-y-0.5 block">
                   <span className="text-muted-foreground block">
@@ -395,6 +402,9 @@ export function DirectorDashboard() {
               ) : null}
             />
             <MetricCard
+              index={2}
+              ambient={totalPct >= calcPctValue ? 'good' : totalPct - calcPctValue >= -15 ? 'warn' : 'bad'}
+              valueSize="lg"
               icon={totalPct >= calcPctValue ? <TrendingUp /> : <TrendingDown />}
               iconColor={totalPct >= calcPctValue ? 'text-emerald-500' : 'text-rose-500'}
               label="Виконання"
@@ -407,12 +417,18 @@ export function DirectorDashboard() {
                 </span>
               )}
               caption={(
-                <div className="space-y-0.5">
-                  <p className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}: <span className="font-semibold text-foreground">{formatPct(calcPctValue)}</span></p>
-                  <p className="text-muted-foreground">Норма на ранок: <span className="font-semibold text-foreground">{formatPct(morningPctValue)}</span></p>
-                  <p className="text-muted-foreground">Прогноз (темп): <span className="font-semibold text-amber-600">{formatPct(totalForecastPct)}</span></p>
+                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                  <span className="text-muted-foreground">Норма на {liveMode ? 'сьогодні' : formatDateShort(currentPeriod.weekEnd)}:</span>
+                  <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(calcPctValue)}</span>
+                  <span className="text-muted-foreground">Норма на ранок:</span>
+                  <span className="font-semibold text-foreground tabular-nums text-right">{formatPct(morningPctValue)}</span>
+                  <span className="text-muted-foreground">Прогноз (темп):</span>
+                  <span className="font-semibold text-amber-600 tabular-nums text-right">{formatPct(totalForecastPct)}</span>
                   {totalExpectedPct !== null && (
-                    <p className="text-muted-foreground">Запланований: <span className="font-semibold text-[#066aab]">{formatPct(totalExpectedPct)}</span></p>
+                    <>
+                      <span className="text-muted-foreground">Запланований:</span>
+                      <span className="font-semibold text-emet-blue tabular-nums text-right">{formatPct(totalExpectedPct)}</span>
+                    </>
                   )}
                 </div>
               )}

@@ -78,7 +78,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
   const hasBrandPlan = !!planByLogin && brand.totalPlan > 0;
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+    <div className="glass-card overflow-hidden">
       <BrandRow
         segmentName={brand.segmentName}
         planAmount={brand.totalPlan}
@@ -95,7 +95,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
         expanded={expanded}
       />
       {expanded && (
-        <div className="px-3 md:px-5 py-3 space-y-3 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-3 md:px-5 py-3 space-y-3 bg-white/30 backdrop-blur-md border-t border-white/40">
           {/* Розклад по категоріях клієнтів — перед списком менеджерів */}
           {(planCategoriesForBrand || factCategoriesForBrand || categoriesLoading) && (
             <CategoryStatsTable

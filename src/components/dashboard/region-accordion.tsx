@@ -51,6 +51,8 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   const pct = pctOf(aggregate.totalFact, aggregate.totalPlan);
   const tl = getTrafficLight(pct, calcPct);
   const dev = pct - calcPct;
+  // Ambient glow за traffic-light станом — лише коли регіон має план.
+  const ambient = aggregate.totalPlan > 0 ? (pct >= calcPct ? 'row-good' : 'row-bad') : '';
   // Б.2: динаміка vs минулий = заплановане vs минулий факт (forward-looking).
   // Fallback на totalFact якщо нема плану.
   const compareForDyn = regionExpectedAmount > 0 ? regionExpectedAmount : aggregate.totalFact;
@@ -159,7 +161,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               key={m.login}
               onClick={(e) => { e.stopPropagation(); onManagerClick(m.login); }}
               title={tip}
-              className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap rounded px-1 -mx-1 hover:bg-[#e8f4fc] cursor-pointer text-left min-w-0"
+              className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap rounded-md px-1.5 py-0.5 -mx-1.5 hover:bg-emet-blue/[0.06] transition-colors cursor-pointer text-left min-w-0"
             >
               {inner}
             </button>
@@ -175,31 +177,32 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+    <div className={`glass-card ${ambient} overflow-hidden transition-all hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)]`}>
       {/* === DESKTOP/TABLET (md+): grid layout як у BrandRow, з drill-down chevron === */}
-      <div
+      <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="hidden xl:block px-3 md:px-4 py-3 md:py-4 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        aria-expanded={expanded}
+        className="hidden xl:block w-full text-left px-3 md:px-4 py-3 md:py-4 cursor-pointer hover:bg-white/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
       >
-        {/* Row 1: name+icon | badge | factPct+dev | progress | plan | fact | menagers | мин.міс | chevron | drill-down */}
-        <div className="grid grid-cols-[180px_95px_115px_minmax(160px,1fr)_85px_85px_70px_170px_20px_28px] gap-3 items-center">
-          {/* 1. Region name + MapPin */}
+        {/* Row 1: name+icon+badge | factPct+dev | progress | plan | fact | menagers | мин.міс | chevron | drill-down */}
+        <div className="grid grid-cols-[250px_115px_minmax(160px,1fr)_85px_85px_70px_170px_20px_28px] gap-3 items-center">
+          {/* 1. Region name + MapPin + бейдж (одразу після назви — ближче до регіону,
+              а не в окремій колонці впритул до % як було раніше) */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
-              <MapPin className="h-4 w-4 text-[#066aab]" />
+            <div className="w-9 h-9 rounded-xl bg-emet-50 flex items-center justify-center shrink-0">
+              <MapPin className="h-4 w-4 text-emet-blue" />
             </div>
             <div className="min-w-0">
               <p className="text-[14px] font-bold truncate">{aggregate.regionName}</p>
               <p className="text-[10px] text-muted-foreground">{managersBrief.length} менеджерів</p>
             </div>
+            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${tl.bg} ${tl.color}`}>
+              {tl.label}
+            </span>
           </div>
 
-          {/* 2. Бейдж traffic-light */}
-          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center ${tl.bg} ${tl.color}`}>
-            {tl.label}
-          </span>
-
-          {/* 3. Факт% + dev */}
+          {/* 2. Факт% + dev */}
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl font-extrabold tracking-tight">{pct.toFixed(1)}%</span>
             <span className={`text-[11px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -211,7 +214,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           <div className="min-w-0">
             <div className="relative w-full h-2 rounded-full bg-[#f0f2f8] overflow-visible">
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc] transition-all duration-500"
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emet-blue to-emet-blue-light transition-all duration-500"
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
               {regionForecastPct > 0 && regionForecastPct <= 100 && (
@@ -223,7 +226,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               )}
               {hasRegionPlan && (
                 <div
-                  className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-[#066aab] rounded-full"
+                  className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-emet-blue rounded-full"
                   style={{ left: `calc(${Math.min(regionExpectedPct, 100)}% - 1px)` }}
                   title={`Запланований: ${formatPct(regionExpectedPct)}`}
                 />
@@ -242,8 +245,8 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
                 <>
                   <span className="text-muted-foreground/40">·</span>
                   <span>
-                    <span className="text-[#066aab]">●</span> Запл.:{' '}
-                    <span className="font-bold text-[#066aab]">{formatPct(regionExpectedPct)}</span>
+                    <span className="text-emet-blue">●</span> Запл.:{' '}
+                    <span className="font-bold text-emet-blue">{formatPct(regionExpectedPct)}</span>
                     <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedAmount)}</span></span>
                   </span>
                 </>
@@ -295,7 +298,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           <button
             onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
             title="Перейти у дашборд регіону"
-            className="p-1 rounded-md hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer"
+            className="p-1 rounded-md hover:bg-emet-50 text-muted-foreground/40 hover:text-emet-blue transition-colors cursor-pointer"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -305,16 +308,18 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
         {managersBrief.length > 0 && (
           <div className="mt-3 pt-3 border-t border-[#f0f2f8]">{miniList}</div>
         )}
-      </div>
+      </button>
 
       {/* === MID-TABLET (md..lg-xl): спрощений stacked layout, без grid === */}
-      <div
+      <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="hidden md:block xl:hidden px-4 py-3 cursor-pointer hover:bg-[#fafbfe] transition-colors"
+        aria-expanded={expanded}
+        className="hidden md:block xl:hidden w-full text-left px-4 py-3 cursor-pointer hover:bg-white/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
       >
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0">
-            <MapPin className="h-4 w-4 text-[#066aab]" />
+          <div className="w-9 h-9 rounded-xl bg-emet-50 flex items-center justify-center shrink-0">
+            <MapPin className="h-4 w-4 text-emet-blue" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -323,7 +328,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
             </div>
             <p className="text-[10px] text-muted-foreground">{managersBrief.length} менеджерів</p>
           </div>
-          <div className="flex items-baseline gap-1.5 shrink-0">
+          <div className="flex items-baseline gap-1.5 shrink-0 ml-2">
             <span className="text-lg font-extrabold tracking-tight">{pct.toFixed(1)}%</span>
             <span className={`text-[11px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
@@ -333,7 +338,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           <button
             onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
             title="Перейти у дашборд регіону"
-            className="p-1 rounded-md hover:bg-[#e8f4fc] text-muted-foreground/40 hover:text-[#066aab] transition-colors cursor-pointer shrink-0"
+            className="p-1 rounded-md hover:bg-emet-50 text-muted-foreground/40 hover:text-emet-blue transition-colors cursor-pointer shrink-0"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -341,12 +346,12 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
 
         {/* Progress bar з насічками */}
         <div className="relative w-full h-2 rounded-full bg-[#f0f2f8] overflow-visible mb-1.5">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#066aab] to-[#0880cc]" style={{ width: `${Math.min(pct, 100)}%` }} />
+          <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emet-blue to-emet-blue-light" style={{ width: `${Math.min(pct, 100)}%` }} />
           {regionForecastPct > 0 && regionForecastPct <= 100 && (
             <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-amber-500 rounded-full" style={{ left: `calc(${Math.min(regionForecastPct, 100)}% - 1px)` }} />
           )}
           {hasRegionPlan && (
-            <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-[#066aab] rounded-full" style={{ left: `calc(${Math.min(regionExpectedPct, 100)}% - 1px)` }} />
+            <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-emet-blue rounded-full" style={{ left: `calc(${Math.min(regionExpectedPct, 100)}% - 1px)` }} />
           )}
         </div>
 
@@ -354,7 +359,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(regionForecastPct)}</span></span>
           {aggregate.totalPlan > 0 && (
             <span>
-              <span className="text-[#066aab]">●</span> Запл. <span className="font-bold text-[#066aab]">{formatPct(regionExpectedPct)}</span>
+              <span className="text-emet-blue">●</span> Запл. <span className="font-bold text-emet-blue">{formatPct(regionExpectedPct)}</span>
               <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedAmount)}</span></span>
             </span>
           )}
@@ -375,16 +380,18 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
         {managersBrief.length > 0 && (
           <div className="pt-2 border-t border-[#f0f2f8]">{miniList}</div>
         )}
-      </div>
+      </button>
 
       {/* === MOBILE === */}
       <div className="md:hidden">
-        <div
+        <button
+          type="button"
           onClick={() => setExpanded(!expanded)}
-          className="flex items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb]"
+          aria-expanded={expanded}
+          className="flex w-full items-start gap-2.5 px-3 py-3 cursor-pointer active:bg-[#f4f7fb] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
         >
-          <div className="w-9 h-9 rounded-xl bg-[#e8f4fc] flex items-center justify-center shrink-0 mt-0.5">
-            <MapPin className="h-4 w-4 text-[#066aab]" />
+          <div className="w-9 h-9 rounded-xl bg-emet-50 flex items-center justify-center shrink-0 mt-0.5">
+            <MapPin className="h-4 w-4 text-emet-blue" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -393,7 +400,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               <ChevronDown className={`h-4 w-4 text-muted-foreground/40 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
               <button
                 onClick={(e) => { e.stopPropagation(); onDrillDown(); }}
-                className="p-1 rounded-lg text-muted-foreground/40 hover:text-[#066aab] hover:bg-[#e8f4fc] transition-colors cursor-pointer shrink-0"
+                className="p-1 rounded-lg text-muted-foreground/40 hover:text-emet-blue hover:bg-emet-50 transition-colors cursor-pointer shrink-0"
                 title="Дашборд регіону"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -408,7 +415,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               </span>
             </div>
             <div className="w-full h-1.5 rounded-full bg-[#f0f2f8] overflow-hidden mb-2">
-              <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-[#066aab] to-[#0880cc]' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
+              <div className={`h-full rounded-full ${pct >= calcPct ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
                 style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
             <div className="flex items-center justify-between text-[11px]">
@@ -430,13 +437,13 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               )}
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Розгорнутий блок: спочатку зведена таблиця по категоріях клієнтів,
           потім список брендів цього регіону */}
       {expanded && (
-        <div className="px-3 md:px-5 pb-4 pt-3 space-y-3 bg-[#fafbfe] border-t border-[#f0f2f8]">
+        <div className="px-3 md:px-5 pb-4 pt-3 space-y-3 bg-white/30 backdrop-blur-md border-t border-white/40">
           <CategoryStatsTable
             plan={aggregatedPlan}
             fact={aggregatedFact}

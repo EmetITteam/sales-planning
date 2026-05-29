@@ -43,7 +43,7 @@ export function useFinalizationStatus(
       if (monthHint) params.set('month', monthHint);
       const res = await fetch(`/api/planning/finalize?${params.toString()}`, {
         credentials: 'include',
-        headers: { 'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '' },
+        
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json() as Promise<FinalizationStatus>;
@@ -72,9 +72,7 @@ export async function finalizePlan(params: {
     method: 'POST',
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '',
-    },
+      'Content-Type': 'application/json',},
     body: JSON.stringify({
       periodId: params.periodId,
       period: params.month ? { month: params.month } : undefined,
@@ -100,9 +98,7 @@ export async function unfinalizePlan(params: {
     method: 'DELETE',
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '',
-    },
+      'Content-Type': 'application/json',},
     body: JSON.stringify({
       periodId: params.periodId,
       period: params.month ? { month: params.month } : undefined,

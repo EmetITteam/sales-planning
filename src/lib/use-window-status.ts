@@ -34,7 +34,7 @@ export function useWindowStatus(
       const params = new URLSearchParams({ month: month!, login: login! });
       const res = await fetch(`/api/planning/window-check?${params.toString()}`, {
         credentials: 'include',
-        headers: { 'x-api-key': process.env.NEXT_PUBLIC_API_SECRET_KEY || '' },
+        
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json() as Promise<WindowStatus>;

@@ -86,10 +86,13 @@ export function formatPeriod(weekStart: string, weekEnd: string): string {
   return `${formatDateShort(weekStart)} — ${formatDateShort(weekEnd)}`;
 }
 
+// Glass-chip стиль: translucent color tint + border + backdrop-blur замість
+// opaque `bg-*-50`. На glass-картках opaque-бейджи читались як «плоскі
+// прямокутники» (audit B3). Колір-сигнал зберігається через tint + text.
 export function getProbColor(prob: number) {
-  if (prob === 100) return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' };
-  if (prob === 70) return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' };
-  return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' };
+  if (prob === 100) return { bg: 'bg-emerald-500/12 border border-emerald-300/40 backdrop-blur-sm', text: 'text-emerald-700', border: 'border-emerald-300/40', dot: 'bg-emerald-500' };
+  if (prob === 70) return { bg: 'bg-amber-500/12 border border-amber-300/40 backdrop-blur-sm', text: 'text-amber-700', border: 'border-amber-300/40', dot: 'bg-amber-500' };
+  return { bg: 'bg-rose-500/12 border border-rose-300/40 backdrop-blur-sm', text: 'text-rose-700', border: 'border-rose-300/40', dot: 'bg-rose-500' };
 }
 
 /**
@@ -102,7 +105,7 @@ export function getProbColor(prob: number) {
  */
 export function getTrafficLight(pct: number, expected: number) {
   if (pct >= expected) {
-    return { color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500', label: 'В плані' };
+    return { color: 'text-emerald-700', bg: 'bg-emerald-500/12 border border-emerald-300/40 backdrop-blur-sm', dot: 'bg-emerald-500', label: 'В плані' };
   }
-  return { color: 'text-rose-600', bg: 'bg-rose-50', dot: 'bg-rose-500', label: 'Відставання' };
+  return { color: 'text-rose-700', bg: 'bg-rose-500/12 border border-rose-300/40 backdrop-blur-sm', dot: 'bg-rose-500', label: 'Відставання' };
 }

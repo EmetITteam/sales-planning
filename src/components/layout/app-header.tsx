@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSWRConfig } from 'swr';
 import { useAppStore } from '@/lib/store';
+import { useGlassHover } from '@/hooks/use-glass-hover';
 import { apiLogout } from '@/lib/auth-client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +16,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PeriodFilter } from './period-filter';
-import { useRouter } from 'next/navigation';
-import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield, Users } from 'lucide-react';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -39,16 +41,20 @@ function getRoleLabel(login: string, role: string): string {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  manager: 'bg-[#c5e3f6] text-[#055a91]',
+  manager: 'bg-emet-100 text-emet-blue-dark',
   rm: 'bg-[#e8d5f5] text-[#6b21a8]',
   director: 'bg-[#fde68a] text-[#92400e]',
   admin: 'bg-[#fecaca] text-[#991b1b]',
 };
 
 export function AppHeader() {
-  const { user, setUser, liveMode, setLiveMode } = useAppStore();
+  const { user, setUser, liveMode, setLiveMode, activeView, setActiveView } = useAppStore();
   const { mutate } = useSWRConfig();
   const router = useRouter();
+  const pathname = usePathname();
+  const isOnClientsPage = pathname?.startsWith('/clients') ?? false;
+  // Cursor-following gradient на всіх glass-card. Один document listener.
+  useGlassHover();
   const handleLogout = async () => {
     // Спершу серверна частина — clear HttpOnly cookie. Потім локальний state.
     await apiLogout();
@@ -56,6 +62,20 @@ export function AppHeader() {
     // користувача (per-login key переключиться, але старий ключ лишився).
     mutate(() => true, undefined, { revalidate: false });
     setUser(null);
+  };
+
+  // Глобальний listener для 'emet:session-expired' (диспатчиться з callOneC
+  // при 401/403). Показуємо чистий модал + auto-logout — щоб користувач НЕ
+  // бачив JSON dump «HTTP 401: {status:error,message:Unauthorized}».
+  const [sessionExpired, setSessionExpired] = useState(false);
+  useEffect(() => {
+    const handler = () => setSessionExpired(true);
+    window.addEventListener('emet:session-expired', handler);
+    return () => window.removeEventListener('emet:session-expired', handler);
+  }, []);
+  const handleSessionExpiredOk = async () => {
+    setSessionExpired(false);
+    await handleLogout();
   };
   // Lazy init з localStorage — без useEffect+setState (cascading render).
   // SSR-safe: на сервері window нема → завжди false; перший render у браузері
@@ -85,14 +105,20 @@ export function AppHeader() {
   const initials = user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border/50">
+    <>
+    <header className="sticky top-0 z-50 bg-white/55 backdrop-blur-xl backdrop-saturate-150 border-b border-white/50 shadow-[0_4px_24px_rgba(6,42,61,0.04)]">
       <div className="flex h-[56px] items-center gap-4 px-5">
         {/* Logo: EMET-знак + назва продукту */}
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/emet-logo.png" alt="EMET" className="h-8 w-8 object-contain" />
-          <span className="text-[15px] font-semibold tracking-tight hidden sm:inline bg-gradient-to-r from-[#066aab] to-[#0880cc] bg-clip-text text-transparent">
+          {/* -translate-y: акцент над «e» зверху тягне геом-центр глифа вгору,
+              тож «e»-тіло візуально сидить нижче тексту — компенсуємо нуджем. */}
+          <img src="/emet-mark.svg" alt="EMET" className="h-8 w-auto object-contain -translate-y-[3px]" />
+          {/* Logo wordmark — solid ink + accent dot замість gradient text.
+              Gradient на 15px Windows/Chrome губить anti-aliasing (audit). */}
+          <span className="text-[15px] font-semibold tracking-tight hidden sm:flex items-center gap-1.5 text-[#081E2D] translate-y-[2px]">
             Планування продажів
+            <span className="w-1 h-1 rounded-full bg-emet-blue" />
           </span>
         </div>
 
@@ -108,8 +134,8 @@ export function AppHeader() {
           onClick={() => setLiveMode(!liveMode)}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all cursor-pointer ${
             liveMode
-              ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-sm'
-              : 'bg-white border-[#e2e7ef] text-muted-foreground hover:border-amber-200 hover:text-amber-700'
+              ? 'bg-amber-50/70 backdrop-blur-md border-amber-300/70 text-amber-700 shadow-sm'
+              : 'bg-white/60 backdrop-blur-md border-white/50 text-muted-foreground hover:border-amber-200 hover:text-amber-700'
           }`}
           title={liveMode ? 'Перейти на звітний фільтр' : 'Перегляд "на сьогодні" (read-only)'}
         >
@@ -121,9 +147,64 @@ export function AppHeader() {
         </button>
 
         {liveMode && (
-          <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+          <span className="hidden md:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/12 border border-amber-300/40 text-amber-800 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider">
+            <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_4px_#f59e0b]" />
             LIVE · {new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}
           </span>
+        )}
+
+        {/* Route toggle «Планування ↔ Мої клієнти» — для manager + RM.
+            Admin/Director мають свій view-toggle Планування/Огляд нижче,
+            до /clients вони ходять через user-dropdown. */}
+        {(user.role === 'manager' || user.role === 'rm') && (
+          <div className="hidden md:flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2">
+            <button
+              onClick={() => router.push('/')}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+                !isOnClientsPage
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Планування
+            </button>
+            <button
+              onClick={() => router.push('/clients')}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+                isOnClientsPage
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Мої клієнти
+            </button>
+          </div>
+        )}
+
+        {/* View toggle — для admin завжди, для решти — за canViewCompanyOverview */}
+        {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
+          <div className="hidden md:flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2">
+            <button
+              onClick={() => setActiveView('planning')}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+                activeView === 'planning'
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Планування
+            </button>
+            <button
+              onClick={() => setActiveView('company-overview')}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+                activeView === 'company-overview'
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Огляд компанії
+            </button>
+          </div>
         )}
 
         <div className="flex-1" />
@@ -164,6 +245,11 @@ export function AppHeader() {
                 </>
               )}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push('/clients')} className="cursor-pointer">
+              <Users className="mr-2 h-3.5 w-3.5" />
+              Мої клієнти
+            </DropdownMenuItem>
             {user.role === 'admin' && (
               <>
                 <DropdownMenuSeparator />
@@ -182,5 +268,38 @@ export function AppHeader() {
         </DropdownMenu>
       </div>
     </header>
+    {/* Session-expired modal — портал у document.body, бо <header> має
+        backdrop-blur і створює новий containing-block для fixed-нащадків.
+        Без порталу модал прив'язувався б до бара хедера як стрічка. */}
+    {sessionExpired && typeof document !== 'undefined' && createPortal(
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="session-expired-title"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      >
+        <div className="glass-card max-w-md w-[90%] p-6 mx-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+              <LogOut className="h-5 w-5" />
+            </div>
+            <h2 id="session-expired-title" className="text-[15px] font-bold">Сесія завершилась</h2>
+          </div>
+          <p className="text-[13px] text-muted-foreground mb-5">
+            Час вашого сеансу закінчився або ви вийшли з системи в іншій вкладці. Увійдіть знову, щоб продовжити роботу.
+          </p>
+          <button
+            type="button"
+            onClick={handleSessionExpiredOk}
+            autoFocus
+            className="w-full h-10 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] font-semibold shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
+          >
+            Увійти знову
+          </button>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   );
 }

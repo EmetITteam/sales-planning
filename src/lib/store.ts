@@ -82,6 +82,12 @@ interface AppState {
   liveMode: boolean;
   /** Куди зайшов user у дашборд (для відновлення після refresh). */
   nav: NavState;
+  /**
+   * Активна view на головній: «планування» (звичайний дашборд) або
+   * «огляд компанії» (admin-сторінка з підрозділами). Toggle у AppHeader.
+   * Видно admin + юзерам з canViewCompanyOverview=true.
+   */
+  activeView: 'planning' | 'company-overview';
   setUser: (user: UserSession | null) => void;
   setBootstrapped: (b: boolean) => void;
   setCurrentPeriod: (period: PeriodInfo) => void;
@@ -89,6 +95,7 @@ interface AppState {
   setLiveMode: (live: boolean) => void;
   setNav: (nav: Partial<NavState>) => void;
   clearNav: () => void;
+  setActiveView: (view: 'planning' | 'company-overview') => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -100,6 +107,7 @@ export const useAppStore = create<AppState>()(
       designVariant: 'cards',
       liveMode: false,
       nav: {},
+      activeView: 'planning',
       // Скидаємо liveMode + nav при logout. SWR cache очиститься окремо у
       // app-header.tsx через mutate(() => true, undefined, { revalidate: false }).
       // ⚠️ user тут — лише UI-кеш. Джерело істини = HttpOnly cookie на сервері
@@ -114,6 +122,7 @@ export const useAppStore = create<AppState>()(
       setLiveMode: (live) => set({ liveMode: live }),
       setNav: (patch) => set((s) => ({ nav: { ...s.nav, ...patch } })),
       clearNav: () => set({ nav: {} }),
+      setActiveView: (view) => set({ activeView: view }),
     }),
     {
       name: 'emet-sales-planning',
@@ -148,7 +157,11 @@ export const useAppStore = create<AppState>()(
               .toISOString().slice(0, 10)
           : '';
         const isWholeMonth = persistedWeekEnd === lastDayOfPersistedMonth;
-        const stale = persistedMonth !== defaultMonth || persistedWeekEnd > today || isWholeMonth;
+        // Якщо з моменту persisted пройшла нова неділя — користувач очікує
+        // що фільтр автоматично «доїде» до неї (типовий понеділковий перегляд).
+        // Без цієї перевірки persisted=01.05-17.05 застрягав би навіть на 25.05.
+        const hasNewerSunday = persistedWeekEnd < def.weekEnd;
+        const stale = persistedMonth !== defaultMonth || persistedWeekEnd > today || isWholeMonth || hasNewerSunday;
         return stale ? { ...merged, currentPeriod: def } : merged;
       },
     },

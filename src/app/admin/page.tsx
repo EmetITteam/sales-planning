@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import Link from 'next/link';
-import { Shield, Lock, Clock, Settings2, ArrowLeft } from 'lucide-react';
+import { Shield, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -77,6 +77,27 @@ export default function AdminPage() {
             description="Per-manager дозвіл міняти поле «Етап» (Дзвінок/Зустріч/Навчання) у формі планування навіть після фіналізації. Суми лишаються заблокованими."
             ready
           />
+          <AdminCard
+            href="/admin/company-overview"
+            icon={<Building2 className="h-4 w-4 text-emet-blue" />}
+            title="Огляд компанії"
+            description="Уся компанія — план/факт по 13 підрозділах (включно з Колл-центр, Лазерхауз, Адасса, Чугуй, Хайленко). Heatmap бренд×підрозділ + donut-діаграми. Read-only."
+            ready
+          />
+          <AdminCard
+            href="/admin/company-overview-permissions"
+            icon={<Building2 className="h-4 w-4 text-emet-blue" />}
+            title="Доступ до «Огляду компанії»"
+            description="Кому показувати toggle «Дашборд / Огляд компанії» на головній сторінці. Admin завжди має доступ. Інші юзери — за галочкою."
+            ready
+          />
+          <AdminCard
+            href="/admin/analytics-preview"
+            icon={<FlaskConical className="h-4 w-4 text-amber-600" />}
+            title="B2B-метрики · draft"
+            description="Preview 5 додаткових KPI що audit рекомендував (Pipeline coverage, NRR, AOV per brand, Stage-done ratio, Brand mix). Оцінити чи додавати в «Огляд компанії»."
+            ready
+          />
         </div>
       </main>
     </>
@@ -95,13 +116,13 @@ function AdminCard({ icon, title, description, ready, href }: {
   return (
     <Wrapper
       {...wrapperProps}
-      className={`block bg-white rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.03)] ${ready ? 'hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all cursor-pointer' : ''}`}
+      className={`block glass-card p-5 ${ready ? 'hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-px transition-all cursor-pointer' : ''}`}
     >
       <div className="flex items-center gap-2.5 mb-2">
         <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">{icon}</div>
         <p className="text-[14px] font-bold">{title}</p>
         {!ready && (
-          <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#e8f4fc] text-[#066aab] font-bold">
+          <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-emet-50 text-emet-blue font-bold">
             Інлайн у формі
           </span>
         )}

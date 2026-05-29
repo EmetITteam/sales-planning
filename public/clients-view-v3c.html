@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Мої клієнти — v3c (наш стиль, v2)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --emet-blue: #066aab;
+    --emet-blue-light: #0880cc;
+    --emet-50: #e8f4fc;
+    --emet-100: #c5e3f6;
+    --bg: #f8fbfd;
+    --fg: #062a3d;
+    --muted: #7c879a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: var(--fg); background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+  }
+  body {
+    background:
+      radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+      radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+      radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+      radial-gradient(at 20% 90%, #e0f7fa 0%, transparent 55%),
+      linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
+    min-height: 100dvh;
+  }
+  button { font-family: inherit; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .tab { font-variant-numeric: tabular-nums; }
+
+  /* === Glass-card === */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 20px;
+    box-shadow:
+      0 4px 20px rgba(6, 42, 61, 0.04),
+      0 8px 32px rgba(6, 42, 61, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 20px 60px rgba(6, 106, 171, 0.12),
+      0 1px 2px rgba(6, 42, 61, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  /* === Header === */
+  .app-header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 24px rgba(6, 42, 61, 0.04);
+  }
+  .app-header-inner { display: flex; height: 56px; align-items: center; gap: 16px; padding: 0 20px; max-width: 1400px; margin: 0 auto; }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .logo .emet-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--emet-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+  .logo .dot { color: var(--emet-blue); margin: 0 2px; }
+  .header-spacer { flex: 1; }
+  .user-chip { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.7); }
+  .user-chip .avatar { width: 28px; height: 28px; border-radius: 999px; background: var(--emet-50); color: var(--emet-blue); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+  .user-chip .name { font-size: 12px; font-weight: 600; line-height: 1.1; }
+  .user-chip .role { font-size: 10px; color: var(--muted); line-height: 1.1; }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* === Page title === */
+  .page-title { display: flex; align-items: center; gap: 12px; }
+  .page-title .icon-wrap { width: 40px; height: 40px; border-radius: 12px; background: var(--emet-blue); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(6,106,171,0.25); }
+  .page-title h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  .page-title .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* === Hero band (MetricCard pattern) === */
+  .hero-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .metric-card { padding: 20px; position: relative; overflow: hidden; min-height: 110px; display: flex; flex-direction: column; }
+  .metric-card .wm { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); opacity: 0.1; pointer-events: none; }
+  .metric-card .wm svg { width: 112px; height: 112px; }
+  .metric-card .label-row { display: flex; align-items: center; gap: 8px; }
+  .metric-card .dot { width: 6px; height: 6px; border-radius: 999px; }
+  .metric-card .label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .metric-card .value { font-size: 36px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; margin-top: 14px; font-variant-numeric: tabular-nums; }
+  .metric-card .value .sup { font-size: 22px; font-weight: 500; color: var(--muted); vertical-align: top; margin-right: 2px; }
+  .metric-card .value .frac { font-size: 22px; color: var(--muted); font-weight: 500; }
+  .metric-card .caption { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.4; }
+
+  /* Card 4 — категорійний список (замість великого value) */
+  .metric-card.cat-list .label-row { margin-bottom: 8px; }
+  .cat-list-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; position: relative; z-index: 1; }
+  .cat-list-row { display: grid; grid-template-columns: 8px 1fr auto; gap: 8px; align-items: center; font-size: 12px; }
+  .cat-list-row .cd { width: 6px; height: 6px; border-radius: 999px; }
+  .cat-list-row .nm { font-weight: 600; color: var(--fg); }
+  .cat-list-row .nb { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 12px; }
+  .cat-list-row .nb .small { color: var(--muted); font-weight: 500; font-size: 10px; }
+
+  /* === Color tokens === */
+  .bg-emet { background: var(--emet-blue); box-shadow: 0 0 6px var(--emet-blue); }
+  .c-emet { color: var(--emet-blue); }
+  .bg-emerald { background: #10b981; box-shadow: 0 0 6px #10b981; }
+  .c-emerald { color: #10b981; }
+  .bg-amber { background: #d97706; box-shadow: 0 0 6px #d97706; }
+  .c-amber { color: #d97706; }
+  .bg-rose { background: #e11d48; box-shadow: 0 0 6px #e11d48; }
+  .c-rose { color: #e11d48; }
+  .bg-violet { background: #8b5cf6; box-shadow: 0 0 6px #8b5cf6; }
+  .c-violet { color: #8b5cf6; }
+
+  /* === Filter pills (наш round-dot стиль з shadow-glow) === */
+  .filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 4px 0; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .pill:hover { background: rgba(255,255,255,0.7); transform: translateY(-1px); }
+  .pill .pill-dot { width: 8px; height: 8px; border-radius: 999px; }
+  .pill.active { background: var(--emet-blue); color: white; border-color: var(--emet-blue); box-shadow: 0 4px 12px rgba(6,106,171,0.25); }
+  .pill .count {
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px;
+    padding: 1px 7px; border-radius: 999px;
+    background: rgba(6,106,171,0.08); color: var(--emet-blue);
+    font-variant-numeric: tabular-nums;
+  }
+  .pill.active .count { background: rgba(255,255,255,0.25); color: white; }
+
+  /* === Category section header — без квадратиків, тільки текст з accent-крапкою === */
+  .cat-header {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 16px 4px 6px;
+  }
+  .cat-header .cat-dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .cat-header h2 { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+  .cat-header h2 .cnt { color: var(--muted); font-weight: 600; }
+  .cat-header .stats { flex: 1; display: flex; justify-content: flex-end; gap: 18px; font-size: 11px; color: var(--muted); align-items: baseline; }
+  .cat-header .stats .v { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--fg); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .cat-header .stats .pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* === Client accordion (повний клон manager-accordion) === */
+  .clients-list { display: flex; flex-direction: column; gap: 8px; }
+  .client { overflow: hidden; }
+  .client.completed { opacity: 0.85; }
+  .client-header {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 40px minmax(200px, 1.4fr) minmax(170px, 1fr) 130px 100px 80px 24px;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s;
+  }
+  .client-header:hover { background: rgba(255,255,255,0.4); }
+  .client-header:focus-visible { outline: 2px solid var(--emet-blue); outline-offset: -2px; border-radius: 20px; }
+  .avatar-init {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    background: var(--emet-50);
+    color: var(--emet-blue);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .client-info { min-width: 0; }
+  .client-info .nm { font-size: 14px; font-weight: 700; letter-spacing: -0.005em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .client-info .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .client-info .completed-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: rgba(16,185,129,0.15); color: #047857; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+
+  .num-col { text-align: right; }
+  .num-col .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; line-height: 1; }
+  .num-col .val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 6px; line-height: 1; white-space: nowrap; }
+  .num-col .val .small { color: var(--muted); font-weight: 500; font-size: 11px; }
+  .num-col .pct { font-size: 11px; font-weight: 700; margin-top: 4px; line-height: 1; }
+  .num-col .pct.ok { color: #047857; }
+  .num-col .pct.warn { color: #b45309; }
+  .num-col .pct.bad { color: #b91c1c; }
+
+  .progress-mini {
+    width: 56px; height: 8px; border-radius: 999px; background: #f0f2f8; overflow: hidden;
+  }
+  .progress-mini .fill {
+    height: 100%; border-radius: 999px;
+    background: linear-gradient(to right, var(--emet-blue), var(--emet-blue-light));
+    transition: width 0.4s;
+  }
+  .progress-mini.ok .fill { background: linear-gradient(to right, #10b981, #34d399); }
+  .progress-mini.bad .fill { background: linear-gradient(to right, #ef4444, #f87171); }
+
+  .status-pill {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px; font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    display: inline-flex; align-items: center;
+  }
+  .status-pill.ok { background: rgba(16,185,129,0.15); color: #047857; }
+  .status-pill.warn { background: rgba(245,158,11,0.15); color: #b45309; }
+  .status-pill.bad { background: rgba(239,68,68,0.15); color: #b91c1c; }
+  .status-pill.idle { background: #f1f5f9; color: #64748b; }
+
+  .chev { color: var(--muted); transition: transform 0.3s; }
+  .client[data-open="true"] .chev { transform: rotate(180deg); }
+
+  /* === Expand panel — список брендів (BrandRow-стиль) === */
+  .client-expand {
+    display: none;
+    padding: 0 18px 14px;
+    border-top: 1px solid rgba(255,255,255,0.5);
+  }
+  .client[data-open="true"] .client-expand { display: block; }
+  .brand-rows {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 12px;
+  }
+  .brand-row {
+    display: grid;
+    grid-template-columns: 14px minmax(120px, 1.2fr) 90px 90px 90px 90px 90px;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .brand-row .tl-dot { width: 8px; height: 8px; border-radius: 999px; }
+  .brand-row .b-name { font-size: 13px; font-weight: 700; }
+  .brand-row .b-col { text-align: right; }
+  .brand-row .b-col .b-lb { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  .brand-row .b-col .b-vl { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .brand-row .b-col .b-vl.muted { color: var(--muted); font-weight: 500; }
+
+  /* === Empty state === */
+  .empty { padding: 24px; text-align: center; color: var(--muted); font-size: 12px; background: rgba(255,255,255,0.3); border-radius: 14px; border: 1px dashed rgba(124,135,154,0.3); }
+
+  /* === Anim === */
+  @keyframes fade-stagger-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-stagger { opacity: 0; animation: fade-stagger-in 500ms cubic-bezier(0.16,1,0.3,1) forwards; animation-delay: calc(var(--i, 0) * 60ms); }
+
+  @media (max-width: 980px) {
+    .hero-grid { grid-template-columns: repeat(2, 1fr); }
+    .client-header { grid-template-columns: 32px 1fr 100px 80px 20px; gap: 10px; padding: 12px 14px; }
+    .client-header > :nth-child(3) { display: none; } /* brand chips column hidden — collapse-hint only */
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <div class="logo"><span class="emet-mark">E</span><span>Планування продажів<span class="dot">•</span></span></div>
+    <div class="header-spacer"></div>
+    <div class="user-chip">
+      <div class="avatar">КЛ</div>
+      <div>
+        <div class="name">Коваленко Лариса</div>
+        <div class="role">Менеджер · Дніпро</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="page-title">
+    <div class="icon-wrap">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <div>
+      <h1>Мої клієнти</h1>
+      <div class="sub">Травень 2026 · 42 клієнтів · згруповано по категоріях · виконані спускаються вниз</div>
+    </div>
+  </div>
+
+  <!-- ============ HERO BAND ============ -->
+  <div class="hero-grid">
+
+    <!-- 1. ПЛАН -->
+    <div class="glass-card metric-card fade-stagger" style="--i:0;">
+      <div class="wm c-emet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      </div>
+      <div class="label-row"><span class="dot bg-emet"></span><span class="label">План місяця</span></div>
+      <div class="value"><span class="sup">$</span>61,600</div>
+      <div class="caption">42 клієнтів у плані · 5 брендів</div>
+    </div>
+
+    <!-- 2. ФАКТ + СЕР.ЧЕК -->
+    <div class="glass-card metric-card fade-stagger" style="--i:1;">
+      <div class="wm c-emerald">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="label-row"><span class="dot bg-emerald"></span><span class="label">Факт</span></div>
+      <div class="value"><span class="sup">$</span>45,180</div>
+      <div class="caption">сер. чек <strong class="mono" style="color:var(--fg);">$1,673</strong> · 27 угод · 73.3% від плану</div>
+    </div>
+
+    <!-- 3. ВИКОНАЛИ ЗАПЛАНОВАНЕ -->
+    <div class="glass-card metric-card fade-stagger" style="--i:2;">
+      <div class="wm c-emerald">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <div class="label-row"><span class="dot bg-emerald"></span><span class="label">Виконали план</span></div>
+      <div class="value">18<span class="frac"> / 42</span></div>
+      <div class="caption">43% клієнтів закрили місяць · решта 24 ще працює</div>
+    </div>
+
+    <!-- 4. ПО КАТЕГОРІЯХ — список -->
+    <div class="glass-card metric-card cat-list fade-stagger" style="--i:3;">
+      <div class="wm c-violet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div class="label-row"><span class="dot bg-violet"></span><span class="label">По категоріях</span></div>
+      <div class="cat-list-rows">
+        <div class="cat-list-row"><span class="cd bg-emet"></span><span class="nm">Активні</span><span class="nb">23<span class="small"> / 18 куп.</span></span></div>
+        <div class="cat-list-row"><span class="cd bg-amber"></span><span class="nm">Сплячі</span><span class="nb">11<span class="small"> / 4 куп.</span></span></div>
+        <div class="cat-list-row"><span class="cd bg-emerald"></span><span class="nm">Нові</span><span class="nb">5<span class="small"> / 5 куп.</span></span></div>
+        <div class="cat-list-row"><span class="cd bg-rose"></span><span class="nm">Втрачені</span><span class="nb">3<span class="small"> / 0 куп.</span></span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ FILTER PILLS ============ -->
+  <div class="filter-row">
+    <button class="pill active">Усі<span class="count">42</span></button>
+    <button class="pill"><span class="pill-dot bg-emet"></span>Активні<span class="count">23</span></button>
+    <button class="pill"><span class="pill-dot bg-amber"></span>Сплячі<span class="count">11</span></button>
+    <button class="pill"><span class="pill-dot bg-emerald"></span>Нові<span class="count">5</span></button>
+    <button class="pill"><span class="pill-dot bg-rose"></span>Втрачені<span class="count">3</span></button>
+    <div style="flex:1;"></div>
+    <button class="pill">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M11 18h2"/></svg>
+      Невиконані → виконані
+    </button>
+  </div>
+
+  <!-- ============================================================
+       АКТИВНІ
+       ============================================================ -->
+  <div class="cat-header">
+    <span class="cat-dot bg-emet"></span>
+    <h2>Активні <span class="cnt">· 23</span></h2>
+    <div class="stats">
+      <span>План <span class="v mono">$42,400</span></span>
+      <span>Факт <span class="v mono">$33,180</span></span>
+      <span class="pct" style="color:#b45309;">78.3%</span>
+    </div>
+  </div>
+  <div class="clients-list">
+
+    <!-- Невиконані спочатку -->
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">АД</div>
+        <div class="client-info">
+          <div class="nm">Адасса · Дніпро</div>
+          <div class="sub">Дніпро · з 2022 · 8 закупок</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$2,956<span class="small"> / $3,200</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:92%;"></div></div>
+        <div><span class="status-pill warn">Майже</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="brand-rows">
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#10b981;"></span>
+            <div class="b-name">Vitaran</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$1,200</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$1,180</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$590</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#047857;">є</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#047857;">98.3%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#10b981;"></span>
+            <div class="b-name">Neuronox</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$900</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$876</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$438</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#047857;">є</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#047857;">97.3%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#f59e0b;"></span>
+            <div class="b-name">Ellanse</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$600</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$500</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$500</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#b45309;">нема</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b45309;">83.3%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#ef4444;"></span>
+            <div class="b-name">Petaran</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$300</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#b91c1c;">нема</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b91c1c;">66.7%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#cbd5e1;"></span>
+            <div class="b-name">Restylane</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$200</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl muted">—</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#047857;">100%</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">БС</div>
+        <div class="client-info">
+          <div class="nm">Бьюті Стайл · Кам'янське</div>
+          <div class="sub">Кам'янське · з 2024 · 4 закупки</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$1,700<span class="small"> / $2,500</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:68%;"></div></div>
+        <div><span class="status-pill warn">У роботі</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="brand-rows">
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#10b981;"></span>
+            <div class="b-name">Petaran</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$1,500</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$1,200</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$1,200</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#047857;">є</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b45309;">80.0%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#f59e0b;"></span>
+            <div class="b-name">Neuramis</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$1,000</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$500</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$500</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#b45309;">нема</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b45309;">50.0%</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">КЛ</div>
+        <div class="client-info">
+          <div class="nm">Косметоцентр Лілея · Запоріжжя</div>
+          <div class="sub">Запоріжжя · з 2024 · 3 закупки</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$840<span class="small"> / $2,000</span></div>
+        </div>
+        <div class="progress-mini bad"><div class="fill" style="width:42%;"></div></div>
+        <div><span class="status-pill bad">Відстає</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="brand-rows">
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#f59e0b;"></span>
+            <div class="b-name">Neuramis</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$1,200</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$840</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl">$420</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#047857;">є</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b45309;">70.0%</div></div>
+          </div>
+          <div class="brand-row">
+            <span class="tl-dot" style="background:#ef4444;"></span>
+            <div class="b-name">Vitaran</div>
+            <div class="b-col"><div class="b-lb">План</div><div class="b-vl">$800</div></div>
+            <div class="b-col"><div class="b-lb">Факт</div><div class="b-vl">$0</div></div>
+            <div class="b-col"><div class="b-lb">Сер. чек</div><div class="b-vl muted">—</div></div>
+            <div class="b-col"><div class="b-lb">Подія</div><div class="b-vl" style="color:#b91c1c;">нема</div></div>
+            <div class="b-col"><div class="b-lb">Виконання</div><div class="b-vl" style="color:#b91c1c;">0%</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">ЛД</div>
+        <div class="client-info">
+          <div class="nm">Лазерхауз · Дніпро Центр</div>
+          <div class="sub">Дніпро · з 2020 · 18 закупок</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$4,098<span class="small"> / $5,500</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:74%;"></div></div>
+        <div><span class="status-pill warn">У роботі</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 6 брендах</div>
+      </div>
+    </div>
+
+    <!-- Розділювач: виконані спускаються вниз -->
+    <div style="display:flex; align-items:center; gap:10px; margin: 8px 4px 4px;">
+      <span style="height:1px; flex:1; background: rgba(124,135,154,0.2);"></span>
+      <span style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Виконали план</span>
+      <span style="height:1px; flex:1; background: rgba(124,135,154,0.2);"></span>
+    </div>
+
+    <!-- Виконав заплановане -->
+    <div class="client glass-card completed" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:rgba(16,185,129,0.15); color:#047857;">ДЖ</div>
+        <div class="client-info">
+          <div class="nm">Дерма Клінік Жадан · Дніпро</div>
+          <div class="sub">Дніпро · з 2021 · 12 закупок</div>
+          <span class="completed-tag">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Виконав заплановане
+          </span>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$5,002<span class="small"> / $4,800</span></div>
+        </div>
+        <div class="progress-mini ok"><div class="fill" style="width:100%;"></div></div>
+        <div><span class="status-pill ok">+4.2%</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 3 брендах</div>
+      </div>
+    </div>
+
+    <div class="client glass-card completed" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:rgba(16,185,129,0.15); color:#047857;">ЕД</div>
+        <div class="client-info">
+          <div class="nm">Естетика+ Дніпро</div>
+          <div class="sub">Дніпро · з 2023 · 6 закупок</div>
+          <span class="completed-tag">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Виконав заплановане
+          </span>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$1,860<span class="small"> / $1,800</span></div>
+        </div>
+        <div class="progress-mini ok"><div class="fill" style="width:103%;"></div></div>
+        <div><span class="status-pill ok">+3.3%</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 4 брендах</div>
+      </div>
+    </div>
+
+    <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 17 активних клієнтів (з них 16 виконали план)</div>
+  </div>
+
+  <!-- ============================================================
+       СПЛЯЧІ
+       ============================================================ -->
+  <div class="cat-header">
+    <span class="cat-dot bg-amber"></span>
+    <h2>Сплячі <span class="cnt">· 11</span></h2>
+    <div class="stats">
+      <span>План <span class="v mono">$14,200</span></span>
+      <span>Факт <span class="v mono">$7,400</span></span>
+      <span class="pct" style="color:#b91c1c;">52.1%</span>
+    </div>
+  </div>
+  <div class="clients-list">
+
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">АК</div>
+        <div class="client-info">
+          <div class="nm">Альфа Клінік · Кривий Ріг</div>
+          <div class="sub">Кривий Ріг · остання закупка 4 міс тому</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$900<span class="small"> / $1,500</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:60%;"></div></div>
+        <div><span class="status-pill warn">Активуємо</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 1 бренду</div>
+      </div>
+    </div>
+
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init">ВБ</div>
+        <div class="client-info">
+          <div class="nm">Велла Бьюті · Нікополь</div>
+          <div class="sub">Нікополь · остання закупка 5 міс тому</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$0<span class="small"> / $1,200</span></div>
+        </div>
+        <div class="progress-mini bad"><div class="fill" style="width:0%;"></div></div>
+        <div><span class="status-pill bad">Не дзвонив</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 2 брендах</div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:10px; margin: 8px 4px 4px;">
+      <span style="height:1px; flex:1; background: rgba(124,135,154,0.2);"></span>
+      <span style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Реактивували</span>
+      <span style="height:1px; flex:1; background: rgba(124,135,154,0.2);"></span>
+    </div>
+
+    <div class="client glass-card completed" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:rgba(16,185,129,0.15); color:#047857;">КС</div>
+        <div class="client-info">
+          <div class="nm">Клініка Доктор Скай · Дніпро</div>
+          <div class="sub">Дніпро · повернулась з $2,500</div>
+          <span class="completed-tag">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Реактивовано
+          </span>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$2,500<span class="small"> / $2,500</span></div>
+        </div>
+        <div class="progress-mini ok"><div class="fill" style="width:100%;"></div></div>
+        <div><span class="status-pill ok">100%</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand">
+        <div class="empty" style="margin: 8px 0;">Click chevron — деталі по 3 брендах</div>
+      </div>
+    </div>
+
+    <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 8 сплячих клієнтів</div>
+  </div>
+
+  <!-- ============================================================
+       НОВІ
+       ============================================================ -->
+  <div class="cat-header">
+    <span class="cat-dot bg-emerald"></span>
+    <h2>Нові <span class="cnt">· 5</span></h2>
+    <div class="stats">
+      <span>План <span class="v mono">$5,000</span></span>
+      <span>Факт <span class="v mono">$4,600</span></span>
+      <span class="pct" style="color:#047857;">92.0%</span>
+    </div>
+  </div>
+  <div class="clients-list">
+
+    <div class="client glass-card completed" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:rgba(16,185,129,0.15); color:#047857;">АД</div>
+        <div class="client-info">
+          <div class="nm">Аква Дерм Центр · Дніпро</div>
+          <div class="sub">Дніпро · перша угода 12.05</div>
+          <span class="completed-tag">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Виконав заплановане
+          </span>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono">$820<span class="small"> / $800</span></div>
+        </div>
+        <div class="progress-mini ok"><div class="fill" style="width:100%;"></div></div>
+        <div><span class="status-pill ok">+2.5%</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand"><div class="empty" style="margin: 8px 0;">Click chevron — деталі по 1 бренду</div></div>
+    </div>
+
+    <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 4 нових клієнти (всі виконали план)</div>
+  </div>
+
+  <!-- ============================================================
+       ВТРАЧЕНІ
+       ============================================================ -->
+  <div class="cat-header">
+    <span class="cat-dot bg-rose"></span>
+    <h2>Втрачені <span class="cnt">· 3</span></h2>
+    <div class="stats">
+      <span style="color:var(--muted);">≥ 6 міс без закупок · в плані не враховуються</span>
+    </div>
+  </div>
+  <div class="clients-list">
+
+    <div class="client glass-card" data-open="false">
+      <button class="client-header" onclick="toggleClient(this)">
+        <div class="avatar-init" style="background:#f1f5f9; color:#64748b;">ГБ</div>
+        <div class="client-info">
+          <div class="nm">Гранд Бьюті · Запоріжжя</div>
+          <div class="sub">Запоріжжя · остання закупка 8 міс тому</div>
+        </div>
+        <div></div>
+        <div class="num-col">
+          <div class="label">Факт / План</div>
+          <div class="val mono muted" style="color:var(--muted);">$0<span class="small"> / —</span></div>
+        </div>
+        <div class="progress-mini"><div class="fill" style="width:0%; background:#cbd5e1;"></div></div>
+        <div><span class="status-pill idle">Виключено</span></div>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="client-expand"><div class="empty" style="margin: 8px 0;">Останні бренди: Petaran · Vitaran</div></div>
+    </div>
+
+    <div style="padding:8px 14px; font-size:11px; color:var(--muted); text-align:center;">… ще 2 втрачених</div>
+  </div>
+
+</main>
+
+<script>
+  function toggleClient(btn) {
+    const card = btn.closest('.client');
+    const open = card.dataset.open === 'true';
+    card.dataset.open = open ? 'false' : 'true';
+  }
+</script>
+
+</body>
+</html>

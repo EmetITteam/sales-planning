@@ -136,6 +136,8 @@ if (TARGET_LOGIN) console.log(`  (filter TARGET_LOGIN=${TARGET_LOGIN})`);
 
 // Map: login → segment → Set(clientId) of active у вікні.
 const activeBuyersMap = new Map();
+// Map: login → Set(clientId) — клієнти з 1С-категорією «Без закупок» (видалити з плану).
+const noBuyMap = new Map();
 let i = 0;
 for (const login of uniqueLogins) {
   i++;
@@ -153,45 +155,67 @@ for (const login of uniqueLogins) {
     continue;
   }
   const clientsBody = await clientsRes.json();
-  const allClientIds = (clientsBody?.data?.clients || []).map(c => c.clientId);
+  // Передаємо ВСІХ клієнтів у Action 3 — 1С-категорія тут не фільтр.
+  // Деякі «Без закупок» у 1С реально купували бренди (приклад: Різник
+  // Людмила — категорія «Без закупок» але купувала Vitaran $290 щомісяця).
+  // Класифікуємо тільки за фактом покупки у вікні.
+  const rawClients = (clientsBody?.data?.clients || []);
+  const allClientIds = rawClients.map(c => c.clientId);
   if (allClientIds.length === 0) {
     console.log(`    ❌ Нема клієнтів`);
     continue;
   }
 
-  // Action 3 per month — повертає facts[] з .clients[]
-  for (const period of WINDOW_MONTHS) {
-    const r = await fetch(`${BASE_URL}/api/onec`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Origin: BASE_URL, Cookie: cookie },
-      body: JSON.stringify({ action: 'getSalesFact', payload: { login, period, clientIds: allClientIds } }),
-    });
-    if (!r.ok) {
-      console.log(`    ❌ ${period}: ${r.status}`);
-      continue;
-    }
-    const body = await r.json();
-    // ⚠️ Action 3 повертає `data.segments`, не `data.facts` (наш адаптер
-    // перейменовує у `.facts`, але прокси /api/onec повертає raw 1С response).
-    const segments = body?.data?.segments || body?.data?.facts || [];
-    // 1С код → UI код
-    const SEG_MAP = {
-      Petaran: 'PETARAN', Ellanse: 'ELLANSE', Vitaran: 'VITARAN',
-      Neuramis: 'NEURAMIS', Neuronox: 'NEURONOX', Esse: 'ESSE',
-      Exoxe: 'EXOXE', IUSE: 'IUSE',
-    };
-    for (const seg of segments) {
-      const segCode = SEG_MAP[seg.segmentCode] || 'OTHER';
-      const set = activeBuyersMap.get(login).get(segCode) || new Set();
-      for (const buyer of (seg.clients || [])) {
-        const amt = typeof buyer.factAmountUSD === 'number' ? buyer.factAmountUSD : parseFloat(buyer.factAmountUSD || '0');
-        if (amt > 0) set.add(buyer.clientId);
+  // ⚠️ Action 3 повертає CUMULATIVE факт з 1-го числа period_month до сьогодні
+  // (не за конкретний місяць!). Перевірено на Калитка Марія: period='2026-02'
+  // повертає \$80 (травнева покупка), хоча у лютому вона нічого не купувала.
+  //
+  // Тому щоб дізнатись хто купував у вікні [Feb 1, May 1) — робимо 2 виклики:
+  //   period=2026-02 → cumulative з 1.02 (Feb-Apr + May)
+  //   period=2026-05 → cumulative з 1.05 (тільки May)
+  //   Різниця > 0 → купував у Feb-Apr (без травня) → active
+  const CHUNK = 400;
+  const factFeb = new Map(); // key=`segCode|clientId` → cumulative з 1.02
+  const factMay = new Map(); // key=`segCode|clientId` → cumulative з 1.05
+  const planMonthFirstDay = PLAN_MONTH + '-01';
+  const windowStartPeriod = WINDOW_MONTHS[0]; // '2026-02'
+
+  for (const [periodKey, targetMap] of [[windowStartPeriod, factFeb], [PLAN_MONTH, factMay]]) {
+    for (let off = 0; off < allClientIds.length; off += CHUNK) {
+      const chunk = allClientIds.slice(off, off + CHUNK);
+      const r = await fetch(`${BASE_URL}/api/onec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: BASE_URL, Cookie: cookie },
+        body: JSON.stringify({ action: 'getSalesFact', payload: { login, period: periodKey, clientIds: chunk } }),
+      });
+      if (!r.ok) { console.log(`    ❌ ${periodKey} chunk ${off}: ${r.status}`); continue; }
+      const body = await r.json();
+      const segs = body?.data?.segments || body?.data?.facts || [];
+      for (const seg of segs) {
+        const segCode = String(seg.segmentCode || '').toUpperCase();
+        for (const buyer of (seg.clients || [])) {
+          const amt = typeof buyer.factAmountUSD === 'number' ? buyer.factAmountUSD : parseFloat(buyer.factAmountUSD || '0');
+          targetMap.set(`${segCode}|${buyer.clientId}`, amt);
+        }
       }
-      activeBuyersMap.get(login).set(segCode, set);
     }
-    const totalBuyers = segments.reduce((s, f) => s + (f.clients || []).length, 0);
-    process.stdout.write(`    ${period}: ${totalBuyers} buyers across ${segments.length} segments\n`);
   }
+
+  // Обчислюємо різницю: active = factFeb > factMay
+  let activeCount = 0;
+  for (const [key, feb] of factFeb) {
+    const may = factMay.get(key) || 0;
+    const windowFact = feb - may;
+    if (windowFact > 0) {
+      const [segCode, clientId] = key.split('|');
+      const set = activeBuyersMap.get(login).get(segCode) || new Set();
+      set.add(clientId);
+      activeBuyersMap.get(login).set(segCode, set);
+      activeCount++;
+    }
+  }
+  process.stdout.write(`    cumulative з 1.${windowStartPeriod.slice(5)}: ${factFeb.size} records · cumulative з 1.${PLAN_MONTH.slice(5)}: ${factMay.size} records\n`);
+  process.stdout.write(`    активних у вікні [${windowStartPeriod}-01, ${planMonthFirstDay}): ${activeCount}\n`);
 }
 
 // ─── 4. Перевіряємо кожен row ───
@@ -201,30 +225,30 @@ for (const g of groups.values()) {
   if (TARGET_LOGIN && g.user_id !== TARGET_LOGIN) continue;
   if (finalizedPairs.has(`${g.user_id}|${g.segment_code}`)) continue;
   const activeSet = activeBuyersMap.get(g.user_id)?.get(g.segment_code) || new Set();
+  const noBuySet = noBuyMap.get(g.user_id) || new Set();
 
-  // Forecast → gap (клієнт не купував у вікні)
+  // ТІЛЬКИ переноси forecast↔gap. Видалення «Без закупок» НЕ робимо —
+  // якщо менеджер свідомо вніс клієнта у план, лишаємо як є.
+  // (Узгоджено з user 2026-05-15.)
   for (const f of g.forecasts) {
     if (!f.client_id_1c) continue;
     if (!activeSet.has(f.client_id_1c)) {
       plans.push({
-        from: 'forecast', to: 'gap',
+        action: 'move', from: 'forecast', to: 'gap',
         login: g.user_id, segment: g.segment_code,
         client_id_1c: f.client_id_1c, client_name: f.client_name,
-        forecastRow: f,
-        reason: 'не купував бренд у [Feb 1, May 1)',
+        forecastRow: f, reason: 'не купував бренд у [Feb 1, May 1)',
       });
     }
   }
-  // Gap → forecast (клієнт купував у вікні)
   for (const gap of g.gaps) {
     if (!gap.client_id_1c) continue;
     if (activeSet.has(gap.client_id_1c)) {
       plans.push({
-        from: 'gap', to: 'forecast',
+        action: 'move', from: 'gap', to: 'forecast',
         login: g.user_id, segment: g.segment_code,
         client_id_1c: gap.client_id_1c, client_name: gap.client_name,
-        gapRow: gap,
-        reason: 'купував бренд у [Feb 1, May 1)',
+        gapRow: gap, reason: 'купував бренд у [Feb 1, May 1)',
       });
     }
   }
@@ -235,20 +259,57 @@ if (plans.length === 0) {
   process.exit(0);
 }
 
-const fromForecastCount = plans.filter(p => p.from === 'forecast').length;
-const fromGapCount = plans.filter(p => p.from === 'gap').length;
-console.log(`  Знайдено ${plans.length} клієнтів для переносу:\n`);
-console.log('  Логін                       │ Сегмент    │ Куди              │ Клієнт                       │ Причина');
+const moveCount = plans.filter(p => p.action === 'move').length;
+const deleteCount = plans.filter(p => p.action === 'delete').length;
+console.log(`  Знайдено ${plans.length} операцій:\n`);
+console.log('  Логін                       │ Сегмент    │ Дія               │ Клієнт                       │ Причина');
 console.log('  ────────────────────────────┼────────────┼───────────────────┼──────────────────────────────┼──────────');
 for (const p of plans.slice(0, 80)) {
   const login = p.login.padEnd(28);
   const seg = p.segment.padEnd(10);
-  const dir = `${p.from}→${p.to}`.padEnd(18);
+  const dir = p.action === 'delete'
+    ? `🗑 ${p.table}`.padEnd(18)
+    : `${p.from}→${p.to}`.padEnd(18);
   const name = (p.client_name || p.client_id_1c).slice(0, 28).padEnd(28);
   console.log(`  ${login} │ ${seg} │ ${dir} │ ${name} │ ${p.reason}`);
 }
 if (plans.length > 80) console.log(`  ... + ще ${plans.length - 80}`);
-console.log(`\n  Підсумок: ${fromForecastCount} forecast→gap, ${fromGapCount} gap→forecast`);
+console.log(`\n  Підсумок: ${moveCount} переносів, ${deleteCount} видалень (Без закупок)`);
+
+// Breakdown по (login × segment)
+console.log('\n━━━ Розбивка по менеджерах × брендах ━━━');
+const byPair = new Map();
+for (const p of plans) {
+  const key = `${p.login}|${p.segment}|${p.from || p.table}|${p.to || ''}`;
+  byPair.set(key, (byPair.get(key) || 0) + 1);
+}
+const pairList = Array.from(byPair.entries()).sort((a, b) => b[1] - a[1]);
+for (const [key, count] of pairList) {
+  const [login, seg, from, to] = key.split('|');
+  const dir = to ? `${from}→${to}` : `🗑 ${from}`;
+  console.log(`  ${count.toString().padStart(4)} · ${login.padEnd(28)} · ${seg.padEnd(10)} · ${dir}`);
+}
+
+// Сумарно по login з розбивкою forecast→gap vs gap→forecast
+console.log('\n━━━ Сумарно по менеджерах ━━━');
+console.log('   login                          forecast→gap   gap→forecast   total');
+const byLogin = new Map();
+for (const p of plans) {
+  if (!byLogin.has(p.login)) byLogin.set(p.login, { fg: 0, gf: 0 });
+  const e = byLogin.get(p.login);
+  if (p.from === 'forecast' && p.to === 'gap') e.fg++;
+  else if (p.from === 'gap' && p.to === 'forecast') e.gf++;
+}
+const loginList = Array.from(byLogin.entries()).sort((a, b) => (b[1].fg + b[1].gf) - (a[1].fg + a[1].gf));
+let totalFG = 0, totalGF = 0;
+for (const [login, e] of loginList) {
+  const total = e.fg + e.gf;
+  console.log(`   ${login.padEnd(28)}     ${String(e.fg).padStart(8)}       ${String(e.gf).padStart(8)}    ${String(total).padStart(4)}`);
+  totalFG += e.fg;
+  totalGF += e.gf;
+}
+console.log('   ────────────────────────────  ──────────  ──────────  ────');
+console.log(`   ВСЬОГО                            ${String(totalFG).padStart(8)}       ${String(totalGF).padStart(8)}    ${String(totalFG + totalGF).padStart(4)}`);
 
 if (DRY_RUN) {
   console.log(`\n⚠️  DRY RUN — нічого не змінено. DRY_RUN=0 для apply.`);
@@ -256,10 +317,20 @@ if (DRY_RUN) {
 }
 
 // ─── 5. Apply ───
-console.log(`\n━━━ Виконання переносу ━━━`);
-let moved = 0, errors = 0;
+console.log(`\n━━━ Виконання операцій ━━━`);
+let moved = 0, deleted = 0, errors = 0;
 const ts = new Date().toISOString();
 for (const p of plans) {
+  if (p.action === 'delete') {
+    // soft-delete: archived_at=now
+    const r = await fetch(`${SBURL}/rest/v1/${p.table}?id=eq.${p.row.id}`, {
+      method: 'PATCH', headers: { ...SBH, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ archived_at: ts }),
+    });
+    if (!r.ok) { errors++; console.error(`  ❌ archive ${p.table} ${p.row.id}: ${r.status}`); continue; }
+    deleted++;
+    continue;
+  }
   if (p.from === 'forecast') {
     const old = p.forecastRow;
     const newGap = {
@@ -322,4 +393,4 @@ for (const p of plans) {
     moved++;
   }
 }
-console.log(`\n  ✓ Перенесено: ${moved}, помилок: ${errors}`);
+console.log(`\n  ✓ Перенесено: ${moved}, видалено: ${deleted}, помилок: ${errors}`);

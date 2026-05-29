@@ -258,6 +258,83 @@ export interface GetTrainingsResponse {
 }
 
 // === Карта action → request/response (для type-safe callOneC) ===
+// === Митинг (meeting-app) actions для сторінки «Мої клієнти» ===
+// shapes у `mityng-types.ts` (окремий файл бо це не наш контракт — це Митинга).
+import type {
+  GetManagerClientsResponse,
+  FindClientResponse,
+  ClientReport,
+} from './mityng-types';
+
+export interface GetManagerClientsRequest {
+  login: string;  // override з сесії у /api/onec
+}
+
+export interface FindClientRequest {
+  searchTerm: string;
+  managerLogin: string;  // override з сесії
+}
+
+export interface GetClientReportRequest {
+  clientID: string;
+}
+
+export interface GetAllMeetingsForClientRequest {
+  clientID: string;
+}
+
+/** Поки що shape не верифікований у проді — `unknown`. */
+export type GetAllMeetingsForClientResponse = unknown;
+
+// === getClientFocus (Action A) ===
+export interface GetClientFocusRequest {
+  login: string;
+  clientIds: string[];
+}
+
+/** Shape поки що припускається на основі нашої спеки — уточнити після першого виклику. */
+export interface ClientFocusItem {
+  focusName: string;
+  since?: string;
+  validUntil?: string | null;
+}
+
+export interface GetClientFocusResponse {
+  focuses: Array<{
+    clientId: string;
+    items: ClientFocusItem[];
+  }>;
+}
+
+// === getClientActivationPlan (Action B) ===
+// План активації бази клієнтів по категоріях (документ «Планування активації
+// бази клієнтів» у 1С). login-bound. ⚠️ 1С шле totalInCategory як STRING
+// ("120") — coerce у споживачі. category — у RU-формулюванні (мапимо RU→UA).
+export interface GetClientActivationPlanRequest {
+  login: string;
+  /** YYYY-MM */
+  period: string;
+}
+
+export interface OneCActivationRow {
+  /** RU-категорія: Спящий / Потерянный / Без закупок / Активный / Новый */
+  category: string;
+  /** Скільки клієнтів цієї категорії менеджер планує активувати. */
+  planCount: number;
+  /** Скільки всього клієнтів цієї категорії зараз. ⚠️ 1С інколи шле string. */
+  totalInCategory: number | string;
+}
+
+export interface GetClientActivationPlanResponse {
+  period: string;
+  documentNumber: string | null;
+  documentDate: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  region: string | null;
+  activations: OneCActivationRow[];
+}
+
 export interface OneCActionMap {
   login: { request: LoginRequest; response: LoginResponse };
   getClientsForPlanning: { request: GetClientsForPlanningRequest; response: GetClientsForPlanningResponse };
@@ -266,6 +343,13 @@ export interface OneCActionMap {
   getRegionData: { request: GetRegionDataRequest; response: GetRegionDataResponse };
   getTrainings: { request: GetTrainingsRequest; response: GetTrainingsResponse };
   checkActivities: { request: CheckActivitiesRequest; response: CheckActivitiesResponse };
+  // Митинг:
+  getManagerClients: { request: GetManagerClientsRequest; response: GetManagerClientsResponse };
+  findClient: { request: FindClientRequest; response: FindClientResponse };
+  getClientReport: { request: GetClientReportRequest; response: ClientReport };
+  getAllMeetingsForClient: { request: GetAllMeetingsForClientRequest; response: GetAllMeetingsForClientResponse };
+  getClientFocus: { request: GetClientFocusRequest; response: GetClientFocusResponse };
+  getClientActivationPlan: { request: GetClientActivationPlanRequest; response: GetClientActivationPlanResponse };
 }
 
 export type OneCAction = keyof OneCActionMap;

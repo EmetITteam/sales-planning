@@ -39,8 +39,8 @@ export function WindowLockBanner() {
   // Maintenance-style banner (global-block) — Wrench-іконка + amber:
   if (isGlobalBlock) {
     return (
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+      <div className="bg-amber-50/55 backdrop-blur-xl border border-amber-200/70 rounded-2xl p-4 flex items-start gap-3 shadow-[0_4px_20px_rgba(120,53,15,0.04)]">
+        <div className="w-9 h-9 rounded-xl bg-amber-100/80 backdrop-blur-sm flex items-center justify-center shrink-0">
           <Wrench className="h-4 w-4 text-amber-700" />
         </div>
         <div className="flex-1">
@@ -55,8 +55,8 @@ export function WindowLockBanner() {
 
   // Стандартне window-закриття (тільки для manager/rm) — rose + Lock:
   return (
-    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
-      <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+    <div className="bg-rose-50/55 backdrop-blur-xl border border-rose-200/70 rounded-2xl p-4 flex items-start gap-3 shadow-[0_4px_20px_rgba(159,18,57,0.04)]">
+      <div className="w-9 h-9 rounded-xl bg-rose-100/80 backdrop-blur-sm flex items-center justify-center shrink-0">
         <Lock className="h-4 w-4 text-rose-700" />
       </div>
       <div className="flex-1">

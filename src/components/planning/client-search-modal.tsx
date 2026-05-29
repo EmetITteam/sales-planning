@@ -21,11 +21,11 @@ interface ClientSearchModalProps {
 
 // Колір (badge) — UI-знання, лишається тут. Лейбл — спільний з решти UI.
 const CATEGORY_COLOR: Record<Client1C['category'], string> = {
-  active: 'bg-emerald-50 text-emerald-700',
-  sleeping: 'bg-amber-50 text-amber-700',
-  lost: 'bg-rose-50 text-rose-700',
-  new: 'bg-blue-50 text-blue-700',
-  none: 'bg-gray-50 text-gray-600',
+  active: 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm',
+  sleeping: 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm',
+  lost: 'bg-rose-500/12 border border-rose-300/40 text-rose-700 backdrop-blur-sm',
+  new: 'bg-blue-500/12 border border-blue-300/40 text-blue-700 backdrop-blur-sm',
+  none: 'bg-slate-400/12 border border-slate-300/50 text-slate-600 backdrop-blur-sm',
 };
 
 export function ClientSearchModal({ open, onClose, onSelect, excludeIds, clients, loading }: ClientSearchModalProps) {

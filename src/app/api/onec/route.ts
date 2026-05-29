@@ -33,6 +33,15 @@ const ALLOWED_ACTIONS = new Set([
   'getRegionData',
   'getTrainings',
   'checkActivities',
+  // === Митинг (meeting-app) 1С-actions для CRM-сторінки «Мої клієнти» ===
+  // Усі вже існують у 1С production-системі (через Митинг). Тут ми просто
+  // дозволяємо проксі на ті самі endpoint-и.
+  'getManagerClients',        // bulk список клієнтів менеджера (login-bound)
+  'findClient',                // глобальний пошук (managerLogin-bound)
+  'getClientReport',           // 3-міс історія + events + clientInfo (clientID)
+  'getAllMeetingsForClient',   // всі зустрічі по клієнту (clientID)
+  'getClientFocus',            // фокуси по клієнтах bulk (login + clientIds[])
+  'getClientActivationPlan',   // план активації бази по категоріях (login + period) — Action B
 ]);
 
 // Action → яке поле у payload.login треба ОВЕРРАЙДНУТИ з сесії.
@@ -42,7 +51,23 @@ const LOGIN_BOUND_ACTIONS = new Set([
   'getSalesFact',
   'getRegionData',
   'checkActivities',
+  'getManagerClients',
+  'getClientFocus',  // приймає {login, clientIds} — login ОБОВ'ЯЗКОВО override з сесії
+  'getClientActivationPlan',  // приймає {login, period} — login override з сесії
 ]);
+
+// `findClient` — окремий випадок: поле зветься `managerLogin`, не `login`.
+// Робимо такий самий override як у LOGIN_BOUND_ACTIONS — інакше менеджер міг би
+// пошукати «як від імені іншого менеджера» і побачити чужий ClientCategory/Phone.
+const MANAGER_LOGIN_BOUND_ACTIONS = new Set([
+  'findClient',
+]);
+
+// `getClientReport` / `getAllMeetingsForClient` приймають `clientID` без login.
+// SECURITY-NOTE: 1С не валідовує що цей clientID належить call manager.
+// Поки що ризик прийнятний — UI показує тільки ID-шки що повернулись з
+// getManagerClients (свої клієнти). Якщо хтось наскрипчить — побачить чужий звіт.
+// TODO: попросити 1С-розробника додати login у payload і валідувати власника.
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -128,7 +153,37 @@ export async function POST(request: NextRequest) {
         { status: 403 },
       );
     }
+    // SECURITY C1: includeAll=true (Action 5 getRegionData) повертає ВСІ
+    // підрозділи компанії включно з тими де менеджер нема. 1С НЕ перевіряє
+    // право на цей прапор — гард тут. Тільки admin може його використовувати.
+    if ('includeAll' in safePayload && session.role !== 'admin') {
+      const { includeAll: _, ...rest } = safePayload as Record<string, unknown>;
+      safePayload = rest;
+    }
   }
+
+  // findClient: override `managerLogin` (а не `login`) тим самим способом.
+  // Менеджер не може шукати «як від імені іншого менеджера».
+  // Admin/Director — як завжди з DIRECTOR_PROXY_LOGIN коли власний логін.
+  if (MANAGER_LOGIN_BOUND_ACTIONS.has(action)) {
+    const requested = (safePayload as { managerLogin?: string }).managerLogin;
+    const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
+    if (session.role === 'admin' && (!requested || requested === session.login)) {
+      safePayload = { ...safePayload, managerLogin: DIRECTOR_PROXY_LOGIN };
+    } else if (!requested) {
+      safePayload = { ...safePayload, managerLogin: session.login };
+    } else if (
+      requested !== session.login
+      && !session.managedUsers.includes(requested)
+      && !isAdminOrDirector
+    ) {
+      return Response.json(
+        { status: 'error', message: 'Forbidden: managerLogin outside your scope' },
+        { status: 403 },
+      );
+    }
+  }
+
   const requestBody = JSON.stringify({ action, payload: safePayload });
 
   const headers: Record<string, string> = {
@@ -155,10 +210,13 @@ export async function POST(request: NextRequest) {
     try {
       json = JSON.parse(text);
     } catch {
+      // У проді не показуємо raw 1С body (може бути IIS stack trace).
+      console.error(`[/api/onec] 1С returned non-JSON HTTP ${upstream.status}: ${text.slice(0, 200)}`);
       return Response.json(
         {
           status: 'error',
-          message: `1С повернула не-JSON (HTTP ${upstream.status}): ${text.slice(0, 200)}`,
+          message: `1С повернула невалідну відповідь (HTTP ${upstream.status}). Спробуйте пізніше.`,
+          ...(process.env.NODE_ENV !== 'production' && { debugBody: text.slice(0, 200) }),
         },
         { status: 502 },
       );
