@@ -16,7 +16,7 @@
 3. [Структура проекту](#3-структура-проекту)
 4. [Ролі та доступи](#4-ролі-та-доступи)
 5. [Архітектура взаємодії](#5-архітектура-взаємодії)
-6. [Інтеграція з 1С (12 actions)](#6-інтеграція-з-1с-12-actions)
+6. [Інтеграція з 1С (13 actions)](#6-інтеграція-з-1с-13-actions)
 7. [Схема БД (Supabase)](#7-схема-бд-supabase)
 8. [API routes](#8-api-routes)
 9. [Frontend компоненти](#9-frontend-компоненти)
@@ -33,12 +33,16 @@
 
 ### Бізнес-функція
 
-Менеджери з продажів щомісяця планують:
+Система виросла з інструмента місячного планування у **операційну платформу відділу продажів** із трьох модулів:
+
+**1. Планування (прогноз + розрив)** — менеджери щомісяця планують:
 - **Прогноз** — кого з активних клієнтів обзвонять/зустрінуться для повторної покупки + орієнтовна сума
 - **Закриття розриву** — кого «розбудять» (сплячі клієнти, які купували > 3 місяці тому) щоб закрити різницю між планом 1С і прогнозом
 - **Дії по розриву** — текст «що робитимуть» (gap_action_1/2/3)
 
-РМ і Директор бачать агрегацію по своїй ієрархії: регіон/менеджер/бренд, з кольоровою індикацією виконання плану й готовності планування.
+**2. CRM «Мої клієнти»** (`/clients`) — щоденний робочий інструмент менеджера (не лише раз на місяць): уся клієнтська база по категоріях, пошук, план×факт по брендах, 6-міс історія покупок, план активації з 1С, контактна активність, події. Менеджер відкриває картку клієнта перед/під час дзвінка.
+
+**3. Операційний огляд** — РМ і Директор бачать агрегацію по своїй ієрархії (регіон/менеджер/бренд) з кольоровою індикацією виконання й готовності планування; admin/директор — окремий дашборд **«Огляд компанії»** по всіх підрозділах (включно з не-планувальними).
 
 ### Ключові механіки
 
@@ -47,6 +51,10 @@
 - **Window-lock** — Director керує вікном планування: глобальний lock на період, або per-user allow/block override.
 - **One-way activity sync** з 1С — Action 7 повертає `hasCall`/`hasMeeting` per клієнта → frontend автоматично ставить `stage_done=true` (але назад не скидає).
 - **Snapshot fixation** — при першому збереженні плану `planning_snapshots` записує список клієнтів навіки, щоб історичні «незаплановані» не зникали при правках.
+
+### Дизайн (2026-05, glass-реліз)
+
+Повний glass-morphism редизайн усіх дашбордів: напівпрозорі картки з ambient-glow за станом (зелений/помаранчевий/червоний), EMET-лого (#081E2D), уніфікована мова кольорів, фавікон/PWA-іконка зі знаком EMET. Тег-еталон `etalon-glass-prod-2026-05-29`.
 
 ---
 
@@ -157,7 +165,7 @@ sales-planning/
 
 ---
 
-## 6. Інтеграція з 1С (12 actions)
+## 6. Інтеграція з 1С (13 actions)
 
 Усі actions через єдиний proxy endpoint `POST /api/onec` з body `{action, ...payload}`. Whitelist у [src/app/api/onec/route.ts](./src/app/api/onec/route.ts), типи у [src/lib/onec-types.ts](./src/lib/onec-types.ts) + [src/lib/mityng-types.ts](./src/lib/mityng-types.ts), адаптери (1С → UI shape) у [src/lib/onec-adapters.ts](./src/lib/onec-adapters.ts).
 
@@ -184,6 +192,7 @@ Whitelisted з Митинга 4.0 — використовується на ст
 | 10 | `getClientReport` | 3-міс історія + події + clientInfo + `properties[]` + `seminars` + `yearlySalesReport` (v2.7) | clients-page expanded row, useClientReport (lazy) |
 | 11 | `getAllMeetingsForClient` | усі зустрічі по клієнту (shape unverified, whitelisted) | (поки не використовується) |
 | 12 | `getClientFocus` | bulk-фокуси клієнтів (Action A, v2.7) | clients-page chips, useClientFocuses (chunked 200) |
+| 13 | `getClientActivationPlan` | план активації бази по категоріях (Action B) — `{login, period}` → `activations[]` | clients-page Hero3 «План активації», useClientActivationPlan |
 
 Детальна специфікація: [docs/1C_API_SPECIFICATION.md](./docs/1C_API_SPECIFICATION.md).
 
@@ -348,10 +357,10 @@ src/app/api/
 | [api-auth.ts](./src/lib/api-auth.ts) | Перевірка ролі у API routes |
 | [onec-client.ts](./src/lib/onec-client.ts) | HTTP до 1С з Basic Auth |
 | [onec-adapters.ts](./src/lib/onec-adapters.ts) | Адаптери 1С → UI shape (фільтр архівних регіонів) |
-| [onec-types.ts](./src/lib/onec-types.ts) | TypeScript типи усіх 12 actions (Sales Planning core + Митинг integration) |
+| [onec-types.ts](./src/lib/onec-types.ts) | TypeScript типи усіх 13 actions (Sales Planning core + Митинг integration + getClientActivationPlan) |
 | [mityng-types.ts](./src/lib/mityng-types.ts) | Типи Митинг-actions (`ClientFromOneC`, `ClientReport`, `BrandSalesHistory`, `ClientEvent`, `ClientSeminar`) + helpers (`isClientReserved`, `getClientName`, `getClientAddress`, `getLastMeetingDate`, `getLastCallDate`) |
 | [use-onec-data.ts](./src/lib/use-onec-data.ts) | SWR-хук для 1С call'ів |
-| [use-my-clients.ts](./src/lib/use-my-clients.ts) | 5 hooks для CRM-сторінки: `useMyClients` (bulk-список), `useClientReport` (lazy 1-client deep), `useClientsTotals` (план+факт chunked 400), `useClientActivities` (chunked 200), `useClientFocuses` (chunked 200) |
+| [use-my-clients.ts](./src/lib/use-my-clients.ts) + [client-batching.ts](./src/lib/client-batching.ts) | 6 hooks для CRM-сторінки: `useMyClients` (bulk-список), `useClientReport` (lazy 1-client deep), `useClientsTotals` (план+факт chunked 400), `useClientActivities` + `useClientFocuses` (chunked 200×4 = до 800), `useClientActivationPlan` (Action B). Чисті batching-функції (chunk/merge) винесено у `client-batching.ts` з юніт-тестами |
 | [use-planning-aggregate.ts](./src/lib/use-planning-aggregate.ts) | SWR-хук для `/api/planning/aggregate` |
 | [use-clients-for-planning.ts](./src/lib/use-clients-for-planning.ts) | SWR Action 2 |
 | [use-registry-plans.ts](./src/lib/use-registry-plans.ts) | SWR Action 4 |
@@ -500,7 +509,7 @@ Playwright headed-mode скрипт [scripts/qa-review.mjs](./scripts/qa-review.
 | [docs/BACKUPS.md](./docs/BACKUPS.md) | стратегія резервного копіювання |
 | [docs/CHECKLIST_NEXT_PROJECT.md](./docs/CHECKLIST_NEXT_PROJECT.md) | чек-ліст для наступних схожих проектів |
 | [docs/BACKLOG.md](./docs/BACKLOG.md) | поточний backlog (P0/P1/P2/P3) — тех-борг, баги, нові фічі |
-| [docs/SPEC_PENDING_1C_ITEMS.md](./docs/SPEC_PENDING_1C_ITEMS.md) | pending специфікації до 1С — Action B + Bug 2 |
+| [docs/SPEC_PENDING_1C_ITEMS.md](./docs/SPEC_PENDING_1C_ITEMS.md) | специфікації до 1С — усі pending закриті (Action B доставлено 28.05) |
 | [docs/SPEC_CLIENTSTATS_DISCREPANCY.md](./docs/SPEC_CLIENTSTATS_DISCREPANCY.md) | open question Action 5 clientStats |
 | [docs/ARCHIVE_PLANS.md](./docs/ARCHIVE_PLANS.md) | архів виконаних планів (PLAN V2 + clients-page) |
 | [docs/ARCHIVE_SPECS_RESOLVED.md](./docs/ARCHIVE_SPECS_RESOLVED.md) | архів виконаних специфікацій (Action 5 includeAll, getClientFocus, isReserved) |
@@ -511,12 +520,14 @@ Playwright headed-mode скрипт [scripts/qa-review.mjs](./scripts/qa-review.
 
 ```bash
 git tag --list 'etalon-*'
-# etalon-2026-05-12      — M7 monthly pid + M8 soft-delete
-# etalon-2026-05-12-v2   — Action 7 + PlanningReadinessCard
-# etalon-2026-05-13      — Adminrole + finalize + window-lock + redesign
+# etalon-2026-05-12          — M7 monthly pid + M8 soft-delete
+# etalon-2026-05-13          — Adminrole + finalize + window-lock + redesign
+# etalon-glass-prod-2026-05-29 — glass-редизайн + /clients CRM + Огляд компанії (PROD)
+# prod-pre-glass-merge       — стан master ДО glass-merge (rollback-якір)
 ```
 
-Щоб повернутись на еталон: `git checkout etalon-2026-05-13`.
+Щоб повернутись на еталон: `git checkout etalon-glass-prod-2026-05-29`.
+Відкат прод-merge: Vercel instant-rollback АБО `git revert -m 1 <merge>` / reset на `prod-pre-glass-merge`.
 
 ---
 
