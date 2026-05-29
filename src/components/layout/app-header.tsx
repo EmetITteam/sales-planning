@@ -107,32 +107,32 @@ export function AppHeader() {
   return (
     <>
     <header className="sticky top-0 z-50 bg-white/55 backdrop-blur-xl backdrop-saturate-150 border-b border-white/50 shadow-[0_4px_24px_rgba(6,42,61,0.04)]">
-      <div className="flex h-[56px] items-center gap-4 px-5">
+      <div className="flex h-[56px] items-center gap-3 px-4 sm:px-5">
         {/* Logo: EMET-знак + назва продукту */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {/* -translate-y: акцент над «e» зверху тягне геом-центр глифа вгору,
               тож «e»-тіло візуально сидить нижче тексту — компенсуємо нуджем. */}
           <img src="/emet-mark.svg" alt="EMET" className="h-8 w-auto object-contain -translate-y-[3px]" />
           {/* Logo wordmark — solid ink + accent dot замість gradient text.
               Gradient на 15px Windows/Chrome губить anti-aliasing (audit). */}
-          <span className="text-[15px] font-semibold tracking-tight hidden sm:flex items-center gap-1.5 text-[#081E2D] translate-y-[2px]">
+          <span className="text-[15px] font-semibold tracking-tight hidden xl:flex items-center gap-1.5 text-[#081E2D] translate-y-[2px] whitespace-nowrap">
             Планування продажів
             <span className="w-1 h-1 rounded-full bg-emet-blue" />
           </span>
         </div>
 
-        <div className="w-px h-6 bg-border/60 hidden sm:block" />
+        <div className="w-px h-6 bg-border/60 hidden xl:block" />
 
         {/* Period filter — приглушений у live-режимі */}
-        <div className={liveMode ? 'opacity-50 pointer-events-none' : ''}>
+        <div className={`shrink-0 ${liveMode ? 'opacity-50 pointer-events-none' : ''}`}>
           <PeriodFilter />
         </div>
 
         {/* Live toggle — миттєвий перегляд "на сьогодні" */}
         <button
           onClick={() => setLiveMode(!liveMode)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all cursor-pointer ${
+          className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-[12px] font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
             liveMode
               ? 'bg-amber-50/70 backdrop-blur-md border-amber-300/70 text-amber-700 shadow-sm'
               : 'bg-white/60 backdrop-blur-md border-white/50 text-muted-foreground hover:border-amber-200 hover:text-amber-700'
@@ -147,7 +147,7 @@ export function AppHeader() {
         </button>
 
         {liveMode && (
-          <span className="hidden md:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/12 border border-amber-300/40 text-amber-800 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider">
+          <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 h-9 rounded-full bg-amber-500/12 border border-amber-300/40 text-amber-800 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0">
             <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_4px_#f59e0b]" />
             LIVE · {new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}
           </span>
@@ -157,10 +157,10 @@ export function AppHeader() {
             Admin/Director мають свій view-toggle Планування/Огляд нижче,
             до /clients вони ходять через user-dropdown. */}
         {(user.role === 'manager' || user.role === 'rm') && (
-          <div className="hidden md:flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2">
+          <div className="hidden md:inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2 shrink-0">
             <button
               onClick={() => router.push('/')}
-              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 !isOnClientsPage
                   ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
@@ -170,7 +170,7 @@ export function AppHeader() {
             </button>
             <button
               onClick={() => router.push('/clients')}
-              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 isOnClientsPage
                   ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
@@ -183,10 +183,10 @@ export function AppHeader() {
 
         {/* View toggle — для admin завжди, для решти — за canViewCompanyOverview */}
         {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
-          <div className="hidden md:flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2">
+          <div className="hidden md:inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2 shrink-0">
             <button
               onClick={() => setActiveView('planning')}
-              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 activeView === 'planning'
                   ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
@@ -196,7 +196,7 @@ export function AppHeader() {
             </button>
             <button
               onClick={() => setActiveView('company-overview')}
-              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 activeView === 'company-overview'
                   ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
@@ -211,15 +211,15 @@ export function AppHeader() {
 
         {/* User */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2.5 h-9 px-2 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer">
-            <Avatar className="h-8 w-8 shadow-sm">
+          <DropdownMenuTrigger className="flex items-center gap-2.5 h-9 px-2 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer shrink-0">
+            <Avatar className="h-8 w-8 shadow-sm shrink-0">
               <AvatarFallback className={`text-xs font-medium ${ROLE_COLORS[user.role]}`}>
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <div className="hidden md:flex flex-col items-start">
-              <span className="text-[13px] font-medium leading-tight">{user.fullName}</span>
-              <span className="text-[11px] text-muted-foreground leading-tight">
+            <div className="hidden xl:flex flex-col items-start">
+              <span className="text-[13px] font-medium leading-tight whitespace-nowrap">{user.fullName}</span>
+              <span className="text-[11px] text-muted-foreground leading-tight whitespace-nowrap">
                 {getRoleLabel(user.login, user.role)}{user.region ? ` · ${user.region}` : ''}
               </span>
             </div>
