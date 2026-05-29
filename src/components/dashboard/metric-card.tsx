@@ -63,18 +63,20 @@ export function MetricCard({
   trailing,
   ambient,
 }: MetricCardProps) {
+  // Розмір значення адаптивний: на мобільному менший, щоб 7-значні суми
+  // («$1,049,916») не вилазили за край вузької картки; на десктопі — cinematic.
   const valueClass = valueSize === 'lg'
-    ? 'text-[36px] font-bold tracking-[-1px] tabular-nums leading-none'
-    : 'text-[24px] font-extrabold tracking-tight tabular-nums leading-none';
+    ? 'text-[26px] sm:text-[30px] lg:text-[36px] font-bold tracking-[-1px] tabular-nums leading-none'
+    : 'text-[20px] sm:text-[24px] font-extrabold tracking-tight tabular-nums leading-none';
   const prefixClass = valueSize === 'lg'
-    ? 'text-[22px] font-medium text-muted-foreground align-top mr-0.5'
-    : 'text-[14px] font-medium text-muted-foreground align-top mr-0.5';
+    ? 'text-[16px] sm:text-[18px] lg:text-[22px] font-medium text-muted-foreground align-top mr-0.5'
+    : 'text-[12px] sm:text-[14px] font-medium text-muted-foreground align-top mr-0.5';
 
   // Layout: label / value / caption-trailing — простий flex з gap-3 (БЕЗ
   // justify-between). justify-between розводив контент по краях → великі
   // цифри стрибали залежно від обсягу caption/trailing внизу. Тепер всі
   // hero-картки на дашбордах мають великі цифри на одній вертикальній лінії.
-  const baseCls = `glass-card p-5 relative flex flex-col gap-3${ambient ? ` ambient-${ambient}` : ''}`;
+  const baseCls = `glass-card p-4 sm:p-5 relative flex flex-col gap-2.5 sm:gap-3${ambient ? ` ambient-${ambient}` : ''}`;
   const cls = index !== undefined ? `${baseCls} fade-stagger` : baseCls;
   const style = index !== undefined ? { ['--i' as string]: index } : undefined;
 

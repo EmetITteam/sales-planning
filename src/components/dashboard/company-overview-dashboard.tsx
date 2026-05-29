@@ -915,9 +915,9 @@ export function CompanyOverviewDashboard() {
           </div>
 
           <div>
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4">
               <h2 className="text-[16px] font-bold">Деталізація</h2>
-              <div className="flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-auto">
+              <div className="flex gap-1 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 self-start sm:self-auto sm:ml-auto">
                 <button
                   onClick={() => { setAccordionMode('by-div'); setExpandedKey(null); }}
                   className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all ${accordionMode === 'by-div' ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow' : 'text-muted-foreground'}`}
@@ -934,7 +934,8 @@ export function CompanyOverviewDashboard() {
             </div>
 
             {accordionMode === 'by-div' && (
-              <div className="space-y-2">
+              <div className="overflow-x-auto -mx-1 px-1">
+              <div className="space-y-2 min-w-[600px]">
                 {/* Заголовки колонок верхнього рівня */}
                 <div className="grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center px-4 text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
                   <span />
@@ -1110,10 +1111,12 @@ export function CompanyOverviewDashboard() {
                   );
                 })}
               </div>
+              </div>
             )}
 
             {accordionMode === 'by-brand' && (
-              <div className="space-y-2">
+              <div className="overflow-x-auto -mx-1 px-1">
+              <div className="space-y-2 min-w-[600px]">
                 {/* Заголовки колонок */}
                 <div className="grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center px-4 text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
                   <span />
@@ -1184,6 +1187,7 @@ export function CompanyOverviewDashboard() {
                     </div>
                   );
                 })}
+              </div>
               </div>
             )}
           </div>

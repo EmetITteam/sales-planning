@@ -267,6 +267,59 @@ export function AppHeader() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Mobile sub-bar — перемикач розділів. На десктопі ці toggle живуть у
+          верхньому рядку (hidden md:flex); на мобільному їх там немає (тісно),
+          тому виносимо у власний повноширинний рядок під шапкою (md:hidden). */}
+      {(user.role === 'manager' || user.role === 'rm') && (
+        <div className="md:hidden flex gap-1 mx-4 mb-2 p-1 rounded-full bg-white/60 backdrop-blur-md border border-white/50">
+          <button
+            onClick={() => router.push('/')}
+            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
+              !isOnClientsPage
+                ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                : 'text-muted-foreground'
+            }`}
+          >
+            Планування
+          </button>
+          <button
+            onClick={() => router.push('/clients')}
+            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
+              isOnClientsPage
+                ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                : 'text-muted-foreground'
+            }`}
+          >
+            Мої клієнти
+          </button>
+        </div>
+      )}
+
+      {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
+        <div className="md:hidden flex gap-1 mx-4 mb-2 p-1 rounded-full bg-white/60 backdrop-blur-md border border-white/50">
+          <button
+            onClick={() => setActiveView('planning')}
+            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
+              activeView === 'planning'
+                ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                : 'text-muted-foreground'
+            }`}
+          >
+            Планування
+          </button>
+          <button
+            onClick={() => setActiveView('company-overview')}
+            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
+              activeView === 'company-overview'
+                ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                : 'text-muted-foreground'
+            }`}
+          >
+            Огляд компанії
+          </button>
+        </div>
+      )}
     </header>
     {/* Session-expired modal — портал у document.body, бо <header> має
         backdrop-blur і створює новий containing-block для fixed-нащадків.
