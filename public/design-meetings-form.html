@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Дизайн-розвідка · Форма зустрічі · sales-planning</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --emet-blue: #066aab;
+      --emet-blue-light: #0a8acc;
+      --emet-blue-dark: #054d80;
+      --emet-mint: #5BD5BC;
+      --emet-ink: #081E2D;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-900: #0f172a;
+      --teal-50: #f0fdfa;
+      --teal-100: #ccfbf1;
+      --teal-600: #0d9488;
+      --teal-700: #0f766e;
+      --amber-50: #fffbeb;
+      --amber-200: #fde68a;
+      --amber-700: #b45309;
+      --rose-50: #fff1f2;
+      --rose-200: #fecdd3;
+      --rose-700: #be123c;
+    }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #e8f4f8 0%, #f0f5fc 50%, #e8f0fb 100%);
+      min-height: 100vh;
+      color: var(--emet-ink);
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "tnum" 1, "cv11" 1;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ===== Variant section ===== */
+    section.variant {
+      padding: 32px 24px 64px;
+      border-bottom: 1px dashed var(--slate-200);
+    }
+    .variant-meta { max-width: 1400px; margin: 0 auto 24px; }
+    .variant-label {
+      display: inline-block;
+      background: var(--emet-blue);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .variant-meta h2 {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0 0 8px;
+      letter-spacing: -0.5px;
+    }
+    .variant-meta .desc {
+      font-size: 14px;
+      color: var(--slate-600);
+      margin: 0 0 16px;
+      max-width: 700px;
+      line-height: 1.6;
+    }
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      max-width: 700px;
+    }
+    .pros-cons > div { padding: 12px 14px; border-radius: 10px; font-size: 12px; line-height: 1.5; }
+    .pros { background: rgba(45,212,191,0.10); border: 1px solid rgba(45,212,191,0.25); color: var(--teal-700); }
+    .cons { background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.20); color: var(--rose-700); }
+    .pros strong, .cons strong { display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    @media (max-width: 640px) { .pros-cons { grid-template-columns: 1fr; } }
+
+    /* ===== Sticky variant nav ===== */
+    .variant-nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px) saturate(150%);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      padding: 12px 24px;
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .variant-nav .title { font-weight: 700; font-size: 14px; color: var(--emet-ink); margin-right: 12px; }
+    .variant-nav a {
+      padding: 6px 14px; border-radius: 999px; text-decoration: none;
+      font-size: 12px; font-weight: 600; color: var(--slate-600);
+      background: white; border: 1px solid var(--slate-200);
+    }
+    .variant-nav a:hover { color: var(--emet-blue); border-color: var(--emet-blue); }
+
+    /* ===== Common form primitives ===== */
+    .form-group {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 480px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+    label.form-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--slate-600);
+    }
+    label.form-label .req { color: var(--emet-blue); margin-left: 2px; }
+    label.form-label .hint { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--slate-400); margin-left: 6px; font-size: 11px; }
+
+    .input,
+    .select,
+    .textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--emet-ink);
+      background: rgba(255,255,255,0.85);
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      padding: 12px 14px;
+      transition: all 0.15s;
+      outline: none;
+      min-height: 44px;
+    }
+    .input:focus,
+    .select:focus,
+    .textarea:focus {
+      border-color: var(--emet-blue);
+      box-shadow: 0 0 0 3px rgba(6,106,171,0.12);
+      background: white;
+    }
+    .input::placeholder,
+    .textarea::placeholder {
+      color: var(--slate-400);
+    }
+    .textarea { min-height: 84px; resize: vertical; line-height: 1.5; }
+
+    /* Time input styled with mono */
+    .input.time-input {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    /* Client picker (combobox) — selected client preview + searchable */
+    .client-picker {
+      background: rgba(255,255,255,0.85);
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer;
+      min-height: 56px;
+      transition: all 0.15s;
+    }
+    .client-picker:hover { border-color: var(--emet-blue); background: white; }
+    .client-picker .avatar {
+      width: 36px; height: 36px;
+      background: rgba(6,106,171,0.10);
+      color: var(--emet-blue);
+      border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .client-picker .info { flex: 1; min-width: 0; }
+    .client-picker .name { font-size: 14px; font-weight: 600; line-height: 1.2; }
+    .client-picker .sub {
+      font-size: 11px; color: var(--slate-500); margin-top: 2px;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .client-picker .change {
+      font-size: 12px; color: var(--emet-blue); font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    /* Purpose select with chips look */
+    .select-wrapper {
+      position: relative;
+    }
+    .select-wrapper::after {
+      content: '';
+      position: absolute;
+      right: 14px; top: 50%; transform: translateY(-50%);
+      width: 14px; height: 14px;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+      background-repeat: no-repeat; background-size: contain;
+      pointer-events: none;
+    }
+    .select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 38px;
+      cursor: pointer;
+    }
+
+    /* Geo readout (read-only after capture per ADR-7) */
+    .geo-readout {
+      background: var(--teal-50);
+      border: 1px solid var(--teal-100);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .geo-readout .top {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--teal-700);
+    }
+    .geo-readout .address {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--emet-ink);
+    }
+    .geo-readout .coords {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--slate-500);
+      letter-spacing: -0.02em;
+    }
+    .geo-readout .timestamp {
+      font-size: 11px;
+      color: var(--slate-500);
+    }
+
+    /* ===== Mock app behind the form (for Variant A backdrop) ===== */
+    .mock-dashboard {
+      filter: blur(2px) brightness(0.95);
+      opacity: 0.6;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* ============================================
+       VARIANT A — BOTTOM-SHEET (mobile) / MODAL (desktop)
+       ============================================ */
+    .v-a-frame {
+      max-width: 480px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, #e8f4f8, #f0f5fc, #e8f0fb);
+      border-radius: 28px;
+      box-shadow: 0 20px 60px rgba(6,42,61,0.15);
+      overflow: hidden;
+      position: relative;
+      border: 8px solid #1a1a1a;
+      height: 720px;
+      max-height: 90vh;
+    }
+    .v-a-status-bar {
+      height: 32px;
+      background: rgba(0,0,0,0.03);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--emet-ink);
+    }
+    .v-a-status-bar .right { display: inline-flex; gap: 4px; align-items: center; }
+    .v-a-header {
+      height: 52px;
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.5);
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 16px;
+    }
+    .v-a-header .logo { width: 28px; height: 28px; background: linear-gradient(135deg, var(--emet-blue), var(--emet-mint)); border-radius: 7px; color: white; font-weight: 800; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
+    .v-a-header .period { height: 32px; padding: 0 12px; background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.5); border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+    .v-a-header .avatar { width: 28px; height: 28px; background: rgba(91,213,188,0.20); color: var(--teal-700); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; margin-left: auto; }
+    .v-a-dashboard { padding: 16px 12px; }
+    .v-a-dashboard h1 { font-size: 18px; font-weight: 700; margin: 0 0 12px; }
+    .v-a-fake-card {
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.5); border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    /* Backdrop dim overlay */
+    .sheet-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(2px);
+      z-index: 5;
+    }
+
+    /* The bottom-sheet itself */
+    .bottom-sheet {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      background: white;
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      box-shadow: 0 -8px 40px rgba(6,42,61,0.20);
+      max-height: 88%;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      z-index: 10;
+    }
+    .sheet-grabber {
+      width: 40px; height: 4px;
+      background: var(--slate-300);
+      border-radius: 2px;
+      margin: 10px auto 4px;
+      flex-shrink: 0;
+    }
+    .sheet-header {
+      padding: 12px 20px 14px;
+      border-bottom: 1px solid var(--slate-100);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .sheet-header h2 {
+      font-size: 17px; font-weight: 700; margin: 0;
+      letter-spacing: -0.2px;
+    }
+    .sheet-close {
+      width: 36px; height: 36px;
+      background: var(--slate-100);
+      border: 0; border-radius: 10px;
+      cursor: pointer;
+      color: var(--slate-600);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .sheet-body {
+      padding: 18px 20px 16px;
+      overflow-y: auto;
+      display: flex; flex-direction: column; gap: 16px;
+      flex: 1;
+    }
+    .sheet-footer {
+      padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--slate-100);
+      background: white;
+      display: flex; gap: 10px;
+      flex-shrink: 0;
+    }
+    .sheet-footer button {
+      flex: 1;
+      min-height: 48px;
+      padding: 0 16px;
+      border-radius: 12px;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.15s;
+    }
+    .sheet-footer .cancel {
+      background: var(--slate-100); border: 1px solid var(--slate-200); color: var(--slate-700);
+    }
+    .sheet-footer .cancel:hover { background: var(--slate-200); }
+    .sheet-footer .save {
+      background: linear-gradient(135deg, var(--emet-blue), var(--emet-blue-light));
+      border: 0; color: white;
+      box-shadow: 0 4px 14px rgba(6,106,171,0.30);
+    }
+    .sheet-footer .save:hover {
+      box-shadow: 0 6px 20px rgba(6,106,171,0.40);
+      background: linear-gradient(135deg, var(--emet-blue-dark), var(--emet-blue));
+    }
+
+    /* Desktop modal variant of Variant A */
+    .desktop-modal-frame {
+      max-width: 1400px;
+      margin: 32px auto 0;
+      background: linear-gradient(135deg, #e8f4f8, #f0f5fc, #e8f0fb);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 12px 48px rgba(6,42,61,0.10);
+      overflow: hidden;
+      position: relative;
+      min-height: 600px;
+    }
+    .desktop-mock-header {
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(20px) saturate(150%);
+      border-bottom: 1px solid rgba(255,255,255,0.5);
+      padding: 0 20px; height: 56px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .desktop-mock-header .logo { width: 32px; height: 32px; background: linear-gradient(135deg, var(--emet-blue), var(--emet-mint)); border-radius: 8px; color: white; font-weight: 800; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; }
+    .desktop-mock-header .period { height: 36px; padding: 0 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.5); border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .desktop-mock-header .spacer { flex: 1; }
+    .desktop-mock-header .avatar { width: 32px; height: 32px; background: rgba(91,213,188,0.20); color: var(--teal-700); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; }
+    .desktop-dashboard-blur {
+      padding: 24px;
+      filter: blur(3px) brightness(0.97);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .desktop-modal-backdrop {
+      position: absolute; inset: 56px 0 0 0;
+      background: rgba(8,30,45,0.30);
+      backdrop-filter: blur(2px);
+    }
+    .desktop-modal-card {
+      position: absolute;
+      top: 56px; left: 50%; transform: translateX(-50%);
+      margin-top: 56px;
+      width: 100%;
+      max-width: 560px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 24px 60px rgba(6,42,61,0.25);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      max-height: calc(100% - 96px);
+    }
+
+    /* ============================================
+       VARIANT B — FULL-PAGE FORM
+       ============================================ */
+    .v-b-frame {
+      max-width: 1400px;
+      margin: 0 auto 32px;
+      background: linear-gradient(135deg, #e8f4f8, #f0f5fc, #e8f0fb);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 12px 48px rgba(6,42,61,0.10);
+      overflow: hidden;
+    }
+    .v-b-header {
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(20px) saturate(150%);
+      border-bottom: 1px solid rgba(255,255,255,0.5);
+      padding: 0 20px; height: 56px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .v-b-header .logo { width: 32px; height: 32px; background: linear-gradient(135deg, var(--emet-blue), var(--emet-mint)); border-radius: 8px; color: white; font-weight: 800; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; }
+    .v-b-header .breadcrumb {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600;
+    }
+    .v-b-header .breadcrumb a { color: var(--slate-500); text-decoration: none; }
+    .v-b-header .breadcrumb a:hover { color: var(--emet-blue); }
+    .v-b-header .breadcrumb .sep { color: var(--slate-300); }
+    .v-b-header .breadcrumb .current { color: var(--emet-ink); }
+    .v-b-header .spacer { flex: 1; }
+    .v-b-header .avatar { width: 32px; height: 32px; background: rgba(91,213,188,0.20); color: var(--teal-700); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; }
+    .v-b-content {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 24px 100px;
+    }
+    @media (max-width: 768px) {
+      .v-b-content { padding: 20px 16px 100px; }
+    }
+    .v-b-title {
+      margin-bottom: 28px;
+    }
+    .v-b-title h1 {
+      font-size: 26px; font-weight: 800; margin: 0;
+      letter-spacing: -0.5px;
+    }
+    .v-b-title p {
+      font-size: 13px; color: var(--slate-500); margin: 4px 0 0;
+    }
+    .v-b-section {
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(20px) saturate(150%);
+      border: 1px solid rgba(255,255,255,0.55);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .v-b-section .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--slate-500);
+      margin-bottom: 14px;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .v-b-section .section-title svg { color: var(--emet-blue); }
+    .v-b-grid {
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .v-b-footer {
+      position: sticky; bottom: 0;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(20px) saturate(150%);
+      border-top: 1px solid rgba(255,255,255,0.5);
+      padding: 14px 24px;
+      display: flex; gap: 12px; justify-content: flex-end;
+      margin: 32px -24px -100px;
+    }
+    @media (max-width: 768px) {
+      .v-b-footer { padding: 12px 16px; margin: 20px -16px -100px; }
+    }
+    .v-b-footer button {
+      min-height: 48px;
+      padding: 0 24px;
+      border-radius: 12px;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.15s;
+    }
+    .v-b-footer .cancel {
+      background: white; border: 1px solid var(--slate-200); color: var(--slate-700);
+    }
+    .v-b-footer .save {
+      background: linear-gradient(135deg, var(--emet-blue), var(--emet-blue-light));
+      border: 0; color: white;
+      box-shadow: 0 4px 14px rgba(6,106,171,0.30);
+    }
+
+    /* ===== SVG ===== */
+    svg.lucide {
+      width: 14px; height: 14px;
+      stroke: currentColor; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
+      fill: none; flex-shrink: 0;
+    }
+
+    /* ===== Layout for variants ===== */
+    .two-up {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .panel-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--slate-500);
+      margin-bottom: 8px;
+      padding-left: 4px;
+    }
+
+    /* On wider screens show mobile + desktop side by side */
+    @media (min-width: 1100px) {
+      .two-up.side-by-side {
+        grid-template-columns: 480px 1fr;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="variant-nav">
+  <span class="title">Дизайн-розвідка · Форма зустрічі</span>
+  <a href="#a">Варіант A · Bottom-sheet / Modal</a>
+  <a href="#b">Варіант B · Full-page</a>
+</nav>
+
+<!-- =================================================
+     VARIANT A — Bottom-sheet (mobile) / Modal (desktop)
+     ================================================= -->
+<section class="variant" id="a">
+  <div class="variant-meta">
+    <span class="variant-label">Варіант A</span>
+    <h2>Bottom-sheet (мобільний) / Modal-card (десктоп)</h2>
+    <p class="desc">Клік «+» або по картці зустрічі → форма виїжджає знизу як bottom-sheet (на мобілці) або з'являється центрованою modal-карткою (на десктопі). Дашборд лишається на фоні приглушеним. Закриття: свайп вниз / клік backdrop / кнопка «Скасувати».</p>
+    <div class="pros-cons">
+      <div class="pros"><strong>Сильні сторони</strong>Нативна mobile-фішка. Контекст не втрачається (видно дашборд позаду). Швидко відкрити-закрити. Створити кілька зустрічей підряд легко.</div>
+      <div class="cons"><strong>Компроміс</strong>На дуже маленьких екранах (320px) клавіатура з'їдає половину форми — треба scroll-trap. На десктопі модал з 8 полями може здатись «гримучим».</div>
+    </div>
+  </div>
+
+  <div class="two-up side-by-side">
+
+    <!-- ========== Mobile (bottom sheet) ========== -->
+    <div>
+      <div class="panel-label">Мобільний (Bottom-sheet)</div>
+
+      <div class="v-a-frame">
+        <div class="v-a-status-bar">
+          <span class="time" style="font-family:'JetBrains Mono',monospace;letter-spacing:-0.02em;">9:41</span>
+          <span class="right">
+            <svg class="lucide" viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M2 13a14 14 0 0 1 20 0"/><path d="M5 16.5a9 9 0 0 1 14 0"/><path d="M8.5 20a4 4 0 0 1 7 0"/><circle cx="12" cy="23" r="1" fill="currentColor"/></svg>
+            <svg class="lucide" viewBox="0 0 24 24" style="width:18px;height:13px;"><rect x="2" y="6" width="18" height="12" rx="2"/><path d="M22 11v2"/></svg>
+          </span>
+        </div>
+
+        <!-- Dashboard backdrop (blurred) -->
+        <div class="mock-dashboard">
+          <div class="v-a-header">
+            <div class="logo">é</div>
+            <div class="period">
+              <svg class="lucide" viewBox="0 0 24 24" style="width:13px;height:13px;color:var(--emet-blue);"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+              01.06 — 07.06
+            </div>
+            <div class="avatar">МЕ</div>
+          </div>
+          <div class="v-a-dashboard">
+            <h1>Мої зустрічі</h1>
+            <div class="v-a-fake-card" style="background: linear-gradient(135deg, rgba(251,191,36,0.10), rgba(255,255,255,0.55) 70%); border-color: var(--amber-200);">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;">10:30 <span style="font-family:'Plus Jakarta Sans';font-weight:500;font-size:10px;color:var(--slate-500);">45 хв</span></div>
+              <div style="font-size:13px;font-weight:700;margin-top:3px;">Клініка «Естет» · Подол</div>
+            </div>
+            <div class="v-a-fake-card">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;">13:00 <span style="font-family:'Plus Jakarta Sans';font-weight:500;font-size:10px;color:var(--slate-500);">~60 хв</span></div>
+              <div style="font-size:13px;font-weight:700;margin-top:3px;">Косметологія Maxim · Печерськ</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Backdrop dim -->
+        <div class="sheet-backdrop"></div>
+
+        <!-- Bottom sheet -->
+        <div class="bottom-sheet">
+          <div class="sheet-grabber"></div>
+          <div class="sheet-header">
+            <h2>Нова зустріч</h2>
+            <button class="sheet-close">
+              <svg class="lucide" viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+          <div class="sheet-body">
+
+            <div class="form-group">
+              <label class="form-label">Клієнт <span class="req">*</span></label>
+              <div class="client-picker">
+                <div class="avatar">КЕ</div>
+                <div class="info">
+                  <div class="name">Клініка «Естет» · Подол</div>
+                  <div class="sub">
+                    <svg class="lucide" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--slate-400);"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    вул. Хорива 42, Київ
+                  </div>
+                </div>
+                <span class="change">Змінити</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Дата <span class="req">*</span></label>
+                <input class="input" type="date" value="2026-06-02">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Час <span class="req">*</span></label>
+                <input class="input time-input" type="time" value="10:30">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Мета візиту <span class="req">*</span></label>
+              <div class="select-wrapper">
+                <select class="select">
+                  <option>Презентація ELLANSE</option>
+                  <option>Контракт VITARAN</option>
+                  <option>Демонстрація EXOXE</option>
+                  <option>Презентація NEURAMIS</option>
+                  <option>Знайомство, навчання</option>
+                  <option>Підписання договору</option>
+                  <option>Інше...</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Адреса <span class="hint">буде уточнено геолокацією при старті</span></label>
+              <input class="input" type="text" value="вул. Хорива 42, Київ">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Коментар <span class="hint">опційно</span></label>
+              <textarea class="textarea" placeholder="Контекст, нюанси, що нагадати про зустріч…"></textarea>
+            </div>
+
+          </div>
+          <div class="sheet-footer">
+            <button class="cancel">Скасувати</button>
+            <button class="save">
+              <svg class="lucide" viewBox="0 0 24 24" style="color:white;"><path d="M20 6 9 17l-5-5"/></svg>
+              Зберегти
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== Desktop modal-card ========== -->
+    <div>
+      <div class="panel-label">Десктоп (Modal-card)</div>
+      <div class="desktop-modal-frame">
+        <div class="desktop-mock-header">
+          <div class="logo">é</div>
+          <div class="period">
+            <svg class="lucide" viewBox="0 0 24 24" style="width:14px;height:14px;color:var(--emet-blue);"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+            01.06 — 07.06
+          </div>
+          <div class="spacer"></div>
+          <div class="avatar">МЕ</div>
+        </div>
+
+        <!-- Blurred dashboard backdrop -->
+        <div class="desktop-dashboard-blur">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+            <div style="width:44px;height:44px;background:linear-gradient(135deg,var(--emet-blue),var(--emet-blue-light));border-radius:12px;"></div>
+            <div>
+              <div style="height:18px;background:var(--slate-300);width:160px;border-radius:4px;margin-bottom:6px;"></div>
+              <div style="height:10px;background:var(--slate-200);width:240px;border-radius:4px;"></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+            <div style="height:80px;background:rgba(255,255,255,0.55);border-radius:14px;"></div>
+            <div style="height:80px;background:rgba(255,255,255,0.55);border-radius:14px;"></div>
+            <div style="height:80px;background:rgba(255,255,255,0.55);border-radius:14px;"></div>
+            <div style="height:80px;background:rgba(255,255,255,0.55);border-radius:14px;"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+            <div style="height:160px;background:rgba(255,255,255,0.55);border-radius:14px;"></div>
+            <div style="height:160px;background:rgba(255,255,255,0.55);border-radius:14px;"></div>
+          </div>
+        </div>
+
+        <div class="desktop-modal-backdrop"></div>
+
+        <div class="desktop-modal-card">
+          <div class="sheet-header" style="padding: 18px 24px 16px;">
+            <h2 style="font-size:19px;">Редагувати зустріч</h2>
+            <button class="sheet-close">
+              <svg class="lucide" viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+
+          <div class="sheet-body" style="padding: 20px 24px;">
+            <div class="form-group">
+              <label class="form-label">Клієнт <span class="req">*</span></label>
+              <div class="client-picker">
+                <div class="avatar">КЕ</div>
+                <div class="info">
+                  <div class="name">Клініка «Естет» · Подол</div>
+                  <div class="sub">
+                    <svg class="lucide" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--slate-400);"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    вул. Хорива 42, Київ
+                  </div>
+                </div>
+                <span class="change">Змінити</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Дата <span class="req">*</span></label>
+                <input class="input" type="date" value="2026-06-02">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Час <span class="req">*</span></label>
+                <input class="input time-input" type="time" value="10:30">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Мета візиту <span class="req">*</span></label>
+              <div class="select-wrapper">
+                <select class="select">
+                  <option>Презентація ELLANSE</option>
+                  <option>Контракт VITARAN</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Заплановано адресу</label>
+              <input class="input" type="text" value="вул. Хорива 42, Київ">
+            </div>
+
+            <!-- Geo readout for edit mode (ADR-7 read-only) -->
+            <div class="form-group">
+              <label class="form-label">Фактичне місце початку <span class="hint">read-only, зафіксовано GPS</span></label>
+              <div class="geo-readout">
+                <div class="top">
+                  <svg class="lucide" viewBox="0 0 24 24" style="color:var(--teal-700);"><path d="M20 6 9 17l-5-5"/></svg>
+                  Локація зафіксована
+                </div>
+                <div class="address">вул. Хорива 42, Київ</div>
+                <div class="coords">50.464822, 30.518693</div>
+                <div class="timestamp">02.06.2026, 10:31:47</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Коментар <span class="hint">опційно</span></label>
+              <textarea class="textarea" placeholder="Контекст, нюанси…">Узгоджено демо на новий контракт.</textarea>
+            </div>
+          </div>
+
+          <div class="sheet-footer" style="padding: 16px 24px;">
+            <button class="cancel">Скасувати</button>
+            <button class="save">
+              <svg class="lucide" viewBox="0 0 24 24" style="color:white;"><path d="M20 6 9 17l-5-5"/></svg>
+              Зберегти зміни
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- =================================================
+     VARIANT B — Full-page form
+     ================================================= -->
+<section class="variant" id="b">
+  <div class="variant-meta">
+    <span class="variant-label">Варіант B</span>
+    <h2>Full-page форма</h2>
+    <p class="desc">Окрема сторінка <code>/meetings/new</code> або <code>/meetings/[id]/edit</code>. Більше повітря, секції згруповано (Клієнт · Час · Адреса · Деталі · Геолокація). Назад до дашборду через breadcrumb.</p>
+    <div class="pros-cons">
+      <div class="pros"><strong>Сильні сторони</strong>Більше місця для полів (особливо для мап/геолокації). Можна відкрити прямим посиланням (з листа, з 1С, з push). Не страждає від клавіатури на мобілці.</div>
+      <div class="cons"><strong>Компроміс</strong>Втрата контексту дашборду. Більше переходів — повільніше для серії «створити 3-4 зустрічі підряд». На мобілці може здатись «лишнім екраном».</div>
+    </div>
+  </div>
+
+  <div class="v-b-frame">
+    <div class="v-b-header">
+      <div class="logo">é</div>
+      <div class="breadcrumb">
+        <a href="#">Мої зустрічі</a>
+        <span class="sep">/</span>
+        <span class="current">Редагувати · Клініка «Естет»</span>
+      </div>
+      <div class="spacer"></div>
+      <div class="avatar">МЕ</div>
+    </div>
+
+    <div class="v-b-content">
+      <div class="v-b-title">
+        <h1>Редагувати зустріч</h1>
+        <p>Створено 02.06.2026 · Заплановано на сьогодні 10:30 · Статус: у роботі</p>
+      </div>
+
+      <!-- Section: Client -->
+      <div class="v-b-section">
+        <div class="section-title">
+          <svg class="lucide" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Клієнт
+        </div>
+        <div class="form-group">
+          <label class="form-label">Контрагент <span class="req">*</span></label>
+          <div class="client-picker">
+            <div class="avatar">КЕ</div>
+            <div class="info">
+              <div class="name">Клініка «Естет» · Подол</div>
+              <div class="sub">
+                <svg class="lucide" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--slate-400);"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                вул. Хорива 42, Київ · +38 044 ***-**-12
+              </div>
+            </div>
+            <span class="change">Змінити</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: When -->
+      <div class="v-b-section">
+        <div class="section-title">
+          <svg class="lucide" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+          Коли
+        </div>
+        <div class="v-b-grid">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Дата <span class="req">*</span></label>
+              <input class="input" type="date" value="2026-06-02">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Час <span class="req">*</span></label>
+              <input class="input time-input" type="time" value="10:30">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Тривалість <span class="hint">оцінка</span></label>
+              <div class="select-wrapper">
+                <select class="select">
+                  <option>30 хвилин</option>
+                  <option selected>45 хвилин</option>
+                  <option>60 хвилин</option>
+                  <option>90 хвилин</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Мета візиту <span class="req">*</span></label>
+              <div class="select-wrapper">
+                <select class="select">
+                  <option selected>Презентація ELLANSE</option>
+                  <option>Контракт VITARAN</option>
+                  <option>Демонстрація EXOXE</option>
+                  <option>Інше...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Where -->
+      <div class="v-b-section">
+        <div class="section-title">
+          <svg class="lucide" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          Де
+        </div>
+        <div class="v-b-grid">
+          <div class="form-group">
+            <label class="form-label">Заплановано адресу <span class="hint">текстом, до зчитування геолокації</span></label>
+            <input class="input" type="text" value="вул. Хорива 42, Київ">
+          </div>
+          <!-- Geo readout — only shows after Start Meeting captures location -->
+          <div class="form-group">
+            <label class="form-label">Фактичне місце початку <span class="hint">read-only, зафіксовано GPS · 02.06 10:31</span></label>
+            <div class="geo-readout">
+              <div class="top">
+                <svg class="lucide" viewBox="0 0 24 24" style="color:var(--teal-700);"><path d="M20 6 9 17l-5-5"/></svg>
+                Локація зафіксована
+              </div>
+              <div class="address">вул. Хорива 42, Київ</div>
+              <div class="coords">50.464822, 30.518693</div>
+              <div class="timestamp">Зафіксовано 02.06.2026, 10:31:47</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Notes -->
+      <div class="v-b-section">
+        <div class="section-title">
+          <svg class="lucide" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Деталі
+        </div>
+        <div class="form-group">
+          <label class="form-label">Коментар <span class="hint">опційно — нагадування собі, контекст</span></label>
+          <textarea class="textarea" placeholder="Що важливо памʼятати про цю зустріч…">Узгоджено демо на новий контракт. Прийти з матеріалами по ціновим пропозиціям.</textarea>
+        </div>
+      </div>
+
+      <div class="v-b-footer">
+        <button class="cancel">Скасувати</button>
+        <button class="save">
+          <svg class="lucide" viewBox="0 0 24 24" style="color:white;"><path d="M20 6 9 17l-5-5"/></svg>
+          Зберегти зміни
+        </button>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<footer style="max-width:1400px;margin:0 auto 64px;padding:24px;background:rgba(255,255,255,0.6);backdrop-filter:blur(20px);border-radius:16px;border:1px solid rgba(255,255,255,0.5);">
+  <h3 style="font-size:14px;margin:0 0 12px;">Спільне для обох варіантів</h3>
+  <ul style="margin:0;padding:0 0 0 20px;font-size:13px;color:var(--slate-700);line-height:1.7;">
+    <li><strong>0 емоджі</strong>, lucide-style SVG, кнопки ≥48px у footer (важливі дії — більше за стандартні 44px)</li>
+    <li><strong>ClientPicker primitive</strong> — реусабельний з orders / reclamations (per CRM_ARCHITECTURE)</li>
+    <li><strong>Geo read-only block (ADR-7)</strong> — з'являється тільки коли GPS вже зчитано через Start Meeting. До того — порожньо</li>
+    <li><strong>Обовʼязкові поля</strong> позначено маленькою EMET-blue зірочкою. Hint-текст підказує контекст («буде уточнено геолокацією»)</li>
+    <li><strong>Дата+Час</strong> — на одному рядку (desktop), 1-кол на дуже вузьких (≤480px); час у JetBrains Mono як clock-readout</li>
+  </ul>
+</footer>
+
+</body>
+</html>
