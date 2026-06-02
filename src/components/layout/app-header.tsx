@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PeriodFilter } from './period-filter';
+import { monthlyPeriodMeta } from '@/lib/periods';
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield, Users } from 'lucide-react';
 
@@ -48,7 +49,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function AppHeader() {
-  const { user, setUser, liveMode, setLiveMode, activeView, setActiveView } = useAppStore();
+  const { user, setUser, liveMode, setLiveMode, activeView, setActiveView, setCurrentPeriod } = useAppStore();
   const { mutate } = useSWRConfig();
   const router = useRouter();
   const pathname = usePathname();
@@ -129,9 +130,21 @@ export function AppHeader() {
           <PeriodFilter />
         </div>
 
-        {/* Live toggle — миттєвий перегляд "на сьогодні" */}
+        {/* Live toggle — миттєвий перегляд "на сьогодні".
+            При активації окрім liveMode перемикаємо період на поточний місяць,
+            інакше пілюля «LIVE · <сьогодні>» сперечається з даними попереднього
+            місяця (бо період stays там де користувач його лишив). */}
         <button
-          onClick={() => setLiveMode(!liveMode)}
+          onClick={() => {
+            const next = !liveMode;
+            setLiveMode(next);
+            if (next) {
+              const now = new Date();
+              const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+              const meta = monthlyPeriodMeta(`${monthStr}-01`);
+              setCurrentPeriod({ ...meta, isActive: true });
+            }
+          }}
           className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-[12px] font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
             liveMode
               ? 'bg-amber-50/70 backdrop-blur-md border-amber-300/70 text-amber-700 shadow-sm'

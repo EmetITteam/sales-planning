@@ -46,8 +46,9 @@ export function PeriodFilter() {
 
       {open && (
         <>
-          {/* Dropdown */}
-          <div className="absolute top-full mt-2 left-0 z-50 w-[320px] glass-card overflow-hidden shadow-[0_8px_40px_rgba(6,42,61,0.12)]">
+          {/* Dropdown — solid white, не glass: popup має бути читабельним,
+              інакше місяці+діапазони зливаються з контентом дашборду під ним. */}
+          <div className="absolute top-full mt-2 left-0 z-50 w-[320px] bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-[0_8px_40px_rgba(6,42,61,0.18)]">
             {/* Month selector */}
             <div className="px-4 py-3 border-b border-[#e2e7ef]">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Місяць</p>
