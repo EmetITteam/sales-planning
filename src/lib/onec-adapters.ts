@@ -28,7 +28,7 @@ import type {
   Training,
   ClientCategoryStats,
 } from './types';
-import { isActiveDivision, REGIONS } from './regions';
+import { isActiveDivision, REGIONS, normalizeRegionName } from './regions';
 
 // === Категорії клієнтів: 1С → UI (en code) ===
 // 1С реально віддає російською; залишаємо й українські варіанти на випадок
@@ -230,7 +230,7 @@ export function adaptRegistryPlans(r: GetRegistryPlansResponse): RegistryPlan[] 
         // приводимо до lower-case на адаптері (на login-сторінці теж лoadLoginimitable).
         managerLogin: (p.managerLogin || '').toLowerCase().trim(),
         managerName: p.managerName,
-        regionName: p.divisionName,
+        regionName: normalizeRegionName(p.divisionName),
         regionCode: region?.code ?? '',
         segmentCode: mapSegmentCode(p.segmentCode),
         segmentName: p.segmentName,
@@ -266,7 +266,7 @@ export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
       .map(({ raw: reg, realName, realCode }) => {
       const fallback = REGIONS.find(x => x.name === realName);
       return {
-        regionName: realName,
+        regionName: normalizeRegionName(realName),
         regionCode: realCode || fallback?.code || '',
         // Фільтруємо менеджерів без плану — 1С повертає у managers[] усіх
         // (включно з тими хто звільнений / у відпустці / без плану), у нас
@@ -324,7 +324,7 @@ function adaptTraining(t: OneCTraining): Training {
     trainingType: t.trainingType,
     date: t.date,
     regionCode: t.regionCode,
-    regionName: t.regionName,
+    regionName: normalizeRegionName(t.regionName),
     city: t.city,
   };
 }

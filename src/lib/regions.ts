@@ -50,3 +50,15 @@ export const ACTIVE_DIVISION_NAMES = new Set([...REGIONS.map(r => r.name), 'Ми
 export function isActiveDivision(divisionName: string | undefined | null): boolean {
   return !!divisionName && ACTIVE_DIVISION_NAMES.has(divisionName);
 }
+
+/**
+ * Нормалізує 1С-назву регіону у канонічну display-форму.
+ * 1С повертає "Миколаєв" (russified) — у нашому UI скрізь показуємо "Миколаїв".
+ * Apply на кордоні даних (у onec-adapters) і у будь-якому місці що рендерить
+ * назву регіону напряму з 1С-відповіді.
+ */
+export function normalizeRegionName(name: string | undefined | null): string {
+  if (!name) return '';
+  if (name === 'Миколаєв') return 'Миколаїв';
+  return name;
+}
