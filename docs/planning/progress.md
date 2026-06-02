@@ -31,6 +31,14 @@
 - Затрачено: 1 робочий день
 - Висновки: meeting-app = vanilla JS (не React) → переписуємо; reclamation-app = Python/FastAPI + Bitrix → microservice; orders backend = 0% → новий 1С action set потрібен
 
+### Sprint 0.2 (2026-06-02) — Design exploration (dashboard)
+- Завдання: 3 варіанти дашборду зустрічей у нашій glass-естетиці для вибору напрямку
+- Артефакт: `public/design-meetings-dashboard.html` (1010 рядків)
+- Гілка: `feature/meetings-module` (commit `0e69320`)
+- Варіанти: A — Timeline / Agenda, B — Card Grid, C — Compact List
+- Кожен варіант: realistic mock meetings, mock app-header, status+sync badges, mobile responsive
+- Очікує: вибір користувача → деталізація форми у обраному напрямку
+
 ---
 
 ## Майбутні етапи (high-level)
