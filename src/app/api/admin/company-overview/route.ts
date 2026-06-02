@@ -66,7 +66,7 @@ const CANONICAL_DIVISIONS: { name: string; display: string }[] = [
   { name: 'Харків', display: 'Харків' },
   { name: 'Запоріжжя', display: 'Запоріжжя' },
   { name: 'Вінниця', display: 'Вінниця' },
-  { name: 'Миколаєв', display: 'Миколаєв' },
+  { name: 'Миколаєв', display: 'Миколаїв' },
   { name: 'Житомир', display: 'Житомир' },
   { name: 'Коллцентр Call center лидогенерация', display: 'Колл-центр' },
   { name: 'Лазерхауз*', display: 'Лазерхауз' },

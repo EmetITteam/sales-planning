@@ -113,7 +113,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
         // 1С Action 5 повертає історичних «хвостів» (менеджер мав факт минулого
         // місяця у іншому регіоні де він уже не працює). totalPlan=0 + factи=0 у
         // поточному місяці → ця людина не має бути у readiness цього регіону.
-        // Приклад: Пашковська (rm.odessa) показується у Миколаєві з planом=0,
+        // Приклад: Пашковська (rm.odessa) показується у Миколаїві з planом=0,
         // а реально планує тільки в Одесі ($65K плану).
         const managers: ManagerStat[] = r.managers
           .filter(m => {

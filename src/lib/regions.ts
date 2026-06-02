@@ -22,7 +22,7 @@ export const REGIONS: Region[] = [
   { code: 'KHK', name: 'Харків' },
   { code: 'ZPR', name: 'Запоріжжя' },
   { code: 'VNN', name: 'Вінниця' },
-  { code: 'MIK', name: 'Миколаєв' },
+  { code: 'MIK', name: 'Миколаїв' },
   { code: 'ZHT', name: 'Житомир' },
 ];
 
@@ -42,7 +42,9 @@ export function regionName(code: string | undefined | null): string {
  * Решта (Адасса, Лазерхауз*, Полтава*, Чернівці*, Коллцентр) — ігноруємо.
  * Використовується для фільтрації відповіді `getRegistryPlans`.
  */
-export const ACTIVE_DIVISION_NAMES = new Set(REGIONS.map(r => r.name));
+// "Миколаєв" — застаріле написання в 1С/users.region; додаємо у Set щоб
+// matching не зламався. Display завжди — "Миколаїв" (REGIONS canonical).
+export const ACTIVE_DIVISION_NAMES = new Set([...REGIONS.map(r => r.name), 'Миколаєв']);
 
 /** Чи входить підрозділ з 1С у наш список «активних» (для планувальних регіонів). */
 export function isActiveDivision(divisionName: string | undefined | null): boolean {
