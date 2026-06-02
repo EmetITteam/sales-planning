@@ -2,7 +2,7 @@
 ## Комплексний план доробки проекту
 
 **Версія:** v2 (consolidated) · **Дата:** 2026-06-02 · **Етап:** 0 (Архітектура + Дизайн)
-**Автор плану:** IT Director EMET (заказчик) + Claude (фронтенд-розробка)
+**Автор плану:** IT Director EMET (заказчик) + команда фронтенд-розробки
 **Аудиторія цього документа:** заказчик, 1С-розробники, фронтенд, ITD.
 **Для керівництва:** є похідний документ `docs/EXECUTIVE_SUMMARY.md` — менш технічний, для затвердження.
 
@@ -30,7 +30,7 @@
 10. [Best Manager Analytics (1.5.6)](#10-best-manager-analytics)
 11. [Етап 2A — Дебіторка (Receivables)](#11-етап-2a--дебіторка-receivables)
 12. [Етап 2B — Рекламації (Reclamations)](#12-етап-2b--рекламації-reclamations)
-13. [Етап 3 — Заказы / Реалізації (Orders)](#13-етап-3--заказы--реалізації-orders)
+13. [Етап 3 — Замовлення / Реалізації (Orders)](#13-етап-3--замовлення--реалізації-orders)
 14. [Cross-cutting concerns](#14-cross-cutting-concerns)
 15. [Risk Register (top 15)](#15-risk-register-top-15)
 16. [Timeline і ресурси](#16-timeline-і-ресурси)
@@ -45,7 +45,7 @@
 
 ## 1.1 Vision
 
-Перетворити `sales-planning` з інструменту планування продажів у **повноцінну CRM-систему EMET** для всього відділу продажу. Зараз — 3 модулі у проді (Планування / Мої клієнти / Огляд компанії). Після розширення — **повний робочий інструмент менеджера**: зустрічі, заказы, дебіторка, рекламації + автоматизована аналітика для керівництва.
+Перетворити `sales-planning` з інструменту планування продажів у **повноцінну CRM-систему EMET** для всього відділу продажу. Зараз — 3 модулі у проді (Планування / Мої клієнти / Огляд компанії). Після розширення — **повний робочий інструмент менеджера**: зустрічі, замовлення, дебіторка, рекламації + автоматизована аналітика для керівництва.
 
 ## 1.2 Стратегічні цілі (business outcomes)
 
@@ -77,7 +77,7 @@
 | 1С integration | 13 actions через `/api/onec` proxy + JWT cookie sessions |
 | Тести | 240 кейсів (`tsx --test`) + arch-guard перед кожним пушем |
 | Зробленого коду | ~57k LOC нетто, ~91 фактичних годин розробки (≈639–913 human-equivalent з AI-asisted multiplier) |
-| Прод | Останній deploy після Миколаєв i18n fix (`7efc3b7`), tag baseline `etalon-glass-prod-2026-05-29` |
+| Прод | Останній deploy після Миколаїв i18n fix (`7efc3b7`), tag baseline `etalon-glass-prod-2026-05-29` |
 | Поточні модулі у проді | Планування / Мої клієнти (CRM-фундамент) / Огляд компанії |
 | Open backlog (`docs/BACKLOG.md`) | ~33 пункти. TD-4 (RLS off) і TD-11/12/13 (god-components) **інтегровано у цей план** (ADR-3, ADR-4) |
 
@@ -314,7 +314,7 @@ export async function GET() {
 | **ADR-5** | Meeting код переписуємо на наш стек, не мігруємо | Accepted |
 | **ADR-6** | Sync-status — first-class UI-елемент (pending/syncing/synced/failed) | Accepted |
 | **ADR-7** | Геолокація — read-only після захоплення, explicit toast на fail, manual fallback, конфігурований timeout | Accepted |
-| **ADR-8** | TTL для кешу: дебіторка 10хв / клієнти 1год / заказы каталог 6год / sales detail 1год (current month) | Accepted |
+| **ADR-8** | TTL для кешу: дебіторка 10хв / клієнти 1год / замовлення каталог 6год / sales detail 1год (current month) | Accepted |
 | **ADR-9** | Failed-sync рядки повертаємо у UI як «потребує правки» з причиною від 1С | Accepted |
 | **ADR-10** | **Calendar sync** — повноцінно як у meeting-4.0, винесено у окремий worker з retry+DLQ (Q1) | Accepted |
 | **ADR-11** | **Survey/Anketa** — спочатку lift as-is (a), versioned schema (b) пізніше за потреби (Q2) | Accepted |
@@ -746,7 +746,7 @@ CREATE TABLE debtors_cache (
 
 ---
 
-# 13. Етап 3 — Заказы / Реалізації (Orders)
+# 13. Етап 3 — Замовлення / Реалізації (Orders)
 
 ## 13.1 Scope
 
@@ -933,7 +933,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 
 | Роль | Хто | Зайнятість |
 |---|---|---|
-| Frontend / арх | Claude | Full-time через всі етапи |
+| Frontend / арх | Команда фронтенду | Full-time через всі етапи |
 | Product Owner / Business | IT Director (заказчик) | Точкові рішення + review |
 | 1С розробка | 1С розробник EMET | ~50% часу через черги по етапах |
 | Bitrix24 admin | Існуючий адмін | Точкові (Stage 2B) |

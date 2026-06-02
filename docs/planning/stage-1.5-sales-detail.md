@@ -147,7 +147,7 @@ CREATE POLICY sales_manager_select ON sales_line_items
 
 | # | Спринт | Сторона | Час | Залежність |
 |---|---|---|---|---|
-| 1.5.1 | Лок спеки — формат line-item з користувачем, draft 1С actions | Frontend (Claude) | 0.5 д | **Чекає формат від користувача** |
+| 1.5.1 | Лок спеки — формат line-item з користувачем, draft 1С actions | Frontend | 0.5 д | **Чекає формат від користувача** |
 | 1.5.2 | 1С dev реалізує `getDetailedSalesBatch` + `getDetailedSalesByClient` | 1С | TBD | 1.5.1 |
 | 1.5.3 | Migration: `sales_line_items` table + indexes + RLS shadow-mode | Frontend | 1 д | 1.5.2 |
 | 1.5.4 | Vercel Cron sync worker — `/api/cron/sync-sales-detail` (poperedni+pochatkovyi місяць) | Frontend | 2 д | 1.5.3 |

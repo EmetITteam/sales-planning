@@ -15,7 +15,7 @@
 3. [Stage 1.5 — Sales Detail (2 actions, найвищий пріоритет)](#3-stage-15--sales-detail-2-actions)
 4. [Q3 — Add Client Documents Preview (1 action)](#4-q3--add-client-documents-preview-1-action)
 5. [Stage 2A — Receivables / Дебіторка (4 actions)](#5-stage-2a--receivables--дебіторка-4-actions)
-6. [Stage 3 — Orders / Заказы (9 actions)](#6-stage-3--orders--заказы-9-actions)
+6. [Stage 3 — Orders / Замовлення (9 actions)](#6-stage-3--orders--замовлення-9-actions)
 7. [Існуючі actions — НЕ ЗМІНЮВАТИ](#7-існуючі-actions--не-змінювати)
 8. [Performance вимоги і ліміти](#8-performance-вимоги-і-ліміти)
 9. [Testing protocol](#9-testing-protocol)
@@ -561,9 +561,9 @@ Authorization: Basic <base64(login:password)>
 
 ---
 
-## 6. Stage 3 — Orders / Заказы (9 actions)
+## 6. Stage 3 — Orders / Замовлення (9 actions)
 
-**Контекст:** Менеджери будуть створювати заказы (чернетки) і реалізації (проведені) у нашій системі. Поточно це робиться напряму у 1С. Це найбільший етап, 9 actions.
+**Контекст:** Менеджери будуть створювати замовлення (чернетки) і реалізації (проведені) у нашій системі. Поточно це робиться напряму у 1С. Це найбільший етап, 9 actions.
 
 ---
 
@@ -1039,7 +1039,7 @@ Pre-validation заказу перед `postOrder` — повертає спис
 
 ## 11. Контакти
 
-- **Frontend / архітектура спеки:** Claude (через IT Director EMET)
+- **Frontend / архітектура спеки:** IT-команда EMET
 - **Бізнес-логіка Best Manager + sales detail:** Department of Sales (через IT Director)
 - **1С реалізація:** 1С-розробник EMET
 

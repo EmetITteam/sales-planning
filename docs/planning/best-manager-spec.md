@@ -2,7 +2,7 @@
 
 **Status:** Locked 2026-06-02 (від PDF «Умови конкурсу Найкращій менеджер по ТМ», редакція червень 2026)
 **Date:** 2026-06-02
-**Owner:** Department of Sales (бізнес-правила) · Frontend (Claude — імплементація)
+**Owner:** Department of Sales (бізнес-правила) · Frontend (імплементація)
 **Audience:** Director Dashboard + Огляд компанії
 **Data source:** Stage 1.5 `sales_line_items` + existing plan data
 
