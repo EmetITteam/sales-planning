@@ -203,8 +203,17 @@
       border-radius: 50%; background: currentColor;
     }
     .widget .value {
-      font-size: 26px; font-weight: 700;
-      letter-spacing: -1px; line-height: 1;
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1, "ss01" 1, "salt" 1;
+      color: var(--emet-ink);
+    }
+    .widget .label {
+      letter-spacing: 0.8px;
     }
     .widget .caption {
       font-size: 11px; color: var(--slate-500); margin-top: 4px;
@@ -358,8 +367,25 @@
       color: var(--emet-ink);
     }
     .card-purpose {
-      font-size: 12px; color: var(--slate-600);
-      font-weight: 500; line-height: 1.4;
+      font-size: 13px;
+      color: var(--emet-blue);
+      font-weight: 600;
+      line-height: 1.4;
+      margin-top: 1px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-purpose::before {
+      content: '';
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23066aab' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><circle cx='12' cy='12' r='6'/><circle cx='12' cy='12' r='2'/></svg>");
+      background-repeat: no-repeat;
+      background-size: contain;
+      flex-shrink: 0;
+      opacity: 0.85;
     }
     .card-address {
       display: inline-flex; align-items: center; gap: 6px;
