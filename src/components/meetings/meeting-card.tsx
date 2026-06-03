@@ -321,8 +321,8 @@ function splitActions(m: MeetingWithSync, h: ActionHandlers): ActionsSplit {
       ),
       secondary: (
         <ActionButton warning onClick={() => h.onEdit?.(m)}>
-          <RefreshIcon />
-          Повторити
+          <PencilIcon />
+          Правка
         </ActionButton>
       ),
     };

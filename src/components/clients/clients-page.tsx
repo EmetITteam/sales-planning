@@ -1194,7 +1194,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[36px_minmax(0,1fr)_40px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)_40px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar — 36px mobile / 40px desktop. */}
         <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0 mt-0.5 md:mt-0`}>
@@ -1205,9 +1205,11 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
             На мобільному (max-md): name окремим рядком, а chips переносимо
             нижче — інакше «Активний» chip перекриває truncated ім'я. */}
         <div className="min-w-0">
-          {/* Mobile: дозволяємо 2 рядки для повного ПІБ; Desktop: truncate як було */}
-          <p className="text-[14px] font-bold md:truncate line-clamp-2 md:line-clamp-none leading-tight">{name || '— без назви —'}</p>
-          <div className="flex items-center gap-1.5 mt-1 min-w-0 flex-wrap">
+          {/* Mobile: ПІБ на 2 рядки + chips новим рядком нижче.
+              Desktop: ПІБ + chips inline в одному рядку (з wrap). */}
+          <div className="md:flex md:items-center md:gap-2 md:flex-wrap min-w-0">
+          <p className="text-[14px] font-bold md:truncate line-clamp-2 md:line-clamp-none leading-tight min-w-0">{name || '— без назви —'}</p>
+          <div className="flex items-center gap-1.5 mt-1 md:mt-0 min-w-0 flex-wrap">
             {/* Chip-категорія українською (Активний/Сплячий/Новий/Втрачений/Без закупок) */}
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
               {toUkrainianChip(client.ClientCategory)}
@@ -1244,6 +1246,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
               </span>
             )}
           </div>
+          </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0">
             {address && <span className="truncate">{address}</span>}
             {/* Desktop: текстовий номер як link (старий вигляд) */}
@@ -1263,18 +1266,17 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
           </div>
         </div>
 
-        {/* Mobile-only icon-кнопка дзвінка. Desktop використовує текст-link
-            у адресному рядку вище (звичний вигляд). Slot завжди займає
-            grid-колонку щоб chevron не «гуляв» — порожній span якщо нема номеру. */}
+        {/* Mobile-only icon-кнопка дзвінка (на місці колишнього chevron).
+            Desktop — phone показано як text-link в адресному рядку вище. */}
         {client.Phone ? (
           <a
             href={`tel:${phoneClean}`}
             onClick={e => e.stopPropagation()}
             aria-label={`Подзвонити ${name}`}
             title={client.Phone}
-            className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-full bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all shrink-0"
+            className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all shrink-0"
           >
-            <Phone className="w-4 h-4" />
+            <Phone className="w-[15px] h-[15px]" />
           </a>
         ) : (
           <span className="md:hidden" />
@@ -1285,7 +1287,8 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         <NumCol label="Факт" value={fact} loading={totalsLoading} emptyAs="zero" />
         <PctCol pct={pct} loading={totalsLoading} disabled={!hasPlan} />
 
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        {/* Desktop chevron — візуальний натяк що рядок розгортається. */}
+        <ChevronDown className={`hidden md:block h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
       {expanded && (
         <ClientExpand
