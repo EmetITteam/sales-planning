@@ -74,7 +74,7 @@ export function MeetingCard({
 
   return (
     <div
-      className={`relative ${cardBg} backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-3.5 max-md:pr-[60px] shadow-[0_4px_14px_rgba(6,42,61,0.04)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_10px_28px_rgba(6,42,61,0.08)] hover:border-emet-blue/20 flex flex-col gap-2.5 ${failedBorder}`}
+      className={`relative ${cardBg} backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-3.5 shadow-[0_4px_14px_rgba(6,42,61,0.04)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_10px_28px_rgba(6,42,61,0.08)] hover:border-emet-blue/20 flex flex-col gap-2.5 ${failedBorder}`}
     >
       {/* HEAD: time + sync warning + status badge */}
       <div className="flex items-center justify-between gap-2">
@@ -108,20 +108,6 @@ export function MeetingCard({
         </div>
         <StatusBadge kind="meeting" status={meeting.status} />
       </div>
-
-      {/* Mobile phone-кнопка позиціонована absolute посередині картки справа,
-          щоб не громоздити HEAD-ряд і бути великим помітним CTA-таргетом. */}
-      {clientPhone && (
-        <a
-          href={`tel:${phoneClean}`}
-          onClick={e => e.stopPropagation()}
-          aria-label={`Подзвонити ${clientName}`}
-          title={clientPhone}
-          className="md:hidden absolute right-3 top-1/2 -translate-y-1/2 z-10 inline-flex items-center justify-center w-11 h-11 rounded-full bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all"
-        >
-          <PhoneLucide className="w-4 h-4" />
-        </a>
-      )}
 
       {/* BODY: client + purpose + address */}
       <div className="flex flex-col gap-0.5">
@@ -207,7 +193,21 @@ export function MeetingCard({
       </div>
 
       {/* ACTIONS */}
-      <div className="flex flex-wrap gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
+      <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
+        {/* Mobile-only: phone-кнопка зліва у actions row — фіксована позиція
+            (на одному рівні з основними CTA), не «плаває» по висоті картки.
+            На desktop phone — текст-link у body вище. */}
+        {clientPhone && (
+          <a
+            href={`tel:${phoneClean}`}
+            onClick={e => e.stopPropagation()}
+            aria-label={`Подзвонити ${clientName}`}
+            title={clientPhone}
+            className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all shrink-0"
+          >
+            <PhoneLucide className="w-4 h-4" />
+          </a>
+        )}
         {renderActions(meeting, { onEdit, onStart, onFinish, onReschedule, onOutcome })}
       </div>
     </div>
