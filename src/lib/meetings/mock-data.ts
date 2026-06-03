@@ -73,8 +73,11 @@ export function getMockMeetings(): MeetingWithSync[] {
 
   return [
     // === СЬОГОДНІ ===
-    // У роботі — з геолокацією зафіксовано
+    // У роботі — з геолокацією зафіксовано.
+    // updatedAt = ~30 хв назад. Стабільний id щоб LiveTimer + localStorage
+    // persist спрацювало (інакше new uuid кожен render → новий ключ → reset).
     meeting({
+      id: 'mock-meeting-inprog-1',
       clientId1c: 'CL-ESTET-PODOL',
       date: todayStr,
       time: '10:30:00',
@@ -85,6 +88,7 @@ export function getMockMeetings(): MeetingWithSync[] {
       startAddress: 'вул. Хорива 42, Київ',
       startLat: 50.464822,
       startLon: 30.518693,
+      updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     }),
     // Заплановано
     meeting({

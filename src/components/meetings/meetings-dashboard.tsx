@@ -157,6 +157,13 @@ export function MeetingsDashboard() {
   const handleConfirmStart = async (id: string, payload: MeetingStartPayload) => {
     setStartOpen(false);
     setStartingMeeting(null);
+    // Persist start moment до localStorage щоб LiveTimer пережив reload
+    // (поки нема `started_at` колонки у БД).
+    try {
+      window.localStorage.setItem(`meetingStartedAt:${id}`, new Date().toISOString());
+    } catch {
+      /* private mode etc — мовчки ігноруємо */
+    }
     try {
       await apiStartMeeting(id, payload);
       pushToast(
@@ -176,6 +183,12 @@ export function MeetingsDashboard() {
   const handleConfirmFinish = async (id: string, payload: MeetingStartPayload) => {
     setFinishOpen(false);
     setFinishingMeeting(null);
+    // Прибираємо persistent start — таймер більше не потрібен
+    try {
+      window.localStorage.removeItem(`meetingStartedAt:${id}`);
+    } catch {
+      /* ignore */
+    }
     try {
       await apiFinishMeeting(id, {
         address: payload.address,

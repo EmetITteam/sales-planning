@@ -82,7 +82,7 @@ export function MeetingCard({
           <span className="text-[11px] text-slate-500 font-medium">
             {formatDuration(meeting.durationMin, meeting.status)}
           </span>
-          {isInProgress && <LiveTimer startedAtISO={meeting.updatedAt} />}
+          {isInProgress && <LiveTimer meetingId={meeting.id} fallbackISO={meeting.updatedAt} />}
           {isFailedSync && (
             <span className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700">
               <svg
@@ -367,14 +367,14 @@ function CalendarIcon() {
 /**
  * LiveTimer — лічильник тривалості зустрічі що тікає у real-time.
  *
- * Sprint 1.5: використовує `updatedAt` як proxy для start-моменту. Це працює
- * на 99% випадків (start → finish без edit-у між ними). Edge-case: якщо
- * менеджер edit-нув зустріч у статусі in_progress, таймер «скочується» — це
- * прийнятно бо edge case. Sprint 1.6 додасть окрему колонку `started_at`.
+ * Persist: коли menager натискає Start, dashboard пише ISO у localStorage за
+ * ключем `meetingStartedAt:<id>`. Reload не скидає таймер, бо ми спочатку
+ * читаємо звідти і лише в крайньому випадку fallback'имо на `updatedAt`
+ * (proxy для start). Sprint 1.6 додасть окрему колонку `started_at` у БД.
  *
  * Tick — 1 раз на секунду через setInterval. Очищаємо при unmount.
  */
-function LiveTimer({ startedAtISO }: { startedAtISO: string }) {
+function LiveTimer({ meetingId, fallbackISO }: { meetingId: string; fallbackISO: string }) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -382,7 +382,25 @@ function LiveTimer({ startedAtISO }: { startedAtISO: string }) {
     return () => window.clearInterval(id);
   }, []);
 
-  const startedAt = new Date(startedAtISO).getTime();
+  // Persistent start moment: localStorage > prop fallback (updatedAt).
+  // Якщо запису немає (mock pre-existing in_progress зустріч) — seed fallbackISO
+  // одразу, щоб наступний reload не показав 0:00 заново.
+  let startedISO = fallbackISO;
+  if (typeof window !== 'undefined') {
+    const key = `meetingStartedAt:${meetingId}`;
+    const stored = window.localStorage.getItem(key);
+    if (stored) {
+      startedISO = stored;
+    } else {
+      try {
+        window.localStorage.setItem(key, fallbackISO);
+      } catch {
+        /* private mode etc */
+      }
+    }
+  }
+
+  const startedAt = new Date(startedISO).getTime();
   const elapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000));
   const mm = Math.floor(elapsedSec / 60);
   const ss = elapsedSec % 60;

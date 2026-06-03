@@ -41,9 +41,9 @@ export function DayGroup({
 
   const done = meetings.filter(m => m.status === 'done').length;
   const inProgress = meetings.filter(m => m.status === 'in_progress').length;
-  const upcoming = meetings.filter(
-    m => m.status === 'planned' || m.status === 'postponed',
-  ).length;
+  const planned = meetings.filter(m => m.status === 'planned').length;
+  const postponed = meetings.filter(m => m.status === 'postponed').length;
+  const upcoming = planned + postponed;
 
   return (
     <div className="mb-7 last:mb-0">
@@ -72,7 +72,21 @@ export function DayGroup({
               {upcoming > 0 && <> · {upcoming} попереду</>}
             </>
           ) : (
-            <>{upcoming} з {meetings.length} розпочаті</>
+            <>
+              {planned > 0 && <>{planned} заплановано</>}
+              {postponed > 0 && (
+                <>
+                  {planned > 0 ? ' · ' : ''}
+                  {postponed} відкладено
+                </>
+              )}
+              {done > 0 && (
+                <>
+                  {planned + postponed > 0 ? ' · ' : ''}
+                  <strong className="text-teal-700 font-bold">{done} завершено</strong>
+                </>
+              )}
+            </>
           )}
         </span>
       </div>
