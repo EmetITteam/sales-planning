@@ -63,6 +63,10 @@
   --color-emet-50: var(--emet-blue-50);
   --color-emet-100: var(--emet-blue-100);
   --color-emet-200: var(--emet-blue-200);
+
+  /* EMET ink (dark headline text) — використовується у meetings dashboard. */
+  --emet-ink: #081E2D;
+  --color-emet-ink: var(--emet-ink);
 }
 
 :root {

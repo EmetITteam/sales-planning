@@ -18,7 +18,7 @@ import {
 import { PeriodFilter } from './period-filter';
 import { monthlyPeriodMeta } from '@/lib/periods';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield, Users } from 'lucide-react';
+import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield, Users, Calendar } from 'lucide-react';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -262,6 +262,10 @@ export function AppHeader() {
             <DropdownMenuItem onClick={() => router.push('/clients')} className="cursor-pointer">
               <Users className="mr-2 h-3.5 w-3.5" />
               Мої клієнти
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/meetings')} className="cursor-pointer">
+              <Calendar className="mr-2 h-3.5 w-3.5" />
+              Зустрічі
             </DropdownMenuItem>
             {user.role === 'admin' && (
               <>
