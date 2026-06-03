@@ -3,6 +3,7 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionBootstrap } from "@/components/layout/session-bootstrap";
 import { ZoomGuard } from "@/components/layout/zoom-guard";
+import { ScrollTopButton } from "@/components/layout/scroll-top-button";
 
 // ⚠️ next/font/google вимкнено 2026-05-21: після переходу на Vercel Pro
 // build не завантажував файли шрифтів у `/_next/static/media/`, у UI
@@ -76,6 +77,7 @@ export default function RootLayout({
         <SessionBootstrap>
           <TooltipProvider>{children}</TooltipProvider>
         </SessionBootstrap>
+        <ScrollTopButton />
       </body>
     </html>
   );

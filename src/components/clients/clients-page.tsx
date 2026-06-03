@@ -1194,11 +1194,10 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[minmax(0,1fr)_32px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-2 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)_32px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-2.5 md:gap-4 items-start md:items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
-        {/* Avatar — desktop only (на мобільному 40px займали забагато і
-            ПІБ обрізалось «Бандурко Владлена Олександ…»). */}
-        <div className={`hidden md:flex w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[12px] font-bold shrink-0`}>
+        {/* Avatar — 36px mobile / 40px desktop. */}
+        <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0 mt-0.5 md:mt-0`}>
           {initials(name)}
         </div>
 
@@ -1618,55 +1617,76 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
       <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
         Покупки за останні 6 місяців
       </h3>
-      {/* Wrapper з horizontal scroll: 6 місяців + всього + статус не вміщаються
-          на мобільному 360px viewport — користувач свайпом гортає таблицю.
-          `touch-pan-x` обов'язково (body має `touch-action: pan-y` для блок-zoom). */}
-      <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin] touch-pan-x">
-      <div className="space-y-1.5 min-w-[860px]">
+      <div className="space-y-1.5">
         {sorted.map(b => {
           const byMonth = b.byYM;
           const inPlan = isBrandInPlan(b.brandName);
+          const total = Math.round(b.totalAmount || 0);
+          const planPill = (
+            <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+              inPlan
+                ? 'bg-emet-blue/10 text-emet-blue border border-emet-blue/20'
+                : 'bg-slate-400/10 text-slate-500 border border-slate-300/50'
+            }`}>
+              {inPlan ? 'В плані' : 'Немає в плані'}
+            </span>
+          );
           return (
-            <div
-              key={b.brandName}
-              className="glass-card-soft p-3 grid items-center gap-3"
-              style={{ gridTemplateColumns: `minmax(160px,1.4fr) repeat(${monthOrder.length}, minmax(70px,1fr)) 90px 120px` }}
-            >
-              <div className="font-semibold text-[13px] truncate flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
-                {cleanBrandName(b.brandName)}
+            <div key={b.brandName} className="glass-card-soft p-3">
+              {/* MOBILE: brand+total зверху, місяці у grid 3×2 знизу */}
+              <div className="md:hidden">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
+                  <span className="font-semibold text-[13px] flex-1 min-w-0 truncate">{cleanBrandName(b.brandName)}</span>
+                  <span className="font-mono font-bold tabular-nums text-[13px] shrink-0 amount">${total.toLocaleString('en-US')}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-x-2 gap-y-1.5 pl-4">
+                  {monthOrder.map(m => {
+                    const amount = byMonth[m] ?? 0;
+                    return (
+                      <div key={m} className="flex flex-col">
+                        <span className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{fmtYMShort(m)}</span>
+                        <span className={`font-mono font-bold tabular-nums text-[11px] mt-0.5 leading-none amount ${amount > 0 ? '' : 'text-muted-foreground/40'}`}>
+                          {amount > 0 ? `$${Math.round(amount).toLocaleString('en-US')}` : '—'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex justify-end">{planPill}</div>
               </div>
-              {monthOrder.map(m => {
-                const amount = byMonth[m] ?? 0;
-                return (
-                  <div key={m} className="text-right">
-                    <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{fmtYMShort(m)}</p>
-                    <p className={`font-mono font-bold tabular-nums text-[12px] mt-1 leading-none amount ${amount > 0 ? '' : 'text-muted-foreground/40'}`}>
-                      {amount > 0 ? `$${Math.round(amount).toLocaleString('en-US')}` : '—'}
-                    </p>
-                  </div>
-                );
-              })}
-              <div className="text-right border-l border-white/50 pl-3">
-                <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">Всього</p>
-                <p className="font-mono font-bold tabular-nums text-[14px] mt-1 leading-none amount">
-                  ${Math.round(b.totalAmount || 0).toLocaleString('en-US')}
-                </p>
-              </div>
-              {/* Позначка чи бренд у плануванні цього місяця */}
-              <div className="flex justify-end">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap backdrop-blur-sm ${
-                  inPlan
-                    ? 'bg-emet-blue/10 text-emet-blue border border-emet-blue/20'
-                    : 'bg-slate-400/10 text-slate-500 border border-slate-300/50'
-                }`}>
-                  {inPlan ? 'В плануванні' : 'Немає в плані'}
-                </span>
+
+              {/* DESKTOP: original grid */}
+              <div
+                className="hidden md:grid items-center gap-3"
+                style={{ gridTemplateColumns: `minmax(160px,1.4fr) repeat(${monthOrder.length}, minmax(70px,1fr)) 90px 120px` }}
+              >
+                <div className="font-semibold text-[13px] truncate flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
+                  {cleanBrandName(b.brandName)}
+                </div>
+                {monthOrder.map(m => {
+                  const amount = byMonth[m] ?? 0;
+                  return (
+                    <div key={m} className="text-right">
+                      <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{fmtYMShort(m)}</p>
+                      <p className={`font-mono font-bold tabular-nums text-[12px] mt-1 leading-none amount ${amount > 0 ? '' : 'text-muted-foreground/40'}`}>
+                        {amount > 0 ? `$${Math.round(amount).toLocaleString('en-US')}` : '—'}
+                      </p>
+                    </div>
+                  );
+                })}
+                <div className="text-right border-l border-white/50 pl-3">
+                  <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">Всього</p>
+                  <p className="font-mono font-bold tabular-nums text-[14px] mt-1 leading-none amount">
+                    ${total.toLocaleString('en-US')}
+                  </p>
+                </div>
+                <div className="flex justify-end">{planPill}</div>
               </div>
             </div>
           );
         })}
-      </div>
       </div>
     </div>
   );
