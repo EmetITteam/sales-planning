@@ -20,13 +20,12 @@ import { DayGroup } from './day-group';
 import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeting-form';
 import { StartMeetingDialog } from './start-meeting-dialog';
 import {
-  getMockMeetings,
   computeStats,
   groupMeetingsByDate,
-  applyStart,
   type MeetingWithSync,
   type MeetingStartPayload,
 } from '@/lib/meetings/mock-data';
+import { useMeetings } from '@/lib/meetings/use-meetings';
 
 interface Toast {
   id: number;
@@ -49,10 +48,22 @@ export function MeetingsDashboard() {
   // Toast state — мінімальний host без global provider (Sprint 1.6+ — refactor).
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Mock today (stable for render). У Sprint 1.5 → реальний now() з можливістю
-  // «снапшот на дату» через PeriodFilter.
+  // Mock today (stable for render). У Sprint 1.6 → можливість «снапшот на дату»
+  // через PeriodFilter.
   const today = useMemo(() => new Date(), []);
-  const [meetings, setMeetings] = useState<MeetingWithSync[]>(() => getMockMeetings());
+
+  // Sprint 1.5: useMeetings перемикається між моками й real API через
+  // NEXT_PUBLIC_MEETINGS_USE_REAL_API='true'.
+  const {
+    meetings,
+    loading,
+    error: loadError,
+    isUsingRealApi,
+    createMeeting: apiCreateMeeting,
+    updateMeeting: apiUpdateMeeting,
+    startMeeting: apiStartMeeting,
+    finishMeeting: apiFinishMeeting,
+  } = useMeetings();
 
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return meetings;
@@ -77,26 +88,63 @@ export function MeetingsDashboard() {
     setFormMode('edit');
     setFormOpen(true);
   };
-  const handleSave = (data: MeetingFormData) => {
-    // Sprint 1.5: реальний buffer-write через Supabase + cron-worker.
-    // Поки логуємо у консоль і закриваємо форму — UI-демо.
-    console.log('[MeetingForm save]', { mode: formMode, data, editingId: editingMeeting?.id });
-    setFormOpen(false);
+  const handleSave = async (data: MeetingFormData) => {
+    try {
+      if (formMode === 'create') {
+        await apiCreateMeeting({
+          clientId1c: data.clientId1c,
+          date: data.date,
+          time: data.time,
+          durationMin: data.durationMin,
+          purpose: data.purpose || null,
+          comment: data.comment || null,
+          plannedAddress: data.plannedAddress || null,
+        });
+        pushToast('success', 'Зустріч створено.');
+      } else if (editingMeeting) {
+        await apiUpdateMeeting(editingMeeting.id, {
+          clientId1c: data.clientId1c,
+          date: data.date,
+          time: data.time,
+          durationMin: data.durationMin,
+          purpose: data.purpose || null,
+          comment: data.comment || null,
+          plannedAddress: data.plannedAddress || null,
+        });
+        pushToast('success', 'Зміни збережено.');
+      }
+      setFormOpen(false);
+    } catch (e) {
+      pushToast('error', `Помилка: ${(e as Error).message}`);
+    }
   };
   const handleStart = (m: MeetingWithSync) => {
     setStartingMeeting(m);
     setStartOpen(true);
   };
-  const handleConfirmStart = (id: string, payload: MeetingStartPayload) => {
-    setMeetings(prev => applyStart(prev, id, payload));
+  const handleConfirmStart = async (id: string, payload: MeetingStartPayload) => {
     setStartOpen(false);
     setStartingMeeting(null);
-    pushToast(
-      'success',
-      payload.geoManual
-        ? 'Зустріч розпочато (адресу введено вручну).'
-        : 'Зустріч розпочато. Координати зафіксовано.',
-    );
+    try {
+      await apiStartMeeting(id, payload);
+      pushToast(
+        'success',
+        payload.geoManual
+          ? 'Зустріч розпочато (адресу введено вручну).'
+          : 'Зустріч розпочато. Координати зафіксовано.',
+      );
+    } catch (e) {
+      pushToast('error', `Не вдалось розпочати: ${(e as Error).message}`);
+    }
+  };
+  const handleFinish = async (m: MeetingWithSync) => {
+    // Sprint 1.5: фіксуємо лише статус. Geo end-capture + survey — Sprint 1.6.
+    try {
+      await apiFinishMeeting(m.id);
+      pushToast('success', 'Зустріч завершено.');
+    } catch (e) {
+      pushToast('error', `Не вдалось завершити: ${(e as Error).message}`);
+    }
   };
 
   return (
@@ -121,6 +169,11 @@ export function MeetingsDashboard() {
           <p className="text-[12px] text-slate-500 mt-1">
             {stats.total} на тиждень · {stats.today} сьогодні
             {stats.todayInProgress > 0 ? ` · ${stats.todayInProgress} у роботі` : ''}
+            {!isUsingRealApi && (
+              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
+                демо
+              </span>
+            )}
           </p>
         </div>
         <button
@@ -141,7 +194,11 @@ export function MeetingsDashboard() {
       <MeetingsFilters value={statusFilter} onChange={setStatusFilter} />
 
       {/* Day groups */}
-      {groups.length === 0 ? (
+      {loading && meetings.length === 0 ? (
+        <LoadingState />
+      ) : loadError ? (
+        <ErrorState message={loadError} />
+      ) : groups.length === 0 ? (
         <EmptyState filter={statusFilter} />
       ) : (
         <div>
@@ -153,6 +210,7 @@ export function MeetingsDashboard() {
               today={today}
               onEditMeeting={handleEdit}
               onStartMeeting={handleStart}
+              onFinishMeeting={handleFinish}
             />
           ))}
         </div>
@@ -219,6 +277,32 @@ function EmptyState({ filter }: { filter: StatusFilter }) {
   return (
     <div className="bg-white/55 backdrop-blur-xl border border-white/55 rounded-2xl p-10 text-center text-[13px] text-slate-500">
       {message}
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="space-y-3">
+      {[0, 1, 2].map(i => (
+        <div
+          key={i}
+          className="bg-white/55 backdrop-blur-xl border border-white/55 rounded-2xl p-5 animate-pulse"
+        >
+          <div className="h-3 w-32 bg-slate-200 rounded mb-2.5" />
+          <div className="h-4 w-52 bg-slate-200 rounded mb-1.5" />
+          <div className="h-3 w-40 bg-slate-100 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center">
+      <div className="text-[14px] font-bold text-rose-700 mb-1">Не вдалось завантажити зустрічі</div>
+      <div className="text-[12px] text-slate-600">{message}</div>
     </div>
   );
 }

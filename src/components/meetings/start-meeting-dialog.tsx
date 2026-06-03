@@ -228,11 +228,16 @@ function CapturedBlock({
         <MapPinIcon className="w-4 h-4 text-teal-700 mt-0.5 shrink-0" />
         <span>{geo.address}</span>
       </div>
-      <div className="text-[11px] text-slate-500 font-mono tracking-tight">
-        точність ±{Math.round(geo.accuracyMeters)} м
+      <div className="text-[11px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5">
+        <span>точність ±{Math.round(geo.accuracyMeters)} м</span>
+        {!geo.addressFromCoords && (
+          <span className="font-mono tracking-tight text-slate-400">
+            · {geo.lat.toFixed(5)}, {geo.lon.toFixed(5)}
+          </span>
+        )}
       </div>
       <div className="text-[11px] text-slate-500">
-        Після підтвердження координати стануть read-only (не можна редагувати).
+        Після підтвердження адреса й координати стануть read-only.
       </div>
     </div>
   );

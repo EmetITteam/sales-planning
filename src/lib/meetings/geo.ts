@@ -25,8 +25,13 @@ export interface GeoCaptureSuccess {
   lat: number;
   lon: number;
   accuracyMeters: number;
-  /** Human-readable address. Поки — coord-string. */
+  /**
+   * Human-readable адреса (через reverse-geocoding). Якщо geocode failed —
+   * fallback на координати у текстовому форматі (визначається `addressFromCoords`).
+   */
   address: string;
+  /** true якщо адреса — це fallback з координат (geocode не вдалось). */
+  addressFromCoords: boolean;
   capturedAt: string; // ISO timestamp
 }
 
@@ -56,13 +61,17 @@ export function captureGeo(): Promise<GeoCaptureResult> {
 
   return new Promise(resolve => {
     navigator.geolocation.getCurrentPosition(
-      pos => {
+      async pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const { address, fromCoords } = await reverseGeocode(lat, lon);
         resolve({
           ok: true,
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
+          lat,
+          lon,
           accuracyMeters: pos.coords.accuracy,
-          address: formatCoords(pos.coords.latitude, pos.coords.longitude),
+          address,
+          addressFromCoords: fromCoords,
           capturedAt: new Date().toISOString(),
         });
       },
@@ -74,6 +83,30 @@ export function captureGeo(): Promise<GeoCaptureResult> {
       },
     );
   });
+}
+
+/**
+ * Запит до `/api/geocode` (server-side proxy Nominatim). Якщо запит впав
+ * (offline, 4xx/5xx, timeout) — повертаємо координати як адресу і
+ * `fromCoords=true` щоб UI міг показати fallback-стан.
+ */
+export async function reverseGeocode(
+  lat: number,
+  lon: number,
+): Promise<{ address: string; fromCoords: boolean }> {
+  try {
+    const res = await fetch(`/api/geocode?lat=${lat}&lon=${lon}`, {
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout(7000),
+    });
+    if (!res.ok) {
+      return { address: formatCoords(lat, lon), fromCoords: true };
+    }
+    const data = (await res.json()) as { address: string; fallback: boolean };
+    return { address: data.address, fromCoords: data.fallback };
+  } catch {
+    return { address: formatCoords(lat, lon), fromCoords: true };
+  }
 }
 
 export function mapError(err: GeolocationPositionError): GeoCaptureFailure {

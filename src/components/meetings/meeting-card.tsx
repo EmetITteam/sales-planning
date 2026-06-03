@@ -13,6 +13,7 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import type { MeetingWithSync } from '@/lib/meetings/mock-data';
 import { MOCK_CLIENT_NAMES } from '@/lib/meetings/mock-data';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -51,13 +52,14 @@ export function MeetingCard({ meeting, onEdit, onStart, onFinish, onReschedule }
     >
       {/* HEAD: time + sync warning + status badge */}
       <div className="flex items-center justify-between gap-2">
-        <div className="inline-flex items-baseline gap-2">
+        <div className="inline-flex items-baseline gap-2 flex-wrap">
           <span className="font-mono font-bold text-[18px] text-emet-ink tracking-tight leading-none tabular-nums">
             {meeting.time.slice(0, 5)}
           </span>
           <span className="text-[11px] text-slate-500 font-medium">
             {formatDuration(meeting.durationMin, meeting.status)}
           </span>
+          {isInProgress && <LiveTimer startedAtISO={meeting.updatedAt} />}
           {isFailedSync && (
             <span className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700">
               <svg
@@ -315,6 +317,40 @@ function CalendarIcon() {
     </svg>
   );
 }
+/**
+ * LiveTimer — лічильник тривалості зустрічі що тікає у real-time.
+ *
+ * Sprint 1.5: використовує `updatedAt` як proxy для start-моменту. Це працює
+ * на 99% випадків (start → finish без edit-у між ними). Edge-case: якщо
+ * менеджер edit-нув зустріч у статусі in_progress, таймер «скочується» — це
+ * прийнятно бо edge case. Sprint 1.6 додасть окрему колонку `started_at`.
+ *
+ * Tick — 1 раз на секунду через setInterval. Очищаємо при unmount.
+ */
+function LiveTimer({ startedAtISO }: { startedAtISO: string }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const startedAt = new Date(startedAtISO).getTime();
+  const elapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000));
+  const mm = Math.floor(elapsedSec / 60);
+  const ss = elapsedSec % 60;
+
+  return (
+    <span
+      className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100/80 text-amber-800 font-mono font-bold text-[11px] tabular-nums"
+      aria-label={`Триває ${mm}:${String(ss).padStart(2, '0')}`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+      {mm}:{String(ss).padStart(2, '0')}
+    </span>
+  );
+}
+
 function RefreshIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-[15px] h-[15px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
