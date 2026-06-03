@@ -25,6 +25,8 @@ const PILLS: { value: StatusFilter; label: string }[] = [
 ];
 
 export function MeetingsFilters({ value, onChange }: Props) {
+  // ClientPicker + Sort filters прибрано у Sprint 1.5+: непрацюючі stub-и
+  // плутали користувача. Повернуться як працюючі компоненти у Sprint 1.7.
   return (
     <div className="flex flex-wrap items-center gap-2 mb-5">
       {PILLS.map(p => (
@@ -32,9 +34,6 @@ export function MeetingsFilters({ value, onChange }: Props) {
           {p.label}
         </Pill>
       ))}
-      <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
-      <ClientPickerStub />
-      <SortStub />
     </div>
   );
 }

@@ -459,6 +459,9 @@ export function ClientsPage() {
   }
 
   // Focus-mode (?focus=ID): show single client view, Hero band/search ховаємо.
+  // ШУКАЄМО У ПОВНОМУ clients-списку (не у baseClients): резерв-некупуючі
+  // клієнти все одно можуть мати зустріч і вести на /clients?focus=, але
+  // baseClients їх виключає → видно «не знайдено» хоча клієнт існує.
   if (focusId) {
     const focusClient = clients.find(c => c.ClientID === focusId);
     const focusName = focusClient ? getClientName(focusClient) : focusId;
@@ -478,27 +481,22 @@ export function ClientsPage() {
         </div>
 
         <div className="space-y-3">
-          {CAT_ORDER.map(cat => {
-            const list = groupedClients.get(cat) || [];
-            if (list.length === 0) return null;
-            return list.map(client => (
-              <ClientRow
-                key={client.ClientID}
-                client={client}
-                plan={planByClient[client.ClientID]?.planTotal ?? null}
-                fact={factByClient[client.ClientID]?.factTotal ?? null}
-                planBrands={planByClient[client.ClientID]?.brands ?? {}}
-                factBrands={factByClient[client.ClientID]?.brands ?? {}}
-                focuses={focusByClient[client.ClientID] ?? []}
-                totalsLoading={totalsLoading}
-                expanded={expandedId === client.ClientID}
-                onToggle={() => setExpandedId(expandedId === client.ClientID ? null : client.ClientID)}
-              />
-            ));
-          })}
-          {groupedClients.size > 0 && totalFiltered === 0 && (
+          {focusClient ? (
+            <ClientRow
+              key={focusClient.ClientID}
+              client={focusClient}
+              plan={planByClient[focusClient.ClientID]?.planTotal ?? null}
+              fact={factByClient[focusClient.ClientID]?.factTotal ?? null}
+              planBrands={planByClient[focusClient.ClientID]?.brands ?? {}}
+              factBrands={factByClient[focusClient.ClientID]?.brands ?? {}}
+              focuses={focusByClient[focusClient.ClientID] ?? []}
+              totalsLoading={totalsLoading}
+              expanded={expandedId === focusClient.ClientID}
+              onToggle={() => setExpandedId(expandedId === focusClient.ClientID ? null : focusClient.ClientID)}
+            />
+          ) : (
             <div className="glass-card-flat px-4 py-6 text-center text-[13px] text-slate-500">
-              Клієнт з кодом {focusId} не знайдено у вашому списку.
+              Клієнт з кодом <span className="font-mono">{focusId}</span> не знайдено у вашому списку.
             </div>
           )}
         </div>
@@ -1196,10 +1194,11 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[40px_minmax(0,1fr)_32px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-2 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[minmax(0,1fr)_32px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-2 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
-        {/* Avatar */}
-        <div className={`w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} flex items-center justify-center text-[12px] font-bold shrink-0`}>
+        {/* Avatar — desktop only (на мобільному 40px займали забагато і
+            ПІБ обрізалось «Бандурко Владлена Олександ…»). */}
+        <div className={`hidden md:flex w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[12px] font-bold shrink-0`}>
           {initials(name)}
         </div>
 
@@ -1207,7 +1206,8 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
             На мобільному (max-md): name окремим рядком, а chips переносимо
             нижче — інакше «Активний» chip перекриває truncated ім'я. */}
         <div className="min-w-0">
-          <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
+          {/* Mobile: дозволяємо 2 рядки для повного ПІБ; Desktop: truncate як було */}
+          <p className="text-[14px] font-bold md:truncate line-clamp-2 md:line-clamp-none leading-tight">{name || '— без назви —'}</p>
           <div className="flex items-center gap-1.5 mt-1 min-w-0 flex-wrap">
             {/* Chip-категорія українською (Активний/Сплячий/Новий/Втрачений/Без закупок) */}
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
@@ -2022,17 +2022,12 @@ function PlanFactByBrand({ planBrands, factBrands }: {
   return (
     <div>
       <PlanFactHeader rowsCount={rows.length} />
-      {/* Wrapper з horizontal scroll: grid-рядок шириший за viewport на
-          мобільному (490+px). Свайп всередині блока — користувач не виходить
-          з expanded клієнта. -mx-3 + px-3 щоб scroll-zone уціль до краю.
-          `touch-pan-x` обов'язково — body має `touch-action: pan-y` для
-          блокування pinch-zoom, що заодно б'є horizontal touch-scroll. */}
-      <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin] touch-pan-x">
-        <div className="space-y-1.5 min-w-[680px]">
-          {rows.map(r => (
-            <PlanFactBrandRow key={r.code} row={r} />
-          ))}
-        </div>
+      {/* PlanFactBrandRow має mobile-first 2-row compact layout — горизонтальний
+          scroll більше не потрібен, картка вписується у 360px viewport. */}
+      <div className="space-y-1.5">
+        {rows.map(r => (
+          <PlanFactBrandRow key={r.code} row={r} />
+        ))}
       </div>
     </div>
   );
@@ -2079,41 +2074,64 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
     unplanned: { dot: 'bg-violet-500',   label: '⚡ Поза плануванням', pillBg: 'bg-violet-500/12 border border-violet-300/40 text-violet-700 backdrop-blur-sm' },
   } as const;
   const meta = STATUS_META[status];
+  const pctClass = pct === null ? 'text-muted-foreground/40'
+    : pct >= 100 ? 'text-emerald-700'
+    : pct >= 80 ? 'text-emerald-600'
+    : pct >= 50 ? 'text-amber-600'
+    : 'text-rose-600';
+
+  const planStr = plan > 0 ? `$${Math.round(plan).toLocaleString('en-US')}` : '—';
+  const factStr = fact > 0 ? `$${Math.round(fact).toLocaleString('en-US')}` : '$0';
+  const pctStr = pct === null ? '—' : `${pct.toFixed(0)}%`;
+
   return (
-    // Фіксовані ширини колонок План/Факт/Викон/Status — щоб усі рядки
-    // вирівнювались строго (раніше 1fr+auto давало «гуляючі» значення
-    // коли status-pill мав різну довжину).
-    <div className="glass-card-soft p-3 grid grid-cols-[12px_minmax(160px,1fr)_110px_110px_75px_150px] gap-3 items-center">
-      <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
-      <div className="font-semibold text-[13px] truncate">{name}</div>
-      <div className="text-right">
-        <p className="text-[9px] uppercase text-muted-foreground font-semibold">План</p>
-        <p className="font-mono font-bold tabular-nums text-[12px] mt-0.5 amount">
-          {plan > 0 ? `$${Math.round(plan).toLocaleString('en-US')}` : <span className="text-muted-foreground/40">—</span>}
-        </p>
+    <div className="glass-card-soft p-3">
+      {/* MOBILE: 2-row compact layout — brand+status зверху, цифри знизу */}
+      <div className="md:hidden">
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.dot}`} />
+          <span className="font-semibold text-[13px] truncate flex-1 min-w-0">{name}</span>
+          <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
+            {meta.label}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 pl-[18px]">
+          <div>
+            <p className="text-[9px] uppercase text-muted-foreground font-semibold">План</p>
+            <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 amount ${plan === 0 ? 'text-muted-foreground/40' : ''}`}>{planStr}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase text-muted-foreground font-semibold">Факт</p>
+            <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 amount ${fact === 0 ? 'text-muted-foreground/40' : ''}`}>{factStr}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase text-muted-foreground font-semibold">Викон.</p>
+            <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 ${pctClass}`}>{pctStr}</p>
+          </div>
+        </div>
       </div>
-      <div className="text-right">
-        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Факт</p>
-        <p className="font-mono font-bold tabular-nums text-[12px] mt-0.5 amount">
-          {fact > 0 ? `$${Math.round(fact).toLocaleString('en-US')}` : <span className="text-muted-foreground/40">$0</span>}
-        </p>
-      </div>
-      <div className="text-right">
-        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Викон.</p>
-        <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 ${
-          pct === null ? 'text-muted-foreground/40'
-          : pct >= 100 ? 'text-emerald-700'
-          : pct >= 80 ? 'text-emerald-600'
-          : pct >= 50 ? 'text-amber-600'
-          : 'text-rose-600'
-        }`}>
-          {pct === null ? '—' : `${pct.toFixed(0)}%`}
-        </p>
-      </div>
-      <div className="flex justify-end">
-        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
-          {meta.label}
-        </span>
+
+      {/* DESKTOP: original grid layout */}
+      <div className="hidden md:grid grid-cols-[12px_minmax(160px,1fr)_110px_110px_75px_150px] gap-3 items-center">
+        <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
+        <div className="font-semibold text-[13px] truncate">{name}</div>
+        <div className="text-right">
+          <p className="text-[9px] uppercase text-muted-foreground font-semibold">План</p>
+          <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 amount ${plan === 0 ? 'text-muted-foreground/40' : ''}`}>{planStr}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] uppercase text-muted-foreground font-semibold">Факт</p>
+          <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 amount ${fact === 0 ? 'text-muted-foreground/40' : ''}`}>{factStr}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] uppercase text-muted-foreground font-semibold">Викон.</p>
+          <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 ${pctClass}`}>{pctStr}</p>
+        </div>
+        <div className="flex justify-end">
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
+            {meta.label}
+          </span>
+        </div>
       </div>
     </div>
   );

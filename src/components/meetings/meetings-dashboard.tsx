@@ -29,6 +29,7 @@ import {
 } from '@/lib/meetings/mock-data';
 import { useMeetings } from '@/lib/meetings/use-meetings';
 import { useMyClients } from '@/lib/use-my-clients';
+import { getClientAddress } from '@/lib/mityng-types';
 
 interface Toast {
   id: number;
@@ -88,13 +89,22 @@ export function MeetingsDashboard() {
 
   // У mock-режимі демо-зустрічі мають fake clientID (`CL-ESTET-PODOL`),
   // який 1С не знає → getClientReport падає. Як тільки real клієнти
-  // менеджера завантажились — round-robin'имо їх ID у моки. Real API режим
-  // повертає вже з реальними ID, тому не чіпаємо.
+  // менеджера завантажились — round-robin'имо їх ID у моки + підтягуємо
+  // адресу клієнта з 1С щоб демо не показувало hardcoded «вул. Хорива 42»
+  // для кожного клієнта. Real API режим повертає вже з реальними ID/адресами.
   const effectiveMeetings = useMemo(() => {
     if (isUsingRealApi || myClients.length === 0) return meetings;
     return meetings.map((m, i) => {
       const real = myClients[i % myClients.length];
-      return real ? { ...m, clientId1c: real.ClientID } : m;
+      if (!real) return m;
+      const realAddress = getClientAddress(real);
+      return {
+        ...m,
+        clientId1c: real.ClientID,
+        plannedAddress: realAddress || m.plannedAddress,
+        // Якщо мок мав zafiksovanu startAddress — заміняємо на real клієнтську
+        startAddress: m.startAddress && realAddress ? realAddress : m.startAddress,
+      };
     });
   }, [meetings, myClients, isUsingRealApi]);
 
