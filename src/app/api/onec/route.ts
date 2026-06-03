@@ -42,6 +42,7 @@ const ALLOWED_ACTIONS = new Set([
   'getAllMeetingsForClient',   // всі зустрічі по клієнту (clientID)
   'getClientFocus',            // фокуси по клієнтах bulk (login + clientIds[])
   'getClientActivationPlan',   // план активації бази по категоріях (login + period) — Action B
+  'saveClientSurvey',          // зберегти анкету клієнта (з meeting-app outcome flow)
 ]);
 
 // Action → яке поле у payload.login треба ОВЕРРАЙДНУТИ з сесії.

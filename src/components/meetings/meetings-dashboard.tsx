@@ -20,6 +20,7 @@ import { DayGroup } from './day-group';
 import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeting-form';
 import { StartMeetingDialog, FinishMeetingDialog } from './location-capture-dialog';
 import { ClientDossierDialog } from './client-dossier-dialog';
+import { MeetingOutcomeDialog } from './meeting-outcome-dialog';
 import {
   computeStats,
   groupMeetingsByDate,
@@ -51,6 +52,10 @@ export function MeetingsDashboard() {
 
   // Dossier dialog state (Sprint 1.5+).
   const [dossierClient, setDossierClient] = useState<{ id: string; name: string; phone: string } | null>(null);
+
+  // Outcome dialog (survey + summary) — для «Коментар» на done та після finish.
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [outcomeMeeting, setOutcomeMeeting] = useState<MeetingWithSync | null>(null);
 
   // Toast state — мінімальний host без global provider (Sprint 1.6+ — refactor).
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -180,6 +185,22 @@ export function MeetingsDashboard() {
     setFinishingMeeting(m);
     setFinishOpen(true);
   };
+  const handleOutcome = (m: MeetingWithSync) => {
+    setOutcomeMeeting(m);
+    setOutcomeOpen(true);
+  };
+  const handleOutcomeSaved = async ({ comment }: { comment: string }) => {
+    if (!outcomeMeeting) return;
+    // Зберегти comment у нашій БД через PATCH meetings (op=update)
+    try {
+      if (comment !== outcomeMeeting.comment) {
+        await apiUpdateMeeting(outcomeMeeting.id, { comment });
+      }
+      pushToast('success', 'Підсумки збережено.');
+    } catch (e) {
+      pushToast('error', `Анкета збережена, але comment не оновлено: ${(e as Error).message}`);
+    }
+  };
   const handleConfirmFinish = async (id: string, payload: MeetingStartPayload) => {
     setFinishOpen(false);
     setFinishingMeeting(null);
@@ -190,7 +211,7 @@ export function MeetingsDashboard() {
       /* ignore */
     }
     try {
-      await apiFinishMeeting(id, {
+      const updated = await apiFinishMeeting(id, {
         address: payload.address,
         lat: payload.lat,
         lon: payload.lon,
@@ -202,6 +223,11 @@ export function MeetingsDashboard() {
           ? 'Зустріч завершено (адресу введено вручну).'
           : 'Зустріч завершено. Координати зафіксовано.',
       );
+      // Після успішного finish — одразу відкрити outcome dialog (як у meeting-4.0)
+      if (updated) {
+        setOutcomeMeeting(updated);
+        setOutcomeOpen(true);
+      }
     } catch (e) {
       pushToast('error', `Не вдалось завершити: ${(e as Error).message}`);
     }
@@ -271,6 +297,7 @@ export function MeetingsDashboard() {
               onEditMeeting={handleEdit}
               onStartMeeting={handleStart}
               onFinishMeeting={handleFinish}
+              onOutcomeMeeting={handleOutcome}
               clientsByID={clientsByID}
               onClientClick={handleClientClick}
             />
@@ -306,6 +333,13 @@ export function MeetingsDashboard() {
         clientNameFallback={dossierClient?.name}
         phoneFallback={dossierClient?.phone}
         onClose={() => setDossierClient(null)}
+      />
+
+      <MeetingOutcomeDialog
+        open={outcomeOpen}
+        meeting={outcomeMeeting}
+        onClose={() => setOutcomeOpen(false)}
+        onSaved={handleOutcomeSaved}
       />
 
       <ToastHost toasts={toasts} onDismiss={id => setToasts(t => t.filter(x => x.id !== id))} />

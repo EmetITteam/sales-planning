@@ -20,6 +20,7 @@ interface Props {
   onStartMeeting?: (m: MeetingWithSync) => void;
   onFinishMeeting?: (m: MeetingWithSync) => void;
   onRescheduleMeeting?: (m: MeetingWithSync) => void;
+  onOutcomeMeeting?: (m: MeetingWithSync) => void;
   /** Map clientId1c → client із 1С (для phone + dossier). */
   clientsByID?: Map<string, ClientFromOneC>;
   /** Клік на ім'я клієнта у картці → відкрити досьє у dashboard. */
@@ -34,6 +35,7 @@ export function DayGroup({
   onStartMeeting,
   onFinishMeeting,
   onRescheduleMeeting,
+  onOutcomeMeeting,
   clientsByID,
   onClientClick,
 }: Props) {
@@ -99,6 +101,7 @@ export function DayGroup({
             onStart={onStartMeeting}
             onFinish={onFinishMeeting}
             onReschedule={onRescheduleMeeting}
+            onOutcome={onOutcomeMeeting}
             client={clientsByID?.get(m.clientId1c)}
             onClientClick={onClientClick}
           />

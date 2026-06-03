@@ -350,6 +350,17 @@ export interface OneCActionMap {
   getAllMeetingsForClient: { request: GetAllMeetingsForClientRequest; response: GetAllMeetingsForClientResponse };
   getClientFocus: { request: GetClientFocusRequest; response: GetClientFocusResponse };
   getClientActivationPlan: { request: GetClientActivationPlanRequest; response: GetClientActivationPlanResponse };
+  saveClientSurvey: { request: SaveClientSurveyRequest; response: SaveClientSurveyResponse };
+}
+
+export interface SaveClientSurveyRequest {
+  clientID: string;
+  /** JSON-stringify результату survey-форми (з meeting-app outcome-survey-form). */
+  surveyData: string;
+}
+
+export interface SaveClientSurveyResponse {
+  success?: boolean;
 }
 
 export type OneCAction = keyof OneCActionMap;

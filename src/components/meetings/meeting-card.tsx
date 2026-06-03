@@ -31,6 +31,8 @@ interface Props {
   onFinish?: (meeting: MeetingWithSync) => void;
   /** Викликається коли «Перенести» (Sprint 1.x). */
   onReschedule?: (meeting: MeetingWithSync) => void;
+  /** «Коментар + анкета» на done-картці (Sprint 1.5.x). */
+  onOutcome?: (meeting: MeetingWithSync) => void;
   /**
    * Дані клієнта з 1С (lookup за meeting.clientId1c у dashboard).
    * undefined якщо не знайдено / mock-режим — fallback на MOCK_CLIENT_NAMES.
@@ -46,6 +48,7 @@ export function MeetingCard({
   onStart,
   onFinish,
   onReschedule,
+  onOutcome,
   client,
   onClientClick,
 }: Props) {
@@ -193,7 +196,7 @@ export function MeetingCard({
 
       {/* ACTIONS */}
       <div className="flex flex-wrap gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
-        {renderActions(meeting, { onEdit, onStart, onFinish, onReschedule })}
+        {renderActions(meeting, { onEdit, onStart, onFinish, onReschedule, onOutcome })}
       </div>
     </div>
   );
@@ -204,6 +207,7 @@ interface ActionHandlers {
   onStart?: (m: MeetingWithSync) => void;
   onFinish?: (m: MeetingWithSync) => void;
   onReschedule?: (m: MeetingWithSync) => void;
+  onOutcome?: (m: MeetingWithSync) => void;
 }
 
 function formatDuration(durationMin: number | null, status: string): string {
@@ -237,9 +241,9 @@ function renderActions(m: MeetingWithSync, h: ActionHandlers) {
           <ChartIcon />
           Деталі
         </ActionButton>
-        <ActionButton onClick={() => h.onEdit?.(m)}>
+        <ActionButton onClick={() => h.onOutcome?.(m)}>
           <MessageIcon />
-          Коментар
+          Підсумки
         </ActionButton>
       </>
     );
