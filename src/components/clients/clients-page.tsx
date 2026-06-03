@@ -1194,7 +1194,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[36px_minmax(0,1fr)_44px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)_40px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar — 36px mobile / 40px desktop. */}
         <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0 mt-0.5 md:mt-0`}>
@@ -1633,11 +1633,11 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
           );
           return (
             <div key={b.brandName} className="glass-card-soft p-3">
-              {/* MOBILE: brand + статус + total зверху, місяці у grid 3×2 знизу.
-                  Pill «не в плані» (тільки коли НЕ у плані — інакше шум) одразу
-                  поруч з брендом — логічніше ніж окремий ряд внизу. */}
+              {/* MOBILE: brand + статус + total зверху, місяці inline-list
+                  показуються ТІЛЬКИ якщо є покупка — пусті «—» прибрано щоб
+                  картка не виглядала роз'єднано і не «літали» цифри у пустоті. */}
               <div className="md:hidden">
-                <div className="flex items-center gap-2 mb-2 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5 min-w-0">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
                   <span className="font-semibold text-[13px] truncate min-w-0">{cleanBrandName(b.brandName)}</span>
                   {!inPlan && (
@@ -1647,19 +1647,29 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
                   )}
                   <span className="ml-auto font-mono font-bold tabular-nums text-[13px] shrink-0 amount">${total.toLocaleString('en-US')}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-x-2 gap-y-1.5 pl-4">
-                  {monthOrder.map(m => {
-                    const amount = byMonth[m] ?? 0;
+                {(() => {
+                  const purchases = monthOrder
+                    .map(m => ({ month: m, amount: byMonth[m] ?? 0 }))
+                    .filter(p => p.amount > 0);
+                  if (purchases.length === 0) {
                     return (
-                      <div key={m} className="flex flex-col">
-                        <span className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{fmtYMShort(m)}</span>
-                        <span className={`font-mono font-bold tabular-nums text-[11px] mt-0.5 leading-none amount ${amount > 0 ? '' : 'text-muted-foreground/40'}`}>
-                          {amount > 0 ? `$${Math.round(amount).toLocaleString('en-US')}` : '—'}
-                        </span>
+                      <div className="pl-4 text-[11px] text-muted-foreground/60">
+                        За 6 місяців покупок не зафіксовано.
                       </div>
                     );
-                  })}
-                </div>
+                  }
+                  return (
+                    <div className="pl-4 text-[11px] flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+                      {purchases.map((p, i) => (
+                        <span key={p.month} className="inline-flex items-baseline gap-1">
+                          {i > 0 && <span className="text-muted-foreground/30 mr-1.5">·</span>}
+                          <span className="text-muted-foreground uppercase text-[9px] font-semibold">{fmtYMShort(p.month)}</span>
+                          <span className="font-mono font-bold tabular-nums text-[12px] amount">${Math.round(p.amount).toLocaleString('en-US')}</span>
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* DESKTOP: original grid */}
@@ -2112,28 +2122,25 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
 
   return (
     <div className="glass-card-soft p-3">
-      {/* MOBILE: 2-row compact layout — brand+status зверху, цифри знизу */}
+      {/* MOBILE: inline-row — dot+brand+chip зверху, дані inline нижче.
+          Замість grid 3-col (де метки і цифри плавали окремо) — суцільна
+          rядок «План $X · Факт $Y · X%» компактно під брендом. */}
       <div className="md:hidden">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-1.5">
           <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.dot}`} />
           <span className="font-semibold text-[13px] truncate flex-1 min-w-0">{name}</span>
-          <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
+          <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
             {meta.label}
           </span>
         </div>
-        <div className="grid grid-cols-3 gap-2 pl-[18px]">
-          <div>
-            <p className="text-[9px] uppercase text-muted-foreground font-semibold">План</p>
-            <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 amount ${plan === 0 ? 'text-muted-foreground/40' : ''}`}>{planStr}</p>
-          </div>
-          <div>
-            <p className="text-[9px] uppercase text-muted-foreground font-semibold">Факт</p>
-            <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 amount ${fact === 0 ? 'text-muted-foreground/40' : ''}`}>{factStr}</p>
-          </div>
-          <div>
-            <p className="text-[9px] uppercase text-muted-foreground font-semibold">Викон.</p>
-            <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 ${pctClass}`}>{pctStr}</p>
-          </div>
+        <div className="pl-[18px] text-[11px] flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="text-muted-foreground">План</span>
+          <span className={`font-mono font-bold tabular-nums text-[12px] amount ${plan === 0 ? 'text-muted-foreground/40' : ''}`}>{planStr}</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground">Факт</span>
+          <span className={`font-mono font-bold tabular-nums text-[12px] amount ${fact === 0 ? 'text-muted-foreground/40' : ''}`}>{factStr}</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className={`font-mono font-bold tabular-nums text-[12px] ${pctClass}`}>{pctStr}</span>
         </div>
       </div>
 
