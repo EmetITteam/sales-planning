@@ -145,18 +145,17 @@ export function AppHeader() {
               setCurrentPeriod({ ...meta, isActive: true });
             }
           }}
-          className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-[12px] font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+          className={`inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3.5 rounded-full border text-[12px] font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
             liveMode
               ? 'bg-amber-50/70 backdrop-blur-md border-amber-300/70 text-amber-700 shadow-sm'
               : 'bg-white/60 backdrop-blur-md border-white/50 text-muted-foreground hover:border-amber-200 hover:text-amber-700'
           }`}
           title={liveMode ? 'Перейти на звітний фільтр' : 'Перегляд "на сьогодні" (read-only)'}
+          aria-label="На сьогодні"
         >
           <Zap className={`h-3.5 w-3.5 ${liveMode ? 'fill-amber-400' : ''}`} />
-          {/* Кнопка завжди каже що **зробить клік** — переключить на дані за сьогодні.
-              Стан показуємо через колір (амбер коли активна) + LIVE pill поряд.
-              Не "Звітний фільтр" — це підпис стану, а тут потрібен підпис дії. */}
-          На сьогодні
+          {/* На мобільному — лише іконка; підпис ховаємо щоб помістився avatar */}
+          <span className="hidden sm:inline">На сьогодні</span>
         </button>
 
         {liveMode && (
@@ -224,7 +223,7 @@ export function AppHeader() {
 
         {/* User */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2.5 h-9 px-2 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer shrink-0">
+          <DropdownMenuTrigger className="flex items-center gap-1.5 sm:gap-2.5 h-9 px-1.5 sm:px-2 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer shrink-0 ml-auto">
             <Avatar className="h-8 w-8 shadow-sm shrink-0">
               <AvatarFallback className={`text-xs font-medium ${ROLE_COLORS[user.role]}`}>
                 {initials}
