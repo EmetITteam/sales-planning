@@ -15,9 +15,21 @@ interface Props {
   date: string;
   meetings: MeetingWithSync[];
   today: Date;
+  onEditMeeting?: (m: MeetingWithSync) => void;
+  onStartMeeting?: (m: MeetingWithSync) => void;
+  onFinishMeeting?: (m: MeetingWithSync) => void;
+  onRescheduleMeeting?: (m: MeetingWithSync) => void;
 }
 
-export function DayGroup({ date, meetings, today }: Props) {
+export function DayGroup({
+  date,
+  meetings,
+  today,
+  onEditMeeting,
+  onStartMeeting,
+  onFinishMeeting,
+  onRescheduleMeeting,
+}: Props) {
   const { label, isToday } = formatDayLabel(date, today);
 
   const done = meetings.filter(m => m.status === 'done').length;
@@ -59,7 +71,14 @@ export function DayGroup({ date, meetings, today }: Props) {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-md:gap-2.5">
         {meetings.map(m => (
-          <MeetingCard key={m.id} meeting={m} />
+          <MeetingCard
+            key={m.id}
+            meeting={m}
+            onEdit={onEditMeeting}
+            onStart={onStartMeeting}
+            onFinish={onFinishMeeting}
+            onReschedule={onRescheduleMeeting}
+          />
         ))}
       </div>
     </div>

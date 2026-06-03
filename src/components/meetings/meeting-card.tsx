@@ -19,9 +19,17 @@ import { StatusBadge } from '@/components/ui/status-badge';
 
 interface Props {
   meeting: MeetingWithSync;
+  /** Викликається коли користувач натискає «Редагувати» / «Правка». */
+  onEdit?: (meeting: MeetingWithSync) => void;
+  /** Викликається коли користувач натискає «Розпочати» (Sprint 1.4). */
+  onStart?: (meeting: MeetingWithSync) => void;
+  /** Викликається коли «Завершити» (Sprint 1.4). */
+  onFinish?: (meeting: MeetingWithSync) => void;
+  /** Викликається коли «Перенести» (Sprint 1.x). */
+  onReschedule?: (meeting: MeetingWithSync) => void;
 }
 
-export function MeetingCard({ meeting }: Props) {
+export function MeetingCard({ meeting, onEdit, onStart, onFinish, onReschedule }: Props) {
   const clientName = MOCK_CLIENT_NAMES[meeting.clientId1c] ?? meeting.clientId1c;
   const isFailedSync = meeting.syncStatus === 'failed';
   const isInProgress = meeting.status === 'in_progress';
@@ -136,10 +144,17 @@ export function MeetingCard({ meeting }: Props) {
 
       {/* ACTIONS */}
       <div className="flex flex-wrap gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
-        {renderActions(meeting)}
+        {renderActions(meeting, { onEdit, onStart, onFinish, onReschedule })}
       </div>
     </div>
   );
+}
+
+interface ActionHandlers {
+  onEdit?: (m: MeetingWithSync) => void;
+  onStart?: (m: MeetingWithSync) => void;
+  onFinish?: (m: MeetingWithSync) => void;
+  onReschedule?: (m: MeetingWithSync) => void;
 }
 
 function formatDuration(durationMin: number | null, status: string): string {
@@ -149,17 +164,17 @@ function formatDuration(durationMin: number | null, status: string): string {
   return `${durationMin} хв`;
 }
 
-function renderActions(m: MeetingWithSync) {
+function renderActions(m: MeetingWithSync, h: ActionHandlers) {
   const isFailedSync = m.syncStatus === 'failed';
 
   if (m.status === 'in_progress') {
     return (
       <>
-        <ActionButton primary>
+        <ActionButton primary onClick={() => h.onFinish?.(m)}>
           <SquareIcon />
           Завершити
         </ActionButton>
-        <ActionButton>
+        <ActionButton onClick={() => h.onEdit?.(m)}>
           <PencilIcon />
           Редагувати
         </ActionButton>
@@ -169,7 +184,7 @@ function renderActions(m: MeetingWithSync) {
   if (m.status === 'done') {
     return (
       <>
-        <ActionButton>
+        <ActionButton onClick={() => h.onEdit?.(m)}>
           <ChartIcon />
           Деталі
         </ActionButton>
@@ -183,11 +198,11 @@ function renderActions(m: MeetingWithSync) {
   if (m.status === 'postponed' || m.status === 'cancelled') {
     return (
       <>
-        <ActionButton>
+        <ActionButton onClick={() => h.onReschedule?.(m)}>
           <CalendarIcon />
           Перенести
         </ActionButton>
-        <ActionButton>
+        <ActionButton onClick={() => h.onEdit?.(m)}>
           <PencilIcon />
           Правка
         </ActionButton>
@@ -198,11 +213,11 @@ function renderActions(m: MeetingWithSync) {
   if (isFailedSync) {
     return (
       <>
-        <ActionButton warning>
+        <ActionButton warning onClick={() => h.onEdit?.(m)}>
           <RefreshIcon />
           Повторити sync
         </ActionButton>
-        <ActionButton primary>
+        <ActionButton primary onClick={() => h.onStart?.(m)}>
           <PlayIcon />
           Розпочати
         </ActionButton>
@@ -211,11 +226,11 @@ function renderActions(m: MeetingWithSync) {
   }
   return (
     <>
-      <ActionButton primary>
+      <ActionButton primary onClick={() => h.onStart?.(m)}>
         <PlayIcon />
         Розпочати
       </ActionButton>
-      <ActionButton>
+      <ActionButton onClick={() => h.onEdit?.(m)}>
         <PencilIcon />
         Правка
       </ActionButton>
@@ -227,10 +242,12 @@ function ActionButton({
   children,
   primary,
   warning,
+  onClick,
 }: {
   children: React.ReactNode;
   primary?: boolean;
   warning?: boolean;
+  onClick?: () => void;
 }) {
   let cls =
     'flex-1 inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 rounded-[10px] border text-[13px] font-semibold whitespace-nowrap transition-all cursor-pointer ';
@@ -247,7 +264,7 @@ function ActionButton({
   // Mobile reflow: primary occupies own row on ≤480px
   if (primary) cls += ' max-[480px]:basis-full';
   else cls += ' max-[480px]:basis-[calc(50%-4px)]';
-  return <button type="button" className={cls}>{children}</button>;
+  return <button type="button" className={cls} onClick={onClick}>{children}</button>;
 }
 
 // === Inline lucide-style icons (anti-emoji policy) ===
