@@ -18,7 +18,7 @@ import { MeetingsWidgets } from './meetings-widgets';
 import { MeetingsFilters, type StatusFilter } from './meetings-filters';
 import { DayGroup } from './day-group';
 import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeting-form';
-import { StartMeetingDialog } from './start-meeting-dialog';
+import { StartMeetingDialog, FinishMeetingDialog } from './location-capture-dialog';
 import {
   computeStats,
   groupMeetingsByDate,
@@ -41,9 +41,11 @@ export function MeetingsDashboard() {
   const [formMode, setFormMode] = useState<MeetingFormMode>('create');
   const [editingMeeting, setEditingMeeting] = useState<MeetingWithSync | undefined>();
 
-  // Start-meeting dialog state (Sprint 1.4).
+  // Start / Finish meeting dialog state (Sprint 1.4 + 1.5).
   const [startOpen, setStartOpen] = useState(false);
   const [startingMeeting, setStartingMeeting] = useState<MeetingWithSync | null>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [finishingMeeting, setFinishingMeeting] = useState<MeetingWithSync | null>(null);
 
   // Toast state — мінімальний host без global provider (Sprint 1.6+ — refactor).
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -137,11 +139,26 @@ export function MeetingsDashboard() {
       pushToast('error', `Не вдалось розпочати: ${(e as Error).message}`);
     }
   };
-  const handleFinish = async (m: MeetingWithSync) => {
-    // Sprint 1.5: фіксуємо лише статус. Geo end-capture + survey — Sprint 1.6.
+  const handleFinish = (m: MeetingWithSync) => {
+    setFinishingMeeting(m);
+    setFinishOpen(true);
+  };
+  const handleConfirmFinish = async (id: string, payload: MeetingStartPayload) => {
+    setFinishOpen(false);
+    setFinishingMeeting(null);
     try {
-      await apiFinishMeeting(m.id);
-      pushToast('success', 'Зустріч завершено.');
+      await apiFinishMeeting(id, {
+        address: payload.address,
+        lat: payload.lat,
+        lon: payload.lon,
+        geoManual: payload.geoManual,
+      });
+      pushToast(
+        'success',
+        payload.geoManual
+          ? 'Зустріч завершено (адресу введено вручну).'
+          : 'Зустріч завершено. Координати зафіксовано.',
+      );
     } catch (e) {
       pushToast('error', `Не вдалось завершити: ${(e as Error).message}`);
     }
@@ -229,6 +246,13 @@ export function MeetingsDashboard() {
         meeting={startingMeeting}
         onClose={() => setStartOpen(false)}
         onConfirm={handleConfirmStart}
+      />
+
+      <FinishMeetingDialog
+        open={finishOpen}
+        meeting={finishingMeeting}
+        onClose={() => setFinishOpen(false)}
+        onConfirm={handleConfirmFinish}
       />
 
       <ToastHost toasts={toasts} onDismiss={id => setToasts(t => t.filter(x => x.id !== id))} />

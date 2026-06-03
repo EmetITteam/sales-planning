@@ -70,6 +70,8 @@ export interface FinishPayload {
   lat?: number | null;
   lon?: number | null;
   comment?: string | null;
+  /** true якщо адресу при finish ввели вручну (GPS не вдалось). */
+  geoManual?: boolean;
 }
 
 function isUsingRealApiFlag(): boolean {

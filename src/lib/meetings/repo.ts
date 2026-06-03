@@ -204,6 +204,11 @@ export interface FinishMeetingDbInput {
   lat?: number | null;
   lon?: number | null;
   comment?: string | null;
+  /**
+   * true якщо адресу finish ввели вручну. ADR-7: один `geo_manual` прапор на
+   * рядок — апгрейдиться у true якщо хоч раз був manual (start АБО finish).
+   */
+  geoManual?: boolean;
 }
 
 export async function finishMeeting(
@@ -217,6 +222,9 @@ export async function finishMeeting(
     endLat: payload.lat ?? null,
     endLon: payload.lon ?? null,
     comment: payload.comment ?? undefined,
+    // Тільки upgrade у true. Якщо start був GPS а finish manual — geoManual=true.
+    // Якщо обидва GPS — patch не міняє існуюче значення (не передаємо).
+    geoManual: payload.geoManual === true ? true : undefined,
   });
   const res = await patchOwned(managerLogin, id, patch);
   if (res.data) await enqueueSync(id, 'finish', res.data);
