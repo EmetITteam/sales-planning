@@ -1194,7 +1194,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[36px_minmax(0,1fr)_32px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-2.5 md:gap-4 items-start md:items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)_32px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar — 36px mobile / 40px desktop. */}
         <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0 mt-0.5 md:mt-0`}>
@@ -1633,12 +1633,19 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
           );
           return (
             <div key={b.brandName} className="glass-card-soft p-3">
-              {/* MOBILE: brand+total зверху, місяці у grid 3×2 знизу */}
+              {/* MOBILE: brand + статус + total зверху, місяці у grid 3×2 знизу.
+                  Pill «не в плані» (тільки коли НЕ у плані — інакше шум) одразу
+                  поруч з брендом — логічніше ніж окремий ряд внизу. */}
               <div className="md:hidden">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 min-w-0">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
-                  <span className="font-semibold text-[13px] flex-1 min-w-0 truncate">{cleanBrandName(b.brandName)}</span>
-                  <span className="font-mono font-bold tabular-nums text-[13px] shrink-0 amount">${total.toLocaleString('en-US')}</span>
+                  <span className="font-semibold text-[13px] truncate min-w-0">{cleanBrandName(b.brandName)}</span>
+                  {!inPlan && (
+                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-400/10 text-slate-500 border border-slate-300/50">
+                      не в плані
+                    </span>
+                  )}
+                  <span className="ml-auto font-mono font-bold tabular-nums text-[13px] shrink-0 amount">${total.toLocaleString('en-US')}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-x-2 gap-y-1.5 pl-4">
                   {monthOrder.map(m => {
@@ -1653,7 +1660,6 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
                     );
                   })}
                 </div>
-                <div className="mt-2 flex justify-end">{planPill}</div>
               </div>
 
               {/* DESKTOP: original grid */}
