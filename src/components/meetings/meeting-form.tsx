@@ -26,6 +26,7 @@ import { XIcon } from 'lucide-react';
 import type { MeetingWithSync } from '@/lib/meetings/mock-data';
 import { MOCK_CLIENT_NAMES } from '@/lib/meetings/mock-data';
 import { MEETING_PURPOSES } from '@/lib/meetings/purposes';
+import { useMeetingPurposes } from '@/lib/meetings/use-meeting-purposes';
 import { ClientPickerDialog } from './client-picker-dialog';
 import { useMyClients } from '@/lib/use-my-clients';
 import { getClientName } from '@/lib/mityng-types';
@@ -51,9 +52,11 @@ export interface MeetingFormData {
   comment: string;
 }
 
-// Single-source-of-truth — src/lib/meetings/purposes.ts. Якщо у майбутньому 1С
-// dev зробить довідник `getMeetingPurposes` — заміни PURPOSES на hook звідти.
-const PURPOSES = MEETING_PURPOSES;
+// PURPOSES тягнуться з 1С через useMeetingPurposes() (action getInitialData).
+// Fallback на src/lib/meetings/purposes.ts якщо 1С не відповів — щоб форма
+// ніколи не була без переліку цілей. MEETING_PURPOSES import лишаємо щоб
+// бекап-список був явним у залежностях.
+const _FALLBACK_PURPOSES = MEETING_PURPOSES;
 
 const DURATIONS: { value: number; label: string }[] = [
   { value: 30, label: '30 хвилин' },
@@ -103,6 +106,9 @@ export function MeetingForm({ open, mode, initialMeeting, onClose, onSave }: Pro
       setForm(mode === 'edit' && initialMeeting ? meetingToFormData(initialMeeting) : getCreateDefaults());
     }
   }, [open, mode, initialMeeting]);
+
+  // Цілі візиту з 1С (з fallback на hardcoded список).
+  const { purposes: PURPOSES } = useMeetingPurposes();
 
   const canSave =
     form.clientId1c.trim().length > 0 &&

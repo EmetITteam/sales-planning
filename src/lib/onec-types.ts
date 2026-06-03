@@ -351,6 +351,24 @@ export interface OneCActionMap {
   getClientFocus: { request: GetClientFocusRequest; response: GetClientFocusResponse };
   getClientActivationPlan: { request: GetClientActivationPlanRequest; response: GetClientActivationPlanResponse };
   saveClientSurvey: { request: SaveClientSurveyRequest; response: SaveClientSurveyResponse };
+  getInitialData: { request: GetInitialDataRequest; response: GetInitialDataResponse };
+}
+
+export interface GetInitialDataRequest {
+  login: string;
+  /** YYYY-MM-DD */
+  startDateString: string;
+  /** YYYY-MM-DD */
+  endDateString: string;
+}
+
+export interface GetInitialDataResponse {
+  /** Зустрічі менеджера за період. Поки нас цікавлять тільки purposes. */
+  meetings?: unknown[];
+  /** Довідник цілей візиту. У 1С повертається як [{Purpose: string}]. */
+  purposes?: Array<{ Purpose: string }>;
+  questions?: unknown[];
+  potentialCategories?: unknown[];
 }
 
 export interface SaveClientSurveyRequest {
