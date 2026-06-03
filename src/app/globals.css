@@ -113,9 +113,18 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Глобально блокуємо горизонтальний скрол. Glass-blob-и (fixed, з
+       негативними left/right -80…-120px) інакше виштовхують body на
+       мобілці і користувач їздить пальцем у порожні поля. */
+    overflow-x: hidden;
+    /* touch-action: pan-y вимикає pinch-zoom на webkit, де Apple ігнорує
+       maximum-scale у Next.js viewport API. pan-y лишає вертикальний
+       scroll, прибирає двопалцевий жест. */
+    touch-action: pan-y;
   }
   html {
     @apply font-sans;
+    overflow-x: hidden;
   }
 }
 

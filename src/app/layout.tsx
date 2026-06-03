@@ -45,6 +45,15 @@ export default function RootLayout({
   return (
     <html lang="uk" className="h-full antialiased">
       <head>
+        {/* Явний viewport meta. Next.js viewport API серіалізує
+            `userScalable: false` у `user-scalable=no`, але iOS Safari
+            <16 ігнорує його якщо не написано всі три (minimum/maximum/
+            user-scalable) у одному тегу. Явний тег ➜ pinch-zoom
+            гарантовано вимкнено в PWA standalone і у Safari табі. */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
