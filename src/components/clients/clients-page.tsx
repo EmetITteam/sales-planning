@@ -1196,7 +1196,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[40px_minmax(0,1fr)_36px_24px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_36px_24px] gap-2 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[40px_minmax(0,1fr)_32px_20px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-2 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar */}
         <div className={`w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} flex items-center justify-center text-[12px] font-bold shrink-0`}>
@@ -1247,28 +1247,38 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0">
             {address && <span className="truncate">{address}</span>}
-            {client.Phone && address && <span className="text-muted-foreground/40 shrink-0">·</span>}
+            {/* Desktop: текстовий номер як link (старий вигляд) */}
             {client.Phone && (
-              <span className="font-mono tabular-nums hidden sm:inline truncate">{client.Phone}</span>
+              <>
+                {address && <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>}
+                <a
+                  href={`tel:${phoneClean}`}
+                  onClick={e => e.stopPropagation()}
+                  className="hidden md:inline-flex items-center gap-1 hover:text-emet-blue transition-colors shrink-0"
+                >
+                  <Phone className="h-3 w-3" />
+                  <span className="tabular-nums">{client.Phone}</span>
+                </a>
+              </>
             )}
           </div>
         </div>
 
-        {/* Phone call-action — окрема зелена кнопка-значок. Той самий
-            patternchasing що у MeetingCard щоб виглядало однаково по системі.
-            Якщо номеру нема — порожня комірка (grid слот лишається). */}
+        {/* Mobile-only icon-кнопка дзвінка. Desktop використовує текст-link
+            у адресному рядку вище (звичний вигляд). Slot завжди займає
+            grid-колонку щоб chevron не «гуляв» — порожній span якщо нема номеру. */}
         {client.Phone ? (
           <a
             href={`tel:${phoneClean}`}
             onClick={e => e.stopPropagation()}
             aria-label={`Подзвонити ${name}`}
             title={client.Phone}
-            className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)] hover:bg-emerald-600 hover:shadow-[0_4px_12px_rgba(16,185,129,0.5)] active:scale-95 transition-all shrink-0"
+            className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all shrink-0"
           >
-            <Phone className="w-[15px] h-[15px]" />
+            <Phone className="w-[14px] h-[14px]" />
           </a>
         ) : (
-          <span />
+          <span className="md:hidden" />
         )}
 
         {/* План / Факт / % — desktop only. */}
@@ -1609,8 +1619,9 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
         Покупки за останні 6 місяців
       </h3>
       {/* Wrapper з horizontal scroll: 6 місяців + всього + статус не вміщаються
-          на мобільному 360px viewport — користувач свайпом гортає таблицю. */}
-      <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin]">
+          на мобільному 360px viewport — користувач свайпом гортає таблицю.
+          `touch-pan-x` обов'язково (body має `touch-action: pan-y` для блок-zoom). */}
+      <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin] touch-pan-x">
       <div className="space-y-1.5 min-w-[560px]">
         {sorted.map(b => {
           const byMonth = b.byYM;
@@ -2013,9 +2024,11 @@ function PlanFactByBrand({ planBrands, factBrands }: {
       <PlanFactHeader rowsCount={rows.length} />
       {/* Wrapper з horizontal scroll: grid-рядок шириший за viewport на
           мобільному (490+px). Свайп всередині блока — користувач не виходить
-          з expanded клієнта. -mx-3 + px-3 щоб scroll-zone уціль до краю. */}
-      <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin]">
-        <div className="space-y-1.5 min-w-[500px]">
+          з expanded клієнта. -mx-3 + px-3 щоб scroll-zone уціль до краю.
+          `touch-pan-x` обов'язково — body має `touch-action: pan-y` для
+          блокування pinch-zoom, що заодно б'є horizontal touch-scroll. */}
+      <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin] touch-pan-x">
+        <div className="space-y-1.5 min-w-[520px]">
           {rows.map(r => (
             <PlanFactBrandRow key={r.code} row={r} />
           ))}

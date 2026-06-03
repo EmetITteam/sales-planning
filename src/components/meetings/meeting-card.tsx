@@ -113,9 +113,9 @@ export function MeetingCard({
               onClick={e => e.stopPropagation()}
               aria-label={`Подзвонити ${clientName}`}
               title={clientPhone}
-              className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)] hover:bg-emerald-600 hover:shadow-[0_4px_12px_rgba(16,185,129,0.5)] active:scale-95 transition-all"
+              className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all"
             >
-              <PhoneLucide className="w-[15px] h-[15px]" />
+              <PhoneLucide className="w-[14px] h-[14px]" />
             </a>
           )}
           <StatusBadge kind="meeting" status={meeting.status} />
@@ -137,7 +137,18 @@ export function MeetingCard({
             {clientName}
           </div>
         )}
-        {/* phone tel:-action moved до HEAD як значок-кнопка (зеленый колісико) */}
+        {/* Desktop: phone-link у адресному рядку. Mobile використовує
+            icon-кнопку у HEAD-row. */}
+        {clientPhone && (
+          <a
+            href={`tel:${phoneClean}`}
+            onClick={e => e.stopPropagation()}
+            className="hidden md:inline-flex items-center gap-1 mt-0.5 text-[12px] font-semibold text-emet-blue hover:text-emet-blue-light self-start"
+          >
+            <PhoneLucide className="w-3 h-3" />
+            <span className="font-mono tabular-nums">{clientPhone}</span>
+          </a>
+        )}
         {meeting.purpose && (
           <div className="mt-px inline-flex items-center gap-1.5 text-[13px] font-semibold text-emet-blue leading-snug">
             <svg
