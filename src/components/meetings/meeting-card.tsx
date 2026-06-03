@@ -192,25 +192,41 @@ export function MeetingCard({
         )}
       </div>
 
-      {/* ACTIONS */}
-      <div className="relative flex flex-wrap items-center gap-2 pt-2.5 border-t border-emet-ink/[0.06] max-md:pr-[52px]">
-        {renderActions(meeting, { onEdit, onStart, onFinish, onReschedule, onOutcome })}
-        {/* Mobile phone-кнопка — absolute справа на рівні першого рядка actions.
-            Так primary action (basis-full на in_progress) не виштовхує phone
-            на власний рядок, а secondary actions можуть wrap всередині
-            available space (padding-right=52 = 44 button + 8 gap). */}
-        {clientPhone && (
+      {(() => {
+        const { primary, secondary, primaryFull } = splitActions(meeting, {
+          onEdit, onStart, onFinish, onReschedule, onOutcome,
+        });
+        const phoneBtn = clientPhone ? (
           <a
             href={`tel:${phoneClean}`}
             onClick={e => e.stopPropagation()}
             aria-label={`Подзвонити ${clientName}`}
             title={clientPhone}
-            className="md:hidden absolute right-0 top-2.5 inline-flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all"
+            className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all shrink-0"
           >
             <PhoneLucide className="w-4 h-4" />
           </a>
-        )}
-      </div>
+        ) : null;
+        return (
+          <>
+            {/* MOBILE: phone inline у тому ж рядку що secondary action. */}
+            <div className="md:hidden flex flex-col gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
+              {primaryFull && primary && <div>{primary}</div>}
+              <div className="flex items-stretch gap-2">
+                {!primaryFull && primary && <div className="flex-1 min-w-0 flex">{primary}</div>}
+                {secondary && <div className="flex-1 min-w-0 flex">{secondary}</div>}
+                {phoneBtn}
+              </div>
+            </div>
+
+            {/* DESKTOP: оригінальний flex-wrap actions row. */}
+            <div className="hidden md:flex flex-wrap gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
+              {primary}
+              {secondary}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -230,78 +246,104 @@ function formatDuration(durationMin: number | null, status: string): string {
   return `${durationMin} хв`;
 }
 
-function renderActions(m: MeetingWithSync, h: ActionHandlers) {
+interface ActionsSplit {
+  /** Основна CTA дія. На mobile якщо `primaryFull=true` — займає окремий
+   *  рядок на повну ширину; інакше — у тому ж рядку що secondary. */
+  primary: React.ReactNode | null;
+  /** Допоміжна дія — завжди inline з phone-кнопкою на mobile. */
+  secondary: React.ReactNode | null;
+  /** Чи розтягувати primary на повний рядок на mobile (true для CTA). */
+  primaryFull: boolean;
+}
+
+function splitActions(m: MeetingWithSync, h: ActionHandlers): ActionsSplit {
   const isFailedSync = m.syncStatus === 'failed';
 
   if (m.status === 'in_progress') {
-    return (
-      <>
+    return {
+      primaryFull: true,
+      primary: (
         <ActionButton primary onClick={() => h.onFinish?.(m)}>
           <SquareIcon />
           Завершити
         </ActionButton>
+      ),
+      secondary: (
         <ActionButton onClick={() => h.onEdit?.(m)}>
           <PencilIcon />
           Редагувати
         </ActionButton>
-      </>
-    );
+      ),
+    };
   }
   if (m.status === 'done') {
-    return (
-      <>
+    // Дві secondary дії — без primary full-width рядка.
+    return {
+      primaryFull: false,
+      primary: (
         <ActionButton onClick={() => h.onEdit?.(m)}>
           <ChartIcon />
           Деталі
         </ActionButton>
+      ),
+      secondary: (
         <ActionButton onClick={() => h.onOutcome?.(m)}>
           <MessageIcon />
           Підсумки
         </ActionButton>
-      </>
-    );
+      ),
+    };
   }
   if (m.status === 'postponed' || m.status === 'cancelled') {
-    return (
-      <>
+    return {
+      primaryFull: false,
+      primary: (
         <ActionButton onClick={() => h.onReschedule?.(m)}>
           <CalendarIcon />
           Перенести
         </ActionButton>
+      ),
+      secondary: (
         <ActionButton onClick={() => h.onEdit?.(m)}>
           <PencilIcon />
           Правка
         </ActionButton>
-      </>
-    );
+      ),
+    };
   }
   // planned
   if (isFailedSync) {
-    return (
-      <>
-        <ActionButton warning onClick={() => h.onEdit?.(m)}>
-          <RefreshIcon />
-          Повторити sync
-        </ActionButton>
+    return {
+      primaryFull: true,
+      primary: (
         <ActionButton primary onClick={() => h.onStart?.(m)}>
           <PlayIcon />
           Розпочати
         </ActionButton>
-      </>
-    );
+      ),
+      secondary: (
+        <ActionButton warning onClick={() => h.onEdit?.(m)}>
+          <RefreshIcon />
+          Повторити sync
+        </ActionButton>
+      ),
+    };
   }
-  return (
-    <>
+  return {
+    primaryFull: true,
+    primary: (
       <ActionButton primary onClick={() => h.onStart?.(m)}>
         <PlayIcon />
         Розпочати
       </ActionButton>
+    ),
+    secondary: (
       <ActionButton onClick={() => h.onEdit?.(m)}>
         <PencilIcon />
         Правка
       </ActionButton>
-    </>
-  );
+    ),
+  };
 }
 
 function ActionButton({

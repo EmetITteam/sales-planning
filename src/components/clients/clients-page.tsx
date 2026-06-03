@@ -1658,14 +1658,16 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
                       </div>
                     );
                   }
+                  // Фіксовані 3 колонки — місяці вирівнюються один під одним
+                  // незалежно від довжини сум; решта рядка лишається пустою
+                  // без «з'їжджаючого» тексту.
                   return (
-                    <div className="pl-4 text-[11px] flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-                      {purchases.map((p, i) => (
-                        <span key={p.month} className="inline-flex items-baseline gap-1">
-                          {i > 0 && <span className="text-muted-foreground/30 mr-1.5">·</span>}
-                          <span className="text-muted-foreground uppercase text-[9px] font-semibold">{fmtYMShort(p.month)}</span>
-                          <span className="font-mono font-bold tabular-nums text-[12px] amount">${Math.round(p.amount).toLocaleString('en-US')}</span>
-                        </span>
+                    <div className="pl-4 grid grid-cols-3 gap-x-3 gap-y-1.5">
+                      {purchases.map(p => (
+                        <div key={p.month} className="flex flex-col leading-none">
+                          <span className="text-[9px] uppercase text-muted-foreground font-semibold">{fmtYMShort(p.month)}</span>
+                          <span className="font-mono font-bold tabular-nums text-[12px] mt-1 amount">${Math.round(p.amount).toLocaleString('en-US')}</span>
+                        </div>
                       ))}
                     </div>
                   );
