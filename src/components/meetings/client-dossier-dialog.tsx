@@ -47,6 +47,12 @@ export function ClientDossierDialog({ open, clientId, clientNameFallback, phoneF
   const lastMeeting = report?.lastMeetings?.[0];
   const lastCall = report?.lastCalls?.[0];
 
+  // 1С каже «не найден»? Це може бути mock-clientID або клієнт інших регіонів.
+  // Показуємо graceful fallback (name+phone з картки), не червоний банер.
+  const isClientNotFound = !!error && /не\s+найден|not\s+found|не\s+знайден/i.test(error);
+  const hasFallback = !!(clientNameFallback || phoneFallback);
+  const showErrorBanner = !!error && !(isClientNotFound && hasFallback);
+
   return (
     <DialogPrimitive.Root open={open} onOpenChange={v => !v && onClose()}>
       <DialogPrimitive.Portal>
@@ -85,9 +91,15 @@ export function ClientDossierDialog({ open, clientId, clientNameFallback, phoneF
               </div>
             )}
 
-            {error && !loading && (
+            {showErrorBanner && !loading && (
               <div className="bg-rose-50 border border-rose-100 rounded-xl px-4 py-3 text-[12px] text-rose-700">
                 Не вдалось завантажити досьє: {error}
+              </div>
+            )}
+
+            {isClientNotFound && hasFallback && !loading && (
+              <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-[12px] text-amber-800">
+                У 1С нема детальної історії для цього коду. Показую базові контакти з картки зустрічі.
               </div>
             )}
 

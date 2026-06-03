@@ -103,7 +103,20 @@ export function MeetingCard({
             </span>
           )}
         </div>
-        <StatusBadge kind="meeting" status={meeting.status} />
+        <div className="inline-flex items-center gap-2 shrink-0">
+          {clientPhone && (
+            <a
+              href={`tel:${phoneClean}`}
+              onClick={e => e.stopPropagation()}
+              aria-label={`Подзвонити ${clientName}`}
+              title={clientPhone}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)] hover:bg-emerald-600 hover:shadow-[0_4px_12px_rgba(16,185,129,0.5)] active:scale-95 transition-all"
+            >
+              <PhoneLucide className="w-[15px] h-[15px]" />
+            </a>
+          )}
+          <StatusBadge kind="meeting" status={meeting.status} />
+        </div>
       </div>
 
       {/* BODY: client + purpose + address */}
@@ -121,16 +134,7 @@ export function MeetingCard({
             {clientName}
           </div>
         )}
-        {clientPhone && (
-          <a
-            href={`tel:${phoneClean}`}
-            onClick={e => e.stopPropagation()}
-            className="mt-0.5 inline-flex items-center gap-1 text-[12px] font-semibold text-emerald-700 hover:text-emerald-800 self-start"
-          >
-            <PhoneLucide className="w-3 h-3" />
-            <span className="font-mono tabular-nums">{clientPhone}</span>
-          </a>
-        )}
+        {/* phone tel:-action moved до HEAD як значок-кнопка (зеленый колісико) */}
         {meeting.purpose && (
           <div className="mt-px inline-flex items-center gap-1.5 text-[13px] font-semibold text-emet-blue leading-snug">
             <svg
@@ -233,7 +237,7 @@ function renderActions(m: MeetingWithSync, h: ActionHandlers) {
           <ChartIcon />
           Деталі
         </ActionButton>
-        <ActionButton>
+        <ActionButton onClick={() => h.onEdit?.(m)}>
           <MessageIcon />
           Коментар
         </ActionButton>

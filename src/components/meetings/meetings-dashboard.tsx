@@ -81,16 +81,28 @@ export function MeetingsDashboard() {
     return m;
   }, [myClients]);
 
+  // У mock-режимі демо-зустрічі мають fake clientID (`CL-ESTET-PODOL`),
+  // який 1С не знає → getClientReport падає. Як тільки real клієнти
+  // менеджера завантажились — round-robin'имо їх ID у моки. Real API режим
+  // повертає вже з реальними ID, тому не чіпаємо.
+  const effectiveMeetings = useMemo(() => {
+    if (isUsingRealApi || myClients.length === 0) return meetings;
+    return meetings.map((m, i) => {
+      const real = myClients[i % myClients.length];
+      return real ? { ...m, clientId1c: real.ClientID } : m;
+    });
+  }, [meetings, myClients, isUsingRealApi]);
+
   const handleClientClick = (clientId: string, fallbackName: string, fallbackPhone: string) => {
     setDossierClient({ id: clientId, name: fallbackName, phone: fallbackPhone });
   };
 
   const filtered = useMemo(() => {
-    if (statusFilter === 'all') return meetings;
-    return meetings.filter(m => m.status === statusFilter);
-  }, [meetings, statusFilter]);
+    if (statusFilter === 'all') return effectiveMeetings;
+    return effectiveMeetings.filter(m => m.status === statusFilter);
+  }, [effectiveMeetings, statusFilter]);
 
-  const stats = useMemo(() => computeStats(meetings, today), [meetings, today]);
+  const stats = useMemo(() => computeStats(effectiveMeetings, today), [effectiveMeetings, today]);
   const groups = useMemo(() => groupMeetingsByDate(filtered), [filtered]);
 
   const pushToast = (kind: Toast['kind'], message: string) => {
