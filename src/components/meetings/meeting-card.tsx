@@ -193,7 +193,7 @@ export function MeetingCard({
       </div>
 
       {(() => {
-        const { primary, secondary, primaryFull } = splitActions(meeting, {
+        const { primary, secondary } = splitActions(meeting, {
           onEdit, onStart, onFinish, onReschedule, onOutcome,
         });
         const phoneBtn = clientPhone ? (
@@ -209,14 +209,12 @@ export function MeetingCard({
         ) : null;
         return (
           <>
-            {/* MOBILE: phone inline у тому ж рядку що secondary action. */}
-            <div className="md:hidden flex flex-col gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
-              {primaryFull && primary && <div>{primary}</div>}
-              <div className="flex items-stretch gap-2">
-                {!primaryFull && primary && <div className="flex-1 min-w-0 flex">{primary}</div>}
-                {secondary && <div className="flex-1 min-w-0 flex">{secondary}</div>}
-                {phoneBtn}
-              </div>
+            {/* MOBILE: всі картки = ОДИН рядок: primary + secondary + phone.
+                Консистентно по статусам — не плутає різними layout-ами. */}
+            <div className="md:hidden flex items-stretch gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
+              {primary && <div className="flex-1 min-w-0 flex">{primary}</div>}
+              {secondary && <div className="flex-1 min-w-0 flex">{secondary}</div>}
+              {phoneBtn}
             </div>
 
             {/* DESKTOP: оригінальний flex-wrap actions row. */}
