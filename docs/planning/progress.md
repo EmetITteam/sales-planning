@@ -57,6 +57,19 @@
 - Відкрите: точний формат полів — користувач надішле зі скриптів аналітики
 - Підтверджено: nightly cron + intra-day refresh для today, обидва actions (batch + per-client)
 
+### Sprint 1.1 (2026-06-03) — Schema + RLS shadow-mode
+- Завдання: PostgreSQL фундамент для модуля зустрічей (PROJECT_PLAN Section 8.2)
+- Гілка: `feature/meetings-module` (commit `4669928`)
+- Артефакти:
+  - `supabase/migrations/20260603_013_meetings_schema.sql` — **✅ applied 2026-06-03** (через Dashboard SQL Editor; DO $$ verification pass — 2 таблиці, RLS=on, 8 політик)
+  - `supabase/migrations/20260603_013_meetings_schema_rollback.sql` — повний відкат
+  - `src/lib/meetings/types.ts` — TypeScript-типи для `Meeting` + `MeetingSync` + snake_case ↔ camelCase адаптери з PATCH-семантикою
+  - `tests/meetings-types.test.ts` — 12 нових тестів (round-trip, GPS-сценарії, sync state machine, PATCH)
+- Затрачено: ~1 робочий день
+- Що ще НЕ зроблено (defer):
+  - JWT bridge для `current_setting('app.login')` injection — relevant тільки після виходу з shadow-mode (Sprint 1.x — окремий)
+- Висновок: фундамент готовий, Sprint 1.2 (Dashboard skeleton у React) розблоковано — не залежить від наявності даних у таблицях
+
 ---
 
 ## Майбутні етапи (high-level)

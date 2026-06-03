@@ -290,16 +290,29 @@ COMMIT;
 --    SELECT * FROM meeting_syncs LIMIT 0;
 --
 -- 2. Verify RLS shadow-mode:
---    SELECT relname, relrowsecurity, relforcerowsecurity
---    FROM pg_class
---    WHERE relname IN ('meetings', 'meeting_syncs');
---    -- Expected: relrowsecurity = true, relforcerowsecurity = false (shadow)
+--    -- Простіший варіант (рекомендований у Supabase Dashboard SQL Editor):
+--    SELECT schemaname, tablename, rowsecurity
+--    FROM pg_tables
+--    WHERE tablename IN ('meetings', 'meeting_syncs');
+--    -- Expected: rowsecurity = true для обох
+--
+--    -- Альтернативний — з pg_class (потребує pg_catalog. префікс
+--    -- у Dashboard SQL Editor щоб resolution системних колонок не зламався):
+--    SELECT
+--      c.relname AS table_name,
+--      c.relrowsecurity AS rls_enabled,
+--      c.relforcerowsecurity AS rls_forced
+--    FROM pg_catalog.pg_class c
+--    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+--    WHERE n.nspname = 'public'
+--      AND c.relname IN ('meetings', 'meeting_syncs');
+--    -- Expected: rls_enabled = true, rls_forced = false (shadow)
 --
 -- 3. Verify policies:
 --    SELECT tablename, policyname, cmd FROM pg_policies
 --    WHERE tablename IN ('meetings', 'meeting_syncs')
 --    ORDER BY tablename, policyname;
---    -- Expected: 8 rows (4 per table)
+--    -- Expected: 8 rows (4 per table — select/insert/update/delete)
 --
 -- 4. service_role smoke-test (через нашу /api/onec proxy):
 --    INSERT INTO meetings (manager_login, client_id_1c, date, time, status)

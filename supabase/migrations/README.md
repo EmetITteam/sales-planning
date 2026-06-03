@@ -60,7 +60,7 @@ supabase db push
 
 | Дата | Файл | Опис | Статус |
 |---|---|---|---|
-| 2026-06-03 | `20260603_013_meetings_schema.sql` | **M13:** `meetings` + `meeting_syncs` таблиці. RLS у shadow-mode (ENABLE без FORCE — service_role продовжує bypass, наш бек-код не ламається). 4+4 політики (select/insert/update/delete). Тригер `updated_at`. Hot-query індекси. | ⏳ Pending apply |
+| 2026-06-03 | `20260603_013_meetings_schema.sql` | **M13:** `meetings` + `meeting_syncs` таблиці. RLS у shadow-mode (ENABLE без FORCE — service_role продовжує bypass, наш бек-код не ламається). 4+4 політики (select/insert/update/delete). Тригер `updated_at`. Hot-query індекси. | ✅ applied 2026-06-03 (manual via Dashboard SQL Editor; DO $$ verification block pass — 2 tables, RLS=on, 8 policies) |
 
 **Перед apply M13:**
 1. Backup `users` (FK constraint лише READ, але про всяк випадок)
