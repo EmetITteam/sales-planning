@@ -1196,17 +1196,19 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[40px_minmax(0,1fr)_24px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3 md:gap-4 items-center px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[40px_minmax(0,1fr)_36px_24px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_36px_24px] gap-2 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar */}
         <div className={`w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} flex items-center justify-center text-[12px] font-bold shrink-0`}>
           {initials(name)}
         </div>
 
-        {/* Name + UA-category-chip | address · phone */}
+        {/* Name + UA-category-chip | address · phone.
+            На мобільному (max-md): name окремим рядком, а chips переносимо
+            нижче — інакше «Активний» chip перекриває truncated ім'я. */}
         <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
+          <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
+          <div className="flex items-center gap-1.5 mt-1 min-w-0 flex-wrap">
             {/* Chip-категорія українською (Активний/Сплячий/Новий/Втрачений/Без закупок) */}
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
               {toUkrainianChip(client.ClientCategory)}
@@ -1243,23 +1245,31 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 min-w-0">
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0">
             {address && <span className="truncate">{address}</span>}
+            {client.Phone && address && <span className="text-muted-foreground/40 shrink-0">·</span>}
             {client.Phone && (
-              <>
-                {address && <span className="text-muted-foreground/40 shrink-0">·</span>}
-                <a
-                  href={`tel:${phoneClean}`}
-                  onClick={e => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 hover:text-emet-blue transition-colors shrink-0"
-                >
-                  <Phone className="h-3 w-3" />
-                  <span className="tabular-nums">{client.Phone}</span>
-                </a>
-              </>
+              <span className="font-mono tabular-nums hidden sm:inline truncate">{client.Phone}</span>
             )}
           </div>
         </div>
+
+        {/* Phone call-action — окрема зелена кнопка-значок. Той самий
+            patternchasing що у MeetingCard щоб виглядало однаково по системі.
+            Якщо номеру нема — порожня комірка (grid слот лишається). */}
+        {client.Phone ? (
+          <a
+            href={`tel:${phoneClean}`}
+            onClick={e => e.stopPropagation()}
+            aria-label={`Подзвонити ${name}`}
+            title={client.Phone}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)] hover:bg-emerald-600 hover:shadow-[0_4px_12px_rgba(16,185,129,0.5)] active:scale-95 transition-all shrink-0"
+          >
+            <Phone className="w-[15px] h-[15px]" />
+          </a>
+        ) : (
+          <span />
+        )}
 
         {/* План / Факт / % — desktop only. */}
         <NumCol label="План" value={plan} loading={totalsLoading} emptyAs={hasFact ? 'zero' : null} />
