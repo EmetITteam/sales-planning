@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
@@ -132,26 +132,26 @@ export function ClientsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Deep-link ?focus=ID — приходить з /meetings dossier dialog (link «Відкрити
-  // повне досьє»). Розгортаємо клієнта + скролимо до нього після завантаження.
+  // повне досьє»). Single-client view: ховаємо всіх інших + одразу expand.
+  // Так UX не змушує скролити повз 250+ клієнтів.
   const searchParams = useSearchParams();
+  const router = useRouter();
   const focusId = searchParams?.get('focus') ?? null;
   const focusHandledRef = useRef(false);
   useEffect(() => {
     if (!focusId || focusHandledRef.current) return;
-    // Чекаємо щоб клієнти приїхали з 1С — інакше DOM-row ще не існує
     if (clients.length === 0) return;
-    // Скидаємо фільтр на «Усі» щоб клієнт точно показався
     setActiveFilter('all');
     setSearch('');
     setExpandedId(focusId);
     focusHandledRef.current = true;
-    // Невеликий defer щоб React встиг re-render + DOM-row з'явилася
-    const t = setTimeout(() => {
-      const el = document.querySelector(`[data-client-row="${focusId}"]`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 120);
-    return () => clearTimeout(t);
   }, [focusId, clients.length]);
+
+  const clearFocus = () => {
+    focusHandledRef.current = false;
+    setExpandedId(null);
+    router.replace('/clients');
+  };
 
   // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
   const clientIds = useMemo(() => clients.map(c => c.ClientID).filter(Boolean), [clients]);
@@ -375,6 +375,8 @@ export function ClientsPage() {
   const groupedClients = useMemo(() => {
     const lowSearch = search.trim().toLowerCase();
     const filtered = baseClients.filter(c => {
+      // Deep-link focus → показуємо ТІЛЬКИ цього клієнта (single-client view).
+      if (focusId) return c.ClientID === focusId;
       // Спочатку фільтр (категорія / focused / with-plan)
       if (activeFilter === 'focused') {
         if ((focusByClient[c.ClientID]?.length ?? 0) === 0) return false;
@@ -397,7 +399,7 @@ export function ClientsPage() {
       arr.sort((a, b) => getClientName(a).localeCompare(getClientName(b), 'uk'));
     }
     return groups;
-  }, [baseClients, search, activeFilter]);
+  }, [baseClients, search, activeFilter, focusId, focusByClient, planByClient]);
 
   // === Резерв-клієнти (всі резерв, незалежно від купівлі) — для окремої секції ===
   const reservedClients = useMemo(() => {
@@ -434,6 +436,54 @@ export function ClientsPage() {
         <div className="glass-card p-6">
           <p className="text-[13px] text-rose-700 mb-3">Не вдалось завантажити список клієнтів: {error}</p>
           <button onClick={refetch} className="px-4 py-2 rounded-xl bg-emet-blue text-white text-[13px] font-semibold">Спробувати знову</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Focus-mode (?focus=ID): show single client view, Hero band/search ховаємо.
+  if (focusId) {
+    const focusClient = clients.find(c => c.ClientID === focusId);
+    const focusName = focusClient ? getClientName(focusClient) : focusId;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={clearFocus}
+            className="inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-xl bg-white/60 border border-slate-200 text-[13px] font-semibold text-slate-700 hover:bg-white hover:border-emet-blue hover:text-emet-blue transition-colors"
+          >
+            <span aria-hidden>←</span> Усі клієнти
+          </button>
+          <div className="text-[14px] text-slate-600">
+            Показую лише <strong className="text-emet-ink">{focusName}</strong>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {CAT_ORDER.map(cat => {
+            const list = groupedClients.get(cat) || [];
+            if (list.length === 0) return null;
+            return list.map(client => (
+              <ClientRow
+                key={client.ClientID}
+                client={client}
+                plan={planByClient[client.ClientID]?.planTotal ?? null}
+                fact={factByClient[client.ClientID]?.factTotal ?? null}
+                planBrands={planByClient[client.ClientID]?.brands ?? {}}
+                factBrands={factByClient[client.ClientID]?.brands ?? {}}
+                focuses={focusByClient[client.ClientID] ?? []}
+                totalsLoading={totalsLoading}
+                expanded={expandedId === client.ClientID}
+                onToggle={() => setExpandedId(expandedId === client.ClientID ? null : client.ClientID)}
+              />
+            ));
+          })}
+          {groupedClients.size > 0 && totalFiltered === 0 && (
+            <div className="glass-card-flat px-4 py-6 text-center text-[13px] text-slate-500">
+              Клієнт з кодом {focusId} не знайдено у вашому списку.
+            </div>
+          )}
         </div>
       </div>
     );
