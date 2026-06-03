@@ -10,7 +10,8 @@
  * Stage 2 (наступний коміт): план/факт інтеграція + тег «Виконав заплановане».
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
@@ -129,6 +130,28 @@ export function ClientsPage() {
   // 'all' / категорія / 'focused' (у фокусі) / 'with-plan' (з планом)
   const [activeFilter, setActiveFilter] = useState<UICategory | 'all' | 'focused' | 'with-plan'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Deep-link ?focus=ID — приходить з /meetings dossier dialog (link «Відкрити
+  // повне досьє»). Розгортаємо клієнта + скролимо до нього після завантаження.
+  const searchParams = useSearchParams();
+  const focusId = searchParams?.get('focus') ?? null;
+  const focusHandledRef = useRef(false);
+  useEffect(() => {
+    if (!focusId || focusHandledRef.current) return;
+    // Чекаємо щоб клієнти приїхали з 1С — інакше DOM-row ще не існує
+    if (clients.length === 0) return;
+    // Скидаємо фільтр на «Усі» щоб клієнт точно показався
+    setActiveFilter('all');
+    setSearch('');
+    setExpandedId(focusId);
+    focusHandledRef.current = true;
+    // Невеликий defer щоб React встиг re-render + DOM-row з'явилася
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-client-row="${focusId}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [focusId, clients.length]);
 
   // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
   const clientIds = useMemo(() => clients.map(c => c.ClientID).filter(Boolean), [clients]);
@@ -1101,7 +1124,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
   const dimmedRow = noPlanNoFact; // приглушуємо тільки повністю-порожні
 
   return (
-    <div className={`glass-card-flat overflow-hidden ${dimmedRow ? 'opacity-70' : ''}`}>
+    <div data-client-row={client.ClientID} className={`glass-card-flat overflow-hidden ${dimmedRow ? 'opacity-70' : ''}`}>
       <button
         type="button"
         onClick={onToggle}

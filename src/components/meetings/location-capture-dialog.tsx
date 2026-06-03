@@ -28,6 +28,8 @@ import {
 import type { MeetingWithSync, MeetingStartPayload } from '@/lib/meetings/mock-data';
 import { MOCK_CLIENT_NAMES } from '@/lib/meetings/mock-data';
 import { captureGeo, getGeoPermissionState, type GeoCaptureResult } from '@/lib/meetings/geo';
+import { useMyClients } from '@/lib/use-my-clients';
+import { getClientName } from '@/lib/mityng-types';
 
 export type LocationCaptureMode = 'start' | 'finish';
 
@@ -87,8 +89,15 @@ export function LocationCaptureDialog({ open, mode, meeting, onClose, onConfirm 
     };
   }, [open, mode, meeting]);
 
+  // useMyClients SWR-кешований — single fetch для всієї сторінки, тут безкоштовно.
+  const { clients: myClients } = useMyClients();
+
   if (!meeting) return null;
-  const clientName = MOCK_CLIENT_NAMES[meeting.clientId1c] ?? meeting.clientId1c;
+  // Resolve order: real client name з 1С → mock-name → код-сирець як останній fallback.
+  const matched = myClients.find(c => c.ClientID === meeting.clientId1c);
+  const clientName = matched
+    ? getClientName(matched)
+    : MOCK_CLIENT_NAMES[meeting.clientId1c] ?? meeting.clientId1c;
   const copy = COPY[mode];
 
   const canConfirm =

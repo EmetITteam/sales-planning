@@ -74,7 +74,7 @@ export function MeetingsDashboard() {
 
   // Map клієнтів з 1С getManagerClients — для phone на картці і dossier.
   // SWR-кешований, single fetch per page.
-  const { clients: myClients } = useMyClients();
+  const { clients: myClients, loading: clientsLoading } = useMyClients();
   const clientsByID = useMemo(() => {
     const m = new Map<string, typeof myClients[number]>();
     for (const c of myClients) m.set(c.ClientID, c);
@@ -241,7 +241,7 @@ export function MeetingsDashboard() {
       <MeetingsFilters value={statusFilter} onChange={setStatusFilter} />
 
       {/* Day groups */}
-      {loading && meetings.length === 0 ? (
+      {(loading && meetings.length === 0) || (!isUsingRealApi && clientsLoading && myClients.length === 0) ? (
         <LoadingState />
       ) : loadError ? (
         <ErrorState message={loadError} />
