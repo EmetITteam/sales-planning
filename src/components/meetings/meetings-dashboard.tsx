@@ -128,7 +128,7 @@ export function MeetingsDashboard() {
   }, [effectiveMeetings, statusFilter, clientFilter, sortDir]);
 
   const stats = useMemo(() => computeStats(effectiveMeetings, today), [effectiveMeetings, today]);
-  const groups = useMemo(() => groupMeetingsByDate(filtered), [filtered]);
+  const groups = useMemo(() => groupMeetingsByDate(filtered, sortDir), [filtered, sortDir]);
 
   const pushToast = (kind: Toast['kind'], message: string) => {
     const id = Date.now() + Math.random();

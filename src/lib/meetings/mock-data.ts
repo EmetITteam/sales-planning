@@ -235,8 +235,14 @@ export function computeStats(meetings: MeetingWithSync[], today: Date): Meetings
   };
 }
 
-/** Групує зустрічі по даті, сортує групи по даті ASC, у кожній групі по часу ASC. */
-export function groupMeetingsByDate(meetings: MeetingWithSync[]): {
+/**
+ * Групує зустрічі по даті. Sort direction визначає порядок груп І items
+ * усередині. Default — ASC (найраніша зустріч → найпізніша).
+ */
+export function groupMeetingsByDate(
+  meetings: MeetingWithSync[],
+  sortDir: 'asc' | 'desc' = 'asc',
+): {
   date: string;
   items: MeetingWithSync[];
 }[] {
@@ -246,12 +252,13 @@ export function groupMeetingsByDate(meetings: MeetingWithSync[]): {
     arr.push(m);
     map.set(m.date, arr);
   }
+  const dir = sortDir === 'desc' ? -1 : 1;
   const sorted = Array.from(map.entries())
     .map(([date, items]) => ({
       date,
-      items: items.slice().sort((a, b) => a.time.localeCompare(b.time)),
+      items: items.slice().sort((a, b) => dir * a.time.localeCompare(b.time)),
     }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => dir * a.date.localeCompare(b.date));
   return sorted;
 }
 

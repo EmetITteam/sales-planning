@@ -142,7 +142,7 @@ export function ClientPickerDialog({ open, onClose, onSelect, selectedClientId }
                   setQuery(e.target.value);
                   setRemoteSearch(false);
                 }}
-                placeholder="Назва, телефон або ПІБ керівника…"
+                placeholder="Назва або телефон…"
                 className="w-full font-sans text-[14px] text-emet-ink bg-white border border-slate-200 rounded-[12px] pl-10 pr-3.5 py-3 min-h-[44px] outline-none focus:border-emet-blue focus:shadow-[0_0_0_3px_rgba(6,106,171,0.12)] transition-all placeholder:text-slate-400"
               />
             </div>
