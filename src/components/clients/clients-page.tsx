@@ -1598,7 +1598,10 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
       <h3 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
         Покупки за останні 6 місяців
       </h3>
-      <div className="space-y-1.5">
+      {/* Wrapper з horizontal scroll: 6 місяців + всього + статус не вміщаються
+          на мобільному 360px viewport — користувач свайпом гортає таблицю. */}
+      <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin]">
+      <div className="space-y-1.5 min-w-[560px]">
         {sorted.map(b => {
           const byMonth = b.byYM;
           const inPlan = isBrandInPlan(b.brandName);
@@ -1642,6 +1645,7 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
@@ -1997,10 +2001,15 @@ function PlanFactByBrand({ planBrands, factBrands }: {
   return (
     <div>
       <PlanFactHeader rowsCount={rows.length} />
-      <div className="space-y-1.5">
-        {rows.map(r => (
-          <PlanFactBrandRow key={r.code} row={r} />
-        ))}
+      {/* Wrapper з horizontal scroll: grid-рядок шириший за viewport на
+          мобільному (490+px). Свайп всередині блока — користувач не виходить
+          з expanded клієнта. -mx-3 + px-3 щоб scroll-zone уціль до краю. */}
+      <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin]">
+        <div className="space-y-1.5 min-w-[500px]">
+          {rows.map(r => (
+            <PlanFactBrandRow key={r.code} row={r} />
+          ))}
+        </div>
       </div>
     </div>
   );

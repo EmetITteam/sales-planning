@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionBootstrap } from "@/components/layout/session-bootstrap";
+import { ZoomGuard } from "@/components/layout/zoom-guard";
 
 // ⚠️ next/font/google вимкнено 2026-05-21: після переходу на Vercel Pro
 // build не завантажував файли шрифтів у `/_next/static/media/`, у UI
@@ -62,6 +63,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background">
+        <ZoomGuard />
         {/* Glass redesign — animated background mesh + floating blobs + noise.
             Лежать за всім контентом (z-index: -2/-1). prefers-reduced-motion
             вимикає анімацію через CSS. */}
