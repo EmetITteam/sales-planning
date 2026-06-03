@@ -15,7 +15,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { MeetingsWidgets } from './meetings-widgets';
-import { MeetingsFilters, type StatusFilter } from './meetings-filters';
+import { MeetingsFilters, type StatusFilter, type SortDir } from './meetings-filters';
 import { DayGroup } from './day-group';
 import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeting-form';
 import { StartMeetingDialog, FinishMeetingDialog } from './location-capture-dialog';
@@ -39,6 +39,8 @@ interface Toast {
 
 export function MeetingsDashboard() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [clientFilter, setClientFilter] = useState<{ id: string; name: string } | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   // Form state — single instance shared across all cards + header create button.
   const [formOpen, setFormOpen] = useState(false);
@@ -113,9 +115,17 @@ export function MeetingsDashboard() {
   };
 
   const filtered = useMemo(() => {
-    if (statusFilter === 'all') return effectiveMeetings;
-    return effectiveMeetings.filter(m => m.status === statusFilter);
-  }, [effectiveMeetings, statusFilter]);
+    let result = effectiveMeetings;
+    if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
+    if (clientFilter) result = result.filter(m => m.clientId1c === clientFilter.id);
+    // Sort by date+time. ASC: ранні зустрічі першими. DESC: пізні першими.
+    result = [...result].sort((a, b) => {
+      const ak = `${a.date}T${a.time}`;
+      const bk = `${b.date}T${b.time}`;
+      return sortDir === 'asc' ? ak.localeCompare(bk) : bk.localeCompare(ak);
+    });
+    return result;
+  }, [effectiveMeetings, statusFilter, clientFilter, sortDir]);
 
   const stats = useMemo(() => computeStats(effectiveMeetings, today), [effectiveMeetings, today]);
   const groups = useMemo(() => groupMeetingsByDate(filtered), [filtered]);
@@ -303,7 +313,14 @@ export function MeetingsDashboard() {
           </div>
         </div>
       )}
-      <MeetingsFilters value={statusFilter} onChange={setStatusFilter} />
+      <MeetingsFilters
+        value={statusFilter}
+        onChange={setStatusFilter}
+        clientFilter={clientFilter}
+        onClientFilterChange={setClientFilter}
+        sortDir={sortDir}
+        onSortDirChange={setSortDir}
+      />
 
       {/* Day groups */}
       {(loading && meetings.length === 0) || (!isUsingRealApi && clientsLoading && myClients.length === 0) ? (

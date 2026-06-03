@@ -1,19 +1,27 @@
 /**
- * MeetingsFilters — pill-фільтри над списком зустрічей (Sprint 1.2).
+ * MeetingsFilters — pill-фільтри над списком зустрічей.
  *
- * Поки контрольовані станом сторінки; майбутні фільтри (клієнт, бренд, мета)
- * додаємо як окремі компоненти-dropdown.
+ * Status pills (Усі / Заплановані / У роботі / Завершені / Відкладені) +
+ * пошук по клієнту + сортування. Клієнт-фільтр відкриває ClientPickerDialog
+ * і повертає clientId1c. Сортування — toggle часу asc/desc.
  */
 
 'use client';
 
 import { useState } from 'react';
+import { ArrowUpDown, Users, X } from 'lucide-react';
+import { ClientPickerDialog } from './client-picker-dialog';
 
 export type StatusFilter = 'all' | 'planned' | 'in_progress' | 'done' | 'postponed';
+export type SortDir = 'asc' | 'desc';
 
 interface Props {
   value: StatusFilter;
   onChange: (next: StatusFilter) => void;
+  clientFilter: { id: string; name: string } | null;
+  onClientFilterChange: (next: { id: string; name: string } | null) => void;
+  sortDir: SortDir;
+  onSortDirChange: (next: SortDir) => void;
 }
 
 const PILLS: { value: StatusFilter; label: string }[] = [
@@ -24,9 +32,16 @@ const PILLS: { value: StatusFilter; label: string }[] = [
   { value: 'postponed', label: 'Відкладені' },
 ];
 
-export function MeetingsFilters({ value, onChange }: Props) {
-  // ClientPicker + Sort filters прибрано у Sprint 1.5+: непрацюючі stub-и
-  // плутали користувача. Повернуться як працюючі компоненти у Sprint 1.7.
+export function MeetingsFilters({
+  value,
+  onChange,
+  clientFilter,
+  onClientFilterChange,
+  sortDir,
+  onSortDirChange,
+}: Props) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   return (
     <div className="flex flex-wrap items-center gap-2 mb-5">
       {PILLS.map(p => (
@@ -34,6 +49,67 @@ export function MeetingsFilters({ value, onChange }: Props) {
           {p.label}
         </Pill>
       ))}
+
+      <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
+
+      {/* Client filter */}
+      <button
+        type="button"
+        onClick={() => setPickerOpen(true)}
+        className={`min-h-[38px] px-3.5 rounded-full border text-[12px] font-semibold inline-flex items-center gap-1.5 transition-all ${
+          clientFilter
+            ? 'bg-emet-blue/10 border-emet-blue/40 text-emet-blue'
+            : 'bg-white/60 backdrop-blur-md border-slate-200 text-slate-700 hover:bg-white hover:border-slate-300'
+        }`}
+      >
+        <Users className="w-3.5 h-3.5" />
+        {clientFilter ? (
+          <span className="max-w-[140px] truncate">{clientFilter.name}</span>
+        ) : (
+          'Клієнт'
+        )}
+        {clientFilter && (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label="Прибрати фільтр"
+            onClick={e => {
+              e.stopPropagation();
+              onClientFilterChange(null);
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                onClientFilterChange(null);
+              }
+            }}
+            className="inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-emet-blue/20 cursor-pointer"
+          >
+            <X className="w-3 h-3" />
+          </span>
+        )}
+      </button>
+
+      {/* Sort toggle */}
+      <button
+        type="button"
+        onClick={() => onSortDirChange(sortDir === 'asc' ? 'desc' : 'asc')}
+        title={sortDir === 'asc' ? 'Спочатку ранні' : 'Спочатку пізні'}
+        className="min-h-[38px] px-3.5 rounded-full border text-[12px] font-semibold inline-flex items-center gap-1.5 bg-white/60 backdrop-blur-md border-slate-200 text-slate-700 hover:bg-white hover:border-slate-300 transition-all"
+      >
+        <ArrowUpDown className="w-3.5 h-3.5" />
+        {sortDir === 'asc' ? 'Час ↑' : 'Час ↓'}
+      </button>
+
+      <ClientPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        selectedClientId={clientFilter?.id}
+        onSelect={picked => {
+          onClientFilterChange({ id: picked.clientId1c, name: picked.clientName });
+          setPickerOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -57,49 +133,6 @@ function Pill({
       className={`min-h-[38px] px-3.5 rounded-full border text-[12px] font-semibold transition-all ${cls}`}
     >
       {children}
-    </button>
-  );
-}
-
-/**
- * ClientPickerStub — поки заглушка з UI-натяком. Реальний `ClientPicker`
- * (з пошуком, autocomplete) — Sprint 1.3 у `crm-shared/`.
- */
-function ClientPickerStub() {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      title="Доступно у наступному спринті"
-      className={`min-h-[38px] px-3.5 rounded-full border text-[12px] font-semibold inline-flex items-center gap-1.5 bg-white/60 backdrop-blur-md border-slate-200 text-slate-700 ${hover ? 'opacity-60' : ''}`}
-    >
-      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-      Клієнт
-      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="m6 9 6 6 6-6" />
-      </svg>
-    </button>
-  );
-}
-
-function SortStub() {
-  return (
-    <button
-      type="button"
-      title="Доступно у наступному спринті"
-      className="min-h-[38px] px-3.5 rounded-full border text-[12px] font-semibold inline-flex items-center gap-1.5 bg-white/60 backdrop-blur-md border-slate-200 text-slate-700"
-    >
-      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M3 6h18" />
-        <path d="M7 12h10" />
-        <path d="M10 18h4" />
-      </svg>
-      Сортувати
     </button>
   );
 }

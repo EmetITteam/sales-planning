@@ -193,22 +193,23 @@ export function MeetingCard({
       </div>
 
       {/* ACTIONS */}
-      <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
-        {/* Mobile-only: phone-кнопка зліва у actions row — фіксована позиція
-            (на одному рівні з основними CTA), не «плаває» по висоті картки.
-            На desktop phone — текст-link у body вище. */}
+      <div className="relative flex flex-wrap items-center gap-2 pt-2.5 border-t border-emet-ink/[0.06] max-md:pr-[52px]">
+        {renderActions(meeting, { onEdit, onStart, onFinish, onReschedule, onOutcome })}
+        {/* Mobile phone-кнопка — absolute справа на рівні першого рядка actions.
+            Так primary action (basis-full на in_progress) не виштовхує phone
+            на власний рядок, а secondary actions можуть wrap всередині
+            available space (padding-right=52 = 44 button + 8 gap). */}
         {clientPhone && (
           <a
             href={`tel:${phoneClean}`}
             onClick={e => e.stopPropagation()}
             aria-label={`Подзвонити ${clientName}`}
             title={clientPhone}
-            className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all shrink-0"
+            className="md:hidden absolute right-0 top-2.5 inline-flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all"
           >
             <PhoneLucide className="w-4 h-4" />
           </a>
         )}
-        {renderActions(meeting, { onEdit, onStart, onFinish, onReschedule, onOutcome })}
       </div>
     </div>
   );
