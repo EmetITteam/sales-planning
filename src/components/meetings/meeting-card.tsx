@@ -113,9 +113,9 @@ export function MeetingCard({
               onClick={e => e.stopPropagation()}
               aria-label={`Подзвонити ${clientName}`}
               title={clientPhone}
-              className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all"
+              className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-full bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all"
             >
-              <PhoneLucide className="w-[14px] h-[14px]" />
+              <PhoneLucide className="w-4 h-4" />
             </a>
           )}
           <StatusBadge kind="meeting" status={meeting.status} />

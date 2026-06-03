@@ -107,7 +107,7 @@ export function MeetingOutcomeDialog({ open, meeting, onClose, onSaved }: Props)
             </DialogPrimitive.Title>
             <DialogPrimitive.Close
               disabled={saving}
-              className="w-9 h-9 rounded-[10px] bg-slate-100 text-slate-600 hover:bg-slate-200 inline-flex items-center justify-center transition-colors disabled:opacity-50"
+              className="w-11 h-11 rounded-[10px] bg-slate-100 text-slate-600 hover:bg-slate-200 inline-flex items-center justify-center transition-colors disabled:opacity-50"
               aria-label="Закрити"
             >
               <XIcon className="w-[18px] h-[18px]" />

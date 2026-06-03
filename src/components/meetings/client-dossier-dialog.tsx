@@ -76,7 +76,7 @@ export function ClientDossierDialog({ open, clientId, clientNameFallback, phoneF
               {name}
             </DialogPrimitive.Title>
             <DialogPrimitive.Close
-              className="w-9 h-9 rounded-[10px] bg-slate-100 text-slate-600 hover:bg-slate-200 inline-flex items-center justify-center transition-colors shrink-0"
+              className="w-11 h-11 rounded-[10px] bg-slate-100 text-slate-600 hover:bg-slate-200 inline-flex items-center justify-center transition-colors shrink-0"
               aria-label="Закрити"
             >
               <XIcon className="w-[18px] h-[18px]" />
