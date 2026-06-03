@@ -109,3 +109,28 @@ export function mapError(err: GeolocationPositionError): GeoCaptureFailure {
 export function formatCoords(lat: number, lon: number): string {
   return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
 }
+
+export type GeoPermissionState = 'granted' | 'prompt' | 'denied' | 'unknown';
+
+/**
+ * Перевіряє стан дозволу на геолокацію через Permissions API.
+ *
+ * Важливо для UX: коли користувач один раз сказав «Заборонити», браузер
+ * запам'ятовує це і при наступному `getCurrentPosition` миттєво повертає
+ * `code=1 PERMISSION_DENIED` БЕЗ показу UI prompt. Кнопка «Спробувати ще
+ * раз» у цьому випадку безглузда — треба показати інструкцію як ввімкнути.
+ *
+ * Safari < 16 і деякі mobile-браузери не підтримують Permissions API
+ * для geolocation → повертає `unknown` (caller має fallback показати retry).
+ */
+export async function getGeoPermissionState(): Promise<GeoPermissionState> {
+  if (typeof navigator === 'undefined' || !('permissions' in navigator)) {
+    return 'unknown';
+  }
+  try {
+    const result = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+    return result.state as GeoPermissionState;
+  } catch {
+    return 'unknown';
+  }
+}

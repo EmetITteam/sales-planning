@@ -17,10 +17,10 @@
 
 import { useEffect, useState } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import { XIcon, MapPinIcon, AlertTriangleIcon, CheckIcon, Loader2Icon } from 'lucide-react';
+import { XIcon, MapPinIcon, AlertTriangleIcon, CheckIcon, Loader2Icon, RefreshCwIcon, LockIcon } from 'lucide-react';
 import type { MeetingWithSync, MeetingStartPayload } from '@/lib/meetings/mock-data';
 import { MOCK_CLIENT_NAMES } from '@/lib/meetings/mock-data';
-import { captureGeo, type GeoCaptureResult } from '@/lib/meetings/geo';
+import { captureGeo, getGeoPermissionState, type GeoCaptureResult } from '@/lib/meetings/geo';
 
 type Phase = 'capturing' | 'captured' | 'failed';
 
@@ -35,6 +35,10 @@ export function StartMeetingDialog({ open, meeting, onClose, onConfirm }: Props)
   const [phase, setPhase] = useState<Phase>('capturing');
   const [geo, setGeo] = useState<GeoCaptureResult | null>(null);
   const [manualAddress, setManualAddress] = useState('');
+  // Окремо тримаємо стан permission: треба щоб дізнатись чи retry-кнопка
+  // має сенс. denied → ховаємо retry (браузер не покаже prompt), показуємо
+  // інструкцію + reload-button. prompt/granted/unknown → retry доступний.
+  const [permission, setPermission] = useState<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
 
   // Запускаємо capture одразу як dialog відкрився (нова зустріч → новий запит)
   useEffect(() => {
@@ -43,9 +47,10 @@ export function StartMeetingDialog({ open, meeting, onClose, onConfirm }: Props)
     setGeo(null);
     setManualAddress(meeting.plannedAddress ?? '');
     let cancelled = false;
-    captureGeo().then(result => {
+    Promise.all([captureGeo(), getGeoPermissionState()]).then(([result, perm]) => {
       if (cancelled) return;
       setGeo(result);
+      setPermission(perm);
       setPhase(result.ok ? 'captured' : 'failed');
     });
     return () => {
@@ -82,10 +87,15 @@ export function StartMeetingDialog({ open, meeting, onClose, onConfirm }: Props)
   const handleRetry = () => {
     setPhase('capturing');
     setGeo(null);
-    captureGeo().then(result => {
+    Promise.all([captureGeo(), getGeoPermissionState()]).then(([result, perm]) => {
       setGeo(result);
+      setPermission(perm);
       setPhase(result.ok ? 'captured' : 'failed');
     });
+  };
+
+  const handleReload = () => {
+    if (typeof window !== 'undefined') window.location.reload();
   };
 
   return (
@@ -145,10 +155,13 @@ export function StartMeetingDialog({ open, meeting, onClose, onConfirm }: Props)
             {phase === 'captured' && geo?.ok && <CapturedBlock geo={geo} />}
             {phase === 'failed' && !geo?.ok && (
               <FailedBlock
+                reason={geo?.ok ? 'position_unavailable' : geo?.reason ?? 'position_unavailable'}
                 message={geo?.ok ? '' : geo?.message ?? 'Невідома помилка'}
+                permission={permission}
                 address={manualAddress}
                 onAddressChange={setManualAddress}
                 onRetry={handleRetry}
+                onReload={handleReload}
               />
             )}
           </div>
@@ -226,27 +239,67 @@ function CapturedBlock({
 }
 
 function FailedBlock({
+  reason,
   message,
+  permission,
   address,
   onAddressChange,
   onRetry,
+  onReload,
 }: {
+  reason: 'permission_denied' | 'position_unavailable' | 'timeout' | 'unsupported';
   message: string;
+  permission: 'granted' | 'prompt' | 'denied' | 'unknown';
   address: string;
   onAddressChange: (v: string) => void;
   onRetry: () => void;
+  onReload: () => void;
 }) {
+  // Якщо браузер зберіг «Заборонити» — повторний запит миттєво поверне
+  // denied БЕЗ prompt. Кнопка «Спробувати ще раз» безглузда → ховаємо її,
+  // показуємо інструкцію + reload-button (після зміни налаштувань у браузері
+  // потрібен новий load щоб permission підхопився чисто).
+  const isHardDenied = reason === 'permission_denied' || permission === 'denied';
+  const isUnsupported = reason === 'unsupported';
+
   return (
     <div className="flex flex-col gap-3">
       <div className="bg-rose-50 border border-rose-100 rounded-xl px-4 py-3 flex items-start gap-2.5">
         <AlertTriangleIcon className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
         <div className="flex flex-col gap-0.5 min-w-0">
           <div className="text-[12px] font-bold text-rose-700">
-            Не вдалось зафіксувати GPS
+            {isHardDenied ? 'Геолокацію заблоковано у браузері' : 'Не вдалось зафіксувати GPS'}
           </div>
           <div className="text-[12px] text-slate-600 leading-snug">{message}</div>
         </div>
       </div>
+
+      {/* Інструкція як re-enable — тільки для hard denied */}
+      {isHardDenied && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-2">
+          <div className="inline-flex items-center gap-2 text-[12px] font-bold text-emet-ink">
+            <LockIcon className="w-3.5 h-3.5 text-slate-500" />
+            Як ввімкнути геолокацію
+          </div>
+          <ol className="list-decimal pl-4 space-y-1 text-[12px] text-slate-700 leading-snug marker:text-slate-400 marker:font-bold">
+            <li>Натисніть іконку <span className="font-semibold">замочка</span> або <span className="font-semibold">«i»</span> ліворуч від адреси сторінки</li>
+            <li>У списку дозволів знайдіть <span className="font-semibold">«Місцезнаходження» / «Location»</span></li>
+            <li>Змініть на <span className="font-semibold">«Дозволити» / «Allow»</span></li>
+            <li>Натисніть «Перезавантажити сторінку» нижче</li>
+          </ol>
+          <button
+            type="button"
+            onClick={onReload}
+            className="self-start mt-1 inline-flex items-center gap-1.5 text-[12px] font-semibold text-emet-blue hover:underline"
+          >
+            <RefreshCwIcon className="w-3.5 h-3.5" />
+            Перезавантажити сторінку
+          </button>
+          <div className="text-[11px] text-slate-500 mt-0.5">
+            Або введіть адресу вручну нижче — координати не запишуться.
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <label className="text-[11px] font-bold uppercase tracking-[0.7px] text-slate-600">
@@ -266,13 +319,17 @@ function FailedBlock({
         </span>
       </div>
 
-      <button
-        type="button"
-        onClick={onRetry}
-        className="self-start text-[12px] font-semibold text-emet-blue hover:underline"
-      >
-        Спробувати GPS ще раз
-      </button>
+      {/* Retry — тільки якщо є шанс що спрацює: timeout / position_unavailable з permission=prompt|granted|unknown */}
+      {!isHardDenied && !isUnsupported && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="self-start inline-flex items-center gap-1.5 text-[12px] font-semibold text-emet-blue hover:underline"
+        >
+          <RefreshCwIcon className="w-3.5 h-3.5" />
+          Спробувати GPS ще раз
+        </button>
+      )}
     </div>
   );
 }
