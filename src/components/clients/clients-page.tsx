@@ -134,10 +134,23 @@ export function ClientsPage() {
   // Deep-link ?focus=ID — приходить з /meetings dossier dialog (link «Відкрити
   // повне досьє»). Single-client view: ховаємо всіх інших + одразу expand.
   // Так UX не змушує скролити повз 250+ клієнтів.
+  //
+  // useSearchParams реактивний у Next.js 16 App Router, але `router.replace`
+  // інколи не triggers повний re-render у same-path navigation. Тримаємо
+  // локальний `focusOverride` state який можемо примусово очистити кліком —
+  // він має перевагу над URL-параметром.
   const searchParams = useSearchParams();
   const router = useRouter();
-  const focusId = searchParams?.get('focus') ?? null;
+  const urlFocusId = searchParams?.get('focus') ?? null;
+  const [focusOverride, setFocusOverride] = useState<string | null | 'cleared'>(null);
+  const focusId = focusOverride === 'cleared' ? null : (focusOverride ?? urlFocusId);
   const focusHandledRef = useRef(false);
+
+  useEffect(() => {
+    // Якщо користувач знов прийшов з ?focus=, скидаємо override
+    if (urlFocusId) setFocusOverride(null);
+  }, [urlFocusId]);
+
   useEffect(() => {
     if (!focusId || focusHandledRef.current) return;
     if (clients.length === 0) return;
@@ -150,7 +163,11 @@ export function ClientsPage() {
   const clearFocus = () => {
     focusHandledRef.current = false;
     setExpandedId(null);
-    router.replace('/clients');
+    setFocusOverride('cleared');
+    // best-effort: прибираємо ?focus= з URL (history-only, не triggers re-render)
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/clients');
+    }
   };
 
   // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
@@ -446,7 +463,7 @@ export function ClientsPage() {
     const focusClient = clients.find(c => c.ClientID === focusId);
     const focusName = focusClient ? getClientName(focusClient) : focusId;
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 max-w-full overflow-x-hidden">
         <div className="flex items-center gap-3 flex-wrap">
           <button
             type="button"

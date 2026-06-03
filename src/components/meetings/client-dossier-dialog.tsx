@@ -83,7 +83,7 @@ export function ClientDossierDialog({ open, clientId, clientNameFallback, phoneF
             </DialogPrimitive.Close>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 md:py-6 flex flex-col gap-4">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 md:px-6 md:py-6 flex flex-col gap-4">
             {loading && (
               <div className="flex items-center justify-center py-8 text-slate-400">
                 <Loader2Icon className="w-5 h-5 animate-spin mr-2" />

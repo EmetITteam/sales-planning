@@ -158,7 +158,7 @@ export function ClientPickerDialog({ open, onClose, onSelect, selectedClientId }
           </div>
 
           {/* List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {myLoading && localResults.length === 0 && (
               <div className="flex items-center justify-center py-10 text-slate-400">
                 <Loader2Icon className="w-5 h-5 animate-spin" />

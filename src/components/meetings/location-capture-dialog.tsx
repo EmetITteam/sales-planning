@@ -167,7 +167,7 @@ export function LocationCaptureDialog({ open, mode, meeting, onClose, onConfirm 
             </DialogPrimitive.Close>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 md:py-6 flex flex-col gap-4">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 md:px-6 md:py-6 flex flex-col gap-4">
             <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex flex-col gap-1">
               <div className="text-[15px] font-bold text-emet-ink leading-tight">{clientName}</div>
               <div className="text-[12px] text-slate-500 inline-flex items-center gap-2">

@@ -108,7 +108,7 @@ export function AppHeader() {
   return (
     <>
     <header className="sticky top-0 z-50 bg-white/55 backdrop-blur-xl backdrop-saturate-150 border-b border-white/50 shadow-[0_4px_24px_rgba(6,42,61,0.04)]">
-      <div className="flex h-[56px] items-center gap-3 px-4 sm:px-5">
+      <div className="flex h-[56px] items-center gap-2 sm:gap-3 px-3 sm:px-5 min-w-0">
         {/* Logo: EMET-знак + назва продукту */}
         <div className="flex items-center gap-2.5 shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -151,7 +151,7 @@ export function MeetingForm({ open, mode, initialMeeting, onClose, onSave }: Pro
           </div>
 
           {/* Body — scrollable */}
-          <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 md:py-6 flex flex-col gap-4">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 md:px-6 md:py-6 flex flex-col gap-4">
             {/* Client */}
             <ClientField
               clientId1c={form.clientId1c}
