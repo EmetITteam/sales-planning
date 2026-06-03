@@ -128,12 +128,12 @@ export function MeetingCard({
           <button
             type="button"
             onClick={() => onClientClick(meeting.clientId1c, clientName, clientPhone)}
-            className="text-[15px] font-bold text-emet-ink tracking-tight leading-tight text-left hover:text-emet-blue transition-colors cursor-pointer self-start"
+            className="text-[17px] font-bold text-emet-ink tracking-tight leading-tight text-left hover:text-emet-blue transition-colors cursor-pointer self-start"
           >
             {clientName}
           </button>
         ) : (
-          <div className="text-[15px] font-bold text-emet-ink tracking-tight leading-tight">
+          <div className="text-[17px] font-bold text-emet-ink tracking-tight leading-tight">
             {clientName}
           </div>
         )}
@@ -150,7 +150,7 @@ export function MeetingCard({
           </a>
         )}
         {meeting.purpose && (
-          <div className="mt-px inline-flex items-center gap-1.5 text-[13px] font-semibold text-emet-blue leading-snug">
+          <div className="mt-0.5 inline-flex items-center gap-1.5 text-[12px] font-medium text-emet-blue/85 leading-snug">
             <svg
               viewBox="0 0 24 24"
               className="w-3 h-3 opacity-85"
