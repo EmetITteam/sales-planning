@@ -269,7 +269,7 @@ function splitActions(m: MeetingWithSync, h: ActionHandlers): ActionsSplit {
       secondary: (
         <ActionButton onClick={() => h.onEdit?.(m)}>
           <PencilIcon />
-          Редагувати
+          Правка
         </ActionButton>
       ),
     };

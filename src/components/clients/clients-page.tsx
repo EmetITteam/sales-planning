@@ -1641,7 +1641,7 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
                   <span className={`w-2 h-2 rounded-full shrink-0 ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
                   <span className="font-semibold text-[13px] truncate min-w-0">{cleanBrandName(b.brandName)}</span>
                   {!inPlan && (
-                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-400/10 text-slate-500 border border-slate-300/50">
+                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-400/10 text-slate-500 border border-slate-300/50">
                       не в плані
                     </span>
                   )}
