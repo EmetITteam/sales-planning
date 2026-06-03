@@ -1622,7 +1622,7 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
           на мобільному 360px viewport — користувач свайпом гортає таблицю.
           `touch-pan-x` обов'язково (body має `touch-action: pan-y` для блок-zoom). */}
       <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin] touch-pan-x">
-      <div className="space-y-1.5 min-w-[560px]">
+      <div className="space-y-1.5 min-w-[860px]">
         {sorted.map(b => {
           const byMonth = b.byYM;
           const inPlan = isBrandInPlan(b.brandName);
@@ -1630,7 +1630,7 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
             <div
               key={b.brandName}
               className="glass-card-soft p-3 grid items-center gap-3"
-              style={{ gridTemplateColumns: `minmax(0,1.4fr) repeat(${monthOrder.length}, 1fr) 90px 120px` }}
+              style={{ gridTemplateColumns: `minmax(160px,1.4fr) repeat(${monthOrder.length}, minmax(70px,1fr)) 90px 120px` }}
             >
               <div className="font-semibold text-[13px] truncate flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
@@ -2028,7 +2028,7 @@ function PlanFactByBrand({ planBrands, factBrands }: {
           `touch-pan-x` обов'язково — body має `touch-action: pan-y` для
           блокування pinch-zoom, що заодно б'є horizontal touch-scroll. */}
       <div className="overflow-x-auto -mx-3 px-3 [scrollbar-width:thin] touch-pan-x">
-        <div className="space-y-1.5 min-w-[520px]">
+        <div className="space-y-1.5 min-w-[680px]">
           {rows.map(r => (
             <PlanFactBrandRow key={r.code} row={r} />
           ))}
@@ -2083,7 +2083,7 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
     // Фіксовані ширини колонок План/Факт/Викон/Status — щоб усі рядки
     // вирівнювались строго (раніше 1fr+auto давало «гуляючі» значення
     // коли status-pill мав різну довжину).
-    <div className="glass-card-soft p-3 grid grid-cols-[12px_minmax(0,1fr)_110px_110px_75px_150px] gap-3 items-center">
+    <div className="glass-card-soft p-3 grid grid-cols-[12px_minmax(160px,1fr)_110px_110px_75px_150px] gap-3 items-center">
       <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
       <div className="font-semibold text-[13px] truncate">{name}</div>
       <div className="text-right">
