@@ -165,10 +165,10 @@ Manager UI → reclamation-app (FastAPI) → Bitrix24 REST API
 
 1. **Стеки відрізняються:** sales-planning Next.js, meeting Vanilla JS, reclamation FastAPI. **Не уніфікуємо** — кожен залишається у своєму стеку, інтеграція через API.
 2. **Source of truth розгалужений:**
-   - Зустрічі, клієнти, заказы, дебіторка → 1С
+   - Зустрічі, клієнти, замовлення, дебіторка → 1С
    - Рекламації → Bitrix24
    - Зустрічі (буфер) → наш Postgres → 1С
-3. **Meeting функціонал переписуємо**, рекламації — **інтегруємо як microservice**, заказы — **новий код + 1С actions з нуля**.
+3. **Meeting функціонал переписуємо**, рекламації — **інтегруємо як microservice**, замовлення — **новий код + 1С actions з нуля**.
 4. **Геолокація:** ADR-7 повний пакет покращень.
 5. **God-components у sales-planning:** рефакторимо у міру торкання (ADR-3).
 6. **Безпека:** RLS (ADR-4), JWT-cookie замість localStorage, IDOR closure.

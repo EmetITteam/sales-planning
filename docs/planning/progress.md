@@ -26,7 +26,7 @@
 
 ### Sprint 0.1 (2026-06-02) — Audit & Architecture
 - Завдання: повний аудит 3 meeting-related репо, ADR, план
-- Спринт-leader: Claude
+- Спринт-leader: команда фронтенду
 - Артефакти: `decisions.md`, `findings.md`, `PROJECT_PLAN.md`, `progress.md`
 - Затрачено: 1 робочий день
 - Висновки: meeting-app = vanilla JS (не React) → переписуємо; reclamation-app = Python/FastAPI + Bitrix → microservice; orders backend = 0% → новий 1С action set потрібен

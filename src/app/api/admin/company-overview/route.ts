@@ -66,7 +66,7 @@ const CANONICAL_DIVISIONS: { name: string; display: string }[] = [
   { name: 'Харків', display: 'Харків' },
   { name: 'Запоріжжя', display: 'Запоріжжя' },
   { name: 'Вінниця', display: 'Вінниця' },
-  { name: 'Миколаєв', display: 'Миколаєв' },
+  { name: 'Миколаєв', display: 'Миколаїв' },
   { name: 'Житомир', display: 'Житомир' },
   { name: 'Коллцентр Call center лидогенерация', display: 'Колл-центр' },
   { name: 'Лазерхауз*', display: 'Лазерхауз' },
@@ -311,7 +311,11 @@ export async function GET(request: NextRequest) {
       divisions.push({
         divisionName: divName,
         groupKey,
-        displayName: groupKey === 'representations' ? divName : DISPLAY_NAMES[groupKey],
+        // Для representations підставляємо канонічну display-назву з CANONICAL_DIVISIONS
+        // (інакше "Миколаєв" з 1С пролітає у UI у russified формі замість "Миколаїв").
+        displayName: groupKey === 'representations'
+          ? (CANONICAL_DIVISIONS.find(d => d.name === divName)?.display ?? divName)
+          : DISPLAY_NAMES[groupKey],
         segments,
         totalPlan,
         totalFact,

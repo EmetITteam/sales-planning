@@ -62,7 +62,7 @@ export const DIRECTOR_PROXY_LOGIN = 'sdu@emet.in.ua';
  * /api/planning/aggregate цим логінам дається full company access.
  *
  * Костиль для Пашковської (rm.odessa) — РМ Одеси, але закріплена і за
- * Миколаєвом де менеджери (Лопушанська, Клименко). 2026-05-18.
+ * Миколаївом де менеджери (Лопушанська, Клименко). 2026-05-18.
  */
 export const MULTI_REGION_RM_OVERRIDES: Record<string, readonly string[]> = {
   'rm.odessa@emet.in.ua': ['ODS', 'NLV'],
@@ -75,7 +75,7 @@ export const MULTI_REGION_RM_OVERRIDES: Record<string, readonly string[]> = {
  * статистику тих регіонів.
  *
  * Кейс Пашковської (2026-05-19): РМ Одеса+Миколаїв. Продає тільки в Одесі.
- * У Миколаєві її $9863 finalized на ELLANSE летіли у brand-сумі що давало
+ * У Миколаїві її $9863 finalized на ELLANSE летіли у brand-сумі що давало
  * 277% «Запл.» (її дані у numerator, плану 1С на NLV у неї нема → 0 у
  * denominator). Фільтр у adaptRegionData робить її невидимою для NLV.
  */

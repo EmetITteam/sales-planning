@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     // пропускаємо як є.
     // Multi-region RM (Пашковська) — дозволяємо як director (будь-який login).
     // Бо вона drill-down'ить у менеджерів іншого регіону (Лопушанська, Клименко
-    // з Миколаєва) — а в її managedUsers тільки Одеса.
+    // з Миколаїва) — а в її managedUsers тільки Одеса.
     const sessionLoginLower = session.login.toLowerCase().trim();
     const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLoginLower];
     if (session.role === 'admin' && (!requestedLogin || requestedLogin === session.login)) {
