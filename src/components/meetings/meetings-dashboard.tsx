@@ -13,17 +13,26 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MeetingsWidgets } from './meetings-widgets';
 import { MeetingsFilters, type StatusFilter } from './meetings-filters';
 import { DayGroup } from './day-group';
 import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeting-form';
+import { StartMeetingDialog } from './start-meeting-dialog';
 import {
   getMockMeetings,
   computeStats,
   groupMeetingsByDate,
+  applyStart,
   type MeetingWithSync,
+  type MeetingStartPayload,
 } from '@/lib/meetings/mock-data';
+
+interface Toast {
+  id: number;
+  kind: 'success' | 'error' | 'info';
+  message: string;
+}
 
 export function MeetingsDashboard() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -33,18 +42,30 @@ export function MeetingsDashboard() {
   const [formMode, setFormMode] = useState<MeetingFormMode>('create');
   const [editingMeeting, setEditingMeeting] = useState<MeetingWithSync | undefined>();
 
+  // Start-meeting dialog state (Sprint 1.4).
+  const [startOpen, setStartOpen] = useState(false);
+  const [startingMeeting, setStartingMeeting] = useState<MeetingWithSync | null>(null);
+
+  // Toast state — мінімальний host без global provider (Sprint 1.6+ — refactor).
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
   // Mock today (stable for render). У Sprint 1.5 → реальний now() з можливістю
   // «снапшот на дату» через PeriodFilter.
   const today = useMemo(() => new Date(), []);
-  const all = useMemo(() => getMockMeetings(), []);
+  const [meetings, setMeetings] = useState<MeetingWithSync[]>(() => getMockMeetings());
 
   const filtered = useMemo(() => {
-    if (statusFilter === 'all') return all;
-    return all.filter(m => m.status === statusFilter);
-  }, [all, statusFilter]);
+    if (statusFilter === 'all') return meetings;
+    return meetings.filter(m => m.status === statusFilter);
+  }, [meetings, statusFilter]);
 
-  const stats = useMemo(() => computeStats(all, today), [all, today]);
+  const stats = useMemo(() => computeStats(meetings, today), [meetings, today]);
   const groups = useMemo(() => groupMeetingsByDate(filtered), [filtered]);
+
+  const pushToast = (kind: Toast['kind'], message: string) => {
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, kind, message }]);
+  };
 
   const handleCreate = () => {
     setEditingMeeting(undefined);
@@ -61,6 +82,21 @@ export function MeetingsDashboard() {
     // Поки логуємо у консоль і закриваємо форму — UI-демо.
     console.log('[MeetingForm save]', { mode: formMode, data, editingId: editingMeeting?.id });
     setFormOpen(false);
+  };
+  const handleStart = (m: MeetingWithSync) => {
+    setStartingMeeting(m);
+    setStartOpen(true);
+  };
+  const handleConfirmStart = (id: string, payload: MeetingStartPayload) => {
+    setMeetings(prev => applyStart(prev, id, payload));
+    setStartOpen(false);
+    setStartingMeeting(null);
+    pushToast(
+      'success',
+      payload.geoManual
+        ? 'Зустріч розпочато (адресу введено вручну).'
+        : 'Зустріч розпочато. Координати зафіксовано.',
+    );
   };
 
   return (
@@ -116,6 +152,7 @@ export function MeetingsDashboard() {
               meetings={g.items}
               today={today}
               onEditMeeting={handleEdit}
+              onStartMeeting={handleStart}
             />
           ))}
         </div>
@@ -128,6 +165,48 @@ export function MeetingsDashboard() {
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
       />
+
+      <StartMeetingDialog
+        open={startOpen}
+        meeting={startingMeeting}
+        onClose={() => setStartOpen(false)}
+        onConfirm={handleConfirmStart}
+      />
+
+      <ToastHost toasts={toasts} onDismiss={id => setToasts(t => t.filter(x => x.id !== id))} />
+    </div>
+  );
+}
+
+/** Простий toast-host. Кожен toast auto-dismiss через 4с. */
+function ToastHost({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const timers = toasts.map(t => window.setTimeout(() => onDismiss(t.id), 4000));
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+    };
+  }, [toasts, onDismiss]);
+
+  if (toasts.length === 0) return null;
+  return (
+    <div className="fixed z-[60] bottom-4 right-4 left-4 sm:left-auto sm:max-w-[360px] flex flex-col gap-2 pointer-events-none">
+      {toasts.map(t => {
+        const cls =
+          t.kind === 'success'
+            ? 'bg-teal-600 text-white'
+            : t.kind === 'error'
+              ? 'bg-rose-600 text-white'
+              : 'bg-emet-ink text-white';
+        return (
+          <div
+            key={t.id}
+            className={`pointer-events-auto rounded-xl px-4 py-3 text-[13px] font-semibold shadow-[0_12px_28px_rgba(6,42,61,0.25)] ${cls}`}
+          >
+            {t.message}
+          </div>
+        );
+      })}
     </div>
   );
 }

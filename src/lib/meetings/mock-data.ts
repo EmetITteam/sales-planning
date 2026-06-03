@@ -251,6 +251,50 @@ export function groupMeetingsByDate(meetings: MeetingWithSync[]): {
   return sorted;
 }
 
+/**
+ * Параметри початку зустрічі (Sprint 1.4).
+ *
+ * `geoManual=true` — користувач ввів адресу вручну (geo capture не вдалось
+ * або відмовився), `lat/lon` залишаються `null`. У синхронізації з 1С
+ * 1С-розробник може використовувати `geoManual` як ознаку «не довіряти
+ * адресі як географічному факту».
+ */
+export interface MeetingStartPayload {
+  address: string;
+  lat: number | null;
+  lon: number | null;
+  geoManual: boolean;
+}
+
+/**
+ * Іммутабельно змінює статус зустрічі на `in_progress` і фіксує
+ * `startLat/Lon/Address`. ADR-7: координати read-only після capture.
+ *
+ * Повертає новий масив. Якщо id не знайдено — повертає вхідний масив без змін.
+ */
+export function applyStart(
+  meetings: MeetingWithSync[],
+  id: string,
+  payload: MeetingStartPayload,
+): MeetingWithSync[] {
+  const now = new Date().toISOString();
+  return meetings.map(m =>
+    m.id === id
+      ? {
+          ...m,
+          status: 'in_progress' as MeetingStatus,
+          startAddress: payload.address,
+          startLat: payload.lat,
+          startLon: payload.lon,
+          geoManual: payload.geoManual,
+          updatedAt: now,
+          // Sprint 1.5: при реальному buffer-write змінити на 'pending'.
+          // Поки моки — лишаємо synced.
+        }
+      : m,
+  );
+}
+
 /** Формат labels для day-header. */
 export function formatDayLabel(dateStr: string, today: Date): { label: string; isToday: boolean } {
   const [y, m, d] = dateStr.split('-').map(Number);
