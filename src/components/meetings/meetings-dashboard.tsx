@@ -286,7 +286,23 @@ export function MeetingsDashboard() {
         </button>
       </div>
 
-      <MeetingsWidgets stats={stats} />
+      {/* KPI віджети тільки у real-API режимі. У демо вони рахуються
+          з 9 моків + замапованих клієнтів і вводять в оману (показують
+          типу «6 сьогодні» хоча це 6 mock-stub'ів). */}
+      {isUsingRealApi ? (
+        <MeetingsWidgets stats={stats} />
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-5 flex items-start gap-3">
+          <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-700 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4" />
+            <path d="M12 16h.01" />
+          </svg>
+          <div className="text-[12px] text-amber-900 leading-snug">
+            <strong>Демо-режим.</strong> Показуємо 9 прикладів зустрічей з іменами і телефонами ваших справжніх клієнтів. KPI-віджети тимчасово приховані, бо рахували б числа з моків. Реальна синхронізація з 1С — після ввімкнення buffer-sync workera (Sprint 1.5.3).
+          </div>
+        </div>
+      )}
       <MeetingsFilters value={statusFilter} onChange={setStatusFilter} />
 
       {/* Day groups */}
