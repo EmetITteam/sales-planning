@@ -19,6 +19,7 @@ import { MeetingsFilters, type StatusFilter } from './meetings-filters';
 import { DayGroup } from './day-group';
 import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeting-form';
 import { StartMeetingDialog, FinishMeetingDialog } from './location-capture-dialog';
+import { ClientDossierDialog } from './client-dossier-dialog';
 import {
   computeStats,
   groupMeetingsByDate,
@@ -26,6 +27,7 @@ import {
   type MeetingStartPayload,
 } from '@/lib/meetings/mock-data';
 import { useMeetings } from '@/lib/meetings/use-meetings';
+import { useMyClients } from '@/lib/use-my-clients';
 
 interface Toast {
   id: number;
@@ -47,6 +49,9 @@ export function MeetingsDashboard() {
   const [finishOpen, setFinishOpen] = useState(false);
   const [finishingMeeting, setFinishingMeeting] = useState<MeetingWithSync | null>(null);
 
+  // Dossier dialog state (Sprint 1.5+).
+  const [dossierClient, setDossierClient] = useState<{ id: string; name: string; phone: string } | null>(null);
+
   // Toast state — мінімальний host без global provider (Sprint 1.6+ — refactor).
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -66,6 +71,19 @@ export function MeetingsDashboard() {
     startMeeting: apiStartMeeting,
     finishMeeting: apiFinishMeeting,
   } = useMeetings();
+
+  // Map клієнтів з 1С getManagerClients — для phone на картці і dossier.
+  // SWR-кешований, single fetch per page.
+  const { clients: myClients } = useMyClients();
+  const clientsByID = useMemo(() => {
+    const m = new Map<string, typeof myClients[number]>();
+    for (const c of myClients) m.set(c.ClientID, c);
+    return m;
+  }, [myClients]);
+
+  const handleClientClick = (clientId: string, fallbackName: string, fallbackPhone: string) => {
+    setDossierClient({ id: clientId, name: fallbackName, phone: fallbackPhone });
+  };
 
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return meetings;
@@ -228,6 +246,8 @@ export function MeetingsDashboard() {
               onEditMeeting={handleEdit}
               onStartMeeting={handleStart}
               onFinishMeeting={handleFinish}
+              clientsByID={clientsByID}
+              onClientClick={handleClientClick}
             />
           ))}
         </div>
@@ -253,6 +273,14 @@ export function MeetingsDashboard() {
         meeting={finishingMeeting}
         onClose={() => setFinishOpen(false)}
         onConfirm={handleConfirmFinish}
+      />
+
+      <ClientDossierDialog
+        open={dossierClient !== null}
+        clientId={dossierClient?.id ?? null}
+        clientNameFallback={dossierClient?.name}
+        phoneFallback={dossierClient?.phone}
+        onClose={() => setDossierClient(null)}
       />
 
       <ToastHost toasts={toasts} onDismiss={id => setToasts(t => t.filter(x => x.id !== id))} />

@@ -9,6 +9,7 @@
 
 import type { MeetingWithSync } from '@/lib/meetings/mock-data';
 import { formatDayLabel } from '@/lib/meetings/mock-data';
+import type { ClientFromOneC } from '@/lib/mityng-types';
 import { MeetingCard } from './meeting-card';
 
 interface Props {
@@ -19,6 +20,10 @@ interface Props {
   onStartMeeting?: (m: MeetingWithSync) => void;
   onFinishMeeting?: (m: MeetingWithSync) => void;
   onRescheduleMeeting?: (m: MeetingWithSync) => void;
+  /** Map clientId1c → client із 1С (для phone + dossier). */
+  clientsByID?: Map<string, ClientFromOneC>;
+  /** Клік на ім'я клієнта у картці → відкрити досьє у dashboard. */
+  onClientClick?: (clientId: string, fallbackName: string, fallbackPhone: string) => void;
 }
 
 export function DayGroup({
@@ -29,6 +34,8 @@ export function DayGroup({
   onStartMeeting,
   onFinishMeeting,
   onRescheduleMeeting,
+  clientsByID,
+  onClientClick,
 }: Props) {
   const { label, isToday } = formatDayLabel(date, today);
 
@@ -78,6 +85,8 @@ export function DayGroup({
             onStart={onStartMeeting}
             onFinish={onFinishMeeting}
             onReschedule={onRescheduleMeeting}
+            client={clientsByID?.get(m.clientId1c)}
+            onClientClick={onClientClick}
           />
         ))}
       </div>

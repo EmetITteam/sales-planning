@@ -14,9 +14,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Phone as PhoneLucide } from 'lucide-react';
 import type { MeetingWithSync } from '@/lib/meetings/mock-data';
 import { MOCK_CLIENT_NAMES } from '@/lib/meetings/mock-data';
 import { StatusBadge } from '@/components/ui/status-badge';
+import type { ClientFromOneC } from '@/lib/mityng-types';
+import { getClientName } from '@/lib/mityng-types';
 
 interface Props {
   meeting: MeetingWithSync;
@@ -28,10 +31,30 @@ interface Props {
   onFinish?: (meeting: MeetingWithSync) => void;
   /** Викликається коли «Перенести» (Sprint 1.x). */
   onReschedule?: (meeting: MeetingWithSync) => void;
+  /**
+   * Дані клієнта з 1С (lookup за meeting.clientId1c у dashboard).
+   * undefined якщо не знайдено / mock-режим — fallback на MOCK_CLIENT_NAMES.
+   */
+  client?: ClientFromOneC;
+  /** Клік на ім'я клієнта → відкрити досьє. */
+  onClientClick?: (clientId: string, fallbackName: string, fallbackPhone: string) => void;
 }
 
-export function MeetingCard({ meeting, onEdit, onStart, onFinish, onReschedule }: Props) {
-  const clientName = MOCK_CLIENT_NAMES[meeting.clientId1c] ?? meeting.clientId1c;
+export function MeetingCard({
+  meeting,
+  onEdit,
+  onStart,
+  onFinish,
+  onReschedule,
+  client,
+  onClientClick,
+}: Props) {
+  // Real client data (з 1С getManagerClients) виграє над mock-даними.
+  const clientName = client
+    ? getClientName(client)
+    : MOCK_CLIENT_NAMES[meeting.clientId1c] ?? meeting.clientId1c;
+  const clientPhone = client?.Phone ?? '';
+  const phoneClean = clientPhone.replace(/[^+\d]/g, '');
   const isFailedSync = meeting.syncStatus === 'failed';
   const isInProgress = meeting.status === 'in_progress';
   const isDone = meeting.status === 'done';
@@ -85,9 +108,29 @@ export function MeetingCard({ meeting, onEdit, onStart, onFinish, onReschedule }
 
       {/* BODY: client + purpose + address */}
       <div className="flex flex-col gap-0.5">
-        <div className="text-[15px] font-bold text-emet-ink tracking-tight leading-tight">
-          {clientName}
-        </div>
+        {onClientClick ? (
+          <button
+            type="button"
+            onClick={() => onClientClick(meeting.clientId1c, clientName, clientPhone)}
+            className="text-[15px] font-bold text-emet-ink tracking-tight leading-tight text-left hover:text-emet-blue transition-colors cursor-pointer self-start"
+          >
+            {clientName}
+          </button>
+        ) : (
+          <div className="text-[15px] font-bold text-emet-ink tracking-tight leading-tight">
+            {clientName}
+          </div>
+        )}
+        {clientPhone && (
+          <a
+            href={`tel:${phoneClean}`}
+            onClick={e => e.stopPropagation()}
+            className="mt-0.5 inline-flex items-center gap-1 text-[12px] font-semibold text-emerald-700 hover:text-emerald-800 self-start"
+          >
+            <PhoneLucide className="w-3 h-3" />
+            <span className="font-mono tabular-nums">{clientPhone}</span>
+          </a>
+        )}
         {meeting.purpose && (
           <div className="mt-px inline-flex items-center gap-1.5 text-[13px] font-semibold text-emet-blue leading-snug">
             <svg

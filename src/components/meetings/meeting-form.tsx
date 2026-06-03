@@ -25,6 +25,10 @@ import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { XIcon } from 'lucide-react';
 import type { MeetingWithSync } from '@/lib/meetings/mock-data';
 import { MOCK_CLIENT_NAMES } from '@/lib/meetings/mock-data';
+import { MEETING_PURPOSES } from '@/lib/meetings/purposes';
+import { ClientPickerDialog } from './client-picker-dialog';
+import { useMyClients } from '@/lib/use-my-clients';
+import { getClientName } from '@/lib/mityng-types';
 
 export type MeetingFormMode = 'create' | 'edit';
 
@@ -47,21 +51,9 @@ export interface MeetingFormData {
   comment: string;
 }
 
-const PURPOSES: string[] = [
-  'Презентація ELLANSE',
-  'Презентація PETARAN',
-  'Презентація ESSE',
-  'Презентація VITARAN',
-  'Презентація IUSE',
-  'Контракт VITARAN',
-  'Контракт ESSE',
-  'Контракт IUSE',
-  'Знайомство, навчання',
-  'Демонстрація',
-  'Підписання договору',
-  'Узгодження плану закупки',
-  'Інше',
-];
+// Single-source-of-truth — src/lib/meetings/purposes.ts. Якщо у майбутньому 1С
+// dev зробить довідник `getMeetingPurposes` — заміни PURPOSES на hook звідти.
+const PURPOSES = MEETING_PURPOSES;
 
 const DURATIONS: { value: number; label: string }[] = [
   { value: 30, label: '30 хвилин' },
@@ -314,41 +306,60 @@ interface ClientFieldProps {
 }
 
 function ClientField({ clientId1c, onChange }: ClientFieldProps) {
-  // STUB: повноцінний ClientPicker з пошуком + autocomplete — Sprint 1.x.
-  // Поки — select зі списку відомих mock-клієнтів.
-  const mockIds = Object.keys(MOCK_CLIENT_NAMES);
-  const selectedName = clientId1c ? MOCK_CLIENT_NAMES[clientId1c] : null;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const { clients } = useMyClients();
+
+  // Lookup name з useMyClients (cache SWR). Fallback на MOCK_CLIENT_NAMES для
+  // mock-режиму коли НЕ використовуємо real 1С API.
+  const matched = clients.find(c => c.ClientID === clientId1c);
+  const selectedName = matched
+    ? getClientName(matched)
+    : clientId1c
+      ? MOCK_CLIENT_NAMES[clientId1c] ?? null
+      : null;
+  const selectedPhone = matched?.Phone ?? '';
 
   return (
-    <FormGroup label="Клієнт" required>
-      <div className="bg-white/85 border border-slate-200 rounded-[10px] p-2.5 flex items-center gap-2.5 min-h-[56px] hover:border-emet-blue transition-colors">
-        <div className="w-9 h-9 rounded-lg bg-emet-blue/10 text-emet-blue inline-flex items-center justify-center text-[11px] font-bold shrink-0">
-          {selectedName ? selectedName.slice(0, 2).toUpperCase() : '—'}
-        </div>
-        <div className="flex-1 min-w-0">
-          {selectedName ? (
-            <>
-              <div className="text-[14px] font-semibold text-emet-ink leading-tight truncate">
-                {selectedName}
-              </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Код 1С: {clientId1c}</div>
-            </>
-          ) : (
-            <div className="text-[13px] text-slate-400">Обрати клієнта…</div>
-          )}
-        </div>
-        <select
-          className="appearance-none bg-transparent text-[12px] font-semibold text-emet-blue cursor-pointer outline-none"
-          value={clientId1c}
-          onChange={e => onChange(e.target.value)}
+    <>
+      <FormGroup label="Клієнт" required>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="bg-white/85 border border-slate-200 rounded-[10px] p-2.5 flex items-center gap-2.5 min-h-[56px] hover:border-emet-blue transition-colors text-left w-full"
         >
-          <option value="">{clientId1c ? 'Змінити' : 'Обрати'}</option>
-          {mockIds.map(id => (
-            <option key={id} value={id}>{MOCK_CLIENT_NAMES[id]}</option>
-          ))}
-        </select>
-      </div>
-    </FormGroup>
+          <div className="w-9 h-9 rounded-lg bg-emet-blue/10 text-emet-blue inline-flex items-center justify-center text-[11px] font-bold shrink-0">
+            {selectedName ? selectedName.slice(0, 2).toUpperCase() : '—'}
+          </div>
+          <div className="flex-1 min-w-0">
+            {selectedName ? (
+              <>
+                <div className="text-[14px] font-semibold text-emet-ink leading-tight truncate">
+                  {selectedName}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                  {selectedPhone || `Код 1С: ${clientId1c}`}
+                </div>
+              </>
+            ) : (
+              <div className="text-[13px] text-slate-400">Обрати клієнта…</div>
+            )}
+          </div>
+          <span className="text-[12px] font-semibold text-emet-blue shrink-0">
+            {clientId1c ? 'Змінити' : 'Обрати'}
+          </span>
+        </button>
+      </FormGroup>
+
+      <ClientPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        selectedClientId={clientId1c}
+        onSelect={picked => {
+          onChange(picked.clientId1c);
+          setPickerOpen(false);
+        }}
+      />
+    </>
   );
 }
 
