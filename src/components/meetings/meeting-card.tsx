@@ -210,15 +210,19 @@ export function MeetingCard({
         return (
           <>
             {/* MOBILE: всі картки = ОДИН рядок: primary + secondary + phone.
-                Консистентно по статусам — не плутає різними layout-ами. */}
-            <div className="md:hidden flex items-stretch gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
+                Консистентно по статусам — не плутає різними layout-ами.
+                `mt-auto` притискає actions до низу — інакше короткі картки
+                (без адреси) піднімають кнопки вище ніж у сусідів у grid-row. */}
+            <div className="md:hidden mt-auto flex items-stretch gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
               {primary && <div className="flex-1 min-w-0 flex">{primary}</div>}
               {secondary && <div className="flex-1 min-w-0 flex">{secondary}</div>}
               {phoneBtn}
             </div>
 
-            {/* DESKTOP: оригінальний flex-wrap actions row. */}
-            <div className="hidden md:flex flex-wrap gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
+            {/* DESKTOP: actions row внизу картки. mt-auto + grid stretch
+                (default для day-group `grid lg:grid-cols-2`) → у парних
+                картках кнопки вирівняні. */}
+            <div className="hidden md:flex flex-wrap gap-2 pt-2.5 mt-auto border-t border-emet-ink/[0.06]">
               {primary}
               {secondary}
             </div>
