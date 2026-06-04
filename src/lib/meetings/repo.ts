@@ -73,6 +73,11 @@ export async function listMeetings(
 
 export interface CreateMeetingInput {
   clientId1c: string;
+  /** Display name + phone клієнта — транзитні (НЕ зберігаються у БД).
+   *  Використовуються тільки у snapshot для saveNewMeeting payload —
+   *  1С CRM Модулі вимагають Client + Phone у payload. */
+  clientName?: string | null;
+  clientPhone?: string | null;
   date: string;
   time: string;
   durationMin: number | null;
@@ -108,7 +113,12 @@ export async function createMeeting(
   if (rows.length === 0) return { data: null, error: 'no row returned after insert' };
   const meeting = adaptMeetingRow(rows[0]);
 
-  await enqueueSync(meeting.id, 'save', meeting);
+  // Snapshot include транзитні поля з input (БД-зберігаються тільки persisted).
+  await enqueueSync(meeting.id, 'save', {
+    ...meeting,
+    clientName: input.clientName ?? null,
+    clientPhone: input.clientPhone ?? null,
+  });
   return { data: meeting, error: null };
 }
 

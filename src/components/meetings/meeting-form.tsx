@@ -53,6 +53,10 @@ interface Props {
 
 export interface MeetingFormData {
   clientId1c: string;
+  /** Display name + телефон передаємо щоб 1С не падало на «Поле объекта не
+   *  обнаружено (Phone/Client)» у saveNewMeeting. У БД не зберігаємо. */
+  clientName: string;
+  clientPhone: string;
   date: string;        // YYYY-MM-DD
   time: string;        // HH:MM
   durationMin: number | null;
@@ -83,6 +87,8 @@ function getCreateDefaults(): MeetingFormData {
   const time = now.toTimeString().slice(0, 5);
   return {
     clientId1c: '',
+    clientName: '',
+    clientPhone: '',
     date,
     time,
     durationMin: 45,
@@ -95,6 +101,10 @@ function getCreateDefaults(): MeetingFormData {
 function meetingToFormData(m: MeetingWithSync): MeetingFormData {
   return {
     clientId1c: m.clientId1c,
+    // У edit-mode беремо з 1С-snapshot fields (адаптер заповнює) — інакше
+    // якщо клієнт не у getManagerClients-кеші, при save phone/client стерлись би.
+    clientName: m.clientNameFromOneC ?? '',
+    clientPhone: m.clientPhoneFromOneC ?? '',
     date: m.date,
     time: m.time.slice(0, 5),
     durationMin: m.durationMin,
@@ -187,7 +197,12 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
             {/* Client */}
             <ClientField
               clientId1c={form.clientId1c}
-              onChange={id => setForm(f => ({ ...f, clientId1c: id }))}
+              onChange={picked => setForm(f => ({
+                ...f,
+                clientId1c: picked.id,
+                clientName: picked.name,
+                clientPhone: picked.phone,
+              }))}
             />
 
             {/* Date + Time row */}
@@ -371,7 +386,7 @@ function FormGroup({
 
 interface ClientFieldProps {
   clientId1c: string;
-  onChange: (id: string) => void;
+  onChange: (picked: { id: string; name: string; phone: string }) => void;
 }
 
 function ClientField({ clientId1c, onChange }: ClientFieldProps) {
@@ -424,7 +439,11 @@ function ClientField({ clientId1c, onChange }: ClientFieldProps) {
         onClose={() => setPickerOpen(false)}
         selectedClientId={clientId1c}
         onSelect={picked => {
-          onChange(picked.clientId1c);
+          onChange({
+            id: picked.clientId1c,
+            name: picked.clientName,
+            phone: picked.phone,
+          });
           setPickerOpen(false);
         }}
       />

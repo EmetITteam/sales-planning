@@ -183,6 +183,8 @@ export function MeetingsDashboard() {
       if (formMode === 'create') {
         await apiCreateMeeting({
           clientId1c: data.clientId1c,
+          clientName: data.clientName,
+          clientPhone: data.clientPhone,
           date: data.date,
           time: data.time,
           durationMin: data.durationMin,

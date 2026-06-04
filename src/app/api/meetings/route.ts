@@ -36,6 +36,10 @@ export async function GET(request: NextRequest) {
 
 interface CreateBody {
   clientId1c: string;
+  /** Display name + phone — НЕ зберігаємо у БД, але прокидаємо у snapshot
+   *  для saveNewMeeting payload (1С вимагає). */
+  clientName?: string;
+  clientPhone?: string;
   date: string;
   time: string;
   durationMin: number | null;
@@ -73,6 +77,8 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await createMeeting(session.login, {
     clientId1c: body.clientId1c,
+    clientName: body.clientName ?? null,
+    clientPhone: body.clientPhone ?? null,
     date: body.date,
     time,
     durationMin: body.durationMin ?? null,

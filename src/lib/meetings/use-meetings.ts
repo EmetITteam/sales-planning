@@ -43,6 +43,10 @@ interface UseMeetingsApi {
 
 export interface CreateMeetingInput {
   clientId1c: string;
+  /** Display name + phone — транзитні (не у БД). 1С CRM Модулі вимагають
+   *  у payload saveNewMeeting (інакше «Поле объекта не обнаружено»). */
+  clientName?: string;
+  clientPhone?: string;
   date: string;
   time: string;
   durationMin: number | null;

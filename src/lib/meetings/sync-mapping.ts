@@ -20,6 +20,14 @@ export interface BufferSnapshot {
   id: string;
   managerLogin: string;
   clientId1c: string;
+  /** Транзитні поля — не у БД, додаються у repo.createMeeting перед
+   *  enqueueSync з PickedClient. 1С Модулі CRM вимагають Phone і Client
+   *  (display name) у payload saveNewMeeting — інакше «Поле объекта не
+   *  обнаружено». Референс meeting-app payload:
+   *  {ClientID, Client, Phone, Date, Time, Status, ...}
+   */
+  clientPhone?: string | null;
+  clientName?: string | null;
   date: string;
   time: string;
   durationMin: number | null;
@@ -81,6 +89,8 @@ function snapshotToOneCMeeting(s: BufferSnapshot): Record<string, unknown> {
     Time: s.time.slice(0, 5),
     DurationMin: s.durationMin,
     Status: statusToOneC(s.status),
+    Phone: s.clientPhone ?? '',
+    Client: s.clientName ?? '',
     Purpose: s.purpose ?? '',
     Comment: s.comment ?? '',
     PlannedAddress: s.plannedAddress ?? '',
