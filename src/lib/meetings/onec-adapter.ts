@@ -117,6 +117,9 @@ export function adaptOneCMeeting(row: OneCMeetingRow): Meeting {
     geoManual: row.GeoManual ?? false,
     calendarEventId: row.calendarEventId ?? null,
     anketaDataJson: row.AnketaDataJSON ?? null,
+    clientNameFromOneC: row.Client?.trim() || null,
+    clientPhoneFromOneC: row.Phone?.trim() || null,
+    clientCategoryFromOneC: row.ClientCategory?.trim() || null,
     createdAt: now,
     updatedAt: now,
   };

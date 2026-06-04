@@ -52,11 +52,19 @@ export function MeetingCard({
   client,
   onClientClick,
 }: Props) {
-  // Real client data (з 1С getManagerClients) виграє над mock-даними.
+  // Fallback ланцюг для імені/телефону (P1 з аудиту 2026-06-04):
+  //  1. client з getManagerClients (real-time) — найсвіжіше
+  //  2. meeting.clientNameFromOneC — з getInitialData snapshot (адаптер)
+  //  3. MOCK_CLIENT_NAMES — dev fallback
+  //  4. clientId — ultimate fallback (краще ніж порожнє)
+  // Раніше пропускало кроки 2-3 → коли getManagerClients ще тягнеться,
+  // картка показувала ID або mock. Тепер snapshot-name врятовує.
   const clientName = client
     ? getClientName(client)
-    : MOCK_CLIENT_NAMES[meeting.clientId1c] ?? meeting.clientId1c;
-  const clientPhone = client?.Phone ?? '';
+    : meeting.clientNameFromOneC
+      || MOCK_CLIENT_NAMES[meeting.clientId1c]
+      || meeting.clientId1c;
+  const clientPhone = client?.Phone ?? meeting.clientPhoneFromOneC ?? '';
   const phoneClean = clientPhone.replace(/[^+\d]/g, '');
   const isFailedSync = meeting.syncStatus === 'failed';
   const isInProgress = meeting.status === 'in_progress';

@@ -59,6 +59,16 @@ export interface Meeting {
    * цього клієнта. Використовується для префілу outcome dialog.
    */
   anketaDataJson?: string | null;
+  /**
+   * Transient enrichment з 1С getInitialData (НЕ зберігається у Postgres,
+   * приходить тільки з READ-side). UI використовує як fallback коли клієнт
+   * НЕ у getManagerClients-кеші (race / чужий клієнт історично).
+   * Адаптер `adaptOneCMeeting` заповнює; меш-операції (cancel/start/finish)
+   * не міняють — лишається з останнього server snapshot.
+   */
+  clientNameFromOneC?: string | null;
+  clientPhoneFromOneC?: string | null;
+  clientCategoryFromOneC?: string | null;
   createdAt: string;                   // ISO timestamp
   updatedAt: string;                   // ISO timestamp
 }
