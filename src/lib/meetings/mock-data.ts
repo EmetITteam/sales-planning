@@ -215,22 +215,23 @@ export function computeStats(meetings: MeetingWithSync[], today: Date): Meetings
 
   let total = 0;
   let todayCount = 0;
-  let inProgress = 0;
-  let completed = 0;
-  let planned = 0;
+  let todayCompleted = 0;
+  let todayPlanned = 0;
+  let inProgressNow = 0;
   let weekCompletedCount = 0;
   let needsFix = 0;
 
   for (const m of meetings) {
     total++;
+    // «У роботі зараз» = ВСІ in_progress (вчорашня недозакрита теж рахується)
+    if (m.status === 'in_progress') inProgressNow++;
     if (m.status === 'done' && m.date >= weekStartStr && m.date <= todayStr) {
       weekCompletedCount++;
     }
     if (m.date === todayStr) {
       todayCount++;
-      if (m.status === 'in_progress') inProgress++;
-      else if (m.status === 'done') completed++;
-      else if (m.status === 'planned') planned++;
+      if (m.status === 'done') todayCompleted++;
+      else if (m.status === 'planned') todayPlanned++;
     }
     if (m.syncStatus === 'failed') needsFix++;
   }
@@ -238,9 +239,9 @@ export function computeStats(meetings: MeetingWithSync[], today: Date): Meetings
   return {
     total,
     today: todayCount,
-    todayInProgress: inProgress,
-    todayCompleted: completed,
-    todayPlanned: planned,
+    todayInProgress: inProgressNow,
+    todayCompleted,
+    todayPlanned,
     weekCompleted: weekCompletedCount,
     needsFix,
   };

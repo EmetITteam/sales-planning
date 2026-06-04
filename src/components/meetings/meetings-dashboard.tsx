@@ -15,7 +15,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { MeetingsWidgets } from './meetings-widgets';
-import { MeetingsFilters, type StatusFilter, type SortDir } from './meetings-filters';
+import { MeetingsFilters, type StatusFilter } from './meetings-filters';
 import { DayGroup } from './day-group';
 import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeting-form';
 import { StartMeetingDialog, FinishMeetingDialog } from './location-capture-dialog';
@@ -40,10 +40,10 @@ interface Toast {
 
 export function MeetingsDashboard() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [clientFilter, setClientFilter] = useState<{ id: string; name: string } | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [datePreset, setDatePreset] = useState<DatePreset>(DEFAULT_PRESET);
   const [search, setSearch] = useState('');
+  // Sort — завжди asc (ранні зверху). Менеджеру не критично перемикати.
+  const sortDir = 'asc' as const;
 
   // Form state — single instance shared across all cards + header create button.
   const [formOpen, setFormOpen] = useState(false);
@@ -98,17 +98,23 @@ export function MeetingsDashboard() {
   // тому ріжемо на нашій стороні до точного діапазону preset-а. Якщо є
   // активний search — ігноруємо date filter (як у meeting-app: пошук
   // працює по ВСІХ завантажених зустрічах незалежно від обраного дня).
+  // Robust порівняння через timestamp щоб не пропустити будь-які edge-формати.
   const activeRange = useMemo(() => calcDateRange(datePreset), [datePreset]);
+  const rangeTs = useMemo(() => {
+    const start = Date.parse(`${activeRange.startDateString}T00:00:00`);
+    const end = Date.parse(`${activeRange.endDateString}T23:59:59`);
+    return { start, end };
+  }, [activeRange]);
   const filtered = useMemo(() => {
     let result = meetings;
     const q = search.trim().toLowerCase();
     if (q.length === 0) {
-      result = result.filter(
-        m => m.date >= activeRange.startDateString && m.date <= activeRange.endDateString,
-      );
+      result = result.filter(m => {
+        const t = Date.parse(`${m.date}T00:00:00`);
+        return Number.isFinite(t) && t >= rangeTs.start && t <= rangeTs.end;
+      });
     }
     if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
-    if (clientFilter) result = result.filter(m => m.clientId1c === clientFilter.id);
     if (q.length > 0) {
       result = result.filter(m => {
         const c = clientsByID.get(m.clientId1c);
@@ -133,7 +139,7 @@ export function MeetingsDashboard() {
       return sortDir === 'asc' ? ak.localeCompare(bk) : bk.localeCompare(ak);
     });
     return result;
-  }, [meetings, statusFilter, clientFilter, sortDir, search, clientsByID, activeRange]);
+  }, [meetings, statusFilter, search, clientsByID, rangeTs]);
 
   const stats = useMemo(() => computeStats(meetings, today), [meetings, today]);
   const groups = useMemo(() => groupMeetingsByDate(filtered, sortDir), [filtered, sortDir]);
@@ -304,10 +310,6 @@ export function MeetingsDashboard() {
       <MeetingsFilters
         value={statusFilter}
         onChange={setStatusFilter}
-        clientFilter={clientFilter}
-        onClientFilterChange={setClientFilter}
-        sortDir={sortDir}
-        onSortDirChange={setSortDir}
         datePreset={datePreset}
         onDatePresetChange={setDatePreset}
         search={search}
