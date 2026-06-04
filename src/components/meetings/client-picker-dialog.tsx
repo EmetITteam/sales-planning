@@ -184,6 +184,7 @@ export function ClientPickerDialog({ open, onClose, onSelect, selectedClientId }
                   <ClientRow
                     key={c.ClientID}
                     client={c}
+                    isMine
                     isSelected={c.ClientID === selectedClientId}
                     onClick={() => handlePick(c)}
                   />
@@ -201,15 +202,18 @@ export function ClientPickerDialog({ open, onClose, onSelect, selectedClientId }
                 )}
                 {!remoteLoading && remoteResults.length > 0 && (
                   <div className="divide-y divide-slate-100">
-                    <div className="px-5 md:px-6 py-2 text-[10px] font-bold uppercase tracking-[0.7px] text-slate-400 bg-amber-50/60">
-                      Інші клієнти бази
+                    <div className="px-5 md:px-6 py-2 text-[10px] font-bold uppercase tracking-[0.7px] text-slate-400 bg-slate-50/60">
+                      Інші клієнти бази · закріплені за колегами
                     </div>
                     {remoteResults.map(c => (
                       <ClientRow
                         key={c.ClientID}
                         client={c}
+                        isMine={false}
                         isSelected={c.ClientID === selectedClientId}
-                        onClick={() => handlePick(c)}
+                        /* Чужого клієнта не дозволяємо вибрати — не можна
+                           створювати зустріч на клієнті колеги. Клік ігнор. */
+                        onClick={() => {}}
                       />
                     ))}
                   </div>
@@ -230,15 +234,37 @@ export function ClientPickerDialog({ open, onClose, onSelect, selectedClientId }
 
 function ClientRow({
   client,
+  isMine,
   isSelected,
   onClick,
 }: {
   client: ClientFromOneC;
+  /** true для local list (свої клієнти менеджера). false для remote findClient. */
+  isMine: boolean;
   isSelected: boolean;
   onClick: () => void;
 }) {
   const name = getClientName(client);
   const address = getClientAddress(client);
+  const managerName = client.managerName?.trim() || '';
+
+  // Чужий клієнт — статичний рядок без cursor/hover. Менеджер не може
+  // створити зустріч на клієнті колеги (це обхід відповідального). Логіка
+  // ідентична з GlobalClientSearchDialog у /clients.
+  if (!isMine) {
+    return (
+      <div
+        className="w-full text-left px-5 md:px-6 py-3 flex flex-col gap-0.5 cursor-not-allowed opacity-90"
+        title="Це клієнт іншого менеджера — створити зустріч не можна."
+      >
+        <div className="text-[14px] font-bold text-emet-ink leading-tight">{name}</div>
+        <div className="text-[11px] text-slate-500">
+          Менеджер: <span className="font-semibold text-slate-700">{managerName || 'Не призначено'}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
