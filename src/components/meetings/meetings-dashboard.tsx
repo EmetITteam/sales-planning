@@ -321,7 +321,7 @@ export function MeetingsDashboard() {
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-[22px] font-bold text-emet-ink tracking-tight leading-tight">
-            Мої зустрічі
+            Зустрічі
           </h1>
           <p className="text-[12px] text-slate-500 mt-1">
             {stats.total} у списку

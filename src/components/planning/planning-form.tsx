@@ -2321,7 +2321,7 @@ export function PlanningForm({
         title="Запланувати зустріч?"
         description={
           meetingPrompt
-            ? `Хочете одразу запланувати точну дату й час зустрічі з «${meetingPrompt.clientName}»? Подія з'явиться у «Мої зустрічі».`
+            ? `Хочете одразу запланувати точну дату й час зустрічі з «${meetingPrompt.clientName}»? Подія з'явиться у блоці «Зустрічі».`
             : ''
         }
         confirmLabel="Так, запланувати"

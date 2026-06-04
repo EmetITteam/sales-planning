@@ -149,7 +149,7 @@ export function AppHeader() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Мої клієнти
+              Клієнти
             </button>
             <button
               onClick={() => router.push('/meetings')}
@@ -232,7 +232,7 @@ export function AppHeader() {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push('/clients')} className="cursor-pointer">
               <Users className="mr-2 h-3.5 w-3.5" />
-              Мої клієнти
+              Клієнти
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push('/meetings')} className="cursor-pointer">
               <Calendar className="mr-2 h-3.5 w-3.5" />

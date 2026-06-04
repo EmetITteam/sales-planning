@@ -775,7 +775,7 @@ function PageTitle({
         <Users className="h-5 w-5" />
       </div>
       <div className="flex-1 min-w-0">
-        <h1 className="text-[18px] font-bold tracking-tight">Мої клієнти</h1>
+        <h1 className="text-[18px] font-bold tracking-tight">Клієнти</h1>
         <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">{subtitle}</div>
       </div>
       {onGlobalSearch && (
