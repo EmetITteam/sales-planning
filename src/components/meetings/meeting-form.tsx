@@ -40,6 +40,8 @@ interface Props {
   initialMeeting?: MeetingWithSync;
   /** Якщо create і викликано з /clients — clientId1c одразу префіл'ений. */
   prefilledClientId?: string;
+  /** Якщо create і викликано з /planning — дата плану (YYYY-MM-DD). */
+  prefilledDate?: string;
   onClose: () => void;
   onSave: (data: MeetingFormData) => void;
 }
@@ -97,11 +99,12 @@ function meetingToFormData(m: MeetingWithSync): MeetingFormData {
   };
 }
 
-export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, onClose, onSave }: Props) {
+export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, prefilledDate, onClose, onSave }: Props) {
   const [form, setForm] = useState<MeetingFormData>(() => {
     if (mode === 'edit' && initialMeeting) return meetingToFormData(initialMeeting);
     const defaults = getCreateDefaults();
     if (prefilledClientId) defaults.clientId1c = prefilledClientId;
+    if (prefilledDate) defaults.date = prefilledDate;
     return defaults;
   });
 
@@ -113,10 +116,11 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, onC
       } else {
         const defaults = getCreateDefaults();
         if (prefilledClientId) defaults.clientId1c = prefilledClientId;
+        if (prefilledDate) defaults.date = prefilledDate;
         setForm(defaults);
       }
     }
-  }, [open, mode, initialMeeting, prefilledClientId]);
+  }, [open, mode, initialMeeting, prefilledClientId, prefilledDate]);
 
   // Цілі візиту з 1С (з fallback на hardcoded список).
   const { purposes: PURPOSES } = useMeetingPurposes();

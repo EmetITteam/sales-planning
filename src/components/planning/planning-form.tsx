@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
+import { useMeetings } from '@/lib/meetings/use-meetings';
 import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
 import { savePlanning, loadPlanning } from '@/lib/api';
 import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
@@ -992,6 +994,27 @@ export function PlanningForm({
     sleeping_lost: <RefreshCw className="h-4 w-4 text-amber-600" />,
   };
 
+  // === Етап «Зустріч» → пропозиція запланувати точну дату й час ===
+  // Коли менеджер у select Stage обирає «Зустріч», пропонуємо одразу створити
+  // подію у /meetings (закриває цикл план→подія, інакше менеджер забуде).
+  // Soft prompt — Stage пишеться як завжди, відмова просто закриває діалог.
+  const [meetingPrompt, setMeetingPrompt] = useState<{ clientId: string; clientName: string } | null>(null);
+  const [meetingFormState, setMeetingFormState] = useState<{ clientId: string } | null>(null);
+  // Hook useMeetings — щоб мати createMeeting. Range «Сьогодні» дефолтний —
+  // нам тут range не важливий, лише createMeeting.
+  const { createMeeting } = useMeetings();
+
+  /** Дата для prefill у MeetingForm: 1-ше число місяця плану або сьогодні
+   *  (якщо плановий місяць — поточний). YYYY-MM-DD. */
+  const planDateHint = useMemo(() => {
+    const month = currentPeriod?.month; // YYYY-MM
+    if (!month) return undefined;
+    const today = new Date();
+    const todayMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    if (month === todayMonth) return today.toISOString().slice(0, 10);
+    return `${month}-01`;
+  }, [currentPeriod?.month]);
+
   const updateForecast = (clientId: string, field: keyof ForecastRow, value: string | number | boolean | null | undefined) => {
     // Якщо менеджер редагує factAmount вручну — позначаємо рядок щоб
     // auto-sync з 1С НЕ перетирав цю зміну при наступному revalidate.
@@ -1011,6 +1034,10 @@ export function PlanningForm({
       }
       return updated;
     }));
+    if (field === 'stage' && value === 'Зустріч') {
+      const row = forecasts.find(f => f.clientId1c === clientId);
+      setMeetingPrompt({ clientId, clientName: row?.clientName || 'клієнтом' });
+    }
   };
 
   const updateGap = (i: number, field: keyof GapClosureRow, value: string | number | boolean | null | undefined) => {
@@ -1035,6 +1062,26 @@ export function PlanningForm({
       n[i] = updated;
       return n;
     });
+    if (field === 'stage' && value === 'Зустріч') {
+      const row = gapClosures[i];
+      if (row?.clientId1c) {
+        setMeetingPrompt({ clientId: row.clientId1c, clientName: row.clientName || 'клієнтом' });
+      }
+    }
+  };
+
+  /** Викликається коли менеджер у MeetingForm натиснув «Зберегти». */
+  const handleMeetingSave = async (data: MeetingFormData) => {
+    await createMeeting({
+      clientId1c: data.clientId1c,
+      date: data.date,
+      time: data.time,
+      durationMin: data.durationMin,
+      purpose: data.purpose,
+      comment: data.comment || null,
+      plannedAddress: data.plannedAddress || null,
+    });
+    setMeetingFormState(null);
   };
 
   const removeForecast = (clientId: string) => {
@@ -2266,6 +2313,33 @@ export function PlanningForm({
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+
+      {/* Етап «Зустріч» → пропозиція запланувати точну дату й час. */}
+      <ConfirmDialog
+        open={meetingPrompt !== null}
+        title="Запланувати зустріч?"
+        description={
+          meetingPrompt
+            ? `Хочете одразу запланувати точну дату й час зустрічі з «${meetingPrompt.clientName}»? Подія з'явиться у «Мої зустрічі».`
+            : ''
+        }
+        confirmLabel="Так, запланувати"
+        cancelLabel="Пізніше"
+        onConfirm={() => {
+          if (meetingPrompt) setMeetingFormState({ clientId: meetingPrompt.clientId });
+          setMeetingPrompt(null);
+        }}
+        onCancel={() => setMeetingPrompt(null)}
+      />
+
+      <MeetingForm
+        open={meetingFormState !== null}
+        mode="create"
+        prefilledClientId={meetingFormState?.clientId}
+        prefilledDate={planDateHint}
+        onClose={() => setMeetingFormState(null)}
+        onSave={handleMeetingSave}
       />
     </div>
   );
