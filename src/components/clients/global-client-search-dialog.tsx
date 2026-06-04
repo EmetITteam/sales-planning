@@ -28,11 +28,17 @@ import { getClientName, getClientAddress, type ClientFromOneC } from '@/lib/mity
 interface Props {
   open: boolean;
   onClose: () => void;
+  /**
+   * Викликається коли менеджер тицяє по СВОЄМУ клієнту (isMine=true) у списку
+   * результатів. Батьківська сторінка має сфокусувати картку у «Мої клієнти».
+   * Для чужих клієнтів клік не робить нічого — їх контакти захищені.
+   */
+  onSelectMine?: (clientId: string) => void;
 }
 
 const DEBOUNCE_MS = 350;
 
-export function GlobalClientSearchDialog({ open, onClose }: Props) {
+export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props) {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const sessionUser = useAppStore(s => s.user);
@@ -133,7 +139,12 @@ export function GlobalClientSearchDialog({ open, onClose }: Props) {
             {!loading && results.length > 0 && (
               <div className="divide-y divide-slate-100">
                 {results.map(c => (
-                  <ClientRow key={c.ClientID} client={c} myLogin={myLogin} />
+                  <ClientRow
+                    key={c.ClientID}
+                    client={c}
+                    myLogin={myLogin}
+                    onSelectMine={onSelectMine}
+                  />
                 ))}
               </div>
             )}
@@ -144,18 +155,35 @@ export function GlobalClientSearchDialog({ open, onClose }: Props) {
   );
 }
 
-function ClientRow({ client, myLogin }: { client: ClientFromOneC; myLogin: string }) {
+function ClientRow({
+  client,
+  myLogin,
+  onSelectMine,
+}: {
+  client: ClientFromOneC;
+  myLogin: string;
+  onSelectMine?: (clientId: string) => void;
+}) {
   const name = getClientName(client);
   const address = getClientAddress(client);
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
-  // managerName приходить з 1С. Якщо isMine=true або managerName=мій логін → виділяємо.
   const managerName = client.managerName?.trim() || '';
   const isMine =
     client.isMine === true ||
     (!!managerName && managerName.toLowerCase() === myLogin);
 
-  return (
-    <div className="px-5 md:px-6 py-3 flex flex-col gap-1">
+  // Свого клієнта робимо клікабельним — переходимо у його картку в «Мої клієнти».
+  // Чужий — статичний div, бо нема куди переходити (контактів все одно нема).
+  const handleClick = () => {
+    if (isMine && onSelectMine) onSelectMine(client.ClientID);
+  };
+
+  const containerClass = isMine
+    ? 'w-full text-left px-5 md:px-6 py-3 flex flex-col gap-1 hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer'
+    : 'px-5 md:px-6 py-3 flex flex-col gap-1';
+
+  const inner = (
+    <>
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-[14px] font-bold text-emet-ink truncate">{name}</span>
         {isMine && (
@@ -164,23 +192,37 @@ function ClientRow({ client, myLogin }: { client: ClientFromOneC; myLogin: strin
           </span>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
-        {client.Phone && (
-          <a
-            href={`tel:${phoneClean}`}
-            className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-semibold"
-          >
-            <PhoneIcon className="w-3 h-3" />
-            <span className="font-mono tabular-nums">{client.Phone}</span>
-          </a>
-        )}
-        {address && <span className="text-slate-500 truncate">{address}</span>}
-      </div>
-      {!isMine && managerName && (
+
+      {/* Контакти + адреса — тільки для своїх клієнтів. Чужих захищаємо щоб
+          менеджер не міг звертатись напряму, обходячи відповідального колегу. */}
+      {isMine ? (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
+          {client.Phone && (
+            <a
+              href={`tel:${phoneClean}`}
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-semibold"
+            >
+              <PhoneIcon className="w-3 h-3" />
+              <span className="font-mono tabular-nums">{client.Phone}</span>
+            </a>
+          )}
+          {address && <span className="text-slate-500 truncate">{address}</span>}
+        </div>
+      ) : (
         <div className="text-[11px] text-slate-500 mt-0.5">
-          Менеджер: <span className="font-semibold text-slate-700">{managerName}</span>
+          Менеджер: <span className="font-semibold text-slate-700">{managerName || 'Не призначено'}</span>
         </div>
       )}
-    </div>
+    </>
   );
+
+  if (isMine) {
+    return (
+      <button type="button" onClick={handleClick} className={containerClass}>
+        {inner}
+      </button>
+    );
+  }
+  return <div className={containerClass}>{inner}</div>;
 }

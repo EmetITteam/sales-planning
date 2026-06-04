@@ -670,6 +670,14 @@ export function ClientsPage() {
       <GlobalClientSearchDialog
         open={globalSearchOpen}
         onClose={() => setGlobalSearchOpen(false)}
+        onSelectMine={clientId => {
+          // Тицянув свого клієнта у результатах пошуку → закриваємо діалог
+          // і фокусуємо картку в «Мої клієнти» (single-client view + expand).
+          // Скидаємо handled-flag щоб ефект focusId спрацював заново на новий ID.
+          focusHandledRef.current = false;
+          setFocusOverride(clientId);
+          setGlobalSearchOpen(false);
+        }}
       />
 
       <NewClientDialog
