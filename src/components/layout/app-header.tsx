@@ -15,10 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { PeriodFilter } from './period-filter';
-import { monthlyPeriodMeta } from '@/lib/periods';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ChevronDown, Eye, EyeOff, Zap, Shield, Users, Calendar } from 'lucide-react';
+import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar } from 'lucide-react';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -49,11 +47,13 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function AppHeader() {
-  const { user, setUser, liveMode, setLiveMode, activeView, setActiveView, setCurrentPeriod } = useAppStore();
+  const { user, setUser, activeView, setActiveView } = useAppStore();
   const { mutate } = useSWRConfig();
   const router = useRouter();
   const pathname = usePathname();
   const isOnClientsPage = pathname?.startsWith('/clients') ?? false;
+  const isOnMeetingsPage = pathname?.startsWith('/meetings') ?? false;
+  const isOnPlanningPage = !isOnClientsPage && !isOnMeetingsPage;
   // Cursor-following gradient на всіх glass-card. Один document listener.
   useGlassHover();
   const handleLogout = async () => {
@@ -125,55 +125,16 @@ export function AppHeader() {
 
         <div className="w-px h-6 bg-border/60 hidden xl:block" />
 
-        {/* Period filter — приглушений у live-режимі */}
-        <div className={`shrink-0 ${liveMode ? 'opacity-50 pointer-events-none' : ''}`}>
-          <PeriodFilter />
-        </div>
-
-        {/* Live toggle — миттєвий перегляд "на сьогодні".
-            При активації окрім liveMode перемикаємо період на поточний місяць,
-            інакше пілюля «LIVE · <сьогодні>» сперечається з даними попереднього
-            місяця (бо період stays там де користувач його лишив). */}
-        <button
-          onClick={() => {
-            const next = !liveMode;
-            setLiveMode(next);
-            if (next) {
-              const now = new Date();
-              const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-              const meta = monthlyPeriodMeta(`${monthStr}-01`);
-              setCurrentPeriod({ ...meta, isActive: true });
-            }
-          }}
-          className={`inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3.5 rounded-full border text-[12px] font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-            liveMode
-              ? 'bg-amber-50/70 backdrop-blur-md border-amber-300/70 text-amber-700 shadow-sm'
-              : 'bg-white/60 backdrop-blur-md border-white/50 text-muted-foreground hover:border-amber-200 hover:text-amber-700'
-          }`}
-          title={liveMode ? 'Перейти на звітний фільтр' : 'Перегляд "на сьогодні" (read-only)'}
-          aria-label="На сьогодні"
-        >
-          <Zap className={`h-3.5 w-3.5 ${liveMode ? 'fill-amber-400' : ''}`} />
-          {/* На мобільному — лише іконка; підпис ховаємо щоб помістився avatar */}
-          <span className="hidden sm:inline">На сьогодні</span>
-        </button>
-
-        {liveMode && (
-          <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 h-9 rounded-full bg-amber-500/12 border border-amber-300/40 text-amber-800 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0">
-            <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_4px_#f59e0b]" />
-            LIVE · {new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: 'long' })}
-          </span>
-        )}
-
-        {/* Route toggle «Планування ↔ Мої клієнти» — для manager + RM.
-            Admin/Director мають свій view-toggle Планування/Огляд нижче,
-            до /clients вони ходять через user-dropdown. */}
+        {/* Route toggle «Планування / Мої клієнти / Зустрічі» — для manager + RM.
+            Період-фільтр і LIVE винесені в окремі блок-панелі (PlanningPeriodBar,
+            client/dashboard local filters) бо кожен блок має свою природну
+            одиницю часу. Шапка лишається тонкою — тільки навігація. */}
         {(user.role === 'manager' || user.role === 'rm') && (
-          <div className="hidden md:inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2 shrink-0">
+          <div className="hidden md:inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 shrink-0">
             <button
               onClick={() => router.push('/')}
               className={`inline-flex items-center h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                !isOnClientsPage
+                isOnPlanningPage
                   ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -189,6 +150,17 @@ export function AppHeader() {
               }`}
             >
               Мої клієнти
+            </button>
+            <button
+              onClick={() => router.push('/meetings')}
+              className={`inline-flex items-center gap-1.5 h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                isOnMeetingsPage
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Calendar className="h-3 w-3" />
+              Зустрічі
             </button>
           </div>
         )}
@@ -291,8 +263,8 @@ export function AppHeader() {
         <div className="md:hidden flex gap-1 mx-4 mb-2 p-1 rounded-full bg-white/60 backdrop-blur-md border border-white/50">
           <button
             onClick={() => router.push('/')}
-            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
-              !isOnClientsPage
+            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+              isOnPlanningPage
                 ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                 : 'text-muted-foreground'
             }`}
@@ -301,13 +273,24 @@ export function AppHeader() {
           </button>
           <button
             onClick={() => router.push('/clients')}
-            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
+            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
               isOnClientsPage
                 ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                 : 'text-muted-foreground'
             }`}
           >
-            Мої клієнти
+            Клієнти
+          </button>
+          <button
+            onClick={() => router.push('/meetings')}
+            className={`flex-1 inline-flex items-center justify-center gap-1 h-9 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
+              isOnMeetingsPage
+                ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                : 'text-muted-foreground'
+            }`}
+          >
+            <Calendar className="h-3 w-3" />
+            Зустрічі
           </button>
         </div>
       )}

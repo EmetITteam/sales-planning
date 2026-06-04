@@ -3,6 +3,7 @@
 import { useAppStore } from '@/lib/store';
 import { LoginForm } from '@/components/login/login-form';
 import { AppHeader } from '@/components/layout/app-header';
+import { PlanningPeriodBar } from '@/components/layout/planning-period-bar';
 import { InstallPrompt } from '@/components/layout/install-prompt';
 import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { RMDashboard } from '@/components/dashboard/rm-dashboard';
@@ -42,6 +43,9 @@ export default function Home() {
           <CompanyOverviewDashboard />
         ) : (
           <>
+            {/* PlanningPeriodBar — фільтр (тиждень + LIVE) тільки для блоку
+                «Планування». Інші блоки мають свої локальні фільтри. */}
+            <PlanningPeriodBar />
             {user.role === 'manager' && <ManagerDashboard />}
             {user.role === 'rm' && <RMDashboard />}
             {(user.role === 'director' || user.role === 'admin') && <DirectorDashboard />}
