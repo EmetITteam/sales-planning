@@ -139,6 +139,18 @@ export function ClientsPage() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [meetingForClient, setMeetingForClient] = useState<ClientFromOneC | null>(null);
 
+  // Локальний month-фільтр (поточний / попередні 3 / свій). Default — поточний
+  // місяць. Незалежний від глобального currentPeriod (planning-режим).
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const isCurrentMonth = useMemo(() => {
+    const d = new Date();
+    const cur = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return cur === selectedMonth;
+  }, [selectedMonth]);
+
   // Deep-link ?focus=ID — приходить з /meetings dossier dialog (link «Відкрити
   // повне досьє»). Single-client view: ховаємо всіх інших + одразу expand.
   // Так UX не змушує скролити повз 250+ клієнтів.
@@ -183,9 +195,14 @@ export function ClientsPage() {
   const { planByClient, factByClient, meetingStageClientIds, loading: totalsLoading } = useClientsTotals(
     sessionUser?.login ?? null,
     clientIds,
+    selectedMonth,
   );
   // Контактна активність (зустрічі/дзвінки цього міс) — для Hero Card 4
-  const { activityByClient, loading: activitiesLoading } = useClientActivities(sessionUser?.login ?? null, clientIds);
+  const { activityByClient, loading: activitiesLoading } = useClientActivities(
+    sessionUser?.login ?? null,
+    clientIds,
+    selectedMonth,
+  );
 
   // Клієнти, у яких в плані поточного місяця стоїть етап «Зустріч», але у 1С
   // ще нема жодної зустрічі цього місяця. Менеджер забув запланувати дату/час.
@@ -529,10 +546,11 @@ export function ClientsPage() {
   return (
     <div className="space-y-4">
       <PageTitle
-        subtitle={buildHeaderSubtitle(clients.length)}
+        subtitle={buildHeaderSubtitle(clients.length, selectedMonth, isCurrentMonth)}
         onNewClient={() => setNewClientOpen(true)}
         onGlobalSearch={() => setGlobalSearchOpen(true)}
       />
+      <ClientsMonthFilter selectedMonth={selectedMonth} onChange={setSelectedMonth} />
 
       {/* === HERO BAND — 4 картки за домовленістю 2026-05-27 === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -805,20 +823,87 @@ function PageTitle({
 }
 
 /**
- * Helper для заголовка — рядок 1 (поточна дата + місяць) + рядок 2 (як працює LIVE).
- * Виноситься відразу під «Мої клієнти» щоб менеджер розумів window даних.
+ * Helper для заголовка — кількість клієнтів + обраний місяць + live-індикатор.
+ * Рядок про LIVE прибрано (live-toggle більше не у шапці).
  */
-function buildHeaderSubtitle(clientsCount: number): React.ReactNode {
-  const d = new Date();
-  const monthLabel = `${UA_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-  const today = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+function buildHeaderSubtitle(clientsCount: number, selectedMonth: string, isCurrentMonth: boolean): React.ReactNode {
+  const [y, m] = selectedMonth.split('-').map(Number);
+  const monthLabel = `${UA_MONTHS[m - 1]} ${y}`;
+  const todayD = new Date();
+  const today = `${String(todayD.getDate()).padStart(2, '0')}.${String(todayD.getMonth() + 1).padStart(2, '0')}.${todayD.getFullYear()}`;
   return (
-    <>
-      <span>{clientsCount} клієнтів · {monthLabel} · станом на <span className="font-semibold tabular-nums text-foreground/80">{today}</span></span>
-      <span className="block text-[11px] text-muted-foreground/70 mt-0.5">
-        Дані «План × Факт» — за поточний місяць. Кнопка <strong className="text-foreground/80">LIVE</strong> міняє лише швидкість оновлення, діапазон завжди «з 1-го по сьогодні».
-      </span>
-    </>
+    <span className="inline-flex items-center gap-1.5 flex-wrap">
+      <span>{clientsCount} клієнтів · {monthLabel}</span>
+      {isCurrentMonth ? (
+        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_#10b981] animate-pulse" />
+          live · станом на <span className="font-semibold tabular-nums">{today}</span>
+        </span>
+      ) : (
+        <span className="text-[11px] text-slate-500">архівні дані</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * ClientsMonthFilter — pill-toggle для перемикання між поточним місяцем і
+ * минулими (до 3х). + опція «Свій» для довільного місяця (через native input).
+ */
+function ClientsMonthFilter({
+  selectedMonth,
+  onChange,
+}: {
+  selectedMonth: string;
+  onChange: (month: string) => void;
+}) {
+  const options = useMemo(() => {
+    const out: { value: string; label: string }[] = [];
+    const d = new Date();
+    for (let i = 0; i < 4; i++) {
+      const dd = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      const value = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = UA_MONTHS[dd.getMonth()];
+      const label = i === 0 ? 'Поточний' : `${monthName.slice(0, 3)}.`;
+      out.push({ value, label });
+    }
+    return out;
+  }, []);
+
+  const isCustom = !options.some(o => o.value === selectedMonth);
+
+  return (
+    <div className="inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 shrink-0">
+      {options.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+            selectedMonth === opt.value && !isCustom
+              ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+      <label
+        className={`inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+          isCustom
+            ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        Свій
+        <input
+          type="month"
+          value={isCustom ? selectedMonth : ''}
+          onChange={e => e.target.value && onChange(e.target.value)}
+          className="sr-only"
+        />
+      </label>
+    </div>
   );
 }
 

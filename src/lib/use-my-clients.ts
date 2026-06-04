@@ -18,6 +18,7 @@ import useSWR from 'swr';
 import { useMemo } from 'react';
 import { useOneCData } from './use-onec-data';
 import { useAppStore } from './store';
+import { monthlyPidFromMonth } from './periods';
 import type { ClientFromOneC, ClientReport } from './mityng-types';
 import {
   chunkClientIds,
@@ -114,10 +115,19 @@ interface UseClientsTotalsResult {
  * @param login Логін менеджера (override з сесії на бекенді — можна не парити)
  * @param clientIds Список ID контрагентів для яких потрібен факт (з getSalesFact)
  */
-export function useClientsTotals(login: string | null, clientIds: string[]): UseClientsTotalsResult {
+/**
+ * @param monthOverride YYYY-MM. Якщо передано — використовується замість
+ *   глобального currentPeriod (для локальних фільтрів /clients). Інакше —
+ *   читається зі store (legacy / /planning інтеграція).
+ */
+export function useClientsTotals(
+  login: string | null,
+  clientIds: string[],
+  monthOverride?: string | null,
+): UseClientsTotalsResult {
   const currentPeriod = useAppStore(s => s.currentPeriod);
-  const periodId = currentPeriod.id;
-  const month = currentPeriod.month?.slice(0, 7); // 'YYYY-MM'
+  const month = monthOverride ?? currentPeriod.month?.slice(0, 7); // 'YYYY-MM'
+  const periodId = monthOverride ? monthlyPidFromMonth(monthOverride) : currentPeriod.id;
 
   // 1) План з Supabase
   const planKey = login && periodId ? `clientPlanTotals|${login}|${periodId}` : null;
@@ -224,9 +234,18 @@ export function useClientActivationPlan(login: string | null, month: string | nu
   return { plan: data ?? null, loading, error };
 }
 
-export function useClientActivities(login: string | null, clientIds: string[]): UseClientActivitiesResult {
+/**
+ * @param monthOverride YYYY-MM. Якщо передано — checkActivities бере цей
+ *   місяць замість глобального currentPeriod. Використовується для локального
+ *   фільтра /clients.
+ */
+export function useClientActivities(
+  login: string | null,
+  clientIds: string[],
+  monthOverride?: string | null,
+): UseClientActivitiesResult {
   const currentPeriod = useAppStore(s => s.currentPeriod);
-  const month = currentPeriod.month?.slice(0, 7);
+  const month = monthOverride ?? currentPeriod.month?.slice(0, 7);
 
   // 4 чанки по 200 = до 800 клієнтів. Порожні чанки → payload null → без запиту
   // (безкоштовно для менших менеджерів). Раніше 3 (600) — впритул до найбільших.
