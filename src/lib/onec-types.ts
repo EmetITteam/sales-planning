@@ -352,6 +352,29 @@ export interface OneCActionMap {
   getClientActivationPlan: { request: GetClientActivationPlanRequest; response: GetClientActivationPlanResponse };
   saveClientSurvey: { request: SaveClientSurveyRequest; response: SaveClientSurveyResponse };
   getInitialData: { request: GetInitialDataRequest; response: GetInitialDataResponse };
+  registerNewClient: { request: RegisterNewClientRequest; response: RegisterNewClientResponse };
+}
+
+/** Файл закодований у base64 для відправки у 1С (без multipart). */
+export interface RegisterNewClientFile {
+  name: string;
+  type: string;
+  /** Pure base64 без `data:image/...;base64,` префіксу. */
+  contentBase64: string;
+}
+
+export interface RegisterNewClientRequest {
+  name: string;
+  phone: string;
+  address: string;
+  education: string;
+  managerLogin: string;
+  files: RegisterNewClientFile[];
+}
+
+export interface RegisterNewClientResponse {
+  ClientID?: string;
+  ClientName?: string;
 }
 
 export interface GetInitialDataRequest {

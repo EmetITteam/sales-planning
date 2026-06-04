@@ -44,6 +44,7 @@ const ALLOWED_ACTIONS = new Set([
   'getClientActivationPlan',   // план активації бази по категоріях (login + period) — Action B
   'saveClientSurvey',          // зберегти анкету клієнта (з meeting-app outcome flow)
   'getInitialData',            // довідник purposes + meetings за період (meeting-app legacy)
+  'registerNewClient',         // створити нового клієнта з документами (meeting-app legacy)
 ]);
 
 // Action → яке поле у payload.login треба ОВЕРРАЙДНУТИ з сесії.
@@ -64,6 +65,7 @@ const LOGIN_BOUND_ACTIONS = new Set([
 // пошукати «як від імені іншого менеджера» і побачити чужий ClientCategory/Phone.
 const MANAGER_LOGIN_BOUND_ACTIONS = new Set([
   'findClient',
+  'registerNewClient',  // {managerLogin, name, phone, address, education, files} → override managerLogin з сесії
 ]);
 
 // `getClientReport` / `getAllMeetingsForClient` приймають `clientID` без login.

@@ -20,6 +20,8 @@ import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from
 import { useRegistryPlans } from '@/lib/use-registry-plans';
 import { adaptRegistryPlans } from '@/lib/onec-adapters';
 import { isTrialManager } from '@/lib/trial-manager';
+import { NewClientDialog } from './new-client-dialog';
+import { UserPlus } from 'lucide-react';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -130,6 +132,8 @@ export function ClientsPage() {
   // 'all' / категорія / 'focused' (у фокусі) / 'with-plan' (з планом)
   const [activeFilter, setActiveFilter] = useState<UICategory | 'all' | 'focused' | 'with-plan'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [newClientOpen, setNewClientOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Deep-link ?focus=ID — приходить з /meetings dossier dialog (link «Відкрити
   // повне досьє»). Single-client view: ховаємо всіх інших + одразу expand.
@@ -506,7 +510,10 @@ export function ClientsPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle subtitle={buildHeaderSubtitle(clients.length)} />
+      <PageTitle
+        subtitle={buildHeaderSubtitle(clients.length)}
+        onNewClient={() => setNewClientOpen(true)}
+      />
 
       {/* === HERO BAND — 4 картки за домовленістю 2026-05-27 === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -652,21 +659,56 @@ export function ClientsPage() {
           </>
         );
       })()}
+
+      <NewClientDialog
+        open={newClientOpen}
+        onClose={() => setNewClientOpen(false)}
+        onCreated={createdName => {
+          setToastMsg(`Клієнта «${createdName}» успішно створено.`);
+          refetch();
+          setTimeout(() => setToastMsg(null), 4000);
+        }}
+      />
+
+      {toastMsg && (
+        <div className="fixed z-[60] bottom-4 right-4 left-4 sm:left-auto sm:max-w-[360px] pointer-events-none">
+          <div className="pointer-events-auto rounded-xl px-4 py-3 text-[13px] font-semibold bg-teal-600 text-white shadow-[0_12px_28px_rgba(6,42,61,0.25)]">
+            {toastMsg}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // === Page title ===
-function PageTitle({ subtitle }: { subtitle: React.ReactNode }) {
+function PageTitle({
+  subtitle,
+  onNewClient,
+}: {
+  subtitle: React.ReactNode;
+  onNewClient?: () => void;
+}) {
   return (
     <div className="flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl bg-emet-blue text-white flex items-center justify-center shadow-[0_4px_12px_rgba(6,106,171,0.25)]">
+      <div className="w-10 h-10 rounded-xl bg-emet-blue text-white flex items-center justify-center shadow-[0_4px_12px_rgba(6,106,171,0.25)] shrink-0">
         <Users className="h-5 w-5" />
       </div>
-      <div>
+      <div className="flex-1 min-w-0">
         <h1 className="text-[18px] font-bold tracking-tight">Мої клієнти</h1>
         <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">{subtitle}</div>
       </div>
+      {onNewClient && (
+        <button
+          type="button"
+          onClick={onNewClient}
+          className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] font-bold shadow-[0_4px_14px_rgba(6,106,171,0.3)] hover:shadow-[0_6px_20px_rgba(6,106,171,0.4)] active:translate-y-px transition-all shrink-0"
+          aria-label="Новий клієнт"
+        >
+          <UserPlus className="w-4 h-4" />
+          <span className="max-sm:hidden">Новий клієнт</span>
+        </button>
+      )}
     </div>
   );
 }
