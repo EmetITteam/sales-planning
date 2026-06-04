@@ -22,6 +22,7 @@ import { adaptRegistryPlans } from '@/lib/onec-adapters';
 import { isTrialManager } from '@/lib/trial-manager';
 import { NewClientDialog } from './new-client-dialog';
 import { UserPlus } from 'lucide-react';
+import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -134,6 +135,7 @@ export function ClientsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newClientOpen, setNewClientOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [meetingForClient, setMeetingForClient] = useState<ClientFromOneC | null>(null);
 
   // Deep-link ?focus=ID — приходить з /meetings dossier dialog (link «Відкрити
   // повне досьє»). Single-client view: ховаємо всіх інших + одразу expand.
@@ -642,6 +644,7 @@ export function ClientsPage() {
                   totalsLoading={totalsLoading}
                   expandedId={expandedId}
                   onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
+                  onCreateMeeting={(c) => setMeetingForClient(c)}
                 />
               );
             })}
@@ -654,6 +657,7 @@ export function ClientsPage() {
                 totalsLoading={totalsLoading}
                 expandedId={expandedId}
                 onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
+                onCreateMeeting={(c) => setMeetingForClient(c)}
               />
             )}
           </>
@@ -667,6 +671,42 @@ export function ClientsPage() {
           setToastMsg(`Клієнта «${createdName}» успішно створено.`);
           refetch();
           setTimeout(() => setToastMsg(null), 4000);
+        }}
+      />
+
+      <MeetingForm
+        open={meetingForClient !== null}
+        mode="create"
+        prefilledClientId={meetingForClient?.ClientID}
+        onClose={() => setMeetingForClient(null)}
+        onSave={async (data: MeetingFormData) => {
+          try {
+            const res = await fetch('/api/meetings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({
+                clientId1c: data.clientId1c,
+                date: data.date,
+                time: data.time,
+                durationMin: data.durationMin,
+                purpose: data.purpose || null,
+                comment: data.comment || null,
+                plannedAddress: data.plannedAddress || null,
+              }),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              throw new Error(body.error ?? `HTTP ${res.status}`);
+            }
+            const name = meetingForClient ? getClientName(meetingForClient) : 'клієнт';
+            setToastMsg(`Зустріч з «${name}» створено.`);
+            setMeetingForClient(null);
+            setTimeout(() => setToastMsg(null), 4000);
+          } catch (e) {
+            setToastMsg(`Помилка: ${(e as Error).message}`);
+            setTimeout(() => setToastMsg(null), 5000);
+          }
         }}
       />
 
@@ -1032,7 +1072,7 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand,
+  cat, clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand, onCreateMeeting,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
@@ -1040,6 +1080,7 @@ function CategorySection({
   focusByClient: Record<string, ClientFocusItem[]>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
+  onCreateMeeting?: (client: ClientFromOneC) => void;
 }) {
   // 4-bucket sort:
   //   0 — у роботі (план>0, факт<план): TOP
@@ -1124,6 +1165,7 @@ function CategorySection({
               totalsLoading={totalsLoading}
               expanded={expandedId === c.ClientID}
               onToggle={() => onToggleExpand(c.ClientID)}
+              onCreateMeeting={onCreateMeeting}
             />
           );
         })}
@@ -1137,13 +1179,14 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand, onCreateMeeting }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
+  onCreateMeeting?: (client: ClientFromOneC) => void;
 }) {
   const [sectionOpen, setSectionOpen] = useState(false);
 
@@ -1190,6 +1233,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, t
                 totalsLoading={totalsLoading}
                 expanded={expandedId === c.ClientID}
                 onToggle={() => onToggleExpand(c.ClientID)}
+                onCreateMeeting={onCreateMeeting}
               />
             );
           })}
@@ -1200,7 +1244,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, t
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totalsLoading, expanded, onToggle }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totalsLoading, expanded, onToggle, onCreateMeeting }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
@@ -1210,6 +1254,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
   totalsLoading: boolean;
   expanded: boolean;
   onToggle: () => void;
+  onCreateMeeting?: (client: ClientFromOneC) => void;
 }) {
   const cat = toUICategory(client.ClientCategory);
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
@@ -1236,7 +1281,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[36px_minmax(0,1fr)_40px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar — 36px mobile / 40px desktop. */}
         <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0 mt-0.5 md:mt-0`}>
@@ -1305,24 +1350,58 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
                 </a>
               </>
             )}
+            {/* Desktop text-link — «Запланувати зустріч» */}
+            {onCreateMeeting && (
+              <>
+                {(address || client.Phone) && (
+                  <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>
+                )}
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onCreateMeeting(client);
+                  }}
+                  className="hidden md:inline-flex items-center gap-1 text-emet-blue hover:text-emet-blue-light font-semibold shrink-0"
+                >
+                  <Calendar className="h-3 w-3" />
+                  Запланувати зустріч
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Mobile-only icon-кнопка дзвінка (на місці колишнього chevron).
-            Desktop — phone показано як text-link в адресному рядку вище. */}
-        {client.Phone ? (
-          <a
-            href={`tel:${phoneClean}`}
-            onClick={e => e.stopPropagation()}
-            aria-label={`Подзвонити ${name}`}
-            title={client.Phone}
-            className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white hover:border-emet-blue shadow-sm active:scale-95 transition-all shrink-0"
-          >
-            <Phone className="w-[15px] h-[15px]" />
-          </a>
-        ) : (
-          <span className="md:hidden" />
-        )}
+        {/* Mobile-only icon-кнопки: phone + create meeting у одному контейнері.
+            Quadratic-style (rounded-[10px]) щоб не конфліктували з round phone-call
+            на /meetings — тут вони у читаючому контексті, не CTA. */}
+        <div className="md:hidden inline-flex items-center gap-1.5 shrink-0">
+          {client.Phone && (
+            <a
+              href={`tel:${phoneClean}`}
+              onClick={e => e.stopPropagation()}
+              aria-label={`Подзвонити ${name}`}
+              title={client.Phone}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white shadow-sm active:scale-95 transition-all"
+            >
+              <Phone className="w-[15px] h-[15px]" />
+            </a>
+          )}
+          {onCreateMeeting && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                onCreateMeeting(client);
+              }}
+              aria-label={`Запланувати зустріч з ${name}`}
+              title="Запланувати зустріч"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white shadow-sm active:scale-95 transition-all"
+            >
+              <Calendar className="w-[15px] h-[15px]" />
+            </button>
+          )}
+        </div>
 
         {/* План / Факт / % — desktop only. */}
         <NumCol label="План" value={plan} loading={totalsLoading} emptyAs={hasFact ? 'zero' : null} />

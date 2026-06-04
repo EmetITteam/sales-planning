@@ -38,6 +38,8 @@ interface Props {
   mode: MeetingFormMode;
   /** Якщо edit — передаємо існуючу зустріч щоб префілнути. */
   initialMeeting?: MeetingWithSync;
+  /** Якщо create і викликано з /clients — clientId1c одразу префіл'ений. */
+  prefilledClientId?: string;
   onClose: () => void;
   onSave: (data: MeetingFormData) => void;
 }
@@ -95,17 +97,26 @@ function meetingToFormData(m: MeetingWithSync): MeetingFormData {
   };
 }
 
-export function MeetingForm({ open, mode, initialMeeting, onClose, onSave }: Props) {
-  const [form, setForm] = useState<MeetingFormData>(() =>
-    mode === 'edit' && initialMeeting ? meetingToFormData(initialMeeting) : getCreateDefaults(),
-  );
+export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, onClose, onSave }: Props) {
+  const [form, setForm] = useState<MeetingFormData>(() => {
+    if (mode === 'edit' && initialMeeting) return meetingToFormData(initialMeeting);
+    const defaults = getCreateDefaults();
+    if (prefilledClientId) defaults.clientId1c = prefilledClientId;
+    return defaults;
+  });
 
   // Реініціалізуємо стан при відкритті / зміні режиму
   useEffect(() => {
     if (open) {
-      setForm(mode === 'edit' && initialMeeting ? meetingToFormData(initialMeeting) : getCreateDefaults());
+      if (mode === 'edit' && initialMeeting) {
+        setForm(meetingToFormData(initialMeeting));
+      } else {
+        const defaults = getCreateDefaults();
+        if (prefilledClientId) defaults.clientId1c = prefilledClientId;
+        setForm(defaults);
+      }
     }
-  }, [open, mode, initialMeeting]);
+  }, [open, mode, initialMeeting, prefilledClientId]);
 
   // Цілі візиту з 1С (з fallback на hardcoded список).
   const { purposes: PURPOSES } = useMeetingPurposes();
