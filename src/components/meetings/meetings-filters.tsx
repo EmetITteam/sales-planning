@@ -10,7 +10,12 @@
 
 import { useState } from 'react';
 import { X, Calendar, Search, ChevronDown } from 'lucide-react';
-import { DATE_PRESET_LABELS, type DatePreset } from '@/lib/meetings/date-presets';
+import {
+  DATE_PRESET_LABELS,
+  formatRangeLabel,
+  type DatePreset,
+  type DateRange,
+} from '@/lib/meetings/date-presets';
 
 export type StatusFilter = 'all' | 'planned' | 'in_progress' | 'done' | 'postponed';
 
@@ -19,6 +24,8 @@ interface Props {
   onChange: (next: StatusFilter) => void;
   datePreset: DatePreset;
   onDatePresetChange: (next: DatePreset) => void;
+  customRange: DateRange;
+  onCustomRangeChange: (next: DateRange) => void;
   search: string;
   onSearchChange: (next: string) => void;
 }
@@ -36,10 +43,15 @@ export function MeetingsFilters({
   onChange,
   datePreset,
   onDatePresetChange,
+  customRange,
+  onCustomRangeChange,
   search,
   onSearchChange,
 }: Props) {
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [draftStart, setDraftStart] = useState(customRange.startDateString);
+  const [draftEnd, setDraftEnd] = useState(customRange.endDateString);
 
   return (
     <div className="flex flex-col gap-3 mb-5">
@@ -77,19 +89,20 @@ export function MeetingsFilters({
           className="min-h-[38px] px-3.5 rounded-full border text-[12px] font-semibold inline-flex items-center gap-1.5 bg-emet-blue/10 border-emet-blue/40 text-emet-blue hover:bg-emet-blue/15 transition-all"
         >
           <Calendar className="w-3.5 h-3.5" />
-          {DATE_PRESET_LABELS[datePreset]}
+          {datePreset === 'custom'
+            ? formatRangeLabel(customRange)
+            : DATE_PRESET_LABELS[datePreset]}
           <ChevronDown className="w-3.5 h-3.5" />
         </button>
         {presetMenuOpen && (
           <>
-            {/* click-outside backdrop */}
             <div
               className="fixed inset-0 z-30"
               onClick={() => setPresetMenuOpen(false)}
               aria-hidden
             />
-            <div className="absolute z-40 mt-1 left-0 bg-white rounded-xl border border-slate-200 shadow-[0_8px_24px_rgba(6,42,61,0.10)] min-w-[180px] py-1.5">
-              {(Object.keys(DATE_PRESET_LABELS) as DatePreset[]).map((p, i) => (
+            <div className="absolute z-40 mt-1 left-0 bg-white rounded-xl border border-slate-200 shadow-[0_8px_24px_rgba(6,42,61,0.10)] min-w-[200px] py-1.5">
+              {(['today', 'tomorrow', 'this-week', 'last-week', 'this-month', 'last-month'] as DatePreset[]).map((p, i) => (
                 <div key={p}>
                   {(i === 2 || i === 4) && <div className="my-1 border-t border-slate-100" />}
                   <button
@@ -106,6 +119,84 @@ export function MeetingsFilters({
                   </button>
                 </div>
               ))}
+              <div className="my-1 border-t border-slate-100" />
+              <button
+                type="button"
+                onClick={() => {
+                  setPresetMenuOpen(false);
+                  setDraftStart(customRange.startDateString);
+                  setDraftEnd(customRange.endDateString);
+                  setCustomOpen(true);
+                }}
+                className={`w-full text-left px-3 py-2 text-[12px] font-semibold hover:bg-emet-blue/5 inline-flex items-center gap-1.5 ${
+                  datePreset === 'custom' ? 'text-emet-blue' : 'text-slate-700'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                Свій діапазон…
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Custom range popover */}
+        {customOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-30"
+              onClick={() => setCustomOpen(false)}
+              aria-hidden
+            />
+            <div className="absolute z-40 mt-1 left-0 bg-white rounded-xl border border-slate-200 shadow-[0_8px_24px_rgba(6,42,61,0.10)] p-3 min-w-[260px]">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                Свій діапазон
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-semibold text-slate-600">
+                  Від
+                  <input
+                    type="date"
+                    value={draftStart}
+                    max={draftEnd}
+                    onChange={e => setDraftStart(e.target.value)}
+                    className="mt-1 w-full text-[13px] bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:outline-none focus:border-emet-blue"
+                  />
+                </label>
+                <label className="text-[11px] font-semibold text-slate-600">
+                  До
+                  <input
+                    type="date"
+                    value={draftEnd}
+                    min={draftStart}
+                    onChange={e => setDraftEnd(e.target.value)}
+                    className="mt-1 w-full text-[13px] bg-white border border-slate-200 rounded-lg px-2.5 py-2 focus:outline-none focus:border-emet-blue"
+                  />
+                </label>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setCustomOpen(false)}
+                    className="flex-1 min-h-[36px] px-3 rounded-lg bg-slate-100 text-slate-700 text-[12px] font-semibold hover:bg-slate-200"
+                  >
+                    Скасувати
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!draftStart || !draftEnd || draftStart > draftEnd}
+                    onClick={() => {
+                      onCustomRangeChange({
+                        startDateString: draftStart,
+                        endDateString: draftEnd,
+                      });
+                      onDatePresetChange('custom');
+                      setCustomOpen(false);
+                    }}
+                    className="flex-1 min-h-[36px] px-3 rounded-lg bg-emet-blue text-white text-[12px] font-bold hover:bg-emet-blue-light disabled:opacity-40"
+                  >
+                    Застосувати
+                  </button>
+                </div>
+              </div>
             </div>
           </>
         )}

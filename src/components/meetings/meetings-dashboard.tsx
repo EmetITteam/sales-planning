@@ -29,7 +29,12 @@ import {
 } from '@/lib/meetings/mock-data';
 import { useMeetings } from '@/lib/meetings/use-meetings';
 import { useMyClients } from '@/lib/use-my-clients';
-import { calcDateRange, DEFAULT_PRESET, type DatePreset } from '@/lib/meetings/date-presets';
+import {
+  calcDateRange,
+  DATE_PRESET_LABELS,
+  DEFAULT_PRESET,
+  type DatePreset,
+} from '@/lib/meetings/date-presets';
 import { getClientName } from '@/lib/mityng-types';
 
 interface Toast {
@@ -70,6 +75,15 @@ export function MeetingsDashboard() {
   // через PeriodFilter.
   const today = useMemo(() => new Date(), []);
 
+  // Custom range (user-обраний у calendar popover). Активний коли preset='custom'.
+  const [customRange, setCustomRange] = useState(() => calcDateRange(DEFAULT_PRESET));
+
+  // Effective range — обчислюється з preset або custom.
+  const activeRange = useMemo(
+    () => (datePreset === 'custom' ? customRange : calcDateRange(datePreset)),
+    [datePreset, customRange],
+  );
+
   // READ зустрічей з 1С (getInitialData) + WRITE через наш буфер у Supabase
   // → cron-worker (`/api/cron/sync-meetings`) шле у 1С через хвилину.
   const {
@@ -80,7 +94,7 @@ export function MeetingsDashboard() {
     updateMeeting: apiUpdateMeeting,
     startMeeting: apiStartMeeting,
     finishMeeting: apiFinishMeeting,
-  } = useMeetings(datePreset);
+  } = useMeetings(activeRange);
 
   // Map клієнтів з 1С getManagerClients — для phone на картці і dossier.
   const { clients: myClients } = useMyClients();
@@ -95,11 +109,10 @@ export function MeetingsDashboard() {
   };
 
   // Client-side date-range filter: 1С іноді повертає більше ніж запитано,
-  // тому ріжемо на нашій стороні до точного діапазону preset-а. Якщо є
-  // активний search — ігноруємо date filter (як у meeting-app: пошук
-  // працює по ВСІХ завантажених зустрічах незалежно від обраного дня).
-  // Robust порівняння через timestamp щоб не пропустити будь-які edge-формати.
-  const activeRange = useMemo(() => calcDateRange(datePreset), [datePreset]);
+  // тому ріжемо на нашій стороні до точного діапазону. Якщо є активний search
+  // — ігноруємо date filter (як у meeting-app: пошук працює по ВСІХ
+  // завантажених зустрічах незалежно від обраного дня). Robust порівняння
+  // через timestamp щоб не пропустити edge-формати.
   const rangeTs = useMemo(() => {
     const start = Date.parse(`${activeRange.startDateString}T00:00:00`);
     const end = Date.parse(`${activeRange.endDateString}T23:59:59`);
@@ -141,7 +154,7 @@ export function MeetingsDashboard() {
     return result;
   }, [meetings, statusFilter, search, clientsByID, rangeTs]);
 
-  const stats = useMemo(() => computeStats(meetings, today), [meetings, today]);
+  const stats = useMemo(() => computeStats(meetings, today, rangeTs), [meetings, today, rangeTs]);
   const groups = useMemo(() => groupMeetingsByDate(filtered, sortDir), [filtered, sortDir]);
 
   const pushToast = (kind: Toast['kind'], message: string) => {
@@ -306,12 +319,14 @@ export function MeetingsDashboard() {
         </button>
       </div>
 
-      <MeetingsWidgets stats={stats} />
+      <MeetingsWidgets stats={stats} periodLabel={DATE_PRESET_LABELS[datePreset]} />
       <MeetingsFilters
         value={statusFilter}
         onChange={setStatusFilter}
         datePreset={datePreset}
         onDatePresetChange={setDatePreset}
+        customRange={customRange}
+        onCustomRangeChange={setCustomRange}
         search={search}
         onSearchChange={setSearch}
       />

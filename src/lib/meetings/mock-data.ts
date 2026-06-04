@@ -206,28 +206,45 @@ export interface MeetingsStatsTotals {
   needsFix: number;
 }
 
-export function computeStats(meetings: MeetingWithSync[], today: Date): MeetingsStatsTotals {
+/**
+ * Розраховує статистику віджетів.
+ *
+ * @param meetings Усі завантажені зустрічі (з 1С за широким range, як 1С їх віддав).
+ * @param today    Дата для «Сьогодні» counter.
+ * @param range    Опційно — обмеження для «Завершено за період» (filter лише по range).
+ *                 Якщо null — рахуємо done серед усіх meetings.
+ */
+export function computeStats(
+  meetings: MeetingWithSync[],
+  today: Date,
+  range?: { start: number; end: number },
+): MeetingsStatsTotals {
   const todayStr = toISODate(today);
-  // Тиждень = останні 7 днів включно з сьогодні
-  const weekAgo = new Date(today);
-  weekAgo.setDate(today.getDate() - 6);
-  const weekStartStr = toISODate(weekAgo);
 
   let total = 0;
   let todayCount = 0;
   let todayCompleted = 0;
   let todayPlanned = 0;
   let inProgressNow = 0;
-  let weekCompletedCount = 0;
+  let periodCompletedCount = 0;
   let needsFix = 0;
 
   for (const m of meetings) {
     total++;
     // «У роботі зараз» = ВСІ in_progress (вчорашня недозакрита теж рахується)
     if (m.status === 'in_progress') inProgressNow++;
-    if (m.status === 'done' && m.date >= weekStartStr && m.date <= todayStr) {
-      weekCompletedCount++;
+
+    if (m.status === 'done') {
+      if (range) {
+        const t = Date.parse(`${m.date}T00:00:00`);
+        if (Number.isFinite(t) && t >= range.start && t <= range.end) {
+          periodCompletedCount++;
+        }
+      } else {
+        periodCompletedCount++;
+      }
     }
+
     if (m.date === todayStr) {
       todayCount++;
       if (m.status === 'done') todayCompleted++;
@@ -242,7 +259,7 @@ export function computeStats(meetings: MeetingWithSync[], today: Date): Meetings
     todayInProgress: inProgressNow,
     todayCompleted,
     todayPlanned,
-    weekCompleted: weekCompletedCount,
+    weekCompleted: periodCompletedCount,
     needsFix,
   };
 }

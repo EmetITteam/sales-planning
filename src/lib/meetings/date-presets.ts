@@ -11,7 +11,8 @@ export type DatePreset =
   | 'this-week'
   | 'last-week'
   | 'this-month'
-  | 'last-month';
+  | 'last-month'
+  | 'custom';
 
 export interface DateRange {
   /** YYYY-MM-DD inclusive */
@@ -27,7 +28,18 @@ export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
   'last-week': 'Минулий тиждень',
   'this-month': 'Поточний місяць',
   'last-month': 'Минулий місяць',
+  custom: 'Свій діапазон',
 };
+
+/** Формат періоду для display: «01.05.2026 — 31.05.2026». */
+export function formatRangeLabel(range: DateRange): string {
+  const fmt = (iso: string) => {
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  };
+  if (range.startDateString === range.endDateString) return fmt(range.startDateString);
+  return `${fmt(range.startDateString)} — ${fmt(range.endDateString)}`;
+}
 
 function fmt(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -36,12 +48,16 @@ function fmt(d: Date): string {
 /**
  * Calc start/end дати для preset. `today` — приймається ззовні для тестів
  * (інакше не зможемо зафіксувати поточну дату).
+ *
+ * `custom` НЕ обробляється тут — caller має зберігати customRange окремо
+ * і обходити цю функцію. Тут просто fallback до today щоб не падати.
  */
 export function calcDateRange(preset: DatePreset, today: Date = new Date()): DateRange {
   let startDate: Date;
   let endDate: Date;
 
   switch (preset) {
+    case 'custom':
     case 'today':
       startDate = new Date(today);
       endDate = new Date(today);

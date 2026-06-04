@@ -27,7 +27,7 @@ import type { Meeting, MeetingStatus } from './types';
 import { useOneCData } from '../use-onec-data';
 import { useAppStore } from '../store';
 import { adaptOneCMeetings, type OneCMeetingRow } from './onec-adapter';
-import { calcDateRange, DEFAULT_PRESET, type DatePreset, type DateRange } from './date-presets';
+import { calcDateRange, DEFAULT_PRESET, type DateRange } from './date-presets';
 
 interface UseMeetingsApi {
   meetings: MeetingWithSync[];
@@ -78,13 +78,17 @@ function toMeetingWithSync(
   return { ...m, syncStatus, syncFailureReason: null };
 }
 
-export function useMeetings(preset: DatePreset = DEFAULT_PRESET): UseMeetingsApi {
+export function useMeetings(range?: DateRange): UseMeetingsApi {
   const sessionUser = useAppStore(s => s.user);
-  const range: DateRange = useMemo(() => calcDateRange(preset), [preset]);
+  // Default — Сьогодні (як у meeting-app), якщо caller не передав range.
+  const effectiveRange = useMemo<DateRange>(
+    () => range ?? calcDateRange(DEFAULT_PRESET),
+    [range],
+  );
 
   // === READ з 1С ===
   const payload = sessionUser
-    ? { login: sessionUser.login, ...range }
+    ? { login: sessionUser.login, ...effectiveRange }
     : null;
   const {
     data: oneCData,

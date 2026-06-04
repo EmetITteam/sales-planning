@@ -11,9 +11,11 @@ import type { MeetingsStatsTotals } from '@/lib/meetings/mock-data';
 
 interface Props {
   stats: MeetingsStatsTotals;
+  /** Підпис обраного періоду — для caption «Завершено за період». */
+  periodLabel?: string;
 }
 
-export function MeetingsWidgets({ stats }: Props) {
+export function MeetingsWidgets({ stats, periodLabel }: Props) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
       <Widget
@@ -24,9 +26,9 @@ export function MeetingsWidgets({ stats }: Props) {
       />
       <Widget
         color="teal-700"
-        label="Завершено за тиждень"
+        label="Завершено за період"
         value={stats.weekCompleted}
-        caption="включно зі сьогодні"
+        caption={periodLabel ? periodLabel.toLowerCase() : 'у поточному діапазоні'}
       />
       <Widget
         color="amber-700"
