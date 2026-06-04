@@ -689,6 +689,12 @@ export function ClientsPage() {
           refetch();
           setTimeout(() => setToastMsg(null), 4000);
         }}
+        onOpenExistingClient={clientId => {
+          // Duplicate-warning: менеджер натиснув «Відкрити» на існуючому
+          // своєму клієнті → фокусуємо картку через той самий focusOverride.
+          focusHandledRef.current = false;
+          setFocusOverride(clientId);
+        }}
       />
 
       <MeetingForm

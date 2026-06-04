@@ -12,16 +12,25 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import { XIcon, CheckIcon, Loader2Icon, UploadIcon, FileTextIcon, Trash2Icon } from 'lucide-react';
+import { XIcon, CheckIcon, Loader2Icon, UploadIcon, FileTextIcon, Trash2Icon, AlertTriangleIcon, ExternalLinkIcon } from 'lucide-react';
 import { callOneC } from '@/lib/onec-client';
+import { useOneCData } from '@/lib/use-onec-data';
+import { useAppStore } from '@/lib/store';
+import { getClientName, type ClientFromOneC } from '@/lib/mityng-types';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   /** Callback після успішного створення — caller може refetch myClients. */
   onCreated: (createdName: string) => void;
+  /**
+   * Викликається коли менеджер у duplicate-warning натискає «Відкрити мого
+   * клієнта» (тобто схожий клієнт уже існує і він СВІЙ). Сторінка фокусує
+   * картку, діалог закривається. Якщо не передано — кнопка прихована.
+   */
+  onOpenExistingClient?: (clientId: string) => void;
 }
 
 interface PickedFile {
@@ -62,7 +71,13 @@ function normalizePhone(raw: string): string {
   return `+${digits}`;
 }
 
-export function NewClientDialog({ open, onClose, onCreated }: Props) {
+const DUPLICATE_DEBOUNCE_MS = 400;
+const DUPLICATE_MIN_CHARS = 3;
+const DUPLICATE_MAX_SHOW = 5;
+
+export function NewClientDialog({ open, onClose, onCreated, onOpenExistingClient }: Props) {
+  const sessionUser = useAppStore(s => s.user);
+  const myLogin = (sessionUser?.login ?? '').toLowerCase().trim();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -70,6 +85,8 @@ export function NewClientDialog({ open, onClose, onCreated }: Props) {
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debouncedName, setDebouncedName] = useState('');
+  const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -79,8 +96,34 @@ export function NewClientDialog({ open, onClose, onCreated }: Props) {
       setEducation('');
       setFiles([]);
       setError(null);
+      setDebouncedName('');
+      setDuplicatesDismissed(false);
     }
   }, [open]);
+
+  // Debounced findClient: коли менеджер пише ім'я ≥ 3 символи, шукаємо у ВСІЙ
+  // базі компанії. Soft warning — не блокує створення, тільки попереджає що
+  // такий клієнт, можливо, вже є (у когось іншого або у нього самого).
+  useEffect(() => {
+    const trimmed = name.trim();
+    if (trimmed.length < DUPLICATE_MIN_CHARS) {
+      setDebouncedName('');
+      return;
+    }
+    const t = setTimeout(() => setDebouncedName(trimmed), DUPLICATE_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [name]);
+
+  const shouldSearchDuplicates = open && !saving && debouncedName.length >= DUPLICATE_MIN_CHARS;
+  const { data: dupData, loading: dupLoading } = useOneCData(
+    'findClient',
+    shouldSearchDuplicates ? { searchTerm: debouncedName, managerLogin: '' } : null,
+  );
+  const duplicates: ClientFromOneC[] = useMemo(() => {
+    const arr: ClientFromOneC[] = dupData?.clients ?? [];
+    return arr.slice(0, DUPLICATE_MAX_SHOW);
+  }, [dupData]);
+  const duplicatesTotal: number = dupData?.clients?.length ?? 0;
 
   const canSave = name.trim().length > 0 && phone.trim().length > 0 && !saving;
 
@@ -170,13 +213,84 @@ export function NewClientDialog({ open, onClose, onCreated }: Props) {
               <label className="text-[11px] font-bold uppercase tracking-[0.7px] text-slate-600">
                 Назва клініки / ПІБ <span className="text-emet-blue">*</span>
               </label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Іванова Олена Петрівна"
-                className="w-full text-[14px] text-emet-ink bg-white/85 border border-slate-200 rounded-[10px] px-3.5 py-3 min-h-[44px] outline-none focus:border-emet-blue focus:shadow-[0_0_0_3px_rgba(6,106,171,0.12)] transition-all"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => { setName(e.target.value); setDuplicatesDismissed(false); }}
+                  placeholder="Іванова Олена Петрівна"
+                  className="w-full text-[14px] text-emet-ink bg-white/85 border border-slate-200 rounded-[10px] px-3.5 py-3 min-h-[44px] outline-none focus:border-emet-blue focus:shadow-[0_0_0_3px_rgba(6,106,171,0.12)] transition-all"
+                />
+                {dupLoading && shouldSearchDuplicates && (
+                  <Loader2Icon className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 animate-spin" />
+                )}
+              </div>
+
+              {/* Duplicate warning — soft, не блокує. Показуємо тільки якщо
+                  знайшли хоча б 1 матч і користувач не натиснув «Все одно
+                  створити». */}
+              {shouldSearchDuplicates && !dupLoading && duplicates.length > 0 && !duplicatesDismissed && (
+                <div className="mt-1 bg-amber-50/80 border border-amber-200 rounded-xl px-3.5 py-3 flex flex-col gap-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangleIcon className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-bold text-amber-900">
+                        Знайдено схожих клієнтів у базі — перевірте чи це не дублікат
+                      </div>
+                      <div className="text-[11px] text-amber-800/80 mt-0.5">
+                        {duplicatesTotal === 1
+                          ? '1 збіг'
+                          : `${duplicates.length}${duplicatesTotal > duplicates.length ? ` з ${duplicatesTotal}` : ''} збігів`}
+                        {' · '}клікніть для перегляду
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {duplicates.map(c => {
+                      const dupName = getClientName(c);
+                      const dupManager = c.managerName?.trim() || '';
+                      const isMine = c.isMine === true || (!!dupManager && dupManager.toLowerCase() === myLogin);
+                      return (
+                        <div
+                          key={c.ClientID}
+                          className="bg-white/70 border border-amber-200/60 rounded-lg px-2.5 py-2 flex items-center gap-2 min-w-0"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-semibold text-emet-ink truncate">
+                              {dupName}
+                            </div>
+                            <div className="text-[10.5px] text-slate-600 truncate">
+                              {isMine
+                                ? 'Це ваш клієнт'
+                                : `Менеджер: ${dupManager || 'Не призначено'}`}
+                            </div>
+                          </div>
+                          {isMine && onOpenExistingClient && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onOpenExistingClient(c.ClientID);
+                                onClose();
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emet-blue text-white text-[10.5px] font-bold hover:bg-emet-blue-light transition-colors"
+                            >
+                              <ExternalLinkIcon className="w-3 h-3" />
+                              Відкрити
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDuplicatesDismissed(true)}
+                    className="self-start text-[11px] font-semibold text-amber-900 hover:text-amber-700 underline underline-offset-2"
+                  >
+                    Не дублікат — створити нового
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Phone */}
