@@ -96,6 +96,58 @@ export function useClientReport(clientID: string | null): UseClientReportResult 
   };
 }
 
+// === Повна історія зустрічей по клієнту (Action getAllMeetingsForClient) ===
+// Lazy: викликати тільки коли менеджер натиснув «Показати всі зустрічі» у
+// досьє. Дешевий запит — список без тіл деталей.
+
+interface ClientMeetingHistoryItem {
+  id: string;
+  date: string;
+  time: string;
+  status: string;
+  purpose: string;
+  comment: string;
+  plannedAddress: string;
+  durationMin: number | null;
+}
+
+interface UseClientMeetingsHistoryResult {
+  meetings: ClientMeetingHistoryItem[];
+  loading: boolean;
+  error: string | null;
+}
+
+export function useClientMeetingsHistory(clientID: string | null): UseClientMeetingsHistoryResult {
+  const payload = clientID ? { clientID } : null;
+  const { data, loading, error } = useOneCData('getAllMeetingsForClient', payload);
+
+  const meetings = useMemo<ClientMeetingHistoryItem[]>(() => {
+    const raw = data?.meetings;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map(m => ({
+        id: m.ID ?? '',
+        date: m.Date ?? '',
+        time: m.Time ?? '',
+        status: m.Status ?? '',
+        purpose: m.Purpose ?? '',
+        comment: m.Comment ?? '',
+        plannedAddress: m.PlannedAddress ?? m.StartAddress ?? '',
+        durationMin:
+          typeof m.DurationMin === 'number'
+            ? m.DurationMin
+            : m.DurationMin
+              ? parseInt(String(m.DurationMin), 10) || null
+              : null,
+      }))
+      .filter(m => m.id)
+      // 1С повертає у довільному порядку — сортуємо новіші зверху.
+      .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+  }, [data]);
+
+  return { meetings, loading, error };
+}
+
 // === План по клієнтах (наш Supabase) + Факт по клієнтах (1С Action 3) ===
 
 interface UseClientsTotalsResult {

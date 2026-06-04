@@ -283,8 +283,23 @@ export interface GetAllMeetingsForClientRequest {
   clientID: string;
 }
 
-/** Поки що shape не верифікований у проді — `unknown`. */
-export type GetAllMeetingsForClientResponse = unknown;
+/** Shape з meeting-app legacy: 1С повертає масив зустрічей з тими ж
+ *  полями що OneCMeetingRow. У оболонці `meetings` (як getInitialData). */
+export interface GetAllMeetingsForClientResponse {
+  meetings?: Array<{
+    ID?: string;
+    Date?: string;
+    Time?: string;
+    DurationMin?: number | string | null;
+    Status?: string;
+    Purpose?: string;
+    Comment?: string;
+    PlannedAddress?: string;
+    StartAddress?: string;
+    EndAddress?: string;
+    ManagerLogin?: string;
+  }>;
+}
 
 // === getClientFocus (Action A) ===
 export interface GetClientFocusRequest {

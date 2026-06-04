@@ -12,6 +12,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import {
   XIcon,
@@ -21,8 +22,9 @@ import {
   CalendarIcon,
   ExternalLinkIcon,
   TrendingUpIcon,
+  ChevronDownIcon,
 } from 'lucide-react';
-import { useClientReport } from '@/lib/use-my-clients';
+import { useClientReport, useClientMeetingsHistory } from '@/lib/use-my-clients';
 import { useRouter } from 'next/navigation';
 
 interface Props {
@@ -36,6 +38,11 @@ interface Props {
 export function ClientDossierDialog({ open, clientId, clientNameFallback, phoneFallback, onClose }: Props) {
   const { report, loading, error } = useClientReport(open ? clientId : null);
   const router = useRouter();
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const {
+    meetings: meetingHistory,
+    loading: historyLoading,
+  } = useClientMeetingsHistory(historyOpen && open ? clientId : null);
 
   const info = report?.clientInfo;
   const name = info?.name ?? clientNameFallback ?? '—';
@@ -171,6 +178,59 @@ export function ClientDossierDialog({ open, clientId, clientNameFallback, phoneF
                   </div>
                 )}
 
+                {/* Повна історія зустрічей — collapsible, lazy-load */}
+                {clientId && (
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setHistoryOpen(o => !o)}
+                      className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-left transition-colors"
+                    >
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.7px] text-slate-600">
+                        <CalendarIcon className="w-3.5 h-3.5 text-emet-blue" />
+                        Усі зустрічі
+                        {historyOpen && meetingHistory.length > 0 && (
+                          <span className="text-emet-blue tabular-nums">· {meetingHistory.length}</span>
+                        )}
+                      </span>
+                      <ChevronDownIcon className={`w-3.5 h-3.5 text-slate-500 transition-transform ${historyOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {historyOpen && (
+                      <div className="flex flex-col gap-1.5 max-h-[260px] overflow-y-auto -mt-0.5">
+                        {historyLoading && (
+                          <div className="flex items-center justify-center py-4 text-slate-400">
+                            <Loader2Icon className="w-4 h-4 animate-spin mr-2" />
+                            <span className="text-[11px]">шукаю у 1С…</span>
+                          </div>
+                        )}
+                        {!historyLoading && meetingHistory.length === 0 && (
+                          <div className="text-[11px] text-slate-500 px-3 py-2">
+                            Зустрічей у 1С не знайдено.
+                          </div>
+                        )}
+                        {!historyLoading && meetingHistory.map(m => (
+                          <div key={m.id} className="px-3 py-2 bg-white border border-slate-100 rounded-lg">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[12px] font-bold text-emet-ink tabular-nums">
+                                {m.date} · {m.time.slice(0, 5)}
+                              </span>
+                              <span className={`text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${historyStatusColor(m.status)}`}>
+                                {m.status || '—'}
+                              </span>
+                            </div>
+                            {m.purpose && (
+                              <div className="text-[11px] text-slate-600 mt-0.5 truncate">{m.purpose}</div>
+                            )}
+                            {m.comment && (
+                              <div className="text-[10.5px] text-slate-500 mt-1 line-clamp-2">{m.comment}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Sales summary */}
                 {report?.salesReport && (
                   <div className="flex flex-col gap-1.5">
@@ -206,6 +266,17 @@ export function ClientDossierDialog({ open, clientId, clientNameFallback, phoneF
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );
+}
+
+/** Колір бейджу статусу зустрічі у history-списку (1С-русифіковані лейбли). */
+function historyStatusColor(status: string): string {
+  const s = status.trim().toLowerCase();
+  if (s.includes('заверш') || s === 'done') return 'bg-emerald-100 text-emerald-700';
+  if (s.includes('работе') || s === 'in_progress') return 'bg-amber-100 text-amber-700';
+  if (s.includes('отмен') || s === 'cancelled') return 'bg-rose-100 text-rose-700';
+  if (s.includes('просроч') || s === 'postponed') return 'bg-violet-100 text-violet-700';
+  if (s.includes('запланир') || s === 'planned') return 'bg-emet-50 text-emet-blue';
+  return 'bg-slate-100 text-slate-600';
 }
 
 function SalesSummary({ report }: { report: NonNullable<ReturnType<typeof useClientReport>['report']>['salesReport'] }) {
