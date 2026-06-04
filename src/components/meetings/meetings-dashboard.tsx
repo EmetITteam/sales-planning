@@ -29,7 +29,6 @@ import {
 } from '@/lib/meetings/mock-data';
 import { useMeetings } from '@/lib/meetings/use-meetings';
 import { useMyClients } from '@/lib/use-my-clients';
-import { getClientAddress } from '@/lib/mityng-types';
 
 interface Toast {
   id: number;
@@ -67,13 +66,12 @@ export function MeetingsDashboard() {
   // через PeriodFilter.
   const today = useMemo(() => new Date(), []);
 
-  // Sprint 1.5: useMeetings перемикається між моками й real API через
-  // NEXT_PUBLIC_MEETINGS_USE_REAL_API='true'.
+  // READ зустрічей з 1С (getInitialData) + WRITE через наш буфер у Supabase
+  // → cron-worker (`/api/cron/sync-meetings`) шле у 1С через хвилину.
   const {
     meetings,
     loading,
     error: loadError,
-    isUsingRealApi,
     createMeeting: apiCreateMeeting,
     updateMeeting: apiUpdateMeeting,
     startMeeting: apiStartMeeting,
@@ -81,41 +79,19 @@ export function MeetingsDashboard() {
   } = useMeetings();
 
   // Map клієнтів з 1С getManagerClients — для phone на картці і dossier.
-  // SWR-кешований, single fetch per page.
-  const { clients: myClients, loading: clientsLoading } = useMyClients();
+  const { clients: myClients } = useMyClients();
   const clientsByID = useMemo(() => {
     const m = new Map<string, typeof myClients[number]>();
     for (const c of myClients) m.set(c.ClientID, c);
     return m;
   }, [myClients]);
 
-  // У mock-режимі демо-зустрічі мають fake clientID (`CL-ESTET-PODOL`),
-  // який 1С не знає → getClientReport падає. Як тільки real клієнти
-  // менеджера завантажились — round-robin'имо їх ID у моки + підтягуємо
-  // адресу клієнта з 1С щоб демо не показувало hardcoded «вул. Хорива 42»
-  // для кожного клієнта. Real API режим повертає вже з реальними ID/адресами.
-  const effectiveMeetings = useMemo(() => {
-    if (isUsingRealApi || myClients.length === 0) return meetings;
-    return meetings.map((m, i) => {
-      const real = myClients[i % myClients.length];
-      if (!real) return m;
-      const realAddress = getClientAddress(real);
-      return {
-        ...m,
-        clientId1c: real.ClientID,
-        plannedAddress: realAddress || m.plannedAddress,
-        // Якщо мок мав zafiksovanu startAddress — заміняємо на real клієнтську
-        startAddress: m.startAddress && realAddress ? realAddress : m.startAddress,
-      };
-    });
-  }, [meetings, myClients, isUsingRealApi]);
-
   const handleClientClick = (clientId: string, fallbackName: string, fallbackPhone: string) => {
     setDossierClient({ id: clientId, name: fallbackName, phone: fallbackPhone });
   };
 
   const filtered = useMemo(() => {
-    let result = effectiveMeetings;
+    let result = meetings;
     if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
     if (clientFilter) result = result.filter(m => m.clientId1c === clientFilter.id);
     // Sort by date+time. ASC: ранні зустрічі першими. DESC: пізні першими.
@@ -125,9 +101,9 @@ export function MeetingsDashboard() {
       return sortDir === 'asc' ? ak.localeCompare(bk) : bk.localeCompare(ak);
     });
     return result;
-  }, [effectiveMeetings, statusFilter, clientFilter, sortDir]);
+  }, [meetings, statusFilter, clientFilter, sortDir]);
 
-  const stats = useMemo(() => computeStats(effectiveMeetings, today), [effectiveMeetings, today]);
+  const stats = useMemo(() => computeStats(meetings, today), [meetings, today]);
   const groups = useMemo(() => groupMeetingsByDate(filtered, sortDir), [filtered, sortDir]);
 
   const pushToast = (kind: Toast['kind'], message: string) => {
@@ -275,11 +251,6 @@ export function MeetingsDashboard() {
           <p className="text-[12px] text-slate-500 mt-1">
             {stats.total} на тиждень · {stats.today} сьогодні
             {stats.todayInProgress > 0 ? ` · ${stats.todayInProgress} у роботі` : ''}
-            {!isUsingRealApi && (
-              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
-                демо
-              </span>
-            )}
           </p>
         </div>
         <button
@@ -296,23 +267,7 @@ export function MeetingsDashboard() {
         </button>
       </div>
 
-      {/* KPI віджети тільки у real-API режимі. У демо вони рахуються
-          з 9 моків + замапованих клієнтів і вводять в оману (показують
-          типу «6 сьогодні» хоча це 6 mock-stub'ів). */}
-      {isUsingRealApi ? (
-        <MeetingsWidgets stats={stats} />
-      ) : (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-5 flex items-start gap-3">
-          <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-700 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v4" />
-            <path d="M12 16h.01" />
-          </svg>
-          <div className="text-[12px] text-amber-900 leading-snug">
-            <strong>Демо-режим.</strong> Показуємо 9 прикладів зустрічей з іменами і телефонами ваших справжніх клієнтів. KPI-віджети тимчасово приховані, бо рахували б числа з моків. Реальна синхронізація з 1С — після ввімкнення buffer-sync workera (Sprint 1.5.3).
-          </div>
-        </div>
-      )}
+      <MeetingsWidgets stats={stats} />
       <MeetingsFilters
         value={statusFilter}
         onChange={setStatusFilter}
@@ -323,7 +278,7 @@ export function MeetingsDashboard() {
       />
 
       {/* Day groups */}
-      {(loading && meetings.length === 0) || (!isUsingRealApi && clientsLoading && myClients.length === 0) ? (
+      {loading && meetings.length === 0 ? (
         <LoadingState />
       ) : loadError ? (
         <ErrorState message={loadError} />

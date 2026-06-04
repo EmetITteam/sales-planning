@@ -1,42 +1,37 @@
 /**
- * useMeetings — клієнтський хук для отримання й мутації зустрічей через
- * `/api/meetings` (Sprint 1.5.2).
+ * useMeetings — клієнтський хук для зустрічей.
+ *
+ * **READ**: тягне через 1С `getInitialData` (той самий action що використовує
+ * meeting-app у проді). 1С — єдине джерело правди для існуючих зустрічей.
+ *
+ * **WRITE** (create / update / start / finish): пише через `/api/meetings`
+ * у нашу Supabase + buffer (`meeting_syncs`). Cron-worker (`/api/cron/sync-meetings`)
+ * читає чергу і шле у 1С через `saveNewMeeting` / `updateMeeting` / `startMeeting`.
+ * Це гарантує що менеджер не втратить запис якщо 1С тимчасово недоступний.
  *
  * Strategy: optimistic update + revalidate-on-success.
- *
- * Хук тримає локальний `meetings: MeetingWithSync[]` (camelCase). Кожна
- * мутація:
- *   1. immediately оновлює локальний state (UI не блимає)
- *   2. шле HTTP запит
- *   3. при успіху — підмінює рядок server-response версією
- *   4. при помилці — повертає попередній стан + кидає Error (caller показує toast)
- *
- * Mock-fallback: якщо `NEXT_PUBLIC_MEETINGS_USE_REAL_API` НЕ === 'true',
- * хук одразу повертає `getMockMeetings()` БЕЗ HTTP-викликів. Це rollback-знак
- * для дев-середовища і smoke-test'ів.
+ *  - mutation одразу патчить локальний state (UI не блимає)
+ *  - якщо API повернув error → rollback на snapshot
+ *  - після successful create — refetch з 1С через 2-3 сек (cron мав встигнути)
  */
 
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyStart,
-  getMockMeetings,
   type MeetingStartPayload,
   type MeetingWithSync,
 } from './mock-data';
 import type { Meeting, MeetingStatus } from './types';
-
-interface FetchState {
-  loading: boolean;
-  error: string | null;
-}
+import { useOneCData } from '../use-onec-data';
+import { useAppStore } from '../store';
+import { adaptOneCMeetings, type OneCMeetingRow } from './onec-adapter';
 
 interface UseMeetingsApi {
   meetings: MeetingWithSync[];
   loading: boolean;
   error: string | null;
-  isUsingRealApi: boolean;
   reload: () => Promise<void>;
   createMeeting: (input: CreateMeetingInput) => Promise<MeetingWithSync | null>;
   updateMeeting: (id: string, patch: UpdateMeetingPatch) => Promise<MeetingWithSync | null>;
@@ -70,93 +65,73 @@ export interface FinishPayload {
   lat?: number | null;
   lon?: number | null;
   comment?: string | null;
-  /** true якщо адресу при finish ввели вручну (GPS не вдалось). */
   geoManual?: boolean;
 }
 
-function isUsingRealApiFlag(): boolean {
-  // Двічі перевіряємо: NEXT_PUBLIC_* доступне на client-side з process.env у Next.js.
-  return process.env.NEXT_PUBLIC_MEETINGS_USE_REAL_API === 'true';
+/** Server response Meeting → MeetingWithSync (sync=pending для щойно
+ *  створених рядків — cron worker ще не обробив). */
+function toMeetingWithSync(
+  m: Meeting,
+  syncStatus: 'pending' | 'synced' | 'failed' = 'pending',
+): MeetingWithSync {
+  return { ...m, syncStatus, syncFailureReason: null };
 }
 
-/** Server response Meeting → MeetingWithSync (додаємо `syncStatus: pending` за замовчуванням
- *  бо щойно створений рядок саме у такому стані поки worker не обробив). */
-function toMeetingWithSync(m: Meeting, syncStatus: 'pending' | 'synced' | 'failed' = 'pending'): MeetingWithSync {
-  return {
-    ...m,
-    syncStatus,
-    syncFailureReason: null,
-  };
+/** Date range payload для getInitialData. За замовчуванням: поточний місяць
+ *  ± 1 щоб охопити вчорашні/завтрашні. */
+function getDefaultRange(): { startDateString: string; endDateString: string } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { startDateString: fmt(start), endDateString: fmt(end) };
 }
 
 export function useMeetings(): UseMeetingsApi {
-  const isUsingRealApi = isUsingRealApiFlag();
-  const [meetings, setMeetings] = useState<MeetingWithSync[]>(() =>
-    isUsingRealApi ? [] : getMockMeetings(),
+  const sessionUser = useAppStore(s => s.user);
+  const range = useMemo(getDefaultRange, []);
+
+  // === READ з 1С ===
+  const payload = sessionUser
+    ? { login: sessionUser.login, ...range }
+    : null;
+  const {
+    data: oneCData,
+    loading: fetchLoading,
+    error: fetchError,
+    refetch,
+  } = useOneCData('getInitialData', payload);
+
+  const remoteMeetings = useMemo(
+    () => adaptOneCMeetings((oneCData?.meetings as OneCMeetingRow[]) ?? []),
+    [oneCData],
   );
-  const [fetchState, setFetchState] = useState<FetchState>({
-    loading: isUsingRealApi,
-    error: null,
-  });
-  // ref для optimistic-rollback (зберігаємо snapshot перед мутацією)
+
+  // === Local merge: optimistic-додані / щойно створені поверх 1С даних ===
+  // Cron worker запропсує їх у 1С через 1-2 хвилини; до того тримаємо локально.
+  const [localOverlay, setLocalOverlay] = useState<MeetingWithSync[]>([]);
+
+  const meetings = useMemo(() => {
+    if (localOverlay.length === 0) return remoteMeetings;
+    // Merge: local overrides remote by id. Local-only приклеюється до результату.
+    const byId = new Map<string, MeetingWithSync>();
+    for (const m of remoteMeetings) byId.set(m.id, m);
+    for (const m of localOverlay) byId.set(m.id, m);
+    return Array.from(byId.values());
+  }, [remoteMeetings, localOverlay]);
+
   const snapshotRef = useRef<MeetingWithSync[]>([]);
 
   const reload = useCallback(async () => {
-    if (!isUsingRealApi) {
-      setMeetings(getMockMeetings());
-      return;
-    }
-    setFetchState(s => ({ ...s, loading: true, error: null }));
-    try {
-      const res = await fetch('/api/meetings', { credentials: 'same-origin' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.json()) as { meetings: Meeting[] };
-      setMeetings(body.meetings.map(m => toMeetingWithSync(m, 'synced')));
-      setFetchState({ loading: false, error: null });
-    } catch (e) {
-      const msg = (e as Error).message || 'fetch failed';
-      setFetchState({ loading: false, error: msg });
-    }
-  }, [isUsingRealApi]);
-
-  useEffect(() => {
-    if (isUsingRealApi) void reload();
-  }, [isUsingRealApi, reload]);
+    setLocalOverlay([]);
+    refetch();
+  }, [refetch]);
 
   // === MUTATIONS ===
 
   const createMeeting = useCallback<UseMeetingsApi['createMeeting']>(
     async input => {
-      if (!isUsingRealApi) {
-        // У mock-режимі — просто додаємо локально (sprint 1.5 буде real)
-        const fake: MeetingWithSync = toMeetingWithSync(
-          {
-            id: crypto.randomUUID(),
-            managerLogin: 'mock@emet.in.ua',
-            clientId1c: input.clientId1c,
-            date: input.date,
-            time: input.time.length === 5 ? `${input.time}:00` : input.time,
-            durationMin: input.durationMin,
-            status: 'planned',
-            purpose: input.purpose,
-            comment: input.comment,
-            plannedAddress: input.plannedAddress,
-            startAddress: null,
-            startLat: null,
-            startLon: null,
-            endAddress: null,
-            endLat: null,
-            endLon: null,
-            geoManual: false,
-            calendarEventId: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          'synced',
-        );
-        setMeetings(prev => [...prev, fake]);
-        return fake;
-      }
       const res = await fetch('/api/meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -169,10 +144,12 @@ export function useMeetings(): UseMeetingsApi {
       }
       const body = (await res.json()) as { meeting: Meeting };
       const fresh = toMeetingWithSync(body.meeting, 'pending');
-      setMeetings(prev => [...prev, fresh]);
+      setLocalOverlay(prev => [...prev.filter(m => m.id !== fresh.id), fresh]);
+      // Refetch через 90 сек — cron мав встигнути синхнути у 1С
+      setTimeout(() => refetch(), 90_000);
       return fresh;
     },
-    [isUsingRealApi],
+    [refetch],
   );
 
   const patch = useCallback(
@@ -181,18 +158,16 @@ export function useMeetings(): UseMeetingsApi {
       optimistic: (m: MeetingWithSync) => MeetingWithSync,
       sendBody: unknown,
     ): Promise<MeetingWithSync | null> => {
-      // Snapshot для rollback
-      snapshotRef.current = meetings;
-      let next: MeetingWithSync | null = null;
-      setMeetings(prev =>
-        prev.map(m => {
-          if (m.id !== id) return m;
-          next = optimistic(m);
-          return next;
-        }),
-      );
+      snapshotRef.current = [...localOverlay];
 
-      if (!isUsingRealApi) return next;
+      // Optimistic
+      const current = meetings.find(m => m.id === id);
+      if (!current) return null;
+      const optimisticVersion = optimistic(current);
+      setLocalOverlay(prev => [
+        ...prev.filter(m => m.id !== id),
+        optimisticVersion,
+      ]);
 
       try {
         const res = await fetch(`/api/meetings/${id}`, {
@@ -207,15 +182,15 @@ export function useMeetings(): UseMeetingsApi {
         }
         const body = (await res.json()) as { meeting: Meeting };
         const fresh = toMeetingWithSync(body.meeting, 'pending');
-        setMeetings(prev => prev.map(m => (m.id === id ? fresh : m)));
+        setLocalOverlay(prev => [...prev.filter(m => m.id !== id), fresh]);
+        setTimeout(() => refetch(), 90_000);
         return fresh;
       } catch (e) {
-        // Rollback
-        setMeetings(snapshotRef.current);
+        setLocalOverlay(snapshotRef.current);
         throw e;
       }
     },
-    [meetings, isUsingRealApi],
+    [meetings, localOverlay, refetch],
   );
 
   const updateMeeting = useCallback<UseMeetingsApi['updateMeeting']>(
@@ -231,11 +206,14 @@ export function useMeetings(): UseMeetingsApi {
               ? `${patchData.time}:00`
               : patchData.time
             : m.time,
-          durationMin: patchData.durationMin !== undefined ? patchData.durationMin : m.durationMin,
+          durationMin:
+            patchData.durationMin !== undefined ? patchData.durationMin : m.durationMin,
           purpose: patchData.purpose !== undefined ? patchData.purpose : m.purpose,
           comment: patchData.comment !== undefined ? patchData.comment : m.comment,
           plannedAddress:
-            patchData.plannedAddress !== undefined ? patchData.plannedAddress : m.plannedAddress,
+            patchData.plannedAddress !== undefined
+              ? patchData.plannedAddress
+              : m.plannedAddress,
           status: patchData.status ?? m.status,
           updatedAt: new Date().toISOString(),
         }),
@@ -272,11 +250,12 @@ export function useMeetings(): UseMeetingsApi {
     [patch],
   );
 
+  // Skip useEffect — useOneCData фетчить автоматично коли `payload` truthy.
+  // Просто експонуємо стан.
   return {
     meetings,
-    loading: fetchState.loading,
-    error: fetchState.error,
-    isUsingRealApi,
+    loading: fetchLoading,
+    error: fetchError,
     reload,
     createMeeting,
     updateMeeting,
