@@ -17,7 +17,6 @@
 import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
-import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
 import { mapSegmentCode } from '@/lib/onec-adapters';
 import { isTrialBrandPlan } from '@/lib/trial-manager';
 import { supabase } from '@/lib/supabase';
@@ -179,14 +178,17 @@ export async function GET(request: NextRequest) {
     // у цьому endpoint вже є гард role==='admin' вище.
     // asOfDate передаємо у 1С — щоб історичні знімки (вибраний тиждень) реально
     // повертали те що було на ту дату, а не на сьогодні.
-    const currentPayload: Record<string, unknown> = { login: DIRECTOR_PROXY_LOGIN, period, includeAll: true };
+    // session.login для 1С: admin вже зареєстрований у 1С з повними правами
+    // (2026-06-04). Раніше використовували DIRECTOR_PROXY_LOGIN бо admin не
+    // існував у 1С — більше не потрібно.
+    const currentPayload: Record<string, unknown> = { login: session.login, period, includeAll: true };
     if (asOfDate) currentPayload.asOfDate = asOfDate;
     const [a4, a5, a5prev] = await Promise.all([
       callOnec('getRegistryPlans', { dateFrom, dateTo }),
       callOnec('getRegionData', currentPayload),
       // Попередній місяць — лише для порівняння clientStats. Якщо впаде —
       // продовжуємо без prev (картка просто не покаже delta).
-      callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period: prevPeriod, includeAll: true })
+      callOnec('getRegionData', { login: session.login, period: prevPeriod, includeAll: true })
         .catch(() => ({ status: 'error' as const, message: 'prev month fetch failed' })),
     ]);
 

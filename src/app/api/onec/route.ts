@@ -21,7 +21,7 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
+import { MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 
 // Дозволені 1С actions — whitelist щоб через прокі не можна було звертатись
 // до довільних 1С-методів. `login` НЕ дозволений тут — для нього є /api/auth/login
@@ -128,24 +128,18 @@ export async function POST(request: NextRequest) {
   // або перевіряємо доступ.
   // - Менеджер: тільки свій логін
   // - РМ: свій + managedUsers (менеджери регіону) напряму
-  // - Director / Admin: будь-хто. Admin без явного login → proxy через
-  //   DIRECTOR_PROXY_LOGIN бо 1С не знає що itd@emet.in.ua = Director.
+  // - Director / Admin: будь-хто (1С знає обох як юзерів з повними правами,
+  //   2026-06-04 admin itd@emet.in.ua додано у 1С — proxy через DIRECTOR_PROXY_LOGIN
+  //   більше НЕ потрібен)
+  // - Multi-region RM (Пашковська) — як director (будь-який login). Drill-down
+  //   у менеджерів іншого регіону, але managedUsers тільки Одеса.
   let safePayload = payload ?? {};
   if (LOGIN_BOUND_ACTIONS.has(action)) {
     const requestedLogin = (safePayload as { login?: string }).login;
     const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
-    // Admin → 1С не знає його як Director. Якщо payload.login або відсутній,
-    // або вказує на самого admin (own login) — підміняємо на DIRECTOR_PROXY_LOGIN.
-    // Якщо admin явно передав ЧУЖИЙ targetLogin (drill-down менеджера) —
-    // пропускаємо як є.
-    // Multi-region RM (Пашковська) — дозволяємо як director (будь-який login).
-    // Бо вона drill-down'ить у менеджерів іншого регіону (Лопушанська, Клименко
-    // з Миколаїва) — а в її managedUsers тільки Одеса.
     const sessionLoginLower = session.login.toLowerCase().trim();
     const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLoginLower];
-    if (session.role === 'admin' && (!requestedLogin || requestedLogin === session.login)) {
-      safePayload = { ...safePayload, login: DIRECTOR_PROXY_LOGIN };
-    } else if (!requestedLogin) {
+    if (!requestedLogin) {
       safePayload = { ...safePayload, login: session.login };
     } else if (
       requestedLogin !== session.login
@@ -169,13 +163,10 @@ export async function POST(request: NextRequest) {
 
   // findClient: override `managerLogin` (а не `login`) тим самим способом.
   // Менеджер не може шукати «як від імені іншого менеджера».
-  // Admin/Director — як завжди з DIRECTOR_PROXY_LOGIN коли власний логін.
   if (MANAGER_LOGIN_BOUND_ACTIONS.has(action)) {
     const requested = (safePayload as { managerLogin?: string }).managerLogin;
     const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
-    if (session.role === 'admin' && (!requested || requested === session.login)) {
-      safePayload = { ...safePayload, managerLogin: DIRECTOR_PROXY_LOGIN };
-    } else if (!requested) {
+    if (!requested) {
       safePayload = { ...safePayload, managerLogin: session.login };
     } else if (
       requested !== session.login

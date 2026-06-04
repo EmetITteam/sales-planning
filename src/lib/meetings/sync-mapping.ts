@@ -10,20 +10,6 @@
  */
 
 import type { MeetingSyncOperation } from './types';
-import { ADMIN_LOGINS, DIRECTOR_PROXY_LOGIN } from '../feature-flags';
-
-/**
- * Якщо managerLogin це admin (itd@emet.in.ua) — підставляємо DIRECTOR_PROXY_LOGIN.
- * 1С не знає admin-логіни як менеджерів — створена під ним зустріч НЕ знайдеться
- * при подальшому getInitialData(login=admin), бо proxy там теж міняє admin →
- * director. Симетрія для read+write.
- */
-function resolveLoginFor1C(login: string): string {
-  if (ADMIN_LOGINS.includes(login.toLowerCase().trim())) {
-    return DIRECTOR_PROXY_LOGIN;
-  }
-  return login;
-}
 
 /**
  * Snapshot який зберігається у `meeting_syncs.payload_snapshot`. Repo
@@ -97,7 +83,7 @@ function statusToOneC(status: string): string {
 function snapshotToOneCMeeting(s: BufferSnapshot): Record<string, unknown> {
   return {
     ID: s.id,
-    ManagerLogin: resolveLoginFor1C(s.managerLogin),
+    ManagerLogin: s.managerLogin,
     ClientID: s.clientId1c,
     Date: isoDateToOneC(s.date),
     Time: s.time.slice(0, 5),
