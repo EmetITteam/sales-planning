@@ -29,7 +29,7 @@ import {
 } from '@/lib/meetings/mock-data';
 import { useMeetings } from '@/lib/meetings/use-meetings';
 import { useMyClients } from '@/lib/use-my-clients';
-import { DEFAULT_PRESET, type DatePreset } from '@/lib/meetings/date-presets';
+import { calcDateRange, DEFAULT_PRESET, type DatePreset } from '@/lib/meetings/date-presets';
 import { getClientName } from '@/lib/mityng-types';
 
 interface Toast {
@@ -94,11 +94,21 @@ export function MeetingsDashboard() {
     setDossierClient({ id: clientId, name: fallbackName, phone: fallbackPhone });
   };
 
+  // Client-side date-range filter: 1С іноді повертає більше ніж запитано,
+  // тому ріжемо на нашій стороні до точного діапазону preset-а. Якщо є
+  // активний search — ігноруємо date filter (як у meeting-app: пошук
+  // працює по ВСІХ завантажених зустрічах незалежно від обраного дня).
+  const activeRange = useMemo(() => calcDateRange(datePreset), [datePreset]);
   const filtered = useMemo(() => {
     let result = meetings;
+    const q = search.trim().toLowerCase();
+    if (q.length === 0) {
+      result = result.filter(
+        m => m.date >= activeRange.startDateString && m.date <= activeRange.endDateString,
+      );
+    }
     if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
     if (clientFilter) result = result.filter(m => m.clientId1c === clientFilter.id);
-    const q = search.trim().toLowerCase();
     if (q.length > 0) {
       result = result.filter(m => {
         const c = clientsByID.get(m.clientId1c);
@@ -123,7 +133,7 @@ export function MeetingsDashboard() {
       return sortDir === 'asc' ? ak.localeCompare(bk) : bk.localeCompare(ak);
     });
     return result;
-  }, [meetings, statusFilter, clientFilter, sortDir, search, clientsByID]);
+  }, [meetings, statusFilter, clientFilter, sortDir, search, clientsByID, activeRange]);
 
   const stats = useMemo(() => computeStats(meetings, today), [meetings, today]);
   const groups = useMemo(() => groupMeetingsByDate(filtered, sortDir), [filtered, sortDir]);
