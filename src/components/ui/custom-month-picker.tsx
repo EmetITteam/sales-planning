@@ -12,7 +12,8 @@
  * викликається `onChange(value)` де value = 'YYYY-MM'.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const UA_MONTHS_SHORT = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
@@ -34,19 +35,33 @@ export function CustomMonthPicker({ value, label, active, onChange }: Props) {
     const y = parseInt(value.slice(0, 4), 10);
     return Number.isFinite(y) ? y : new Date().getFullYear();
   });
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+
+  // Позиціонування popover під trigger коли відкриваємо. Portal до body —
+  // інакше glass-card батьки з backdrop-blur роблять його «прозорим».
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setCoords({
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.left + window.scrollX,
+    });
+  }, [open]);
 
   // Закривати при кліку поза dropdown.
-  // ⚠️ mousedown а не click: click+setTimeout patternthat «через раз не
+  // ⚠️ mousedown а не click: click+setTimeout pattern «через раз не
   // відкриває» — bubble-ing toggle button до document closing handler
   // встигав до того як setOpen(true) відрендериться. mousedown спрацьовує
   // ДО click, тому handler перевіряє ref.contains нормально.
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const t = e.target as Node;
+      const insideTrigger = triggerRef.current?.contains(t);
+      const insidePopover = popoverRef.current?.contains(t);
+      if (!insideTrigger && !insidePopover) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -73,8 +88,9 @@ export function CustomMonthPicker({ value, label, active, onChange }: Props) {
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(o => !o)}
         className={`inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
@@ -86,8 +102,12 @@ export function CustomMonthPicker({ value, label, active, onChange }: Props) {
         {label}
       </button>
 
-      {open && (
-        <div className="absolute top-full mt-2 left-0 z-50 w-[268px] bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-[0_8px_40px_rgba(6,42,61,0.18)]">
+      {open && coords && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={popoverRef}
+          style={{ position: 'absolute', top: coords.top, left: coords.left, backgroundColor: '#ffffff' }}
+          className="z-[100] w-[268px] rounded-2xl border border-slate-200 overflow-hidden shadow-[0_12px_48px_rgba(6,42,61,0.22)]"
+        >
           {/* Year switcher */}
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#e2e7ef]">
             <button
@@ -137,8 +157,9 @@ export function CustomMonthPicker({ value, label, active, onChange }: Props) {
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
