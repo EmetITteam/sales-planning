@@ -22,6 +22,7 @@ import { adaptRegistryPlans } from '@/lib/onec-adapters';
 import { isTrialManager } from '@/lib/trial-manager';
 import { NewClientDialog } from './new-client-dialog';
 import { GlobalClientSearchDialog } from './global-client-search-dialog';
+import { CustomMonthPicker } from '@/components/ui/custom-month-picker';
 import { UserPlus } from 'lucide-react';
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
 
@@ -888,24 +889,12 @@ function ClientsMonthFilter({
           {opt.label}
         </button>
       ))}
-      <label
-        className={`relative inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
-          isCustom
-            ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
-            : 'text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        Свій
-        {/* Overlay-input — Chrome не відкриває picker для sr-only inputs.
-            opacity-0 поверх label дає клік + native month-picker. */}
-        <input
-          type="month"
-          value={selectedMonth}
-          onChange={e => e.target.value && onChange(e.target.value)}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          aria-label="Обрати місяць"
-        />
-      </label>
+      <CustomMonthPicker
+        label="Свій"
+        active={isCustom}
+        value={selectedMonth}
+        onChange={onChange}
+      />
     </div>
   );
 }

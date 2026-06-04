@@ -21,6 +21,7 @@ import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { Building2, RefreshCw, Zap, Target, DollarSign, TrendingUp, TrendingDown, AlertTriangle, CalendarDays, Users } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
+import { CustomMonthPicker } from '@/components/ui/custom-month-picker';
 
 const HEADERS_JSON = {
   'Content-Type': 'application/json',};
@@ -387,29 +388,15 @@ export function CompanyOverviewDashboard() {
               >
                 Минулий міс.
               </button>
-              <label
-                className={`relative inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  datePreset === 'custom'
-                    ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Свій
-                {/* Overlay-input (opacity-0 поверх label) — Chrome не відкриває
-                    picker для sr-only inputs. Цей патерн дає клік + showPicker. */}
-                <input
-                  type="month"
-                  value={datePreset === 'custom' ? customMonth : customMonth}
-                  onChange={e => {
-                    if (e.target.value) {
-                      setCustomMonth(e.target.value);
-                      setDatePreset('custom');
-                    }
-                  }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  aria-label="Обрати місяць"
-                />
-              </label>
+              <CustomMonthPicker
+                label="Свій"
+                active={datePreset === 'custom'}
+                value={customMonth}
+                onChange={m => {
+                  setCustomMonth(m);
+                  setDatePreset('custom');
+                }}
+              />
             </div>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 text-[11px] font-semibold text-foreground/80">
               {isLive && (
