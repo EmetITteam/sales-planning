@@ -99,6 +99,7 @@ export function MeetingsDashboard() {
     updateMeeting: apiUpdateMeeting,
     startMeeting: apiStartMeeting,
     finishMeeting: apiFinishMeeting,
+    cancelMeeting: apiCancelMeeting,
   } = useMeetings(activeRange);
 
   // Map клієнтів з 1С getManagerClients — для phone на картці і dossier.
@@ -388,6 +389,9 @@ export function MeetingsDashboard() {
         initialMeeting={editingMeeting}
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
+        onCancelMeeting={async (id) => {
+          await apiCancelMeeting(id);
+        }}
       />
 
       <StartMeetingDialog

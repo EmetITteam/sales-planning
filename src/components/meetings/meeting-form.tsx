@@ -30,6 +30,7 @@ import { useMeetingPurposes } from '@/lib/meetings/use-meeting-purposes';
 import { ClientPickerDialog } from './client-picker-dialog';
 import { useMyClients } from '@/lib/use-my-clients';
 import { getClientName } from '@/lib/mityng-types';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export type MeetingFormMode = 'create' | 'edit';
 
@@ -44,6 +45,10 @@ interface Props {
   prefilledDate?: string;
   onClose: () => void;
   onSave: (data: MeetingFormData) => void;
+  /** Edit-mode-only: скасувати зустріч (status='cancelled'). API готовий
+   *  (PATCH /api/meetings/[id] op='cancel'). Якщо не передано — кнопка не
+   *  показується. Показуємо лише для planned/postponed. */
+  onCancelMeeting?: (id: string) => void;
 }
 
 export interface MeetingFormData {
@@ -99,7 +104,13 @@ function meetingToFormData(m: MeetingWithSync): MeetingFormData {
   };
 }
 
-export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, prefilledDate, onClose, onSave }: Props) {
+export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, prefilledDate, onClose, onSave, onCancelMeeting }: Props) {
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const canCancel =
+    mode === 'edit' &&
+    initialMeeting &&
+    onCancelMeeting &&
+    (initialMeeting.status === 'planned' || initialMeeting.status === 'postponed');
   const [form, setForm] = useState<MeetingFormData>(() => {
     if (mode === 'edit' && initialMeeting) return meetingToFormData(initialMeeting);
     const defaults = getCreateDefaults();
@@ -262,6 +273,21 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
             </FormGroup>
           </div>
 
+          {/* «Скасувати зустріч» — small text-link над footer-ом для edit
+              planned/postponed. Окремий блок щоб не плутати з footer-кнопкою
+              «Закрити» (та просто закриває діалог без змін). */}
+          {canCancel && (
+            <div className="px-5 md:px-6 pt-2 pb-1 shrink-0 bg-white">
+              <button
+                type="button"
+                onClick={() => setCancelConfirmOpen(true)}
+                className="text-[12px] font-semibold text-rose-600 hover:text-rose-700 hover:underline underline-offset-2"
+              >
+                Скасувати цю зустріч
+              </button>
+            </div>
+          )}
+
           {/* Footer */}
           <div className="flex gap-2.5 px-5 py-3.5 md:px-6 md:py-4 border-t border-slate-100 shrink-0 bg-white">
             <button
@@ -269,7 +295,7 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
               onClick={onClose}
               className="flex-1 min-h-[48px] px-4 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 text-[14px] font-bold hover:bg-slate-200 active:translate-y-px transition-all"
             >
-              Скасувати
+              Закрити
             </button>
             <button
               type="button"
@@ -283,6 +309,28 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
           </div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
+
+      {/* Confirm для «Скасувати зустріч» (status='cancelled'). */}
+      <ConfirmDialog
+        open={cancelConfirmOpen}
+        title="Скасувати зустріч?"
+        description={
+          initialMeeting
+            ? `Зустріч буде позначена як «Скасована». Дію можна відмінити, повернувши статус через «Перенести».`
+            : ''
+        }
+        confirmLabel="Так, скасувати"
+        cancelLabel="Ні"
+        variant="danger"
+        onConfirm={() => {
+          if (initialMeeting && onCancelMeeting) {
+            onCancelMeeting(initialMeeting.id);
+          }
+          setCancelConfirmOpen(false);
+          onClose();
+        }}
+        onCancel={() => setCancelConfirmOpen(false)}
+      />
     </DialogPrimitive.Root>
   );
 }

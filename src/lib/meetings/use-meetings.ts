@@ -38,6 +38,7 @@ interface UseMeetingsApi {
   updateMeeting: (id: string, patch: UpdateMeetingPatch) => Promise<MeetingWithSync | null>;
   startMeeting: (id: string, payload: MeetingStartPayload) => Promise<MeetingWithSync | null>;
   finishMeeting: (id: string, payload?: FinishPayload) => Promise<MeetingWithSync | null>;
+  cancelMeeting: (id: string) => Promise<MeetingWithSync | null>;
 }
 
 export interface CreateMeetingInput {
@@ -244,6 +245,16 @@ export function useMeetings(range?: DateRange): UseMeetingsApi {
     [patch],
   );
 
+  const cancelMeeting = useCallback<UseMeetingsApi['cancelMeeting']>(
+    id =>
+      patch(
+        id,
+        m => ({ ...m, status: 'cancelled', updatedAt: new Date().toISOString() }),
+        { op: 'cancel' },
+      ),
+    [patch],
+  );
+
   // Skip useEffect — useOneCData фетчить автоматично коли `payload` truthy.
   // Просто експонуємо стан.
   return {
@@ -255,5 +266,6 @@ export function useMeetings(range?: DateRange): UseMeetingsApi {
     updateMeeting,
     startMeeting,
     finishMeeting,
+    cancelMeeting,
   };
 }
