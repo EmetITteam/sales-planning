@@ -117,8 +117,12 @@ export function AppHeader() {
           <img src="/emet-mark.svg" alt="EMET" className="h-8 w-auto object-contain -translate-y-[3px]" />
           {/* Logo wordmark — solid ink + accent dot замість gradient text.
               Gradient на 15px Windows/Chrome губить anti-aliasing (audit). */}
-          <span className="text-[15px] font-semibold tracking-tight hidden xl:flex items-center gap-1.5 text-[#081E2D] translate-y-[2px] whitespace-nowrap">
-            Планування продажів
+          {/* Wordmark — на mobile коротко «Планування», на xl повна назва.
+              Раніше повністю ховався під xl — на телефоні шапка виглядала
+              порожньою (тільки EMET-знак + аватар). */}
+          <span className="text-[14px] sm:text-[15px] font-semibold tracking-tight flex items-center gap-1.5 text-[#081E2D] translate-y-[2px] whitespace-nowrap">
+            <span className="xl:hidden">Планування</span>
+            <span className="hidden xl:inline">Планування продажів</span>
             <span className="w-1 h-1 rounded-full bg-emet-blue" />
           </span>
         </div>
