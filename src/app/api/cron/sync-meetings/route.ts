@@ -105,18 +105,24 @@ export async function GET(request: NextRequest) {
       .upsert({ id: row.id, status: 'syncing' }, { onConflict: 'id' });
 
     if (dryRun) {
-      console.log('[sync-meetings DRY] would call', call.action, JSON.stringify(call.payload));
+      console.log(`[ШАГ 1 DRY] Відправка в 1С для дії "${call.action}":`, JSON.stringify(call.payload, null, 2));
+      console.log('[ШАГ 2 DRY] Відповідь від 1С: dryRun=true (HTTP не викликано)');
       await markSynced(row.id, { dryRun: true });
       result.succeeded++;
       continue;
     }
 
-    // Real 1С call
+    // Real 1С call — console-log sent → received (формат meeting-app)
+    console.log(`[ШАГ 1] Відправка в 1С для дії "${call.action}" (sync ${row.id}):`, JSON.stringify(call.payload, null, 2));
+    const callStarted = Date.now();
     const oneCRes = await callOneCServer(call.action, call.payload);
+    const callDuration = Date.now() - callStarted;
     if (oneCRes.ok) {
+      console.log(`[ШАГ 2] Відповідь від 1С "${call.action}" OK (${callDuration}ms):`, JSON.stringify(oneCRes.data, null, 2));
       await markSynced(row.id, oneCRes.data);
       result.succeeded++;
     } else {
+      console.error(`[ШАГ 2] Помилка 1С "${call.action}" (${callDuration}ms, HTTP ${oneCRes.httpStatus}):`, oneCRes.errorMessage);
       const newRetry = (row.retry_count ?? 0) + 1;
       const nextStatus = newRetry >= MAX_RETRIES ? 'failed' : 'pending';
       await supabase.from('meeting_syncs').upsert(

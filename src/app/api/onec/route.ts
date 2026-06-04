@@ -199,6 +199,11 @@ export async function POST(request: NextRequest) {
     headers['Authorization'] = 'Basic ' + Buffer.from(`${login}:${password}`).toString('base64');
   }
 
+  // Console-лог для debug у Vercel logs (формат meeting-app).
+  // Показує що саме відправили в 1С — payload з усіма security-override-ами.
+  console.log(`[ШАГ 1] Відправка в 1С для дії "${action}":`, JSON.stringify({ action, payload: safePayload }, null, 2));
+
+  const callStarted = Date.now();
   try {
     // Server-side timeout — інакше Vercel function висить до killу платформи (~10-60с).
     // Клієнт окремо має свій 15с timeout у onec-client.ts; цей — підстраховка.
@@ -211,12 +216,13 @@ export async function POST(request: NextRequest) {
     });
 
     const text = await upstream.text();
+    const callDuration = Date.now() - callStarted;
     let json;
     try {
       json = JSON.parse(text);
     } catch {
       // У проді не показуємо raw 1С body (може бути IIS stack trace).
-      console.error(`[/api/onec] 1С returned non-JSON HTTP ${upstream.status}: ${text.slice(0, 200)}`);
+      console.error(`[ШАГ 2] Помилка від 1С "${action}" (${callDuration}ms): non-JSON HTTP ${upstream.status}: ${text.slice(0, 200)}`);
       return Response.json(
         {
           status: 'error',
@@ -227,10 +233,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Console-лог відповіді — обмежуємо до 1000 знаків бо bulk endpoints
+    // (getInitialData, getManagerClients) можуть бути 50KB+ JSON.
+    const jsonStr = JSON.stringify(json);
+    const truncated = jsonStr.length > 1000 ? jsonStr.slice(0, 1000) + `...(+${jsonStr.length - 1000} chars)` : jsonStr;
+    if (upstream.ok && json?.status !== 'error') {
+      console.log(`[ШАГ 2] Відповідь від 1С "${action}" OK (${callDuration}ms):`, truncated);
+    } else {
+      console.error(`[ШАГ 2] Помилка від 1С "${action}" (${callDuration}ms, HTTP ${upstream.status}):`, truncated);
+    }
+
     // Передаємо відповідь 1С як є — клієнт сам розбере success/error
     return Response.json(json, { status: upstream.ok ? 200 : upstream.status });
   } catch (err) {
+    const callDuration = Date.now() - callStarted;
     const message = err instanceof Error ? err.message : String(err);
+    console.error(`[ШАГ 2] Помилка зв'язку з 1С "${action}" (${callDuration}ms):`, message);
     return Response.json(
       { status: 'error', message: `Помилка зв'язку з 1С: ${message}` },
       { status: 502 },
