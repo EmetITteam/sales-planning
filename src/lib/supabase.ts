@@ -102,6 +102,11 @@ class SupabaseTable {
   insert(rows: Record<string, unknown>[]): this {
     this._method = 'POST';
     this._body = rows;
+    // PostgREST за замовчуванням НЕ повертає вставлені рядки — нам треба
+    // `.select('*')` після insert щоб отримати ID/timestamps, тож просимо
+    // representation у відповіді. Інакше `data` порожній → caller думає що
+    // запис не зробився ("no row returned after insert").
+    this._extraHeaders['Prefer'] = 'return=representation';
     return this;
   }
 
