@@ -314,11 +314,36 @@ export function CompanyOverviewDashboard() {
         </div>
       </div>
 
-      {error && (
-        <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700">
-          Помилка завантаження: {String(error.message || error)}
-        </div>
-      )}
+      {error && (() => {
+        const raw = String(error.message || error);
+        // Action 5 1С-помилка для деяких архівних місяців: "Значение не
+        // является значением объектного типа (Наименование)" або інші
+        // 500 від /api/admin/company-overview. Показуємо friendly text;
+        // raw — у tooltip і за <summary>.
+        const is1cError = raw.includes('Action ') || raw.includes('HTTP 500');
+        return (
+          <div className="px-4 py-3 rounded-xl bg-amber-50/70 backdrop-blur-md border border-amber-200/70 text-[12px] text-amber-900">
+            {is1cError ? (
+              <>
+                <p className="font-bold">Для цього періоду 1С не повернула даних.</p>
+                <p className="mt-1">
+                  Можливі причини: на той місяць план ще не виставлений,
+                  або у 1С зміна довідників.
+                  Спробуйте поточний/минулий місяць — там завжди є дані.
+                </p>
+                <details className="mt-2">
+                  <summary className="text-[11px] text-amber-700/80 cursor-pointer hover:underline">
+                    Технічні деталі
+                  </summary>
+                  <p className="mt-1 text-[11px] font-mono break-words">{raw}</p>
+                </details>
+              </>
+            ) : (
+              <>Помилка завантаження: {raw}</>
+            )}
+          </div>
+        );
+      })()}
 
       {isLoading && !data && (
         <>
