@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import Link from 'next/link';
-import { Shield, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical } from 'lucide-react';
+import { Shield, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -99,8 +99,102 @@ export default function AdminPage() {
             ready
           />
         </div>
+
+        {/* Manual sync trigger — для preview deployments де Vercel cron не
+            запускається. Також для оперативного recovery після cron-аварії. */}
+        <SyncMeetingsCard />
       </main>
     </>
+  );
+}
+
+interface SyncResult {
+  processed: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  dryRun: boolean;
+  durationMs: number;
+}
+
+function SyncMeetingsCard() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<SyncResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastRun, setLastRun] = useState<string | null>(null);
+
+  const trigger = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await fetch('/api/admin/sync-meetings-now', {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+      setResult(body);
+      setLastRun(new Date().toLocaleString('uk-UA'));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="glass-card p-5 mt-4">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
+          <Calendar className="h-4 w-4 text-emerald-700" />
+        </div>
+        <div>
+          <p className="text-[14px] font-bold">Sync зустрічей вручну</p>
+          <p className="text-[11px] text-muted-foreground">
+            Та сама логіка що cron-worker (Supabase → 1С). Корисно на preview
+            deployments де Vercel cron не запускається, або для recovery після аварії.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          type="button"
+          onClick={trigger}
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] font-bold shadow-sm hover:shadow-md active:translate-y-px transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Синхронізую…' : 'Запустити sync зараз'}
+        </button>
+        {lastRun && (
+          <span className="text-[11px] text-muted-foreground">
+            Останній запуск: {lastRun}
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <div className="mt-3 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-[12px] text-rose-700 inline-flex items-start gap-2">
+          <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>Помилка: {error}</span>
+        </div>
+      )}
+
+      {result && !error && (
+        <div className="mt-3 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[12px] text-emerald-800 inline-flex items-start gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            Оброблено: <strong>{result.processed}</strong> ·
+            успіх: <strong className="text-emerald-700">{result.succeeded}</strong> ·
+            помилок: <strong className={result.failed > 0 ? 'text-rose-700' : ''}>{result.failed}</strong> ·
+            пропущено: <strong>{result.skipped}</strong> ·
+            тривалість: <strong>{result.durationMs}ms</strong>
+            {result.dryRun && ' · DRY-RUN'}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
