@@ -21,6 +21,7 @@ import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeti
 import { StartMeetingDialog, FinishMeetingDialog } from './location-capture-dialog';
 import { ClientDossierDialog } from './client-dossier-dialog';
 import { MeetingOutcomeDialog } from './meeting-outcome-dialog';
+import { RescheduleDialog, type ReschedulePayload } from './reschedule-dialog';
 import {
   computeStats,
   groupMeetingsByDate,
@@ -67,6 +68,10 @@ export function MeetingsDashboard() {
   // Outcome dialog (survey + summary) — для «Коментар» на done та після finish.
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [outcomeMeeting, setOutcomeMeeting] = useState<MeetingWithSync | null>(null);
+
+  // Reschedule dialog state.
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [reschedulingMeeting, setReschedulingMeeting] = useState<MeetingWithSync | null>(null);
 
   // Toast state — мінімальний host без global provider (Sprint 1.6+ — refactor).
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -232,6 +237,25 @@ export function MeetingsDashboard() {
     setFinishingMeeting(m);
     setFinishOpen(true);
   };
+  const handleReschedule = (m: MeetingWithSync) => {
+    setReschedulingMeeting(m);
+    setRescheduleOpen(true);
+  };
+  const handleConfirmReschedule = async (id: string, payload: ReschedulePayload) => {
+    setRescheduleOpen(false);
+    setReschedulingMeeting(null);
+    try {
+      await apiUpdateMeeting(id, {
+        date: payload.date,
+        time: payload.time,
+        comment: payload.comment,
+        status: 'planned',
+      });
+      pushToast('success', 'Зустріч перенесено.');
+    } catch (e) {
+      pushToast('error', `Не вдалось перенести: ${(e as Error).message}`);
+    }
+  };
   const handleOutcome = (m: MeetingWithSync) => {
     setOutcomeMeeting(m);
     setOutcomeOpen(true);
@@ -349,6 +373,7 @@ export function MeetingsDashboard() {
               onEditMeeting={handleEdit}
               onStartMeeting={handleStart}
               onFinishMeeting={handleFinish}
+              onRescheduleMeeting={handleReschedule}
               onOutcomeMeeting={handleOutcome}
               clientsByID={clientsByID}
               onClientClick={handleClientClick}
@@ -392,6 +417,13 @@ export function MeetingsDashboard() {
         meeting={outcomeMeeting}
         onClose={() => setOutcomeOpen(false)}
         onSaved={handleOutcomeSaved}
+      />
+
+      <RescheduleDialog
+        open={rescheduleOpen}
+        meeting={reschedulingMeeting}
+        onClose={() => setRescheduleOpen(false)}
+        onConfirm={handleConfirmReschedule}
       />
 
       <ToastHost toasts={toasts} onDismiss={id => setToasts(t => t.filter(x => x.id !== id))} />
