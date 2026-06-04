@@ -501,6 +501,7 @@ export function ClientsPage() {
               totalsLoading={totalsLoading}
               expanded={expandedId === focusClient.ClientID}
               onToggle={() => setExpandedId(expandedId === focusClient.ClientID ? null : focusClient.ClientID)}
+              onCreateMeeting={(c) => setMeetingForClient(c)}
             />
           ) : (
             <div className="glass-card-flat px-4 py-6 text-center text-[13px] text-slate-500">
