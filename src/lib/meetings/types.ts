@@ -52,6 +52,13 @@ export interface Meeting {
   endLon: number | null;
   geoManual: boolean;                  // true якщо адресу ввели вручну (ADR-7)
   calendarEventId: string | null;      // ID події у Google Calendar (ADR-10)
+  /**
+   * JSON-stringify survey-форми (анкета клієнта). 1С зберігає його у
+   * `AnketaDataJSON` полі meeting object — meeting-app legacy. Опційне,
+   * присутнє якщо менеджер уже заповнив анкету у попередній зустрічі
+   * цього клієнта. Використовується для префілу outcome dialog.
+   */
+  anketaDataJson?: string | null;
   createdAt: string;                   // ISO timestamp
   updatedAt: string;                   // ISO timestamp
 }

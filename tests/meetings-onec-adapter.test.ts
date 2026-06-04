@@ -120,6 +120,17 @@ describe('adaptOneCMeeting — field mapping', () => {
     assert.equal(m.startLon, 30.518693);
     assert.equal(m.calendarEventId, 'gcal-evt-1');
   });
+
+  test('AnketaDataJSON → anketaDataJson camelCase', () => {
+    const json = '{"Общая информация":{"Стаж работы":"від 3-х до 5 років"}}';
+    const m = adaptOneCMeeting({ ID: 'x', AnketaDataJSON: json });
+    assert.equal(m.anketaDataJson, json);
+  });
+
+  test('AnketaDataJSON missing → anketaDataJson is null', () => {
+    const m = adaptOneCMeeting({ ID: 'x' });
+    assert.equal(m.anketaDataJson, null);
+  });
 });
 
 describe('adaptOneCMeetings — batch + filter', () => {

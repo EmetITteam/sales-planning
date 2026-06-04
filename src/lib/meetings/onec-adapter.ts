@@ -39,6 +39,9 @@ export interface OneCMeetingRow {
   EndLongitude?: number | string | null;
   GeoManual?: boolean;
   calendarEventId?: string;
+  /** JSON-stringify survey-форми (assess клієнта). Зберігається у самому
+   *  meeting обєкті — 1С продовжує meeting-app legacy. */
+  AnketaDataJSON?: string;
 }
 
 /** Перетворити 1С-Status у наш MeetingStatus. */
@@ -113,6 +116,7 @@ export function adaptOneCMeeting(row: OneCMeetingRow): Meeting {
     endLon: toNumberOrNull(row.EndLongitude),
     geoManual: row.GeoManual ?? false,
     calendarEventId: row.calendarEventId ?? null,
+    anketaDataJson: row.AnketaDataJSON ?? null,
     createdAt: now,
     updatedAt: now,
   };

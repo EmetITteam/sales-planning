@@ -44,11 +44,28 @@ export function MeetingOutcomeDialog({ open, meeting, onClose, onSaved }: Props)
   const [openSections, setOpenSections] = useState<Set<number>>(new Set([0]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prefilledFromPrev, setPrefilledFromPrev] = useState(false);
 
   useEffect(() => {
     if (open && meeting) {
       setComment(meeting.comment ?? '');
-      setSurveyData({});
+      // Префіл анкети з meeting.anketaDataJson (legacy meeting-app поле).
+      // Якщо менеджер вже заповнював анкету цього клієнта — побачить значення.
+      let prefill: SurveyData = {};
+      let hasPrefill = false;
+      if (meeting.anketaDataJson) {
+        try {
+          const parsed = JSON.parse(meeting.anketaDataJson);
+          if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+            prefill = parsed as SurveyData;
+            hasPrefill = true;
+          }
+        } catch {
+          // Ignore parse errors — порожня анкета.
+        }
+      }
+      setSurveyData(prefill);
+      setPrefilledFromPrev(hasPrefill);
       setError(null);
     }
   }, [open, meeting]);
@@ -133,6 +150,15 @@ export function MeetingOutcomeDialog({ open, meeting, onClose, onSaved }: Props)
               <h3 className="text-[14px] font-bold text-emet-ink mb-2.5">
                 Анкета потенціалу клієнта
               </h3>
+              {prefilledFromPrev && (
+                <div className="bg-emet-blue/5 border border-emet-blue/20 rounded-xl px-3.5 py-2.5 mb-3 flex items-start gap-2.5 text-[12px] text-emet-ink leading-snug">
+                  <CheckIcon className="w-3.5 h-3.5 text-emet-blue mt-0.5 shrink-0" />
+                  <span>
+                    Заповнено з попередньої зустрічі цього клієнта. Перевірте і
+                    оновіть значення якщо щось змінилось.
+                  </span>
+                </div>
+              )}
               <div className="flex flex-col gap-2">
                 {SURVEY_SECTIONS.map((section, i) => (
                   <SurveyAccordionItem
