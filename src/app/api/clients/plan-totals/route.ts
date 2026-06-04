@@ -22,7 +22,8 @@
  *         planTotal: number,                         // forecast + gap
  *         brands: { [segmentCode]: number },         // per-bd
  *       }
- *     }
+ *     },
+ *     meetingStageClientIds: string[]                // клієнти у плані з stage='Зустріч'
  *   }
  *
  * Security: ті самі правила що у /api/planning/aggregate — менеджер тільки свій
@@ -90,31 +91,43 @@ export async function POST(request: NextRequest) {
   let gapsData: unknown[];
   try {
     [forecastsData, gapsData] = await Promise.all([
-      fetchAllPaginated('forecasts', 'segment_code,client_id_1c,forecast_amount'),
-      fetchAllPaginated('gap_closures', 'segment_code,client_id_1c,potential_amount'),
+      fetchAllPaginated('forecasts', 'segment_code,client_id_1c,forecast_amount,stage'),
+      fetchAllPaginated('gap_closures', 'segment_code,client_id_1c,potential_amount,stage'),
     ]);
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : 'fetch failed' }, { status: 500 });
   }
 
-  type FRow = { segment_code: string; client_id_1c: string; forecast_amount: number };
-  type GRow = { segment_code: string; client_id_1c: string; potential_amount: number };
+  type FRow = { segment_code: string; client_id_1c: string; forecast_amount: number; stage: string | null };
+  type GRow = { segment_code: string; client_id_1c: string; potential_amount: number; stage: string | null };
 
   const totals: Record<string, { planTotal: number; brands: Record<string, number> }> = {};
+  // Окремий set: клієнти у яких stage='Зустріч' хоч в одному forecast/gap rows
+  // поточного періоду. Споживач (/clients) перетинає з 1С активністю
+  // (hasMeeting) щоб показати індикатор «у плані стоїть зустріч — а події нема».
+  const meetingStageClients = new Set<string>();
 
-  function add(clientId: string, segment: string, amount: number) {
-    if (!clientId || !segment || !amount) return;
-    if (!totals[clientId]) totals[clientId] = { planTotal: 0, brands: {} };
-    totals[clientId].planTotal += amount;
-    totals[clientId].brands[segment] = (totals[clientId].brands[segment] || 0) + amount;
+  function add(clientId: string, segment: string, amount: number, stage: string | null) {
+    if (!clientId) return;
+    if (segment && amount) {
+      if (!totals[clientId]) totals[clientId] = { planTotal: 0, brands: {} };
+      totals[clientId].planTotal += amount;
+      totals[clientId].brands[segment] = (totals[clientId].brands[segment] || 0) + amount;
+    }
+    if (stage && stage.trim() === 'Зустріч') {
+      meetingStageClients.add(clientId);
+    }
   }
 
   for (const f of forecastsData as FRow[]) {
-    add(f.client_id_1c, f.segment_code, Number(f.forecast_amount) || 0);
+    add(f.client_id_1c, f.segment_code, Number(f.forecast_amount) || 0, f.stage ?? null);
   }
   for (const g of gapsData as GRow[]) {
-    add(g.client_id_1c, g.segment_code, Number(g.potential_amount) || 0);
+    add(g.client_id_1c, g.segment_code, Number(g.potential_amount) || 0, g.stage ?? null);
   }
 
-  return Response.json({ totals });
+  return Response.json({
+    totals,
+    meetingStageClientIds: Array.from(meetingStageClients),
+  });
 }

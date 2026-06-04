@@ -102,6 +102,8 @@ interface UseClientsTotalsResult {
   planByClient: Record<string, ClientPlanTotal>;
   /** factByClient[clientId] → { factTotal, brands: {segCode: amount} } */
   factByClient: Record<string, ClientFactTotal>;
+  /** Клієнти у яких stage='Зустріч' хоч в одному forecast/gap row поточного періоду. */
+  meetingStageClientIds: Set<string>;
   loading: boolean;
   error: string | null;
 }
@@ -128,7 +130,7 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
         body: JSON.stringify({ login, periodId, month }),
       });
       if (!r.ok) throw new Error(`plan-totals ${r.status}`);
-      return r.json() as Promise<{ totals: Record<string, ClientPlanTotal> }>;
+      return r.json() as Promise<{ totals: Record<string, ClientPlanTotal>; meetingStageClientIds?: string[] }>;
     },
     { revalidateOnFocus: false, dedupingInterval: 30_000 },
   );
@@ -155,6 +157,7 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
   return {
     planByClient: planRes?.totals ?? {},
     factByClient,
+    meetingStageClientIds: new Set(planRes?.meetingStageClientIds ?? []),
     loading: planLoading || factLoading,
     error: planErr?.message || factErr || null,
   };

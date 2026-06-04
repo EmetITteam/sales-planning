@@ -180,12 +180,24 @@ export function ClientsPage() {
 
   // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
   const clientIds = useMemo(() => clients.map(c => c.ClientID).filter(Boolean), [clients]);
-  const { planByClient, factByClient, loading: totalsLoading } = useClientsTotals(
+  const { planByClient, factByClient, meetingStageClientIds, loading: totalsLoading } = useClientsTotals(
     sessionUser?.login ?? null,
     clientIds,
   );
   // Контактна активність (зустрічі/дзвінки цього міс) — для Hero Card 4
   const { activityByClient, loading: activitiesLoading } = useClientActivities(sessionUser?.login ?? null, clientIds);
+
+  // Клієнти, у яких в плані поточного місяця стоїть етап «Зустріч», але у 1С
+  // ще нема жодної зустрічі цього місяця. Менеджер забув запланувати дату/час.
+  // Допоки activities ще тягнуться — порожній set (не блимаємо червоним).
+  const meetingMissingClientIds = useMemo(() => {
+    if (activitiesLoading) return new Set<string>();
+    const out = new Set<string>();
+    meetingStageClientIds.forEach(id => {
+      if (!activityByClient[id]?.hasMeeting) out.add(id);
+    });
+    return out;
+  }, [meetingStageClientIds, activityByClient, activitiesLoading]);
   // Фокуси клієнтів (Action A) — для chip у рядку + блок у expanded
   const { focusByClient } = useClientFocuses(sessionUser?.login ?? null, clientIds);
 
@@ -498,6 +510,7 @@ export function ClientsPage() {
               planBrands={planByClient[focusClient.ClientID]?.brands ?? {}}
               factBrands={factByClient[focusClient.ClientID]?.brands ?? {}}
               focuses={focusByClient[focusClient.ClientID] ?? []}
+              meetingMissing={meetingMissingClientIds.has(focusClient.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === focusClient.ClientID}
               onToggle={() => setExpandedId(expandedId === focusClient.ClientID ? null : focusClient.ClientID)}
@@ -645,6 +658,7 @@ export function ClientsPage() {
                   planByClient={planByClient}
                   factByClient={factByClient}
                   focusByClient={focusByClient}
+                  meetingMissingClientIds={meetingMissingClientIds}
                   totalsLoading={totalsLoading}
                   expandedId={expandedId}
                   onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
@@ -658,6 +672,7 @@ export function ClientsPage() {
                 planByClient={planByClient}
                 factByClient={factByClient}
                 focusByClient={focusByClient}
+                meetingMissingClientIds={meetingMissingClientIds}
                 totalsLoading={totalsLoading}
                 expandedId={expandedId}
                 onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
@@ -1108,12 +1123,13 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand, onCreateMeeting,
+  cat, clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
+  meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
   onCreateMeeting?: (client: ClientFromOneC) => void;
@@ -1198,6 +1214,7 @@ function CategorySection({
               planBrands={planBrands}
               factBrands={factBrands}
               focuses={focuses}
+              meetingMissing={meetingMissingClientIds.has(c.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === c.ClientID}
               onToggle={() => onToggleExpand(c.ClientID)}
@@ -1215,11 +1232,12 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand, onCreateMeeting }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
+  meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
   onCreateMeeting?: (client: ClientFromOneC) => void;
@@ -1266,6 +1284,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, t
                 planBrands={planBrands}
                 factBrands={factBrands}
                 focuses={focuses}
+                meetingMissing={meetingMissingClientIds.has(c.ClientID)}
                 totalsLoading={totalsLoading}
                 expanded={expandedId === c.ClientID}
                 onToggle={() => onToggleExpand(c.ClientID)}
@@ -1280,13 +1299,15 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, t
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totalsLoading, expanded, onToggle, onCreateMeeting }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
   planBrands: Record<string, number>;
   factBrands: Record<string, number>;
   focuses: ClientFocusItem[];
+  /** У плані поточного місяця stage='Зустріч', але реальної події у 1С ще нема. */
+  meetingMissing?: boolean;
   totalsLoading: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -1341,6 +1362,17 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
             {isClientReserved(client) && (
               <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-400/12 text-slate-600 border border-slate-300/50 backdrop-blur-sm" title="Клієнт у Резерві — виключений з планування">
                 Резерв
+              </span>
+            )}
+            {/* Meeting-missing-tag (amber) — у плані Зустріч, але події ще нема.
+                Підказка щоб менеджер натиснув «Запланувати зустріч» (поряд). */}
+            {meetingMissing && (
+              <span
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-amber-500/12 text-amber-700 border border-amber-300/50 backdrop-blur-sm"
+                title="У плані стоїть етап «Зустріч», але точну дату й час ще не заплановано."
+              >
+                <Calendar className="w-2.5 h-2.5" />
+                Зустріч без дати
               </span>
             )}
             {/* Focus-tag (violet) — є хоча б 1 активний фокус */}
