@@ -45,8 +45,14 @@ export async function PATCH(
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
-    return Response.json({ error: 'id must be a UUID' }, { status: 400 });
+  if (!id) {
+    return Response.json({ error: 'id is required' }, { status: 400 });
+  }
+  // Зустрічі з 1С (getInitialData) мають свій ID-формат — необов'язково
+  // наш UUID. Не блокуємо тут regex-ом, нехай у репозитарії SELECT не
+  // знайде такий ID і поверне friendly 404.
+  if (!/^[\w-]{1,64}$/.test(id)) {
+    return Response.json({ error: 'id has invalid format' }, { status: 400 });
   }
 
   let body: PatchBody;
