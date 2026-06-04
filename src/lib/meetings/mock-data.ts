@@ -208,14 +208,24 @@ export interface MeetingsStatsTotals {
 
 export function computeStats(meetings: MeetingWithSync[], today: Date): MeetingsStatsTotals {
   const todayStr = toISODate(today);
+  // Тиждень = останні 7 днів включно з сьогодні
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 6);
+  const weekStartStr = toISODate(weekAgo);
+
   let total = 0;
   let todayCount = 0;
   let inProgress = 0;
   let completed = 0;
   let planned = 0;
+  let weekCompletedCount = 0;
   let needsFix = 0;
+
   for (const m of meetings) {
     total++;
+    if (m.status === 'done' && m.date >= weekStartStr && m.date <= todayStr) {
+      weekCompletedCount++;
+    }
     if (m.date === todayStr) {
       todayCount++;
       if (m.status === 'in_progress') inProgress++;
@@ -224,13 +234,14 @@ export function computeStats(meetings: MeetingWithSync[], today: Date): Meetings
     }
     if (m.syncStatus === 'failed') needsFix++;
   }
+
   return {
     total,
     today: todayCount,
     todayInProgress: inProgress,
     todayCompleted: completed,
     todayPlanned: planned,
-    weekCompleted: meetings.filter(m => m.status === 'done').length,
+    weekCompleted: weekCompletedCount,
     needsFix,
   };
 }

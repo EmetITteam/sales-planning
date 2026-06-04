@@ -29,6 +29,8 @@ import {
 } from '@/lib/meetings/mock-data';
 import { useMeetings } from '@/lib/meetings/use-meetings';
 import { useMyClients } from '@/lib/use-my-clients';
+import { DEFAULT_PRESET, type DatePreset } from '@/lib/meetings/date-presets';
+import { getClientName } from '@/lib/mityng-types';
 
 interface Toast {
   id: number;
@@ -40,6 +42,8 @@ export function MeetingsDashboard() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [clientFilter, setClientFilter] = useState<{ id: string; name: string } | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [datePreset, setDatePreset] = useState<DatePreset>(DEFAULT_PRESET);
+  const [search, setSearch] = useState('');
 
   // Form state — single instance shared across all cards + header create button.
   const [formOpen, setFormOpen] = useState(false);
@@ -76,7 +80,7 @@ export function MeetingsDashboard() {
     updateMeeting: apiUpdateMeeting,
     startMeeting: apiStartMeeting,
     finishMeeting: apiFinishMeeting,
-  } = useMeetings();
+  } = useMeetings(datePreset);
 
   // Map клієнтів з 1С getManagerClients — для phone на картці і dossier.
   const { clients: myClients } = useMyClients();
@@ -94,6 +98,24 @@ export function MeetingsDashboard() {
     let result = meetings;
     if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
     if (clientFilter) result = result.filter(m => m.clientId1c === clientFilter.id);
+    const q = search.trim().toLowerCase();
+    if (q.length > 0) {
+      result = result.filter(m => {
+        const c = clientsByID.get(m.clientId1c);
+        const name = c ? getClientName(c).toLowerCase() : '';
+        const phone = (c?.Phone ?? '').toLowerCase();
+        const purpose = (m.purpose ?? '').toLowerCase();
+        const comment = (m.comment ?? '').toLowerCase();
+        const address = (m.plannedAddress ?? m.startAddress ?? '').toLowerCase();
+        return (
+          name.includes(q) ||
+          phone.includes(q) ||
+          purpose.includes(q) ||
+          comment.includes(q) ||
+          address.includes(q)
+        );
+      });
+    }
     // Sort by date+time. ASC: ранні зустрічі першими. DESC: пізні першими.
     result = [...result].sort((a, b) => {
       const ak = `${a.date}T${a.time}`;
@@ -101,7 +123,7 @@ export function MeetingsDashboard() {
       return sortDir === 'asc' ? ak.localeCompare(bk) : bk.localeCompare(ak);
     });
     return result;
-  }, [meetings, statusFilter, clientFilter, sortDir]);
+  }, [meetings, statusFilter, clientFilter, sortDir, search, clientsByID]);
 
   const stats = useMemo(() => computeStats(meetings, today), [meetings, today]);
   const groups = useMemo(() => groupMeetingsByDate(filtered, sortDir), [filtered, sortDir]);
@@ -249,7 +271,8 @@ export function MeetingsDashboard() {
             Мої зустрічі
           </h1>
           <p className="text-[12px] text-slate-500 mt-1">
-            {stats.total} на тиждень · {stats.today} сьогодні
+            {stats.total} у списку
+            {stats.today > 0 ? ` · ${stats.today} сьогодні` : ''}
             {stats.todayInProgress > 0 ? ` · ${stats.todayInProgress} у роботі` : ''}
           </p>
         </div>
@@ -275,6 +298,10 @@ export function MeetingsDashboard() {
         onClientFilterChange={setClientFilter}
         sortDir={sortDir}
         onSortDirChange={setSortDir}
+        datePreset={datePreset}
+        onDatePresetChange={setDatePreset}
+        search={search}
+        onSearchChange={setSearch}
       />
 
       {/* Day groups */}

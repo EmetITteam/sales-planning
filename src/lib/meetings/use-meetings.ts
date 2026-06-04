@@ -27,6 +27,7 @@ import type { Meeting, MeetingStatus } from './types';
 import { useOneCData } from '../use-onec-data';
 import { useAppStore } from '../store';
 import { adaptOneCMeetings, type OneCMeetingRow } from './onec-adapter';
+import { calcDateRange, DEFAULT_PRESET, type DatePreset, type DateRange } from './date-presets';
 
 interface UseMeetingsApi {
   meetings: MeetingWithSync[];
@@ -77,20 +78,9 @@ function toMeetingWithSync(
   return { ...m, syncStatus, syncFailureReason: null };
 }
 
-/** Date range payload для getInitialData. За замовчуванням: поточний місяць
- *  ± 1 щоб охопити вчорашні/завтрашні. */
-function getDefaultRange(): { startDateString: string; endDateString: string } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  return { startDateString: fmt(start), endDateString: fmt(end) };
-}
-
-export function useMeetings(): UseMeetingsApi {
+export function useMeetings(preset: DatePreset = DEFAULT_PRESET): UseMeetingsApi {
   const sessionUser = useAppStore(s => s.user);
-  const range = useMemo(getDefaultRange, []);
+  const range: DateRange = useMemo(() => calcDateRange(preset), [preset]);
 
   // === READ з 1С ===
   const payload = sessionUser
