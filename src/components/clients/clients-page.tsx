@@ -21,6 +21,7 @@ import { useRegistryPlans } from '@/lib/use-registry-plans';
 import { adaptRegistryPlans } from '@/lib/onec-adapters';
 import { isTrialManager } from '@/lib/trial-manager';
 import { NewClientDialog } from './new-client-dialog';
+import { GlobalClientSearchDialog } from './global-client-search-dialog';
 import { UserPlus } from 'lucide-react';
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
 
@@ -134,6 +135,7 @@ export function ClientsPage() {
   const [activeFilter, setActiveFilter] = useState<UICategory | 'all' | 'focused' | 'with-plan'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newClientOpen, setNewClientOpen] = useState(false);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [meetingForClient, setMeetingForClient] = useState<ClientFromOneC | null>(null);
 
@@ -515,6 +517,7 @@ export function ClientsPage() {
       <PageTitle
         subtitle={buildHeaderSubtitle(clients.length)}
         onNewClient={() => setNewClientOpen(true)}
+        onGlobalSearch={() => setGlobalSearchOpen(true)}
       />
 
       {/* === HERO BAND — 4 картки за домовленістю 2026-05-27 === */}
@@ -664,6 +667,11 @@ export function ClientsPage() {
         );
       })()}
 
+      <GlobalClientSearchDialog
+        open={globalSearchOpen}
+        onClose={() => setGlobalSearchOpen(false)}
+      />
+
       <NewClientDialog
         open={newClientOpen}
         onClose={() => setNewClientOpen(false)}
@@ -725,12 +733,14 @@ export function ClientsPage() {
 function PageTitle({
   subtitle,
   onNewClient,
+  onGlobalSearch,
 }: {
   subtitle: React.ReactNode;
   onNewClient?: () => void;
+  onGlobalSearch?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
       <div className="w-10 h-10 rounded-xl bg-emet-blue text-white flex items-center justify-center shadow-[0_4px_12px_rgba(6,106,171,0.25)] shrink-0">
         <Users className="h-5 w-5" />
       </div>
@@ -738,6 +748,17 @@ function PageTitle({
         <h1 className="text-[18px] font-bold tracking-tight">Мої клієнти</h1>
         <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">{subtitle}</div>
       </div>
+      {onGlobalSearch && (
+        <button
+          type="button"
+          onClick={onGlobalSearch}
+          className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-white/70 border border-emet-blue/25 text-emet-blue text-[13px] font-bold hover:bg-emet-blue hover:text-white hover:border-emet-blue active:translate-y-px transition-all shrink-0"
+          aria-label="Пошук по всій базі"
+        >
+          <Search className="w-4 h-4" />
+          <span className="max-sm:hidden">По всій базі</span>
+        </button>
+      )}
       {onNewClient && (
         <button
           type="button"
