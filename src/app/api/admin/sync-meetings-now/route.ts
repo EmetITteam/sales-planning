@@ -58,10 +58,12 @@ export async function POST(request: NextRequest) {
 
   console.log(`[manual-sync] triggered by ${session.login} (role=${session.role})`);
 
+  // Беремо pending + failed (admin-trigger дає ще шанс failed rows).
+  // Cron-worker звичайно тільки pending; це його admin-розширення.
   const { data: pendingRaw, error: selErr } = await supabase
     .from('meeting_syncs')
     .select('*')
-    .eq('status', 'pending')
+    .in('status', ['pending', 'failed'])
     .order('created_at', { ascending: true });
 
   if (selErr) {
@@ -91,9 +93,15 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    // Reset retry_count для failed rows — admin дає ще шанс. Інакше якщо
+    // 1С відмовила MAX_RETRIES разів, нова спроба знов одразу позначить
+    // failed без виклику (тому admin click нічого не змінить).
     await supabase
       .from('meeting_syncs')
-      .upsert({ id: row.id, status: 'syncing' }, { onConflict: 'id' });
+      .upsert(
+        { id: row.id, status: 'syncing', retry_count: 0 },
+        { onConflict: 'id' },
+      );
 
     if (dryRun) {
       console.log(`[ШАГ 1 DRY] Відправка в 1С для дії "${call.action}":`, JSON.stringify(call.payload, null, 2));

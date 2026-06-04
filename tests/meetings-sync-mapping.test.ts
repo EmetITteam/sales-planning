@@ -45,7 +45,8 @@ describe('mapBufferOpToOneC — save', () => {
     assert.equal(meeting.Date, '04.06.2026');
     assert.equal(meeting.Time, '10:30');
     assert.equal(meeting.Purpose, 'Презентація ELLANSE');
-    assert.equal(meeting.Status, 'planned');
+    // 1С legacy очікує російські лейбли (planned → Запланировано).
+    assert.equal(meeting.Status, 'Запланировано');
   });
 
   test('locationData / endLocationData are nested objects', () => {
@@ -106,7 +107,8 @@ describe('mapBufferOpToOneC — update / reschedule / finish', () => {
     assert.ok(res);
     assert.equal(res.action, 'updateMeeting');
     const newData = (res.payload as { newData: Record<string, unknown> }).newData;
-    assert.equal(newData.Status, 'done');
+    // done → Завершено (1С legacy)
+    assert.equal(newData.Status, 'Завершено');
     const endLoc = newData.endLocationData as Record<string, unknown>;
     assert.equal(endLoc.address, 'вул. Хорива 42, Київ');
     assert.equal(endLoc.lat, 50.464822);

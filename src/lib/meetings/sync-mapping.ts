@@ -49,6 +49,23 @@ function isoDateToOneC(iso: string): string {
 }
 
 /**
+ * Конвертує наш enum MeetingStatus → 1С-нативний русський string.
+ * 1С зустрічі досі живуть у meeting-app legacy форматі — англомовні значення
+ * викидають помилку «Поле объекта не обнаружено (planned)».
+ * Маппінг ідентичний з onec-adapter.ts mapStatus() але реверсний.
+ */
+function statusToOneC(status: string): string {
+  switch (status) {
+    case 'planned':     return 'Запланировано';
+    case 'in_progress': return 'В работе';
+    case 'done':        return 'Завершено';
+    case 'postponed':   return 'Просрочено';
+    case 'cancelled':   return 'Отменено';
+    default:            return status; // вже у 1С-форматі — пропускаємо
+  }
+}
+
+/**
  * Перетворює snapshot у форму PascalCase яку очікує 1С HTTP-service.
  * Shape узгоджено з `meeting-app/js/meetings.js` save flow:
  *  - Date: 'DD.MM.YYYY' (legacy 1С формат, не ISO)
@@ -63,7 +80,7 @@ function snapshotToOneCMeeting(s: BufferSnapshot): Record<string, unknown> {
     Date: isoDateToOneC(s.date),
     Time: s.time.slice(0, 5),
     DurationMin: s.durationMin,
-    Status: s.status,
+    Status: statusToOneC(s.status),
     Purpose: s.purpose ?? '',
     Comment: s.comment ?? '',
     PlannedAddress: s.plannedAddress ?? '',
