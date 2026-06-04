@@ -68,15 +68,19 @@ export function useOneCData<A extends OneCAction>(
     },
   );
 
-  // Auto-retry для cold-start 1С (Day 14 #4). До 3 спроб з backoff.
+  // Auto-retry для cold-start 1С (Day 14 #4). 5 спроб з backoff ~21с total.
+  // Раніше було 3 спроби (~8с) — користувачі бачили «Дані не знайдено» при
+  // холодному 1С (worker прокидається 10-20с). Backoff 1→2→4→6→8 покриває
+  // типовий cold-start window без надмірного чекання при справжніх 0-results.
   // Reset counter коли змінюється key (новий запит = нова логіка retry).
   const [retryAttempt, setRetryAttempt] = useState(0);
   useEffect(() => { setRetryAttempt(0); }, [key]);
   const isEmptyData = !!options?.isEmptyResponse && !!data && options.isEmptyResponse(data);
-  const isAutoRetrying = isEmptyData && !error && retryAttempt < 3;
+  const isAutoRetrying = isEmptyData && !error && retryAttempt < 5;
   useEffect(() => {
     if (!isAutoRetrying || isLoading) return;
-    const delay = retryAttempt === 0 ? 1200 : retryAttempt === 1 ? 2500 : 5000;
+    const delays = [1000, 2000, 4000, 6000, 8000];
+    const delay = delays[retryAttempt] ?? 8000;
     const t = setTimeout(() => {
       setRetryAttempt(n => n + 1);
       mutate();
