@@ -41,12 +41,18 @@ export function CustomMonthPicker({ value, label, active, onChange }: Props) {
 
   // Позиціонування popover під trigger коли відкриваємо. Portal до body —
   // інакше glass-card батьки з backdrop-blur роблять його «прозорим».
+  // Clamp у viewport — інакше на mobile picker вилазить за правий край.
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const POPOVER_W = 268;
+    const MARGIN = 8;
+    const maxLeft = window.innerWidth - POPOVER_W - MARGIN;
+    const naturalLeft = rect.left + window.scrollX;
+    const clampedLeft = Math.max(MARGIN, Math.min(naturalLeft, maxLeft + window.scrollX));
     setCoords({
       top: rect.bottom + window.scrollY + 8,
-      left: rect.left + window.scrollX,
+      left: clampedLeft,
     });
   }, [open]);
 
