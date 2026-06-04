@@ -145,15 +145,33 @@ export function useClientsTotals(
     { revalidateOnFocus: false, dedupingInterval: 30_000 },
   );
 
-  // 2) Факт з 1С: getSalesFact({login, period, clientIds})
+  // 2) Факт з 1С: getSalesFact({login, period, clientIds, asOfDate})
   // 1С ліміт — 400 ID за запит. У менеджера може бути 481+ клієнтів →
   // batch'имо у 3 чанки по 400 (підтримує до 1200 клієнтів).
   // Hooks rules satisfied: ЗАВЖДИ викликаємо 3 useOneCData (порожні чанки
   // → payload=null → SWR не fetch'ить).
+  //
+  // ⚠️ asOfDate ЗАВЖДИ передаємо явно (як у dashboards). Без нього 1С могла
+  // повертати завищені цифри для минулих місяців (баг помічений 2026-06-04:
+  // квітень показував $120К при реальних ~$55К — підозра що 1С брала діапазон
+  // 1.04 → today, а не 1.04 → 30.04). Поточний місяць → today; минулий →
+  // останній день того місяця.
+  const asOfDate = useMemo(() => {
+    if (!month) return undefined;
+    const [y, m] = month.split('-').map(Number);
+    const today = new Date();
+    const todayMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    if (month === todayMonth) {
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+    const last = new Date(y, m, 0); // day 0 наступного = останній день поточного
+    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+  }, [month]);
+
   const [chunk1, chunk2, chunk3] = chunkClientIds(clientIds, 400, 3);
   const mkPayload = (chunk: string[]) =>
     login && month && chunk.length > 0
-      ? { login, period: month, clientIds: chunk }
+      ? { login, period: month, clientIds: chunk, asOfDate }
       : null;
   const { data: f1, loading: l1, error: e1 } = useOneCData('getSalesFact', mkPayload(chunk1));
   const { data: f2, loading: l2, error: e2 } = useOneCData('getSalesFact', mkPayload(chunk2));
