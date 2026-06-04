@@ -13,8 +13,8 @@
  * у `pending` для retry. Поки що цю частину reconciliation — TODO Sprint 1.5.x.
  *
  * DRY_RUN: коли `MEETINGS_SYNC_DRY_RUN=true` — лог payload + одразу `synced`
- * БЕЗ HTTP-виклику до 1С. Дозволяє розкатати worker, побачити що шле, без
- * реальних змін у 1С. Дефолт TRUE поки 1С dev не підтвердить контракт.
+ * БЕЗ HTTP-виклику до 1С. Дефолт FALSE — actions уже live у meeting-app, shape
+ * співпадає (див. `meeting-app/js/meetings.js` save/update/start flow).
  */
 
 import { NextRequest } from 'next/server';
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const dryRun = process.env.MEETINGS_SYNC_DRY_RUN !== 'false';
+  const dryRun = process.env.MEETINGS_SYNC_DRY_RUN === 'true';
   const result: SyncResult = {
     processed: 0,
     succeeded: 0,

@@ -41,30 +41,44 @@ export interface OneCCallSpec {
   payload: Record<string, unknown>;
 }
 
+/** Конвертує ISO date 'YYYY-MM-DD' → '1С-формат DD.MM.YYYY'. */
+function isoDateToOneC(iso: string): string {
+  // '2026-06-04' → '04.06.2026'
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
 /**
- * Перетворює snapshot у форму PascalCase яку очікує 1С HTTP-service
- * (підглянуто з `meeting-app/js/meetings.js` save flow: `newData.Comment`,
- * `newData.Date`, тощо).
+ * Перетворює snapshot у форму PascalCase яку очікує 1С HTTP-service.
+ * Shape узгоджено з `meeting-app/js/meetings.js` save flow:
+ *  - Date: 'DD.MM.YYYY' (legacy 1С формат, не ISO)
+ *  - Geo через nested `locationData` / `endLocationData` об'єкти
+ *  - Координати в полях `StartLatitude`/`StartLongitude` (не `StartLat`)
  */
 function snapshotToOneCMeeting(s: BufferSnapshot): Record<string, unknown> {
   return {
     ID: s.id,
     ManagerLogin: s.managerLogin,
     ClientID: s.clientId1c,
-    Date: s.date,
+    Date: isoDateToOneC(s.date),
     Time: s.time.slice(0, 5),
     DurationMin: s.durationMin,
     Status: s.status,
     Purpose: s.purpose ?? '',
     Comment: s.comment ?? '',
     PlannedAddress: s.plannedAddress ?? '',
-    StartAddress: s.startAddress ?? '',
-    StartLat: s.startLat,
-    StartLon: s.startLon,
-    EndAddress: s.endAddress ?? '',
-    EndLat: s.endLat,
-    EndLon: s.endLon,
     GeoManual: s.geoManual,
+    // Geo упаковано nested як meeting-app:
+    locationData: {
+      address: s.startAddress ?? '',
+      lat: s.startLat ?? '',
+      lon: s.startLon ?? '',
+    },
+    endLocationData: {
+      address: s.endAddress ?? '',
+      lat: s.endLat ?? '',
+      lon: s.endLon ?? '',
+    },
   };
 }
 
@@ -81,33 +95,35 @@ export function mapBufferOpToOneC(
 
   switch (operation) {
     case 'save':
-      // saveNewMeeting({newData})
-      return { action: 'saveNewMeeting', payload: { newData: meeting } };
+      // saveNewMeeting приймає meeting object НАПРЯМУ (не wrapped у newData).
+      // Підтверджено meeting-app/js/meetings.js:341.
+      return { action: 'saveNewMeeting', payload: meeting };
 
     case 'update':
     case 'reschedule':
-      // updateMeeting({newData, oldData}) — у нас немає oldData у buffer,
-      // тому 1С отримує лише newData. Якщо потім знадобиться diff —
-      // зберігати old у meeting_syncs.payload_snapshot.previous.
-      return { action: 'updateMeeting', payload: { newData: meeting } };
+    case 'finish':
+      // updateMeeting очікує { newData, oldData }. У нас snapshot містить
+      // лише поточний стан — шлемо його як newData, oldData = той самий
+      // snapshot (best-effort; реальний diff потребує preserved-previous,
+      // що додамо у Sprint 1.5.x якщо 1С не приймає такий equal payload).
+      return {
+        action: 'updateMeeting',
+        payload: { newData: meeting, oldData: meeting },
+      };
 
     case 'start':
-      // startMeeting({meetingID, startLat, startLon, startAddress, geoManual})
+      // startMeeting приймає {meetingId, locationData} — meeting-app:421.
       return {
         action: 'startMeeting',
         payload: {
-          meetingID: snapshot.id,
-          managerLogin: snapshot.managerLogin,
-          startLat: snapshot.startLat,
-          startLon: snapshot.startLon,
-          startAddress: snapshot.startAddress ?? '',
-          geoManual: snapshot.geoManual,
+          meetingId: snapshot.id,
+          locationData: {
+            address: snapshot.startAddress ?? '',
+            lat: snapshot.startLat ?? '',
+            lon: snapshot.startLon ?? '',
+          },
         },
       };
-
-    case 'finish':
-      // finish — теж updateMeeting (з status=done + end geo)
-      return { action: 'updateMeeting', payload: { newData: meeting } };
 
     default:
       return null;

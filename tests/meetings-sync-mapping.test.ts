@@ -1,8 +1,8 @@
 /**
  * Tests for `mapBufferOpToOneC` (Sprint 1.5.3).
  *
- * Покриває всі 5 operations + edge cases. Snapshot fixture у одному
- * місці щоб тести читались узгоджено.
+ * Покриває всі 5 operations + edge cases. Shape узгоджено з
+ * meeting-app/js/meetings.js (production legacy).
  */
 
 import { test, describe } from 'node:test';
@@ -33,44 +33,88 @@ function makeSnapshot(overrides: Partial<BufferSnapshot> = {}): BufferSnapshot {
 }
 
 describe('mapBufferOpToOneC — save', () => {
-  test('returns saveNewMeeting with full newData payload', () => {
+  test('saveNewMeeting receives meeting payload directly (not wrapped)', () => {
     const res = mapBufferOpToOneC('save', makeSnapshot());
     assert.ok(res);
     assert.equal(res.action, 'saveNewMeeting');
-    const newData = res.payload.newData as Record<string, unknown>;
-    assert.equal(newData.ID, 'mid-1');
-    assert.equal(newData.ClientID, '000123');
-    assert.equal(newData.Date, '2026-06-04');
-    assert.equal(newData.Time, '10:30'); // sliced from 10:30:00
-    assert.equal(newData.Purpose, 'Презентація ELLANSE');
-    assert.equal(newData.Status, 'planned');
+    // payload IS the meeting (not {newData: meeting})
+    const meeting = res.payload as Record<string, unknown>;
+    assert.equal(meeting.ID, 'mid-1');
+    assert.equal(meeting.ClientID, '000123');
+    // Date у 1С форматі DD.MM.YYYY
+    assert.equal(meeting.Date, '04.06.2026');
+    assert.equal(meeting.Time, '10:30');
+    assert.equal(meeting.Purpose, 'Презентація ELLANSE');
+    assert.equal(meeting.Status, 'planned');
+  });
+
+  test('locationData / endLocationData are nested objects', () => {
+    const res = mapBufferOpToOneC(
+      'save',
+      makeSnapshot({
+        startAddress: 'вул. Хорива 42',
+        startLat: 50.464822,
+        startLon: 30.518693,
+      }),
+    );
+    assert.ok(res);
+    const meeting = res.payload as Record<string, unknown>;
+    const loc = meeting.locationData as Record<string, unknown>;
+    assert.equal(loc.address, 'вул. Хорива 42');
+    assert.equal(loc.lat, 50.464822);
+    assert.equal(loc.lon, 30.518693);
+    // empty endLocationData (нічого не зафіксовано)
+    const endLoc = meeting.endLocationData as Record<string, unknown>;
+    assert.equal(endLoc.address, '');
+    assert.equal(endLoc.lat, '');
   });
 });
 
-describe('mapBufferOpToOneC — update / reschedule', () => {
-  test('update → updateMeeting', () => {
+describe('mapBufferOpToOneC — update / reschedule / finish', () => {
+  test('update → updateMeeting with {newData, oldData}', () => {
     const res = mapBufferOpToOneC('update', makeSnapshot({ purpose: 'Інше' }));
     assert.ok(res);
     assert.equal(res.action, 'updateMeeting');
-    const newData = res.payload.newData as Record<string, unknown>;
+    assert.ok('newData' in (res.payload as object));
+    assert.ok('oldData' in (res.payload as object));
+    const newData = (res.payload as { newData: Record<string, unknown> }).newData;
     assert.equal(newData.Purpose, 'Інше');
   });
 
-  test('reschedule reuses updateMeeting action', () => {
+  test('reschedule reuses updateMeeting', () => {
     const res = mapBufferOpToOneC(
       'reschedule',
       makeSnapshot({ date: '2026-06-10', time: '14:00:00' }),
     );
     assert.ok(res);
     assert.equal(res.action, 'updateMeeting');
-    const newData = res.payload.newData as Record<string, unknown>;
-    assert.equal(newData.Date, '2026-06-10');
+    const newData = (res.payload as { newData: Record<string, unknown> }).newData;
+    assert.equal(newData.Date, '10.06.2026');
     assert.equal(newData.Time, '14:00');
+  });
+
+  test('finish → updateMeeting з status=done + endLocationData', () => {
+    const res = mapBufferOpToOneC(
+      'finish',
+      makeSnapshot({
+        status: 'done',
+        endAddress: 'вул. Хорива 42, Київ',
+        endLat: 50.464822,
+        endLon: 30.518693,
+      }),
+    );
+    assert.ok(res);
+    assert.equal(res.action, 'updateMeeting');
+    const newData = (res.payload as { newData: Record<string, unknown> }).newData;
+    assert.equal(newData.Status, 'done');
+    const endLoc = newData.endLocationData as Record<string, unknown>;
+    assert.equal(endLoc.address, 'вул. Хорива 42, Київ');
+    assert.equal(endLoc.lat, 50.464822);
   });
 });
 
 describe('mapBufferOpToOneC — start', () => {
-  test('GPS-captured start: full coords + geoManual=false', () => {
+  test('startMeeting payload is {meetingId, locationData}', () => {
     const res = mapBufferOpToOneC(
       'start',
       makeSnapshot({
@@ -83,19 +127,17 @@ describe('mapBufferOpToOneC — start', () => {
     );
     assert.ok(res);
     assert.equal(res.action, 'startMeeting');
-    assert.equal(res.payload.meetingID, 'mid-1');
-    assert.equal(res.payload.managerLogin, 'sm.kiev4@emet.in.ua');
-    assert.equal(res.payload.startLat, 50.464822);
-    assert.equal(res.payload.startLon, 30.518693);
-    assert.equal(res.payload.startAddress, 'вул. Хорива 42, Київ');
-    assert.equal(res.payload.geoManual, false);
+    assert.equal(res.payload.meetingId, 'mid-1');
+    const loc = res.payload.locationData as Record<string, unknown>;
+    assert.equal(loc.address, 'вул. Хорива 42, Київ');
+    assert.equal(loc.lat, 50.464822);
+    assert.equal(loc.lon, 30.518693);
   });
 
-  test('manual-address start: lat/lon null, geoManual=true', () => {
+  test('manual-address start: lat/lon empty strings', () => {
     const res = mapBufferOpToOneC(
       'start',
       makeSnapshot({
-        status: 'in_progress',
         startAddress: 'вручну введена адреса',
         startLat: null,
         startLon: null,
@@ -103,56 +145,24 @@ describe('mapBufferOpToOneC — start', () => {
       }),
     );
     assert.ok(res);
-    assert.equal(res.payload.startLat, null);
-    assert.equal(res.payload.startLon, null);
-    assert.equal(res.payload.geoManual, true);
+    const loc = res.payload.locationData as Record<string, unknown>;
+    // null лат/лон → empty string як у meeting-app
+    assert.equal(loc.lat, '');
+    assert.equal(loc.lon, '');
+    assert.equal(loc.address, 'вручну введена адреса');
   });
 });
 
-describe('mapBufferOpToOneC — finish', () => {
-  test('finish → updateMeeting with status=done + end coords', () => {
-    const res = mapBufferOpToOneC(
-      'finish',
-      makeSnapshot({
-        status: 'done',
-        startAddress: 'вул. Хорива 42, Київ',
-        startLat: 50.464822,
-        startLon: 30.518693,
-        endAddress: 'вул. Хорива 42, Київ',
-        endLat: 50.464822,
-        endLon: 30.518693,
-      }),
-    );
-    assert.ok(res);
-    assert.equal(res.action, 'updateMeeting');
-    const newData = res.payload.newData as Record<string, unknown>;
-    assert.equal(newData.Status, 'done');
-    assert.equal(newData.EndLat, 50.464822);
-    assert.equal(newData.EndLon, 30.518693);
-  });
-});
-
-describe('mapBufferOpToOneC — null fields', () => {
-  test('comment/purpose null → empty string in payload', () => {
+describe('mapBufferOpToOneC — empty/null fields', () => {
+  test('comment/purpose null → empty string', () => {
     const res = mapBufferOpToOneC(
       'save',
       makeSnapshot({ comment: null, purpose: null, plannedAddress: null }),
     );
     assert.ok(res);
-    const newData = res.payload.newData as Record<string, unknown>;
-    assert.equal(newData.Comment, '');
-    assert.equal(newData.Purpose, '');
-    assert.equal(newData.PlannedAddress, '');
-  });
-
-  test('numeric fields kept as null (not coerced to 0)', () => {
-    const res = mapBufferOpToOneC(
-      'save',
-      makeSnapshot({ durationMin: null, startLat: null }),
-    );
-    assert.ok(res);
-    const newData = res.payload.newData as Record<string, unknown>;
-    assert.equal(newData.DurationMin, null);
-    assert.equal(newData.StartLat, null);
+    const meeting = res.payload as Record<string, unknown>;
+    assert.equal(meeting.Comment, '');
+    assert.equal(meeting.Purpose, '');
+    assert.equal(meeting.PlannedAddress, '');
   });
 });
