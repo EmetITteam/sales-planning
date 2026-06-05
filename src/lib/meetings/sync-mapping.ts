@@ -148,10 +148,13 @@ export function mapBufferOpToOneC(
 
     case 'start':
       // startMeeting приймає {meetingId, locationData} — meeting-app:421.
+      // meetingId — це 1С-ID для existing зустрічей (legacy або synced раніше),
+      // інакше 1С не знаходить запис і нічого не пише. Це та сама логіка що у
+      // snapshotToOneCMeeting для updateMeeting.
       return {
         action: 'startMeeting',
         payload: {
-          meetingId: snapshot.id,
+          meetingId: snapshot.legacyOneCId ?? snapshot.id,
           locationData: {
             address: snapshot.startAddress ?? '',
             lat: snapshot.startLat ?? '',

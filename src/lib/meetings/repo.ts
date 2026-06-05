@@ -198,8 +198,17 @@ export async function startMeeting(
   id: string,
   payload: StartMeetingDbInput,
 ): Promise<{ data: Meeting | null; error: string | null }> {
+  // Як у meeting-app: при START фізичний час зустрічі замінюється на реальний
+  // (хвилина:секунди коли менеджер прибув). Це і у БД, і у 1С через cron sync.
+  // Плановий час не зберігаємо окремо — користувач явно сказав «час повинен
+  // фізично змінюватись».
+  const now = new Date();
+  const startTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const patch = toMeetingRowDb({
     status: 'in_progress',
+    date: startDate,
+    time: startTime,
     startAddress: payload.address,
     startLat: payload.lat,
     startLon: payload.lon,

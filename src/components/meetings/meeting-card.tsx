@@ -69,13 +69,17 @@ export function MeetingCard({
   const isFailedSync = meeting.syncStatus === 'failed';
   const isInProgress = meeting.status === 'in_progress';
   const isDone = meeting.status === 'done';
+  const isCancelled = meeting.status === 'cancelled';
 
-  // Tint background для in_progress і done
+  // Tint background по статусу — як у регіонах/брендах де виконання яскраво
+  // підсвічується кольором.
   let cardBg = 'bg-white/60';
   if (isInProgress) {
     cardBg = 'bg-gradient-to-br from-amber-100/40 to-white/60 border-amber-200';
   } else if (isDone) {
     cardBg = 'bg-gradient-to-br from-teal-100/30 to-white/60 border-teal-100';
+  } else if (isCancelled) {
+    cardBg = 'bg-gradient-to-br from-rose-100/40 to-white/60 border-rose-200';
   }
 
   const failedBorder = isFailedSync ? 'border-l-[3px] border-l-rose-500 pl-[13px]' : '';

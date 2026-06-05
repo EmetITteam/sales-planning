@@ -317,19 +317,25 @@ export function applyStart(
   id: string,
   payload: MeetingStartPayload,
 ): MeetingWithSync[] {
-  const now = new Date().toISOString();
+  const now = new Date();
+  const nowISO = now.toISOString();
+  // Як у meeting-app: фізичний час старту перекриває плановий time.
+  // Server теж робить так у repo.startMeeting — щоб optimistic UI співпало
+  // з server state і не блимало при revalidate.
+  const startTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   return meetings.map(m =>
     m.id === id
       ? {
           ...m,
           status: 'in_progress' as MeetingStatus,
+          date: startDate,
+          time: startTime,
           startAddress: payload.address,
           startLat: payload.lat,
           startLon: payload.lon,
           geoManual: payload.geoManual,
-          updatedAt: now,
-          // Sprint 1.5: при реальному buffer-write змінити на 'pending'.
-          // Поки моки — лишаємо synced.
+          updatedAt: nowISO,
         }
       : m,
   );

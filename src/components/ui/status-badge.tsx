@@ -42,7 +42,7 @@ const STYLES: Record<string, string> = {
   meeting_in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
   meeting_done: 'bg-teal-50 text-teal-700 border-teal-100',
   meeting_postponed: 'bg-slate-100 text-slate-600 border-slate-200',
-  meeting_cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
+  meeting_cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
   // sync statuses
   sync_pending: 'bg-amber-50 text-amber-700 border-amber-200',
   sync_syncing: 'bg-[rgba(6,106,171,0.08)] text-emet-blue border-[rgba(6,106,171,0.18)]',
