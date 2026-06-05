@@ -50,10 +50,11 @@ export async function listMeetings(
     return { data: [], error: 'managerLogin required' };
   }
 
-  let q = supabase.from('meetings').select('*').eq('manager_login', managerLogin);
-  if (opts.dateFrom) q = q.eq('date', opts.dateFrom); // placeholder — gte/lte додам у наступному коміті
-  // Поки PostgREST-helper не має gte/lte — фільтруємо range у пам'яті.
-
+  // PostgREST-wrapper не має .gte()/.lte() helpers — тягнемо все для менеджера,
+  // фільтруємо range у пам'яті. Для production-розмірів (1 менеджер ~50-200
+  // meetings) це швидко. Якщо колись доростемо до 1000+ на менеджера — додати
+  // gte/lte у wrapper.
+  const q = supabase.from('meetings').select('*').eq('manager_login', managerLogin);
   const { data, error } = await q.order('date', { ascending: true }).order('time', { ascending: true });
   if (error) return { data: [], error: error.message };
 
