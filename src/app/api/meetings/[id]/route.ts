@@ -71,6 +71,14 @@ export async function PATCH(
       // Нормалізуємо time якщо передано
       const u = { ...body.update };
       if (u.time && u.time.length === 5) u.time = `${u.time}:00`;
+      // Якщо клієнт змінився — клієнтське ім'я/телефон з ClientPicker теж
+      // передаємо щоб snapshot у БД оновився (інакше залишиться старе).
+      const ub = body as PatchBody & { client?: { name?: string; phone?: string; category?: string } };
+      if (ub.client) {
+        u.clientName = ub.client.name ?? null;
+        u.clientPhone = ub.client.phone ?? null;
+        u.clientCategory = ub.client.category ?? null;
+      }
       const { data, error } = await updateMeeting(session.login, id, u);
       if (error) return Response.json({ error }, { status: error.includes('not found') ? 404 : 500 });
       return Response.json({ meeting: data });

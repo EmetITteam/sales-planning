@@ -36,6 +36,9 @@ export interface ListMeetingsOptions {
   dateTo?: string;
   /** Hard cap на повернений масив. Default 500. */
   limit?: number;
+  /** Якщо передано — SELECT WHERE manager_login IN (...). Для admin/RM
+   *  expand на managedUsers. Інакше — лише managerLogin з першого аргументу. */
+  managerLogins?: string[];
 }
 
 /**
@@ -50,11 +53,13 @@ export async function listMeetings(
     return { data: [], error: 'managerLogin required' };
   }
 
-  // PostgREST-wrapper не має .gte()/.lte() helpers — тягнемо все для менеджера,
+  // PostgREST-wrapper не має .gte()/.lte() helpers — тягнемо все для менеджера(ів),
   // фільтруємо range у пам'яті. Для production-розмірів (1 менеджер ~50-200
-  // meetings) це швидко. Якщо колись доростемо до 1000+ на менеджера — додати
-  // gte/lte у wrapper.
-  const q = supabase.from('meetings').select('*').eq('manager_login', managerLogin);
+  // meetings) це швидко.
+  const logins = opts.managerLogins && opts.managerLogins.length > 0
+    ? opts.managerLogins
+    : [managerLogin];
+  const q = supabase.from('meetings').select('*').in('manager_login', logins);
   const { data, error } = await q.order('date', { ascending: true }).order('time', { ascending: true });
   if (error) return { data: [], error: error.message };
 
@@ -129,6 +134,11 @@ export async function createMeeting(
 
 export interface UpdateMeetingPatch {
   clientId1c?: string;
+  /** Snapshot fields що мають оновитись при зміні клієнта (інакше у БД
+   *  залишиться name старого). Якщо undefined — не міняємо. */
+  clientName?: string | null;
+  clientPhone?: string | null;
+  clientCategory?: string | null;
   date?: string;
   time?: string;
   durationMin?: number | null;
@@ -138,32 +148,39 @@ export interface UpdateMeetingPatch {
   status?: MeetingStatus;
 }
 
+/**
+ * Atomic UPDATE: PATCH /meetings?id=eq.X&manager_login=eq.Y з Prefer:
+ * return=representation. Якщо ownership не пройшов — PostgREST повертає
+ * порожній array, ми → 404. Запобігає race condition коли два паралельні
+ * PATCH-и (Start+Finish) переписували один одного (last-write-wins).
+ */
 async function patchOwned(
   managerLogin: string,
   id: string,
   patch: Partial<MeetingRowDb>,
 ): Promise<{ data: Meeting | null; error: string | null }> {
-  // Service role обходить RLS — обов'язково фільтр manager_login у запиті.
   const { data, error } = await supabase
     .from('meetings')
     .eq('id', id)
     .eq('manager_login', managerLogin)
-    // Не маємо `.update()` хелпера у нашому REST-обгортці — використовуємо
-    // upsert через PATCH семантику PostgREST: insert+on_conflict=id.
-    // Альтернатива — через POST з Prefer: resolution=merge-duplicates + ?id=eq.X
-    // не працює (PostgREST не приймає insert на існуючу row без on_conflict).
-    // Тому повний row upsert: спочатку SELECT, мерджимо, upsert by id.
-    .single();
-  if (error || !data) return { data: null, error: error?.message ?? 'meeting not found or not owned' };
+    .update({ ...patch, updated_at: new Date().toISOString() } as Record<string, unknown>);
+  if (error) return { data: null, error: error.message };
 
-  const merged = { ...(data as unknown as MeetingRowDb), ...patch, updated_at: new Date().toISOString() };
-  const { data: updated, error: upErr } = await supabase
-    .from('meetings')
-    .upsert(merged as Record<string, unknown>, { onConflict: 'id' });
-  if (upErr) return { data: null, error: upErr.message };
+  const rows = (data ?? []) as unknown as MeetingRowDb[];
+  if (rows.length === 0) {
+    return { data: null, error: 'meeting not found or not owned' };
+  }
+  return { data: adaptMeetingRow(rows[0]), error: null };
+}
 
-  const upRows = (updated ?? [merged]) as unknown as MeetingRowDb[];
-  return { data: adaptMeetingRow(upRows[0] ?? merged), error: null };
+/** Snapshot з Meeting для enqueueSync — додає transient client name/phone
+ *  з адаптера (БД має snapshot з 1С). 1С відмовляє якщо Phone/Client порожні. */
+function meetingToSnapshot(m: Meeting): Record<string, unknown> {
+  return {
+    ...m,
+    clientName: m.clientNameFromOneC ?? null,
+    clientPhone: m.clientPhoneFromOneC ?? null,
+  };
 }
 
 export async function updateMeeting(
@@ -173,6 +190,9 @@ export async function updateMeeting(
 ): Promise<{ data: Meeting | null; error: string | null }> {
   const dbPatch = toMeetingRowDb({
     clientId1c: patch.clientId1c,
+    clientNameFromOneC: patch.clientName,
+    clientPhoneFromOneC: patch.clientPhone,
+    clientCategoryFromOneC: patch.clientCategory,
     date: patch.date,
     time: patch.time,
     durationMin: patch.durationMin,
@@ -182,7 +202,7 @@ export async function updateMeeting(
     status: patch.status,
   });
   const res = await patchOwned(managerLogin, id, dbPatch);
-  if (res.data) await enqueueSync(id, 'update', res.data);
+  if (res.data) await enqueueSync(id, 'update', meetingToSnapshot(res.data));
   return res;
 }
 
@@ -227,7 +247,7 @@ export async function startMeeting(
     startedAt: now.toISOString(),
   });
   const res = await patchOwned(managerLogin, id, patch);
-  if (res.data) await enqueueSync(id, 'start', res.data);
+  if (res.data) await enqueueSync(id, 'start', meetingToSnapshot(res.data));
   return res;
 }
 
@@ -261,7 +281,7 @@ export async function finishMeeting(
     finishedAt: now.toISOString(),
   });
   const res = await patchOwned(managerLogin, id, patch);
-  if (res.data) await enqueueSync(id, 'finish', res.data);
+  if (res.data) await enqueueSync(id, 'finish', meetingToSnapshot(res.data));
   return res;
 }
 

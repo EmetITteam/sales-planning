@@ -122,7 +122,15 @@ export function useMeetings(range?: DateRange): UseMeetingsApi {
   }, [swrMutate]);
 
   const remoteMeetings = useMemo<MeetingWithSync[]>(
-    () => (meetingsResp?.meetings ?? []).map(m => toMeetingWithSync(m, 'synced')),
+    () => (meetingsResp?.meetings ?? []).map(m => {
+      // Server тепер повертає syncStatus з JOIN-у з meeting_syncs (failed
+      // буде красно у UI). Якщо поле відсутнє — default synced.
+      // syncing → pending для UI (обидва значать «ще не доїхало у 1С»).
+      const raw = (m as Meeting & { syncStatus?: 'pending' | 'syncing' | 'synced' | 'failed' }).syncStatus;
+      const status: 'pending' | 'synced' | 'failed' =
+        raw === 'syncing' ? 'pending' : (raw ?? 'synced');
+      return toMeetingWithSync(m, status);
+    }),
     [meetingsResp],
   );
 

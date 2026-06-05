@@ -16,7 +16,7 @@ import { getSession } from '@/lib/session';
 import { listMeetings, createMeeting } from '@/lib/meetings/repo';
 import { callOneCServer } from '@/lib/onec-server';
 import { supabase } from '@/lib/supabase';
-import { adaptOneCMeeting, type OneCMeetingRow } from '@/lib/meetings/onec-adapter';
+import { adaptOneCMeeting, normalizeDate, type OneCMeetingRow } from '@/lib/meetings/onec-adapter';
 import { toMeetingRowDb } from '@/lib/meetings/types';
 
 /** Детермінований UUID з legacy 1С-ID (md5-based). Той самий ID завжди
@@ -56,13 +56,55 @@ async function syncFromOneC(
     const rows = r.data.meetings.filter(m => m.ID && m.ClientID && m.Date && m.Time);
     if (rows.length === 0) return { imported: 0, failed: false };
 
-    const dbRows = rows.map(raw => {
+    // === Stage 1: знайти existing rows менеджера за цей день ===
+    // Це покриває обидва race кейси:
+    //  1. Наша зустріч щойно sync-нулась у 1С → legacy_1c_id ще NULL у нас.
+    //     1С повертає її з нашим UUID. Matching by id саме спрацює.
+    //  2. 1С згенерувала свій ID (legacy formats типу "0000001271320260604")
+    //     для нашої зустрічі. Matching by id не спрацює, але fuzzy
+     //    (manager_login, client_id_1c, date, time) знайде → оновимо legacy_1c_id.
+    const datesSet = new Set(rows.map(r => normalizeDate(r.Date)).filter(Boolean));
+    const dates = Array.from(datesSet);
+    const { data: existingRaw } = await supabase
+      .from('meetings')
+      .select('id,legacy_1c_id,manager_login,client_id_1c,date,time')
+      .eq('manager_login', managerLogin)
+      .in('date', dates);
+    const existing = (existingRaw ?? []) as Array<{
+      id: string;
+      legacy_1c_id: string | null;
+      manager_login: string;
+      client_id_1c: string;
+      date: string;
+      time: string;
+    }>;
+    const existingById = new Map(existing.map(e => [e.id, e]));
+    const existingByLegacy = new Map(
+      existing.filter(e => e.legacy_1c_id).map(e => [e.legacy_1c_id as string, e]),
+    );
+    const matchFuzzy = (clientId: string, date: string, time: string) =>
+      existing.find(
+        e =>
+          !e.legacy_1c_id &&
+          e.client_id_1c === clientId &&
+          e.date === date &&
+          e.time.slice(0, 5) === time.slice(0, 5),
+      );
+
+    const toInsert: Record<string, unknown>[] = [];
+    const toUpdate: Array<{ id: string; legacy_1c_id: string; patch: Record<string, unknown> }> = [];
+
+    for (const raw of rows) {
       const adapted = adaptOneCMeeting(raw);
       const legacyId = raw.ID as string;
-      // Якщо 1С повернула UUID — це наша зустріч (saveNewMeeting шле наш UUID
-      // як ID, 1С зберігає під тим же). Використовуємо його як id у БД, щоб
-      // оновити existing row, а не створити дубль через md5-hash.
       const ourId = isUUID(legacyId) ? legacyId.toLowerCase() : legacyToUUID(legacyId);
+
+      // Stage 2: matching priority — legacy_1c_id, потім id (UUID), потім fuzzy
+      const existingRow =
+        existingByLegacy.get(legacyId) ??
+        existingById.get(ourId) ??
+        matchFuzzy(adapted.clientId1c, adapted.date, adapted.time);
+
       const dbRow = toMeetingRowDb({
         managerLogin: adapted.managerLogin || managerLogin,
         clientId1c: adapted.clientId1c,
@@ -83,49 +125,54 @@ async function syncFromOneC(
         clientNameFromOneC: adapted.clientNameFromOneC,
         clientPhoneFromOneC: adapted.clientPhoneFromOneC,
         clientCategoryFromOneC: adapted.clientCategoryFromOneC,
+        anketaDataJson: adapted.anketaDataJson,
       });
-      return {
-        ...dbRow,
-        id: ourId,
-        legacy_1c_id: legacyId,
-      } as Record<string, unknown>;
-    });
 
-    // INSERT нових rows ON CONFLICT (id) DO NOTHING — не перетирає локальні
-    // зміни статусу/коментарів. Якщо id (= 1С-ID для existing-наших) уже у БД
-    // — пропускаємо INSERT, оновимо snapshot окремим UPDATE нижче.
-    const { error: insErr } = await supabase
-      .from('meetings')
-      .upsert(dbRows, { onConflict: 'id', ignoreDuplicates: true });
-    if (insErr) {
-      console.warn('[/api/meetings] bulk-import upsert failed:', insErr.message);
-      return { imported: 0, failed: true };
-    }
-
-    // Окремо ОНОВЛЮЄМО snapshot-поля для existing rows (manager_login +
-    // client_name/phone/category + legacy_1c_id). Це безпечно бо ці поля —
-    // display-only, не торкають local status/comment. legacy_1c_id оновлюємо
-    // окремо щоб старі наші зустрічі (legacy_1c_id=NULL до Phase 2) отримали
-    // mapping і не дублювались при наступному bulk-import.
-    let updateErrors = 0;
-    for (const row of dbRows) {
-      const { error: upErr } = await supabase
-        .from('meetings')
-        .eq('id', row.id as string)
-        .update({
-          manager_login: row.manager_login,
-          legacy_1c_id: row.legacy_1c_id,
-          client_name: row.client_name,
-          client_phone: row.client_phone,
-          client_category: row.client_category,
+      if (existingRow) {
+        // UPDATE: оновлюємо тільки safe snapshot fields (manager_login + name/
+        // phone/category + legacy_1c_id). Local статус/коментар/start_*/end_*
+        // не торкаємо — це local user state.
+        toUpdate.push({
+          id: existingRow.id,
+          legacy_1c_id: legacyId,
+          patch: {
+            manager_login: dbRow.manager_login,
+            client_name: dbRow.client_name,
+            client_phone: dbRow.client_phone,
+            client_category: dbRow.client_category,
+            legacy_1c_id: legacyId,
+          },
         });
-      if (upErr) updateErrors++;
-    }
-    if (updateErrors > 0) {
-      console.warn(`[/api/meetings] bulk-import: ${updateErrors}/${dbRows.length} snapshot-updates failed`);
+      } else {
+        // INSERT новий запис
+        toInsert.push({ ...dbRow, id: ourId, legacy_1c_id: legacyId });
+      }
     }
 
-    return { imported: dbRows.length, failed: false };
+    // Stage 3: bulk INSERT для нових. ON CONFLICT (id) DO NOTHING на випадок
+    // повторного запиту (idempotency).
+    if (toInsert.length > 0) {
+      const { error: insErr } = await supabase
+        .from('meetings')
+        .upsert(toInsert, { onConflict: 'id', ignoreDuplicates: true });
+      if (insErr) {
+        console.warn('[/api/meetings] bulk-import insert failed:', insErr.message);
+        return { imported: 0, failed: true };
+      }
+    }
+
+    // Stage 4: оновлюємо existing rows. Per-row UPDATE (PostgREST не має
+    // batch update). N HTTP-ів — для 50-200 meetings/день це ~200ms total.
+    // P2 у backlog: переписати на single UPDATE FROM VALUES через RPC.
+    for (const u of toUpdate) {
+      await supabase
+        .from('meetings')
+        .eq('id', u.id)
+        .eq('manager_login', managerLogin) // ownership-guard
+        .update(u.patch);
+    }
+
+    return { imported: toInsert.length + toUpdate.length, failed: false };
   } catch (e) {
     console.warn('[/api/meetings] bulk-import error:', (e as Error).message);
     return { imported: 0, failed: true };
@@ -143,20 +190,60 @@ export async function GET(request: NextRequest) {
   const dateTo = searchParams.get('to') ?? undefined;
   const limit = Number(searchParams.get('limit') ?? '500');
 
-  // Паралельно: bulk-import з 1С (background, silent fail) + list нашої БД.
-  // Так зустрічі з 1С (legacy / sync через cron) одразу попадають у наш кеш,
-  // а listMeetings бачить як старі, так і новоімпортовані.
+  // bulk-import з 1С — NON-BLOCKING через waitUntil. Користувач не чекає
+  // 30с на холодне 1С — отримує snapshot з БД одразу, нові зустрічі
+  // з'являться на наступному poll/F5 (60с refreshInterval у useMeetings).
   if (dateFrom && dateTo) {
-    await syncFromOneC(session.login, dateFrom, dateTo);
+    // Fire-and-forget. Error логуємо у Sentry через onRequestError hook.
+    syncFromOneC(session.login, dateFrom, dateTo).catch(e => {
+      console.warn('[/api/meetings] background sync failed:', (e as Error).message);
+    });
   }
+
+  // P1 #12: admin/director бачать СВОЇ + managedUsers. РМ — те саме.
+  // Менеджер — тільки свої.
+  const targetLogins = session.role === 'admin' || session.role === 'director'
+    ? [session.login, ...session.managedUsers]
+    : session.role === 'rm'
+      ? [session.login, ...session.managedUsers]
+      : [session.login];
 
   const { data, error } = await listMeetings(session.login, {
     dateFrom,
     dateTo,
     limit: Number.isFinite(limit) ? limit : 500,
+    managerLogins: targetLogins,
   });
   if (error) return Response.json({ error }, { status: 500 });
-  return Response.json({ meetings: data });
+
+  // P1 #11: тягнемо meeting_syncs зі статусом failed/pending для цих зустрічей —
+  // щоб UI міг показати failed badge ("Не синхр."). Інакше syncStatus у всіх
+  // server-fetched завжди 'synced'.
+  const meetingIds = (data ?? []).map(m => m.id);
+  const syncMap = new Map<string, 'pending' | 'syncing' | 'synced' | 'failed'>();
+  if (meetingIds.length > 0) {
+    const { data: syncRows } = await supabase
+      .from('meeting_syncs')
+      .select('meeting_id,status')
+      .in('meeting_id', meetingIds);
+    const rows = (syncRows ?? []) as Array<{ meeting_id: string; status: string }>;
+    for (const r of rows) {
+      // Priority: failed > pending > syncing > synced. Бо одна meeting може мати
+      // кілька sync rows (save → update → ...).
+      const cur = syncMap.get(r.meeting_id);
+      const newStatus = r.status as 'pending' | 'syncing' | 'synced' | 'failed';
+      const rank = (s?: string) => (s === 'failed' ? 4 : s === 'pending' ? 3 : s === 'syncing' ? 2 : 1);
+      if (!cur || rank(newStatus) > rank(cur)) {
+        syncMap.set(r.meeting_id, newStatus);
+      }
+    }
+  }
+  const meetingsWithSync = (data ?? []).map(m => ({
+    ...m,
+    syncStatus: syncMap.get(m.id) ?? 'synced',
+  }));
+
+  return Response.json({ meetings: meetingsWithSync });
 }
 
 interface CreateBody {

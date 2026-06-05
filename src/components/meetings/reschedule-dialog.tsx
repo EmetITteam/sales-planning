@@ -53,6 +53,37 @@ export function RescheduleDialog({ open, meeting, onClose, onConfirm }: Props) {
   const [time, setTime] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // P1 #14: conflict-check на reschedule. Debounced 400ms — той самий patternthat
+  // у MeetingForm. Soft warning, не блокує save.
+  const [conflicts, setConflicts] = useState<Array<{ id: string; time: string; clientName: string }>>([]);
+  useEffect(() => {
+    if (!open || !meeting || !date || !time) {
+      setConflicts([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/meetings/check-conflict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            date,
+            time,
+            durationMin: meeting.durationMin,
+            excludeId: meeting.id,
+          }),
+        });
+        if (!r.ok) return;
+        const body = await r.json();
+        setConflicts(body.conflicts ?? []);
+      } catch {
+        // silent
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [open, date, time, meeting]);
+
   useEffect(() => {
     if (open && meeting) {
       setDate(getDefaultDate());
@@ -155,6 +186,22 @@ export function RescheduleDialog({ open, meeting, onClose, onConfirm }: Props) {
                 />
               </div>
             </div>
+
+            {conflicts.length > 0 && (
+              <div className="px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[12px] text-amber-900">
+                <p className="font-bold mb-0.5">⚠ На новий час уже {conflicts.length === 1 ? 'є зустріч' : `є ${conflicts.length} зустрічі`}:</p>
+                <ul className="space-y-0.5">
+                  {conflicts.map(c => (
+                    <li key={c.id}>
+                      <span className="font-mono font-semibold">{c.time}</span>
+                      {' · '}
+                      {c.clientName}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-[11px] text-amber-700">Зберегти можна — це попередження.</p>
+              </div>
+            )}
 
             <div className="text-[11px] text-slate-500 leading-snug">
               До коментаря автоматично додасться:

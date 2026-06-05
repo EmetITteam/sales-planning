@@ -179,15 +179,22 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
   // Цілі візиту з 1С (з fallback на hardcoded список).
   const { purposes: PURPOSES } = useMeetingPurposes();
 
+  const [saving, setSaving] = useState(false);
   const canSave =
+    !saving &&
     form.clientId1c.trim().length > 0 &&
     form.date.length === 10 &&
     form.time.length === 5 &&
     form.purpose.trim().length > 0;
 
-  const handleSave = () => {
-    if (!canSave) return;
-    onSave(form);
+  const handleSave = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    try {
+      await Promise.resolve(onSave(form));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const title = mode === 'create' ? 'Нова зустріч' : 'Редагувати зустріч';

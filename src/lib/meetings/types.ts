@@ -129,6 +129,8 @@ export interface MeetingRowDb {
   client_name?: string | null;
   client_phone?: string | null;
   client_category?: string | null;
+  /** AnketaDataJSON з 1С — survey-blob попередньої зустрічі клієнта. */
+  anketa_data_json?: string | null;
   /** Реальні timestamps старту/фінішу (для LiveTimer і duration обчислень). */
   started_at?: string | null;
   finished_at?: string | null;
@@ -175,6 +177,7 @@ export function adaptMeetingRow(row: MeetingRowDb): Meeting {
     clientNameFromOneC: row.client_name ?? null,
     clientPhoneFromOneC: row.client_phone ?? null,
     clientCategoryFromOneC: row.client_category ?? null,
+    anketaDataJson: row.anketa_data_json ?? null,
     startedAt: row.started_at ?? null,
     finishedAt: row.finished_at ?? null,
     createdAt: row.created_at,
@@ -222,6 +225,7 @@ export function toMeetingRowDb(meeting: Partial<Meeting>): Partial<MeetingRowDb>
   if (meeting.clientNameFromOneC !== undefined) row.client_name = meeting.clientNameFromOneC;
   if (meeting.clientPhoneFromOneC !== undefined) row.client_phone = meeting.clientPhoneFromOneC;
   if (meeting.clientCategoryFromOneC !== undefined) row.client_category = meeting.clientCategoryFromOneC;
+  if (meeting.anketaDataJson !== undefined) row.anketa_data_json = meeting.anketaDataJson;
   if (meeting.startedAt !== undefined) row.started_at = meeting.startedAt;
   if (meeting.finishedAt !== undefined) row.finished_at = meeting.finishedAt;
   return row;
