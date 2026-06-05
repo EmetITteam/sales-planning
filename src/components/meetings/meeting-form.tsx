@@ -143,6 +143,39 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
     }
   }, [open, mode, initialMeeting, prefilledClientId, prefilledDate]);
 
+  // Conflict check: debounced запит до /api/meetings/check-conflict коли
+  // дата/час/тривалість змінюються. Показує warning якщо overlap з іншою
+  // зустріччю цього менеджера (planned/in_progress).
+  const [conflicts, setConflicts] = useState<Array<{ id: string; time: string; clientName: string }>>([]);
+  useEffect(() => {
+    if (!open) {
+      setConflicts([]);
+      return;
+    }
+    if (!form.date || !form.time) return;
+    const handle = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/meetings/check-conflict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            date: form.date,
+            time: form.time,
+            durationMin: form.durationMin,
+            excludeId: mode === 'edit' && initialMeeting ? initialMeeting.id : undefined,
+          }),
+        });
+        if (!r.ok) return;
+        const body = await r.json();
+        setConflicts(body.conflicts ?? []);
+      } catch {
+        // silent — це попередження, не критичне
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [open, form.date, form.time, form.durationMin, mode, initialMeeting]);
+
   // Цілі візиту з 1С (з fallback на hardcoded список).
   const { purposes: PURPOSES } = useMeetingPurposes();
 
@@ -226,6 +259,23 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
                 />
               </FormGroup>
             </div>
+
+            {/* Conflict warning — не блокує save, soft popereджage */}
+            {conflicts.length > 0 && (
+              <div className="px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[12px] text-amber-900">
+                <p className="font-bold mb-0.5">⚠ На цей час уже {conflicts.length === 1 ? 'є зустріч' : `є ${conflicts.length} зустрічі`}:</p>
+                <ul className="space-y-0.5">
+                  {conflicts.map(c => (
+                    <li key={c.id}>
+                      <span className="font-mono font-semibold">{c.time}</span>
+                      {' · '}
+                      {c.clientName}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-[11px] text-amber-700">Зберегти можна — це попередження.</p>
+              </div>
+            )}
 
             {/* Duration + Purpose row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

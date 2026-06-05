@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import Link from 'next/link';
-import { Shield, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle } from 'lucide-react';
+import { Shield, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -96,6 +96,13 @@ export default function AdminPage() {
             icon={<FlaskConical className="h-4 w-4 text-amber-600" />}
             title="B2B-метрики · draft"
             description="Preview 5 додаткових KPI що audit рекомендував (Pipeline coverage, NRR, AOV per brand, Stage-done ratio, Brand mix). Оцінити чи додавати в «Огляд компанії»."
+            ready
+          />
+          <AdminCard
+            href="/admin/sync-dlq"
+            icon={<AlertTriangle className="h-4 w-4 text-rose-600" />}
+            title="DLQ зустрічей · sync errors"
+            description="Sync операції що 1С відмовила MAX_RETRIES разів. Оператор може зробити retry (новий шанс) або skip (визнати втрату)."
             ready
           />
         </div>

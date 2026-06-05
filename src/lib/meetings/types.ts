@@ -78,6 +78,10 @@ export interface Meeting {
   clientNameFromOneC?: string | null;
   clientPhoneFromOneC?: string | null;
   clientCategoryFromOneC?: string | null;
+  /** Реальний момент натискання «Розпочати» — для LiveTimer і аудиту. */
+  startedAt?: string | null;
+  /** Реальний момент натискання «Завершити». */
+  finishedAt?: string | null;
   createdAt: string;                   // ISO timestamp
   updatedAt: string;                   // ISO timestamp
 }
@@ -125,6 +129,9 @@ export interface MeetingRowDb {
   client_name?: string | null;
   client_phone?: string | null;
   client_category?: string | null;
+  /** Реальні timestamps старту/фінішу (для LiveTimer і duration обчислень). */
+  started_at?: string | null;
+  finished_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -168,6 +175,8 @@ export function adaptMeetingRow(row: MeetingRowDb): Meeting {
     clientNameFromOneC: row.client_name ?? null,
     clientPhoneFromOneC: row.client_phone ?? null,
     clientCategoryFromOneC: row.client_category ?? null,
+    startedAt: row.started_at ?? null,
+    finishedAt: row.finished_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -213,5 +222,7 @@ export function toMeetingRowDb(meeting: Partial<Meeting>): Partial<MeetingRowDb>
   if (meeting.clientNameFromOneC !== undefined) row.client_name = meeting.clientNameFromOneC;
   if (meeting.clientPhoneFromOneC !== undefined) row.client_phone = meeting.clientPhoneFromOneC;
   if (meeting.clientCategoryFromOneC !== undefined) row.client_category = meeting.clientCategoryFromOneC;
+  if (meeting.startedAt !== undefined) row.started_at = meeting.startedAt;
+  if (meeting.finishedAt !== undefined) row.finished_at = meeting.finishedAt;
   return row;
 }

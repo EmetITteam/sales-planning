@@ -224,6 +224,7 @@ export async function startMeeting(
     startLat: payload.lat,
     startLon: payload.lon,
     geoManual: payload.geoManual,
+    startedAt: now.toISOString(),
   });
   const res = await patchOwned(managerLogin, id, patch);
   if (res.data) await enqueueSync(id, 'start', res.data);
@@ -247,6 +248,7 @@ export async function finishMeeting(
   id: string,
   payload: FinishMeetingDbInput = {},
 ): Promise<{ data: Meeting | null; error: string | null }> {
+  const now = new Date();
   const patch = toMeetingRowDb({
     status: 'done',
     endAddress: payload.address ?? null,
@@ -256,6 +258,7 @@ export async function finishMeeting(
     // Тільки upgrade у true. Якщо start був GPS а finish manual — geoManual=true.
     // Якщо обидва GPS — patch не міняє існуюче значення (не передаємо).
     geoManual: payload.geoManual === true ? true : undefined,
+    finishedAt: now.toISOString(),
   });
   const res = await patchOwned(managerLogin, id, patch);
   if (res.data) await enqueueSync(id, 'finish', res.data);
