@@ -121,6 +121,10 @@ export interface MeetingRowDb {
   end_lon: number | null;
   geo_manual: boolean;
   calendar_event_id: string | null;
+  /** Snapshot з 1С getInitialData (для display без resolveу з getManagerClients). */
+  client_name?: string | null;
+  client_phone?: string | null;
+  client_category?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -161,6 +165,9 @@ export function adaptMeetingRow(row: MeetingRowDb): Meeting {
     endLon: row.end_lon,
     geoManual: row.geo_manual,
     calendarEventId: row.calendar_event_id,
+    clientNameFromOneC: row.client_name ?? null,
+    clientPhoneFromOneC: row.client_phone ?? null,
+    clientCategoryFromOneC: row.client_category ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -203,5 +210,8 @@ export function toMeetingRowDb(meeting: Partial<Meeting>): Partial<MeetingRowDb>
   if (meeting.endLon !== undefined) row.end_lon = meeting.endLon;
   if (meeting.geoManual !== undefined) row.geo_manual = meeting.geoManual;
   if (meeting.calendarEventId !== undefined) row.calendar_event_id = meeting.calendarEventId;
+  if (meeting.clientNameFromOneC !== undefined) row.client_name = meeting.clientNameFromOneC;
+  if (meeting.clientPhoneFromOneC !== undefined) row.client_phone = meeting.clientPhoneFromOneC;
+  if (meeting.clientCategoryFromOneC !== undefined) row.client_category = meeting.clientCategoryFromOneC;
   return row;
 }

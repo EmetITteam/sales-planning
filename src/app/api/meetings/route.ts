@@ -68,6 +68,9 @@ async function syncFromOneC(
         endLat: adapted.endLat,
         endLon: adapted.endLon,
         geoManual: adapted.geoManual,
+        clientNameFromOneC: adapted.clientNameFromOneC,
+        clientPhoneFromOneC: adapted.clientPhoneFromOneC,
+        clientCategoryFromOneC: adapted.clientCategoryFromOneC,
       });
       return {
         ...dbRow,
@@ -76,13 +79,39 @@ async function syncFromOneC(
       } as Record<string, unknown>;
     });
 
-    const { error } = await supabase
+    // ON CONFLICT DO NOTHING — для нових. Локальні зміни (status=cancelled тощо)
+    // у вже-існуючих рядках не перетираємо.
+    const { error: insErr } = await supabase
       .from('meetings')
       .upsert(dbRows, { onConflict: 'legacy_1c_id', ignoreDuplicates: true });
-    if (error) {
-      console.warn('[/api/meetings] bulk-import upsert failed:', error.message);
+    if (insErr) {
+      console.warn('[/api/meetings] bulk-import upsert failed:', insErr.message);
       return { imported: 0, failed: true };
     }
+
+    // Окремо ОНОВЛЮЄМО snapshot-поля для existing rows (manager_login +
+    // client_name/phone/category). Це безпечно бо ці поля — display-only,
+    // не торкають local status/comment. manager_login оновлюється бо у БД
+    // могли лишатись старі записи від попередньої архітектури з proxy
+    // (manager_login=sdu@). Робимо per-row update — для типового розміру
+    // (50-200 зустрічей менеджера) це швидко.
+    let updateErrors = 0;
+    for (const row of dbRows) {
+      const { error: upErr } = await supabase
+        .from('meetings')
+        .eq('legacy_1c_id', row.legacy_1c_id as string)
+        .update({
+          manager_login: row.manager_login,
+          client_name: row.client_name,
+          client_phone: row.client_phone,
+          client_category: row.client_category,
+        });
+      if (upErr) updateErrors++;
+    }
+    if (updateErrors > 0) {
+      console.warn(`[/api/meetings] bulk-import: ${updateErrors}/${dbRows.length} snapshot-updates failed`);
+    }
+
     return { imported: dbRows.length, failed: false };
   } catch (e) {
     console.warn('[/api/meetings] bulk-import error:', (e as Error).message);
