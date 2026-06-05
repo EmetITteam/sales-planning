@@ -127,6 +127,19 @@ class SupabaseTable {
     return this;
   }
 
+  /**
+   * Atomic UPDATE з фільтрами через `.eq()` / `.in()`. Використовуй для CAS-
+   * patterns: «оновити X тільки якщо status='pending'». Повертає {data, error}
+   * з updated rows (Prefer: return=representation). Якщо 0 rows match — це
+   * не error, просто пустий array.
+   */
+  update(patch: Record<string, unknown>): this {
+    this._method = 'PATCH';
+    this._body = patch;
+    this._extraHeaders['Prefer'] = 'return=representation';
+    return this;
+  }
+
   delete(): this {
     this._method = 'DELETE';
     return this;

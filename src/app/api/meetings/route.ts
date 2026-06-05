@@ -10,9 +10,85 @@
  */
 
 import { NextRequest } from 'next/server';
+import { createHash } from 'node:crypto';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { listMeetings, createMeeting } from '@/lib/meetings/repo';
+import { callOneCServer } from '@/lib/onec-server';
+import { supabase } from '@/lib/supabase';
+import { adaptOneCMeeting, type OneCMeetingRow } from '@/lib/meetings/onec-adapter';
+import { toMeetingRowDb } from '@/lib/meetings/types';
+
+/** Детермінований UUID з legacy 1С-ID (md5-based). Той самий ID завжди
+ *  дає той самий UUID між запусками — щоб ID меetings у фронт-кеші був стабільний. */
+function legacyToUUID(legacyId: string): string {
+  const h = createHash('md5').update('emet:meeting:' + legacyId).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
+/**
+ * Background bulk-import зустрічей з 1С у нашу БД. Зустрічі з 1С —
+ * legacy (через Митинг) або щойно sync-нуті через наш cron — попадають у БД
+ * з детермінованими UUID + legacy_1c_id. ON CONFLICT DO NOTHING — idempotent.
+ *
+ * Якщо 1С впала — silent error (наша БД ще має локальні зустрічі).
+ */
+async function syncFromOneC(
+  managerLogin: string,
+  startDateString: string,
+  endDateString: string,
+): Promise<{ imported: number; failed: boolean }> {
+  try {
+    const r = await callOneCServer<{ meetings?: OneCMeetingRow[] }>('getInitialData', {
+      login: managerLogin,
+      startDateString,
+      endDateString,
+    });
+    if (!r.ok || !r.data?.meetings) return { imported: 0, failed: true };
+    const rows = r.data.meetings.filter(m => m.ID && m.ClientID && m.Date && m.Time);
+    if (rows.length === 0) return { imported: 0, failed: false };
+
+    const dbRows = rows.map(raw => {
+      const adapted = adaptOneCMeeting(raw);
+      const legacyId = raw.ID as string;
+      const dbRow = toMeetingRowDb({
+        managerLogin: adapted.managerLogin || managerLogin,
+        clientId1c: adapted.clientId1c,
+        date: adapted.date,
+        time: adapted.time,
+        durationMin: adapted.durationMin,
+        status: adapted.status,
+        purpose: adapted.purpose,
+        comment: adapted.comment,
+        plannedAddress: adapted.plannedAddress,
+        startAddress: adapted.startAddress,
+        startLat: adapted.startLat,
+        startLon: adapted.startLon,
+        endAddress: adapted.endAddress,
+        endLat: adapted.endLat,
+        endLon: adapted.endLon,
+        geoManual: adapted.geoManual,
+      });
+      return {
+        ...dbRow,
+        id: legacyToUUID(legacyId),
+        legacy_1c_id: legacyId,
+      } as Record<string, unknown>;
+    });
+
+    const { error } = await supabase
+      .from('meetings')
+      .upsert(dbRows, { onConflict: 'legacy_1c_id', ignoreDuplicates: true });
+    if (error) {
+      console.warn('[/api/meetings] bulk-import upsert failed:', error.message);
+      return { imported: 0, failed: true };
+    }
+    return { imported: dbRows.length, failed: false };
+  } catch (e) {
+    console.warn('[/api/meetings] bulk-import error:', (e as Error).message);
+    return { imported: 0, failed: true };
+  }
+}
 
 export async function GET(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -24,6 +100,13 @@ export async function GET(request: NextRequest) {
   const dateFrom = searchParams.get('from') ?? undefined;
   const dateTo = searchParams.get('to') ?? undefined;
   const limit = Number(searchParams.get('limit') ?? '500');
+
+  // Паралельно: bulk-import з 1С (background, silent fail) + list нашої БД.
+  // Так зустрічі з 1С (legacy / sync через cron) одразу попадають у наш кеш,
+  // а listMeetings бачить як старі, так і новоімпортовані.
+  if (dateFrom && dateTo) {
+    await syncFromOneC(session.login, dateFrom, dateTo);
+  }
 
   const { data, error } = await listMeetings(session.login, {
     dateFrom,

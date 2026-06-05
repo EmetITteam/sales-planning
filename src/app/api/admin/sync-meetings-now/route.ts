@@ -93,15 +93,21 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    // Reset retry_count для failed rows — admin дає ще шанс. Інакше якщо
-    // 1С відмовила MAX_RETRIES разів, нова спроба знов одразу позначить
-    // failed без виклику (тому admin click нічого не змінить).
-    await supabase
+    // Atomic claim з reset retry_count (admin дає ще шанс failed rows).
+    // CAS-pattern: UPDATE WHERE id=X AND status IN (pending,failed). Якщо
+    // інший виконавець (cron чи паралельний admin-click) уже взяв цю row —
+    // повернеться 0 rows → skip. Запобігає 2-разовому sync і race conditions.
+    const { data: claimed } = await supabase
       .from('meeting_syncs')
-      .upsert(
-        { id: row.id, status: 'syncing', retry_count: 0 },
-        { onConflict: 'id' },
-      );
+      .eq('id', row.id)
+      .in('status', ['pending', 'failed'])
+      .update({ status: 'syncing', retry_count: 0 });
+    const claimedRows = Array.isArray(claimed) ? claimed : [];
+    if (claimedRows.length === 0) {
+      console.log(`[manual-sync] sync ${row.id} вже claimed іншим процесом → skip`);
+      result.skipped++;
+      continue;
+    }
 
     if (dryRun) {
       console.log(`[ШАГ 1 DRY] Відправка в 1С для дії "${call.action}":`, JSON.stringify(call.payload, null, 2));

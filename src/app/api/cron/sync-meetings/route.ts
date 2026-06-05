@@ -99,10 +99,19 @@ export async function GET(request: NextRequest) {
       continue;
     }
 
-    // Mark syncing
-    await supabase
+    // Atomic claim: UPDATE WHERE id=X AND status='pending' RETURNING.
+    // Якщо інший виконавець (manual-sync чи попередній cron tick) вже взяв
+    // цю row — повернеться 0 rows → skip (запобігає 2-разовому sync).
+    const { data: claimed } = await supabase
       .from('meeting_syncs')
-      .upsert({ id: row.id, status: 'syncing' }, { onConflict: 'id' });
+      .eq('id', row.id)
+      .eq('status', 'pending')
+      .update({ status: 'syncing' });
+    const claimedRows = Array.isArray(claimed) ? claimed : [];
+    if (claimedRows.length === 0) {
+      console.log(`[sync-meetings] sync ${row.id} вже claimed іншим процесом → skip`);
+      continue;
+    }
 
     if (dryRun) {
       console.log(`[ШАГ 1 DRY] Відправка в 1С для дії "${call.action}":`, JSON.stringify(call.payload, null, 2));

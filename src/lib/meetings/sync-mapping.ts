@@ -18,6 +18,11 @@ import type { MeetingSyncOperation } from './types';
  */
 export interface BufferSnapshot {
   id: string;
+  /** Якщо заповнено — це зустріч що вже існує у 1С (legacy або synced раніше).
+   *  У payload до 1С шлемо саме legacyOneCId як ID — щоб 1С знала яку
+   *  зустріч update-ити. Для нових (NULL) шлемо наш UUID — 1С створює
+   *  новий запис під цим ID. */
+  legacyOneCId?: string | null;
   managerLogin: string;
   clientId1c: string;
   /** Транзитні поля — не у БД, додаються у repo.createMeeting перед
@@ -82,7 +87,10 @@ function statusToOneC(status: string): string {
  */
 function snapshotToOneCMeeting(s: BufferSnapshot): Record<string, unknown> {
   return {
-    ID: s.id,
+    // Якщо зустріч існує у 1С (legacy або synced раніше) — шлемо її 1С-ID.
+    // Для нових (legacyOneCId=NULL) — наш UUID; 1С створить запис під ним
+    // і потім bulk-import синхронізує legacy_1c_id назад у нашу БД.
+    ID: s.legacyOneCId ?? s.id,
     ManagerLogin: s.managerLogin,
     ClientID: s.clientId1c,
     Date: isoDateToOneC(s.date),

@@ -1,32 +1,33 @@
 /**
  * useMeetings — клієнтський хук для зустрічей.
  *
- * **READ**: тягне через 1С `getInitialData` (той самий action що використовує
- * meeting-app у проді). 1С — єдине джерело правди для існуючих зустрічей.
+ * **Архітектура** (Phase 2, 2026-06-05): 1С — джерело істини, наша БД — кеш.
  *
- * **WRITE** (create / update / start / finish): пише через `/api/meetings`
- * у нашу Supabase + buffer (`meeting_syncs`). Cron-worker (`/api/cron/sync-meetings`)
- * читає чергу і шле у 1С через `saveNewMeeting` / `updateMeeting` / `startMeeting`.
- * Це гарантує що менеджер не втратить запис якщо 1С тимчасово недоступний.
+ * **READ** через GET /api/meetings:
+ *  - backend паралельно робить bulk-import з 1С (getInitialData) → upsert у нашу БД
+ *    через legacy_1c_id як unique key (idempotent, ON CONFLICT DO NOTHING)
+ *  - повертає список з нашої БД (з нашими UUID)
+ *  - frontend ніколи не звертається напряму до 1С — все через наш endpoint
+ *
+ * **WRITE** (create / update / start / finish / cancel): пише через `/api/meetings`
+ * у нашу Supabase + buffer (`meeting_syncs`). Cron-worker читає чергу і шле у 1С
+ * через `saveNewMeeting` / `updateMeeting` / `startMeeting`. Це гарантує що
+ * менеджер не втратить запис якщо 1С тимчасово недоступний.
  *
  * Strategy: optimistic update + revalidate-on-success.
- *  - mutation одразу патчить локальний state (UI не блимає)
- *  - якщо API повернув error → rollback на snapshot
- *  - після successful create — refetch з 1С через 2-3 сек (cron мав встигнути)
  */
 
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import useSWR from 'swr';
 import {
   applyStart,
   type MeetingStartPayload,
   type MeetingWithSync,
 } from './mock-data';
 import type { Meeting, MeetingStatus } from './types';
-import { useOneCData } from '../use-onec-data';
 import { useAppStore } from '../store';
-import { adaptOneCMeetings, type OneCMeetingRow } from './onec-adapter';
 import { calcDateRange, DEFAULT_PRESET, type DateRange } from './date-presets';
 
 interface UseMeetingsApi {
@@ -91,20 +92,34 @@ export function useMeetings(range?: DateRange): UseMeetingsApi {
     [range],
   );
 
-  // === READ з 1С ===
-  const payload = sessionUser
-    ? { login: sessionUser.login, ...effectiveRange }
+  // === READ через наш endpoint (БД як кеш + bulk-import з 1С background) ===
+  const swrKey = sessionUser
+    ? `our-meetings|${sessionUser.login}|${effectiveRange.startDateString}|${effectiveRange.endDateString}`
     : null;
-  const {
-    data: oneCData,
-    loading: fetchLoading,
-    error: fetchError,
-    refetch,
-  } = useOneCData('getInitialData', payload);
+  const { data: meetingsResp, error: fetchError, isLoading: fetchLoading, mutate: swrMutate } = useSWR(
+    swrKey,
+    async () => {
+      const url = `/api/meetings?from=${effectiveRange.startDateString}&to=${effectiveRange.endDateString}`;
+      const r = await fetch(url, { credentials: 'same-origin' });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${r.status}`);
+      }
+      return r.json() as Promise<{ meetings: Meeting[] }>;
+    },
+    {
+      revalidateOnFocus: true,
+      dedupingInterval: 30_000,
+    },
+  );
 
-  const remoteMeetings = useMemo(
-    () => adaptOneCMeetings((oneCData?.meetings as OneCMeetingRow[]) ?? []),
-    [oneCData],
+  const refetch = useCallback(async () => {
+    await swrMutate();
+  }, [swrMutate]);
+
+  const remoteMeetings = useMemo<MeetingWithSync[]>(
+    () => (meetingsResp?.meetings ?? []).map(m => toMeetingWithSync(m, 'synced')),
+    [meetingsResp],
   );
 
   // === Local merge: optimistic-додані / щойно створені поверх 1С даних ===

@@ -34,7 +34,16 @@ export type MeetingSyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
 
 /** Один рядок з таблиці `meetings`. */
 export interface Meeting {
-  id: string;                          // uuid
+  id: string;                          // uuid (наш стабільний ID для API URLs і фронт-кеш)
+  /**
+   * Оригінальний 1С-ID зустрічі (формат "0000001271320260604" або UUID-like).
+   * Заповнюється для зустрічей що прийшли з 1С (bulk-import) або після
+   * sync-cycle коли 1С підтвердила збереження. NULL для тільки-що створених
+   * локально зустрічей до першого sync. Використовується у sync-mapping
+   * як ID у payload для updateMeeting/startMeeting/cancel — щоб 1С знала
+   * яку зустріч оновити.
+   */
+  legacyOneCId?: string | null;
   managerLogin: string;                // FK → users.login
   clientId1c: string;                  // код контрагента з 1С (не FK)
   date: string;                        // ISO YYYY-MM-DD
@@ -94,6 +103,7 @@ export interface MeetingSync {
  */
 export interface MeetingRowDb {
   id: string;
+  legacy_1c_id?: string | null;
   manager_login: string;
   client_id_1c: string;
   date: string;
@@ -133,6 +143,7 @@ export interface MeetingSyncRowDb {
 export function adaptMeetingRow(row: MeetingRowDb): Meeting {
   return {
     id: row.id,
+    legacyOneCId: row.legacy_1c_id ?? null,
     managerLogin: row.manager_login,
     clientId1c: row.client_id_1c,
     date: row.date,
