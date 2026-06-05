@@ -110,6 +110,10 @@ export function useMeetings(range?: DateRange): UseMeetingsApi {
     {
       revalidateOnFocus: true,
       dedupingInterval: 30_000,
+      // Polling кожні 60с поки сторінка відкрита — щоб зустрічі що 1С створила
+      // (іншим каналом, або наш cron synced) автоматично з'являлися без F5.
+      // Без webhooks з боку 1С — це наша реал-таймова стратегія.
+      refreshInterval: 60_000,
     },
   );
 

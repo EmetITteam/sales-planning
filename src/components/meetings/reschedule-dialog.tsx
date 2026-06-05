@@ -63,10 +63,17 @@ export function RescheduleDialog({ open, meeting, onClose, onConfirm }: Props) {
 
   if (!meeting) return null;
 
+  // Fallback ланцюг (як у MeetingCard):
+  //  1. real client з getManagerClients
+  //  2. snapshot з 1С getInitialData (Meeting.clientNameFromOneC)
+  //  3. MOCK_CLIENT_NAMES (dev)
+  //  4. clientId — крайній варіант
   const matched = myClients.find(c => c.ClientID === meeting.clientId1c);
   const clientName = matched
     ? getClientName(matched)
-    : MOCK_CLIENT_NAMES[meeting.clientId1c] ?? meeting.clientId1c;
+    : meeting.clientNameFromOneC
+      || MOCK_CLIENT_NAMES[meeting.clientId1c]
+      || meeting.clientId1c;
 
   const handleSave = () => {
     if (!date || !time) {

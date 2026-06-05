@@ -93,11 +93,17 @@ export function LocationCaptureDialog({ open, mode, meeting, onClose, onConfirm 
   const { clients: myClients } = useMyClients();
 
   if (!meeting) return null;
-  // Resolve order: real client name з 1С → mock-name → код-сирець як останній fallback.
+  // Fallback ланцюг (як у MeetingCard):
+  //  1. real client з getManagerClients
+  //  2. snapshot з 1С getInitialData (Meeting.clientNameFromOneC)
+  //  3. MOCK_CLIENT_NAMES (dev)
+  //  4. clientId — крайній варіант
   const matched = myClients.find(c => c.ClientID === meeting.clientId1c);
   const clientName = matched
     ? getClientName(matched)
-    : MOCK_CLIENT_NAMES[meeting.clientId1c] ?? meeting.clientId1c;
+    : meeting.clientNameFromOneC
+      || MOCK_CLIENT_NAMES[meeting.clientId1c]
+      || meeting.clientId1c;
   const copy = COPY[mode];
 
   const canConfirm =

@@ -197,6 +197,8 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
             {/* Client */}
             <ClientField
               clientId1c={form.clientId1c}
+              fallbackName={form.clientName}
+              fallbackPhone={form.clientPhone}
               onChange={picked => setForm(f => ({
                 ...f,
                 clientId1c: picked.id,
@@ -386,22 +388,29 @@ function FormGroup({
 
 interface ClientFieldProps {
   clientId1c: string;
+  /** Fallback display коли клієнта нема у getManagerClients-кеші — приходить
+   *  з MeetingFormData (заповнено при відкритті edit з 1С-snapshot полів). */
+  fallbackName?: string;
+  fallbackPhone?: string;
   onChange: (picked: { id: string; name: string; phone: string }) => void;
 }
 
-function ClientField({ clientId1c, onChange }: ClientFieldProps) {
+function ClientField({ clientId1c, fallbackName, fallbackPhone, onChange }: ClientFieldProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const { clients } = useMyClients();
 
-  // Lookup name з useMyClients (cache SWR). Fallback на MOCK_CLIENT_NAMES для
-  // mock-режиму коли НЕ використовуємо real 1С API.
+  // Fallback ланцюг:
+  //  1. real client з useMyClients
+  //  2. fallback з props (1С-snapshot через meetingToFormData)
+  //  3. MOCK_CLIENT_NAMES (dev)
+  //  4. null
   const matched = clients.find(c => c.ClientID === clientId1c);
   const selectedName = matched
     ? getClientName(matched)
-    : clientId1c
-      ? MOCK_CLIENT_NAMES[clientId1c] ?? null
-      : null;
-  const selectedPhone = matched?.Phone ?? '';
+    : fallbackName
+      || (clientId1c ? MOCK_CLIENT_NAMES[clientId1c] : null)
+      || null;
+  const selectedPhone = matched?.Phone ?? fallbackPhone ?? '';
 
   return (
     <>
