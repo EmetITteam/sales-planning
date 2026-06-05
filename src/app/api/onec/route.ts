@@ -24,13 +24,19 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 
 /**
- * Actions для яких admin не повинен прокситись через DIRECTOR_PROXY_LOGIN.
- * Це actions де admin читає/пише ВЛАСНІ дані під своїм логіном:
- *  - getInitialData → зустрічі менеджера (admin теж створює зустрічі під собою)
- * Для решти actions (getRegionData, getClientsForPlanning, etc.) admin
- * не закріплений у 1С → треба proxy щоб побачити company-wide картину.
+ * Actions де admin прокситься через DIRECTOR_PROXY_LOGIN бо admin не
+ * закріплений у 1С за регіонами/менеджерами — без proxy 1С повертає пусто.
+ * Це company-wide actions для DirectorDashboard/CompanyOverview.
+ *
+ * ВСІ ІНШІ actions admin шле під СВОЇМ логіном — її особисті клієнти/зустрічі.
+ * Якщо у 1С нема даних під itd@ → нехай порожнє, admin створює тестові
+ * самостійно. Це чисто для перевірки функціоналу.
  */
-const ADMIN_OWN_ACTIONS = new Set(['getInitialData']);
+const ADMIN_PROXY_ACTIONS = new Set([
+  'getRegionData',          // регіональна структура компанії
+  'getClientsForPlanning',  // план менеджерів
+  'getTrainings',           // тренінги менеджерів
+]);
 
 // Дозволені 1С actions — whitelist щоб через прокі не можна було звертатись
 // до довільних 1С-методів. `login` НЕ дозволений тут — для нього є /api/auth/login
@@ -138,10 +144,10 @@ export async function POST(request: NextRequest) {
   // - Менеджер: тільки свій логін
   // - РМ: свій + managedUsers (менеджери регіону) напряму
   // - Director: будь-хто (закріплений у 1С з повними правами)
-  // - Admin (itd@): закріплений у 1С з повними правами АЛЕ НЕ ЗА РЕГІОНАМИ. Тому
-  //   для company-wide actions (getRegionData, getClientsForPlanning, ...) admin
-  //   проксится через DIRECTOR_PROXY_LOGIN (sdu@) щоб побачити дані. Для actions
-  //   де admin читає/пише ВЛАСНІ дані (getInitialData = зустрічі) — свій логін.
+  // - Admin (itd@): існує у 1С з повними правами, шле СВІЙ логін для personal
+  //   actions (свої клієнти, зустрічі, активності). Для company-wide
+  //   ADMIN_PROXY_ACTIONS (getRegionData, getClientsForPlanning, getTrainings) —
+  //   proxy через DIRECTOR_PROXY_LOGIN, бо admin не закріплений за регіонами.
   // - Multi-region RM (Пашковська) — як director (будь-який login). Drill-down
   //   у менеджерів іншого регіону, але managedUsers тільки Одеса.
   let safePayload = payload ?? {};
@@ -152,7 +158,7 @@ export async function POST(request: NextRequest) {
     const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLoginLower];
     const adminNeedsProxy =
       session.role === 'admin'
-      && !ADMIN_OWN_ACTIONS.has(action)
+      && ADMIN_PROXY_ACTIONS.has(action)
       && (!requestedLogin || requestedLogin === session.login);
     if (adminNeedsProxy) {
       safePayload = { ...safePayload, login: DIRECTOR_PROXY_LOGIN };
@@ -180,14 +186,12 @@ export async function POST(request: NextRequest) {
 
   // findClient: override `managerLogin` (а не `login`) тим самим способом.
   // Менеджер не може шукати «як від імені іншого менеджера».
-  // Admin: для пошуку у всій базі — proxy через director (бо findClient
-  // у режимі «свої клієнти» інакше нічого не поверне).
+  // Admin: шукає у СВОЇХ клієнтах під своїм логіном (не proxy). Якщо порожньо —
+  // створить тестові через registerNewClient.
   if (MANAGER_LOGIN_BOUND_ACTIONS.has(action)) {
     const requested = (safePayload as { managerLogin?: string }).managerLogin;
     const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
-    if (session.role === 'admin' && (!requested || requested === session.login)) {
-      safePayload = { ...safePayload, managerLogin: DIRECTOR_PROXY_LOGIN };
-    } else if (!requested) {
+    if (!requested) {
       safePayload = { ...safePayload, managerLogin: session.login };
     } else if (
       requested !== session.login
