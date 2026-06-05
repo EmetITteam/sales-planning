@@ -8,6 +8,11 @@
  * Безпечно видалити після підтвердження що моніторинг працює.
  */
 
+import * as Sentry from '@sentry/nextjs';
+
 export async function GET() {
-  throw new Error('Sentry test error from sales-planning — це навмисна перевірка моніторингу');
+  const err = new Error('Sentry test error from sales-planning — це навмисна перевірка моніторингу');
+  Sentry.captureException(err);
+  await Sentry.flush(2000);
+  throw err;
 }
