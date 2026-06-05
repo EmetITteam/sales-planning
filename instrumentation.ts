@@ -1,21 +1,36 @@
 /**
  * Next.js instrumentation hook — викликається 1 раз при старті server.
- * Завантажує Sentry config за runtime (nodejs / edge).
- *
- * onRequestError — Next.js 15+ hook що тригериться на unhandled errors у
- * route handlers / server components. Sentry v10 ловить через
- * captureRequestError.
+ * У @sentry/nextjs v10 init робиться напряму тут (старі sentry.{server,edge}.config.ts
+ * застаріли і не завантажуються автоматично).
  */
 
-import { captureRequestError } from '@sentry/nextjs';
+import * as Sentry from '@sentry/nextjs';
+
+const dsn = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 export async function register() {
+  console.log('[sentry-init] register() called, runtime:', process.env.NEXT_RUNTIME, 'dsn present:', !!dsn);
+  if (!dsn) return;
+
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./sentry.server.config');
+    Sentry.init({
+      dsn,
+      tracesSampleRate: 0.1,
+      debug: false,
+      environment: process.env.VERCEL_ENV ?? 'development',
+    });
+    console.log('[sentry-init] Sentry initialized for nodejs runtime');
   }
+
   if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config');
+    Sentry.init({
+      dsn,
+      tracesSampleRate: 0.1,
+      debug: false,
+      environment: process.env.VERCEL_ENV ?? 'development',
+    });
+    console.log('[sentry-init] Sentry initialized for edge runtime');
   }
 }
 
-export const onRequestError = captureRequestError;
+export const onRequestError = Sentry.captureRequestError;
