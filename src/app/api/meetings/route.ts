@@ -26,6 +26,14 @@ function legacyToUUID(legacyId: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
 }
 
+/** UUID-формат? Якщо так — це наша зустріч що повернулася з 1С після cron-sync
+ *  (saveNewMeeting шле наш UUID як ID, 1С зберігає під ним). Тоді в БД row
+ *  з тим же id уже існує — треба тільки оновити legacy_1c_id + snapshot, а не
+ *  створювати дубль через md5-hash. */
+function isUUID(s: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
 /**
  * Background bulk-import зустрічей з 1С у нашу БД. Зустрічі з 1С —
  * legacy (через Митинг) або щойно sync-нуті через наш cron — попадають у БД
@@ -51,6 +59,10 @@ async function syncFromOneC(
     const dbRows = rows.map(raw => {
       const adapted = adaptOneCMeeting(raw);
       const legacyId = raw.ID as string;
+      // Якщо 1С повернула UUID — це наша зустріч (saveNewMeeting шле наш UUID
+      // як ID, 1С зберігає під тим же). Використовуємо його як id у БД, щоб
+      // оновити existing row, а не створити дубль через md5-hash.
+      const ourId = isUUID(legacyId) ? legacyId.toLowerCase() : legacyToUUID(legacyId);
       const dbRow = toMeetingRowDb({
         managerLogin: adapted.managerLogin || managerLogin,
         clientId1c: adapted.clientId1c,
@@ -74,34 +86,35 @@ async function syncFromOneC(
       });
       return {
         ...dbRow,
-        id: legacyToUUID(legacyId),
+        id: ourId,
         legacy_1c_id: legacyId,
       } as Record<string, unknown>;
     });
 
-    // ON CONFLICT DO NOTHING — для нових. Локальні зміни (status=cancelled тощо)
-    // у вже-існуючих рядках не перетираємо.
+    // INSERT нових rows ON CONFLICT (id) DO NOTHING — не перетирає локальні
+    // зміни статусу/коментарів. Якщо id (= 1С-ID для existing-наших) уже у БД
+    // — пропускаємо INSERT, оновимо snapshot окремим UPDATE нижче.
     const { error: insErr } = await supabase
       .from('meetings')
-      .upsert(dbRows, { onConflict: 'legacy_1c_id', ignoreDuplicates: true });
+      .upsert(dbRows, { onConflict: 'id', ignoreDuplicates: true });
     if (insErr) {
       console.warn('[/api/meetings] bulk-import upsert failed:', insErr.message);
       return { imported: 0, failed: true };
     }
 
     // Окремо ОНОВЛЮЄМО snapshot-поля для existing rows (manager_login +
-    // client_name/phone/category). Це безпечно бо ці поля — display-only,
-    // не торкають local status/comment. manager_login оновлюється бо у БД
-    // могли лишатись старі записи від попередньої архітектури з proxy
-    // (manager_login=sdu@). Робимо per-row update — для типового розміру
-    // (50-200 зустрічей менеджера) це швидко.
+    // client_name/phone/category + legacy_1c_id). Це безпечно бо ці поля —
+    // display-only, не торкають local status/comment. legacy_1c_id оновлюємо
+    // окремо щоб старі наші зустрічі (legacy_1c_id=NULL до Phase 2) отримали
+    // mapping і не дублювались при наступному bulk-import.
     let updateErrors = 0;
     for (const row of dbRows) {
       const { error: upErr } = await supabase
         .from('meetings')
-        .eq('legacy_1c_id', row.legacy_1c_id as string)
+        .eq('id', row.id as string)
         .update({
           manager_login: row.manager_login,
+          legacy_1c_id: row.legacy_1c_id,
           client_name: row.client_name,
           client_phone: row.client_phone,
           client_category: row.client_category,
