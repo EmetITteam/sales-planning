@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
+import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
@@ -263,7 +263,7 @@ export function ClientsPage() {
   // Cold-start 1С обробляє сам хук: передаємо login → isEmptyResponse рахує
   // «порожньо» = немає плану для ЦЬОГО менеджера, тож вбудований retry
   // (3× з backoff, тримає loading=true) відновлює план без блимання $0.
-  const { data: registryPlansResponse, loading: registryPlansLoading } = useRegistryPlans(
+  const { data: registryPlansResponse, loading: registryPlansLoading, refetch: refetchRegistryPlans } = useRegistryPlans(
     sessionLoginLower !== 'anonymous' ? dateFrom : null,
     sessionLoginLower !== 'anonymous' ? dateTo : null,
     sessionUser?.login ?? null,
@@ -283,6 +283,29 @@ export function ClientsPage() {
     const vals = [...bySegment.values()];
     return { total: vals.reduce((s, v) => s + v, 0), isTrial: isTrialManager(vals) };
   }, [registryPlansResponse, sessionLoginLower]);
+
+  // Auto-reload guard: якщо через 30с після mount план = 0 і loading=false —
+  // 1С повернула empty (cold-start handler застряг). SWR mutate його не
+  // прокинула. Робимо м'який hard-reload (як F5) — новий JS context дзвонить
+  // 1С знов, handler прокидається, дані вантажаться.
+  // sessionStorage flag запобігає loop: робимо це МАКСИМУМ 1 раз на сесію.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (sessionLoginLower === 'anonymous') return;
+    const FLAG_KEY = `emet:autoReloadOnce:${sessionLoginLower}`;
+    if (sessionStorage.getItem(FLAG_KEY)) return; // вже робили
+    const timer = setTimeout(() => {
+      // Повторно перевіряємо план у момент tick — якщо за 30с план з'явився, нічого не робимо.
+      if (registryPlan.total === 0 && !registryPlansLoading) {
+        sessionStorage.setItem(FLAG_KEY, '1');
+        window.location.reload();
+      }
+    }, 30000);
+    return () => clearTimeout(timer);
+    // Ловимо тільки на mount/login зміну; зміна registryPlan.total самостійно не повинна
+    // ре-арм-увати timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoginLower]);
 
   // План активації бази (Action B) — login-bound, 1 документ на менеджера+місяць.
   const { plan: activationPlan } = useClientActivationPlan(
@@ -568,6 +591,7 @@ export function ClientsPage() {
           withPlanCount={heroMetrics.withPlanCnt}
           isTrial={registryPlan.isTrial}
           loading={registryPlansLoading && heroMetrics.planTotal === 0}
+          onRefetchPlan={refetchRegistryPlans}
         />
 
         {/* Card 2 — БАЗА КЛІЄНТІВ (включно з резерв-купуючими; резерв-sub-row) */}
@@ -909,18 +933,22 @@ const fmtUSD = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 const heroCardCls = 'glass-card p-5 relative flex flex-col gap-3 fade-stagger';
 
 /** Card 1 — Виконання (план / факт / % / норма / темп). */
-function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct, completedCount, withPlanCount, isTrial, loading }: {
+function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct, completedCount, withPlanCount, isTrial, loading, onRefetchPlan }: {
   index: number;
   planTotal: number; factTotal: number; pct: number;
   calcPct: number; forecastPct: number;
   completedCount: number; withPlanCount: number;
   isTrial: boolean;
   loading?: boolean;
+  onRefetchPlan?: () => void;
 }) {
-  // Loading стан — поки 1С getRegistryPlans тягнеться (5-15с cold-start + до
-  // 21с retry якщо empty). Без цього card показувала $0/0% і фарбувалась rose
-  // як «відставання» при першому логіні до завантаження плану.
-  if (loading) {
+  // Loading skeleton — поки 1С getRegistryPlans тягнеться АБО план=0 і це не
+  // trial. Background polling у useOneCData + auto-reload через 30с у parent
+  // компоненті оновлять дані без участі користувача. Раніше після вичерпання
+  // fast retry (~21с) UI переходив у false-0% rose — користувач бачив
+  // «відставання» хоча план просто ще не завантажився з 1С.
+  const showLoading = loading || (!isTrial && planTotal === 0);
+  if (showLoading) {
     return (
       <div className={`${heroCardCls} ambient-accent`} style={{ ['--i' as string]: index }}>
         <div className="flex items-center gap-2">
@@ -937,6 +965,8 @@ function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct
       </div>
     );
   }
+  // Трохи захисту для лінтера — prop може бути unused після видалення кнопки.
+  void onRefetchPlan;
   // Trial-новачок: 1С виставила $1-sentinel замість плану → % безглуздий.
   if (isTrial) {
     return (
