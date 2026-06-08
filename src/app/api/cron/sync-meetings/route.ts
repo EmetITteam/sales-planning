@@ -29,16 +29,17 @@ import type {
   MeetingSyncOperation,
 } from '@/lib/meetings/types';
 
-// BATCH_SIZE: до 30 рядків за tick. Обробляються паралельно (group by
-// meeting_id, sequential within group). 1С виклик 5-15с — sequential 10 рядків
-// було 150с >> 60с Vercel timeout (рядки залишались у syncing). Тепер ~6 груп
-// паралельно по 2-3 ops = ~30-45с total. Within group sequential обов'язково:
+// BATCH_SIZE: до 10 рядків за tick. Обробляються паралельно (group by
+// meeting_id, sequential within group). Within group sequential обов'язково:
 // save → start → finish мають правильний порядок (інакше 1С не знайде meetingId).
-const BATCH_SIZE = 30;
+const BATCH_SIZE = 10;
 const MAX_RETRIES = 2;
-// Vercel Pro plan: до 300с. 60с — достатньо для batch паралельного на ~6 груп
-// × ~3 ops × ~15с = ~45с. Хоббі-план — макс 60с.
-export const maxDuration = 60;
+// Vercel Pro plan: до 300с. Залишаємо запас для cold-start + 1С повільне
+// (5-15с per row). 60с не вистачало навіть на 12 паралельних викликів.
+export const maxDuration = 300;
+// Recovery: якщо рядок завис у status='syncing' більше N хв — функція вмерла
+// у середині обробки. Скидаємо у pending щоб наступний tick підхопив.
+const STALE_SYNCING_MIN = 5;
 
 interface SyncResult {
   processed: number;
@@ -71,6 +72,21 @@ export async function GET(request: NextRequest) {
     dryRun,
     durationMs: 0,
   };
+
+  // === Recovery: stale syncing → pending ===
+  // Якщо рядок завис у 'syncing' довше ніж STALE_SYNCING_MIN хв — функція
+  // вмерла посередині (Vercel timeout, 1С тайм-аут). Скидаємо у 'pending' щоб
+  // підхопила цей tick. Без цього рядки висіли вічно після першого збою.
+  const staleThreshold = new Date(Date.now() - STALE_SYNCING_MIN * 60_000).toISOString();
+  const { data: recovered } = await supabase
+    .from('meeting_syncs')
+    .eq('status', 'syncing')
+    .lt('created_at', staleThreshold)
+    .update({ status: 'pending' });
+  const recoveredCount = Array.isArray(recovered) ? recovered.length : 0;
+  if (recoveredCount > 0) {
+    console.log(`[sync-meetings] recovered ${recoveredCount} stale syncing → pending`);
+  }
 
   // Тягнемо pending
   const { data: pendingRaw, error: selErr } = await supabase
