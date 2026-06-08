@@ -222,20 +222,26 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className="w-full flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
+        className="w-full flex flex-col md:flex-row md:items-center gap-3 md:gap-4 px-5 py-4 cursor-pointer hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50"
       >
-        <div className="flex items-center gap-3 min-w-0 shrink-0">
+        {/* Header row на мобільному: іконка + назва + % + chevron */}
+        <div className="flex items-center gap-3 min-w-0 w-full md:w-auto md:shrink-0">
           <div className="w-10 h-10 rounded-xl bg-emet-50 flex items-center justify-center shrink-0">
             <ClipboardCheck className="h-5 w-5 text-emet-blue" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-[14px] font-bold truncate">Готовність планування</p>
             <p className="text-[11px] text-muted-foreground">{total.mgrAll} менеджерів</p>
           </div>
+          {/* Mobile-only: % + chevron. Колір % за overallStatus (green/amber/rose). */}
+          <span className={`md:hidden text-[14px] font-bold tabular-nums shrink-0 ${
+            overallStatus === 'green' ? 'text-emerald-600' : overallStatus === 'amber' ? 'text-amber-600' : 'text-rose-600'
+          }`}>{finPct}%</span>
+          <ChevronDown className={`md:hidden h-4 w-4 text-muted-foreground/40 transition-transform shrink-0 ${expanded ? 'rotate-180' : ''}`} />
         </div>
 
         {/* Mini-list регіонів — менеджерські лічильники */}
-        <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 px-2">
+        <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 md:px-2">
           {stats.map(r => {
             // Trial-and-finalized разом — позитивний sum, для статусу регіону.
             const s = regionStatusColor(r.managersFinalized + r.managersTrial, r.managersPartial, r.totalManagers);
@@ -256,8 +262,8 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           })}
         </div>
 
-        {/* Right cluster */}
-        <div className="flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
+        {/* Right cluster — приховано на mobile (% і chevron уже у header row) */}
+        <div className="hidden md:flex items-start gap-4 justify-end shrink-0 min-h-[56px]">
           <div className="text-right min-w-[180px]">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none h-[12px]">Менеджерів</p>
             <p className="text-[14px] font-bold font-mono leading-none mt-1.5 whitespace-nowrap">

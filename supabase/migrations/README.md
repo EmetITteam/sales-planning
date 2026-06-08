@@ -53,5 +53,34 @@ supabase db push
 
 ## Майбутні міграції (заплановані)
 
-- **M4:** `users.id integer → TEXT PK` (login as PK, прибрати loginToUserId hash). Ризик: high.
+- **M4:** `users.id integer → TEXT PK` (login as PK, прибрати loginToUserId hash). Ризик: high. ✅ Applied 2026-05-08 (M005).
 - **M5:** Row Level Security policies + JWT-based auth замість service_role. Ризик: highest, потрібен redesign auth flow.
+
+## CRM-розширення (Stage 1, Sprint 1.1)
+
+| Дата | Файл | Опис | Статус |
+|---|---|---|---|
+| 2026-06-03 | `20260603_013_meetings_schema.sql` | **M13:** `meetings` + `meeting_syncs` таблиці. RLS у shadow-mode (ENABLE без FORCE — service_role продовжує bypass, наш бек-код не ламається). 4+4 політики (select/insert/update/delete). Тригер `updated_at`. Hot-query індекси. | ✅ applied 2026-06-03 (manual via Dashboard SQL Editor; DO $$ verification block pass — 2 tables, RLS=on, 8 policies) |
+
+**Перед apply M13:**
+1. Backup `users` (FK constraint лише READ, але про всяк випадок)
+2. Запустити SQL через Dashboard → SQL Editor → New query
+3. Verify (DO $$ блок робить це автоматично — кидає exception якщо не так)
+
+**Як перевірити після apply:**
+```sql
+SELECT relname, relrowsecurity, relforcerowsecurity
+FROM pg_class WHERE relname IN ('meetings', 'meeting_syncs');
+-- Expected: relrowsecurity=true, relforcerowsecurity=false (shadow)
+
+SELECT tablename, policyname, cmd FROM pg_policies
+WHERE tablename IN ('meetings', 'meeting_syncs');
+-- Expected: 8 rows (4 per table)
+```
+
+## Майбутні міграції (заплановані для CRM-розширення)
+
+- **M14+ (Stage 1.5):** `sales_line_items` таблиця + 5+ індексів + RLS. Ризик: medium (об'єм даних 240k+ рядків бекфіл).
+- **M15+ (Stage 2A):** `debtors_cache` таблиця з TTL-логікою. Ризик: low.
+- **M16+ (Stage 3):** `orders` + `order_items` + `order_syncs` таблиці з buffer-pattern. Ризик: medium.
+- **M17+:** Перехід з shadow-mode RLS у enforce — заміна service_role на per-user JWT-сесії з `current_setting('app.login')` injection. Ризик: highest, потрібен redesign auth flow.

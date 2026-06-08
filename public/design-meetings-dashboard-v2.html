@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Дашборд зустрічей · v2 · sales-planning</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --emet-blue: #066aab;
+      --emet-blue-light: #0a8acc;
+      --emet-blue-dark: #054d80;
+      --emet-mint: #5BD5BC;
+      --emet-ink: #081E2D;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-900: #0f172a;
+      --teal-50: #f0fdfa;
+      --teal-100: #ccfbf1;
+      --teal-600: #0d9488;
+      --teal-700: #0f766e;
+      --amber-50: #fffbeb;
+      --amber-200: #fde68a;
+      --amber-700: #b45309;
+      --rose-50: #fff1f2;
+      --rose-200: #fecdd3;
+      --rose-700: #be123c;
+    }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #e8f4f8 0%, #f0f5fc 50%, #e8f0fb 100%);
+      min-height: 100vh;
+      color: var(--emet-ink);
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "tnum" 1, "cv11" 1;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .tabular { font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; letter-spacing: -0.02em; }
+
+    /* ===== Page meta header ===== */
+    .meta {
+      max-width: 1400px;
+      margin: 32px auto 20px;
+      padding: 0 24px;
+    }
+    .meta .label {
+      display: inline-block;
+      background: var(--emet-blue);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .meta h2 {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0 0 8px;
+      letter-spacing: -0.5px;
+    }
+    .meta .desc {
+      font-size: 14px;
+      color: var(--slate-600);
+      margin: 0;
+      max-width: 700px;
+      line-height: 1.6;
+    }
+
+    /* ===== App preview frame ===== */
+    .app-preview {
+      max-width: 1400px;
+      margin: 0 auto 64px;
+      background: linear-gradient(135deg, #e8f4f8 0%, #f0f5fc 50%, #e8f0fb 100%);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 12px 48px rgba(6,42,61,0.10);
+      overflow: hidden;
+    }
+
+    /* ===== Mock header (matches current prod) ===== */
+    .mock-header {
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(20px) saturate(150%);
+      border-bottom: 1px solid rgba(255,255,255,0.5);
+      padding: 0 20px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .mock-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--emet-blue), var(--emet-mint));
+      border-radius: 8px;
+      color: white;
+      font-weight: 800;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .mock-period-pill {
+      height: 36px;
+      padding: 0 14px;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      color: var(--emet-ink);
+      cursor: pointer;
+    }
+    .mock-route-toggle {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 999px;
+    }
+    .mock-route-toggle button {
+      height: 28px;
+      padding: 0 16px;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--slate-500);
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .mock-route-toggle button.active {
+      background: linear-gradient(135deg, var(--emet-blue), var(--emet-blue-light));
+      color: white;
+      box-shadow: 0 2px 8px rgba(6,106,171,0.25);
+    }
+    .mock-spacer { flex: 1; }
+    .mock-avatar {
+      width: 32px;
+      height: 32px;
+      background: rgba(91,213,188,0.20);
+      color: var(--teal-700);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    /* ===== Content frame ===== */
+    .content { padding: 24px; }
+    @media (max-width: 768px) { .content { padding: 16px 12px; } }
+
+    /* ===== Page title ===== */
+    .page-title {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .page-title .icon-box {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--emet-blue), var(--emet-blue-light));
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      flex-shrink: 0;
+      box-shadow: 0 6px 16px rgba(6,106,171,0.20);
+    }
+    .page-title h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+    .page-title p {
+      font-size: 12px;
+      color: var(--slate-500);
+      margin: 4px 0 0;
+    }
+
+    /* ===== Widgets row ===== */
+    .widgets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) {
+      .widgets { grid-template-columns: repeat(2, 1fr); }
+    }
+    .widget {
+      padding: 16px 18px;
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(20px) saturate(150%);
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(6,42,61,0.04);
+    }
+    .widget .label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--slate-500);
+      margin-bottom: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .widget .label::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .widget .value {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .widget .caption {
+      font-size: 11px;
+      color: var(--slate-500);
+      margin-top: 6px;
+    }
+    .widget.accent .label { color: var(--emet-blue); }
+    .widget.mint .label { color: var(--teal-700); }
+    .widget.warn .label { color: var(--amber-700); }
+    .widget.bad .label { color: var(--rose-700); }
+
+    /* ===== Filters row ===== */
+    .filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .filter-pill {
+      height: 38px;
+      padding: 0 14px;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--slate-200);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--slate-700);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .filter-pill:hover {
+      border-color: var(--slate-300);
+      background: white;
+    }
+    .filter-pill.active {
+      background: var(--emet-blue);
+      color: white;
+      border-color: var(--emet-blue);
+    }
+    .filter-pill .icon { color: var(--slate-400); }
+    .filter-pill.active .icon { color: rgba(255,255,255,0.7); }
+
+    /* ===== Status badges ===== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .badge .dot.pulse { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    .badge.planned    { background: rgba(6,106,171,0.10); color: var(--emet-blue); border: 1px solid rgba(6,106,171,0.20); }
+    .badge.in_progress{ background: var(--amber-50); color: var(--amber-700); border: 1px solid var(--amber-200); }
+    .badge.completed  { background: var(--teal-50); color: var(--teal-700); border: 1px solid var(--teal-100); }
+    .badge.postponed  { background: var(--slate-100); color: var(--slate-600); border: 1px solid var(--slate-200); }
+    .badge.failed     { background: var(--rose-50); color: var(--rose-700); border: 1px solid var(--rose-200); }
+    .badge.meta       { background: rgba(255,255,255,0.7); color: var(--slate-700); border: 1px solid var(--slate-200); }
+    .badge.geo-ok     { background: var(--teal-50); color: var(--teal-700); border: 1px solid var(--teal-100); }
+
+    /* ===== Cards grid ===== */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 768px) {
+      .cards-grid { grid-template-columns: 1fr; gap: 12px; }
+    }
+    .meeting-card {
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(20px) saturate(150%);
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 4px 16px rgba(6,42,61,0.04);
+      transition: all 0.18s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .meeting-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(6,42,61,0.08);
+      border-color: rgba(6,106,171,0.20);
+    }
+    .meeting-card.in_progress {
+      background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(255,255,255,0.55) 60%);
+      border-color: var(--amber-200);
+    }
+    .meeting-card.completed {
+      background: linear-gradient(135deg, rgba(91,213,188,0.08), rgba(255,255,255,0.55) 60%);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .card-when {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .card-when .day {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--slate-500);
+    }
+    .card-when .time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--emet-ink);
+      letter-spacing: -0.02em;
+    }
+    .card-when .duration {
+      font-size: 11px;
+      color: var(--slate-500);
+      font-weight: 500;
+    }
+
+    .card-client {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      line-height: 1.3;
+      color: var(--emet-ink);
+    }
+
+    .card-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--slate-600);
+    }
+    .card-row .icon { color: var(--slate-400); flex-shrink: 0; }
+
+    .card-meta {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--slate-200);
+    }
+    .card-btn {
+      flex: 1;
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: 1px solid var(--slate-200);
+      background: rgba(255,255,255,0.7);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--slate-700);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: inherit;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .card-btn:hover {
+      border-color: var(--emet-blue);
+      color: var(--emet-blue);
+      background: white;
+    }
+    .card-btn:active { transform: translateY(1px); }
+    .card-btn.primary {
+      background: linear-gradient(135deg, var(--emet-blue), var(--emet-blue-light));
+      color: white;
+      border-color: transparent;
+      box-shadow: 0 4px 12px rgba(6,106,171,0.22);
+    }
+    .card-btn.primary:hover {
+      box-shadow: 0 6px 18px rgba(6,106,171,0.32);
+      background: linear-gradient(135deg, var(--emet-blue-dark), var(--emet-blue));
+    }
+    .card-btn.warning {
+      color: var(--rose-700);
+      border-color: var(--rose-200);
+      background: var(--rose-50);
+    }
+    .card-btn.warning:hover {
+      background: white;
+      border-color: var(--rose-700);
+    }
+    .card-btn .icon { flex-shrink: 0; }
+
+    /* On mobile keep buttons stacked vertically to maximise tap area */
+    @media (max-width: 480px) {
+      .card-actions {
+        flex-wrap: wrap;
+      }
+      .card-btn {
+        flex: 1 1 calc(50% - 4px);
+        min-width: 0;
+      }
+      .card-btn.primary {
+        flex: 1 1 100%;
+      }
+    }
+
+    /* ===== SVG sizing utilities ===== */
+    svg.lucide {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      flex-shrink: 0;
+    }
+    .filter-pill svg.lucide { width: 14px; height: 14px; }
+    .page-title .icon-box svg.lucide { width: 24px; height: 24px; stroke-width: 2; }
+    .card-row svg.lucide { width: 14px; height: 14px; }
+    .badge svg.lucide { width: 11px; height: 11px; stroke-width: 2.5; }
+    .card-btn svg.lucide { width: 16px; height: 16px; }
+    .mock-period-pill svg.lucide { width: 14px; height: 14px; color: var(--emet-blue); }
+
+    /* ===== Footer ===== */
+    footer.legend {
+      max-width: 1400px;
+      margin: 0 auto 64px;
+      padding: 24px;
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(20px) saturate(150%);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.5);
+      box-shadow: 0 4px 16px rgba(6,42,61,0.04);
+    }
+    footer.legend h3 { font-size: 14px; margin: 0 0 12px; color: var(--emet-ink); }
+    footer.legend ul { margin: 0; padding: 0 0 0 20px; }
+    footer.legend li { font-size: 13px; color: var(--slate-700); line-height: 1.7; }
+    footer.legend li strong { color: var(--emet-ink); }
+  </style>
+</head>
+<body>
+
+<div class="meta">
+  <span class="label">Дашборд · v2</span>
+  <h2>Card Grid — уточнена версія</h2>
+  <p class="desc">Без емоджі, тільки lucide-style SVG. Кнопки дій усередині картки — мінімум 44px висоти (тач-таргет). Один акцент (EMET-синій) + статусні badge у спокійних відтінках. Glass-морфізм, як у поточному проді.</p>
+</div>
+
+<div class="app-preview">
+  <!-- Mock header -->
+  <header class="mock-header">
+    <div class="mock-logo">é</div>
+    <div class="mock-period-pill">
+      <svg class="lucide" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+      <span>01.06 — 07.06</span>
+      <svg class="lucide" viewBox="0 0 24 24" style="color:var(--slate-400);"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+    <div class="mock-route-toggle">
+      <button>Планування</button>
+      <button class="active">Зустрічі</button>
+      <button>Мої клієнти</button>
+    </div>
+    <div class="mock-spacer"></div>
+    <div class="mock-avatar">МЕ</div>
+  </header>
+
+  <div class="content">
+
+    <!-- Page title -->
+    <div class="page-title">
+      <div class="icon-box">
+        <svg class="lucide" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/></svg>
+      </div>
+      <div>
+        <h1>Мої зустрічі</h1>
+        <p>14 на тиждень · 6 сьогодні · 2 у роботі зараз</p>
+      </div>
+    </div>
+
+    <!-- Widgets -->
+    <div class="widgets">
+      <div class="widget accent">
+        <div class="label">Сьогодні</div>
+        <div class="value tabular">6</div>
+        <div class="caption">2 у роботі · 3 заплановано · 1 завершено</div>
+      </div>
+      <div class="widget mint">
+        <div class="label">Завершено цей тиждень</div>
+        <div class="value tabular">12</div>
+        <div class="caption">+3 vs. минулий тиждень</div>
+      </div>
+      <div class="widget warn">
+        <div class="label">У роботі зараз</div>
+        <div class="value tabular">2</div>
+        <div class="caption">«Естет», Lazerhaus</div>
+      </div>
+      <div class="widget bad">
+        <div class="label">Потребує правки</div>
+        <div class="value tabular">1</div>
+        <div class="caption">Не синхронізувалось з 1С</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <button class="filter-pill active">Усі</button>
+      <button class="filter-pill">Сьогодні</button>
+      <button class="filter-pill">Завтра</button>
+      <button class="filter-pill">Цього тижня</button>
+      <button class="filter-pill">
+        <svg class="lucide icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Клієнт
+        <svg class="lucide icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <button class="filter-pill">
+        <svg class="lucide icon" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
+        Сортувати
+        <svg class="lucide icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </div>
+
+    <!-- Cards grid -->
+    <div class="cards-grid">
+
+      <!-- Card 1: In progress -->
+      <div class="meeting-card in_progress">
+        <div class="card-top">
+          <div class="card-when">
+            <span class="day">Сьогодні · понеділок</span>
+            <span class="time">10:30</span>
+            <span class="duration">45 хвилин</span>
+          </div>
+          <span class="badge in_progress"><span class="dot pulse"></span>У роботі</span>
+        </div>
+
+        <div class="card-client">Клініка «Естет» · Подол</div>
+
+        <div class="card-row">
+          <svg class="lucide icon" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>вул. Хорива 42, Київ</span>
+        </div>
+
+        <div class="card-meta">
+          <span class="badge meta">Презентація ELLANSE</span>
+          <span class="badge geo-ok">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+            Локація зафіксована
+          </span>
+        </div>
+
+        <div class="card-actions">
+          <button class="card-btn primary">
+            <svg class="lucide" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            Завершити
+          </button>
+          <button class="card-btn">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            Редагувати
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 2: Planned -->
+      <div class="meeting-card">
+        <div class="card-top">
+          <div class="card-when">
+            <span class="day">Сьогодні · понеділок</span>
+            <span class="time">13:00</span>
+            <span class="duration">~60 хвилин</span>
+          </div>
+          <span class="badge planned"><span class="dot"></span>Заплановано</span>
+        </div>
+
+        <div class="card-client">Косметологія Maxim · Печерськ</div>
+
+        <div class="card-row">
+          <svg class="lucide icon" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>вул. Тимирязівська 8</span>
+        </div>
+
+        <div class="card-meta">
+          <span class="badge meta">Контракт VITARAN</span>
+        </div>
+
+        <div class="card-actions">
+          <button class="card-btn primary">
+            <svg class="lucide" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            Розпочати
+          </button>
+          <button class="card-btn">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            Правка
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 3: Planned -->
+      <div class="meeting-card">
+        <div class="card-top">
+          <div class="card-when">
+            <span class="day">Сьогодні · понеділок</span>
+            <span class="time">15:30</span>
+            <span class="duration">~30 хвилин</span>
+          </div>
+          <span class="badge planned"><span class="dot"></span>Заплановано</span>
+        </div>
+
+        <div class="card-client">Lazerhaus Studio · Лівобережка</div>
+
+        <div class="card-row">
+          <svg class="lucide icon" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>пр. Бажана 14</span>
+        </div>
+
+        <div class="card-meta">
+          <span class="badge meta">Демонстрація EXOXE</span>
+        </div>
+
+        <div class="card-actions">
+          <button class="card-btn primary">
+            <svg class="lucide" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            Розпочати
+          </button>
+          <button class="card-btn">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            Правка
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 4: Planned with sync warning -->
+      <div class="meeting-card">
+        <div class="card-top">
+          <div class="card-when">
+            <span class="day">Сьогодні · понеділок</span>
+            <span class="time">16:45</span>
+            <span class="duration">~45 хвилин</span>
+          </div>
+          <span class="badge planned"><span class="dot"></span>Заплановано</span>
+        </div>
+
+        <div class="card-client">Adassa Clinic · Поділ</div>
+
+        <div class="card-row">
+          <svg class="lucide icon" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>вул. Сагайдачного 27</span>
+        </div>
+
+        <div class="card-meta">
+          <span class="badge meta">Знайомство, навчання</span>
+          <span class="badge failed">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            Не синхр.
+          </span>
+        </div>
+
+        <div class="card-actions">
+          <button class="card-btn primary">
+            <svg class="lucide" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            Розпочати
+          </button>
+          <button class="card-btn warning">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+            Повторити sync
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 5: Completed -->
+      <div class="meeting-card completed">
+        <div class="card-top">
+          <div class="card-when">
+            <span class="day">Сьогодні · понеділок</span>
+            <span class="time">09:00</span>
+            <span class="duration">37 хвилин</span>
+          </div>
+          <span class="badge completed">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+            Завершено
+          </span>
+        </div>
+
+        <div class="card-client">ТОВ Краса Plus · Печерськ</div>
+
+        <div class="card-row">
+          <svg class="lucide icon" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>вул. Лесі Українки 5</span>
+        </div>
+
+        <div class="card-meta">
+          <span class="badge meta">Узгодження плану закупки</span>
+          <span class="badge geo-ok">
+            <svg class="lucide" viewBox="0 0 24 24"><polyline points="14 2 14 8 20 8"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
+            Анкета заповнена
+          </span>
+        </div>
+
+        <div class="card-actions">
+          <button class="card-btn">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            Деталі
+          </button>
+          <button class="card-btn">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Коментар
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 6: Tomorrow -->
+      <div class="meeting-card">
+        <div class="card-top">
+          <div class="card-when">
+            <span class="day">Завтра · вівторок</span>
+            <span class="time">10:00</span>
+            <span class="duration">~45 хвилин</span>
+          </div>
+          <span class="badge planned"><span class="dot"></span>Заплановано</span>
+        </div>
+
+        <div class="card-client">Beauty Lab · Поділ</div>
+
+        <div class="card-row">
+          <svg class="lucide icon" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>вул. Іллінська 12</span>
+        </div>
+
+        <div class="card-meta">
+          <span class="badge meta">Презентація NEURAMIS</span>
+        </div>
+
+        <div class="card-actions">
+          <button class="card-btn">
+            <svg class="lucide" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            Редагувати
+          </button>
+          <button class="card-btn">
+            <svg class="lucide" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/></svg>
+            Перенести
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer class="legend">
+  <h3>Що змінилось vs v1</h3>
+  <ul>
+    <li><strong>0 емоджі.</strong> Усі іконки — lucide-style inline SVG (calendar, map-pin, play, square, edit, refresh, check, file-text, message-circle, alert-triangle)</li>
+    <li><strong>Тач-таргети 44px+.</strong> Кнопки у картці мають <code>min-height: 44px</code>, що відповідає Apple HIG / Material Design мінімуму</li>
+    <li><strong>Mobile (≤480px):</strong> primary-кнопка займає всю ширину окремим рядком, secondary-кнопки — 50/50. Менше шансів промахнутись</li>
+    <li><strong>Чистіший glass.</strong> Subtle ambient color glow (амбер на «у роботі», мʼякий мінт на «завершено») + плавний hover lift</li>
+    <li><strong>Spacing rhythm.</strong> Базова сітка 4/8/12/16/20/24 — чіткіше дихання між блоками</li>
+    <li><strong>Badge система.</strong> 5 типів (planned/in_progress/completed/postponed/failed) + meta + geo-ok. Кожен у спокійних тонах, не «кислотний»</li>
+  </ul>
+</footer>
+
+</body>
+</html>

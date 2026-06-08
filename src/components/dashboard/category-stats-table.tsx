@@ -154,38 +154,67 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
         const pPlan = pctPlan(r);
         const pFact = pctFact(r);
         return (
-          <div key={cat.key}
-            className="flex md:grid md:grid-cols-[32px_minmax(160px,1.4fr)_repeat(3,1fr)_60px_60px] flex-wrap gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3 border-t border-[#f0f2f8]">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${cat.bgClass}`}>
-              <Icon className={`h-4 w-4 ${cat.iconClass}`} />
-            </div>
-            <p className="text-[13px] font-medium flex-1 min-w-0">{cat.label}</p>
-            <div className="text-right basis-[60px] md:basis-auto">
-              <p className="text-[10px] text-muted-foreground md:hidden">Заплан.</p>
-              <p className="text-[14px] font-bold tabular-nums">{r.plannedCount}</p>
-            </div>
-            <div className="text-right basis-[90px] md:basis-auto">
-              <p className="text-[10px] text-muted-foreground md:hidden">Сума план</p>
-              <p className="text-[14px] font-bold font-mono amount">{formatUSD(r.plannedSum)}</p>
-            </div>
-            <div className="text-right basis-[90px] md:basis-auto">
-              <p className="text-[10px] text-muted-foreground md:hidden">Факт</p>
-              <p className="text-[12px] font-bold font-mono amount text-emerald-700">{formatUSD(r.factSum)}</p>
-              <p className="text-[10px] text-muted-foreground tabular-nums">{r.factCount} кл.</p>
-            </div>
-            <div className="text-right basis-[60px] md:basis-auto">
-              <p className="text-[10px] text-muted-foreground md:hidden">% план</p>
-              <p className="text-[13px] font-bold text-muted-foreground tabular-nums">{pPlan.toFixed(1)}%</p>
-            </div>
-            <div className="text-right basis-[60px] md:basis-auto">
-              <p className="text-[10px] text-muted-foreground md:hidden">% факт</p>
-              <p className={`text-[14px] font-bold tabular-nums ${pFact >= 100 ? 'text-emerald-600' : pFact >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
+          <div key={cat.key} className="border-t border-[#f0f2f8] px-4 md:px-5 py-3">
+            {/* Desktop — одна grid-рядок (як було). */}
+            <div className="hidden md:grid md:grid-cols-[32px_minmax(160px,1.4fr)_repeat(3,1fr)_60px_60px] gap-3 items-center">
+              <div className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${cat.bgClass}`}>
+                <Icon className={`h-4 w-4 ${cat.iconClass}`} />
+              </div>
+              <p className="text-[13px] font-medium">{cat.label}</p>
+              <p className="text-right text-[14px] font-bold tabular-nums">{r.plannedCount}</p>
+              <p className="text-right text-[14px] font-bold font-mono amount">{formatUSD(r.plannedSum)}</p>
+              <div className="text-right">
+                <p className="text-[12px] font-bold font-mono amount text-emerald-700">{formatUSD(r.factSum)}</p>
+                <p className="text-[10px] text-muted-foreground tabular-nums">{r.factCount} кл.</p>
+              </div>
+              <p className="text-right text-[13px] font-bold text-muted-foreground tabular-nums">{pPlan.toFixed(1)}%</p>
+              <p className={`text-right text-[14px] font-bold tabular-nums ${pFact >= 100 ? 'text-emerald-600' : pFact >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
                 {pFact.toFixed(1)}%
               </p>
+            </div>
+
+            {/* Mobile — header (іконка + назва) + 2×3 grid метрик з підписами. */}
+            <div className="md:hidden flex flex-col gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${cat.bgClass}`}>
+                  <Icon className={`h-4 w-4 ${cat.iconClass}`} />
+                </div>
+                <p className="text-[13px] font-semibold leading-tight">{cat.label}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-x-2 gap-y-2 pl-[42px]">
+                <Stat label="Заплан." value={String(r.plannedCount)} />
+                <Stat label="Сума план" value={formatUSD(r.plannedSum)} mono />
+                <Stat label="Факт" value={formatUSD(r.factSum)} mono valueClass="text-emerald-700" subline={`${r.factCount} кл.`} />
+                <Stat label="% план" value={`${pPlan.toFixed(1)}%`} valueClass="text-muted-foreground" />
+                <Stat
+                  label="% факт"
+                  value={`${pFact.toFixed(1)}%`}
+                  valueClass={pFact >= 100 ? 'text-emerald-600' : pFact >= 50 ? 'text-amber-600' : 'text-rose-600'}
+                />
+              </div>
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Mobile-only метрика: лейбл зверху, значення знизу. */
+function Stat({
+  label, value, mono, valueClass, subline,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  valueClass?: string;
+  subline?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <span className="text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground/80">{label}</span>
+      <span className={`text-[12px] font-bold tabular-nums truncate ${mono ? 'font-mono amount' : ''} ${valueClass ?? ''}`}>{value}</span>
+      {subline && <span className="text-[9.5px] text-muted-foreground tabular-nums">{subline}</span>}
     </div>
   );
 }

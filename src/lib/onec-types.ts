@@ -283,8 +283,23 @@ export interface GetAllMeetingsForClientRequest {
   clientID: string;
 }
 
-/** Поки що shape не верифікований у проді — `unknown`. */
-export type GetAllMeetingsForClientResponse = unknown;
+/** Shape з meeting-app legacy: 1С повертає масив зустрічей з тими ж
+ *  полями що OneCMeetingRow. У оболонці `meetings` (як getInitialData). */
+export interface GetAllMeetingsForClientResponse {
+  meetings?: Array<{
+    ID?: string;
+    Date?: string;
+    Time?: string;
+    DurationMin?: number | string | null;
+    Status?: string;
+    Purpose?: string;
+    Comment?: string;
+    PlannedAddress?: string;
+    StartAddress?: string;
+    EndAddress?: string;
+    ManagerLogin?: string;
+  }>;
+}
 
 // === getClientFocus (Action A) ===
 export interface GetClientFocusRequest {
@@ -350,6 +365,58 @@ export interface OneCActionMap {
   getAllMeetingsForClient: { request: GetAllMeetingsForClientRequest; response: GetAllMeetingsForClientResponse };
   getClientFocus: { request: GetClientFocusRequest; response: GetClientFocusResponse };
   getClientActivationPlan: { request: GetClientActivationPlanRequest; response: GetClientActivationPlanResponse };
+  saveClientSurvey: { request: SaveClientSurveyRequest; response: SaveClientSurveyResponse };
+  getInitialData: { request: GetInitialDataRequest; response: GetInitialDataResponse };
+  registerNewClient: { request: RegisterNewClientRequest; response: RegisterNewClientResponse };
+}
+
+/** Файл закодований у base64 для відправки у 1С (без multipart). */
+export interface RegisterNewClientFile {
+  name: string;
+  type: string;
+  /** Pure base64 без `data:image/...;base64,` префіксу. */
+  contentBase64: string;
+}
+
+export interface RegisterNewClientRequest {
+  name: string;
+  phone: string;
+  address: string;
+  education: string;
+  managerLogin: string;
+  files: RegisterNewClientFile[];
+}
+
+export interface RegisterNewClientResponse {
+  ClientID?: string;
+  ClientName?: string;
+}
+
+export interface GetInitialDataRequest {
+  login: string;
+  /** YYYY-MM-DD */
+  startDateString: string;
+  /** YYYY-MM-DD */
+  endDateString: string;
+}
+
+export interface GetInitialDataResponse {
+  /** Зустрічі менеджера за період. Поки нас цікавлять тільки purposes. */
+  meetings?: unknown[];
+  /** Довідник цілей візиту. У 1С повертається як [{Purpose: string}]. */
+  purposes?: Array<{ Purpose: string }>;
+  questions?: unknown[];
+  potentialCategories?: unknown[];
+}
+
+export interface SaveClientSurveyRequest {
+  clientID: string;
+  /** JSON-stringify результату survey-форми (з meeting-app outcome-survey-form). */
+  surveyData: string;
+}
+
+export interface SaveClientSurveyResponse {
+  success?: boolean;
 }
 
 export type OneCAction = keyof OneCActionMap;

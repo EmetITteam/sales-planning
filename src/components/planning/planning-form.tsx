@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientSearchModal } from './client-search-modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
+import { useMeetings } from '@/lib/meetings/use-meetings';
 import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
 import { savePlanning, loadPlanning } from '@/lib/api';
 import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
@@ -992,6 +994,27 @@ export function PlanningForm({
     sleeping_lost: <RefreshCw className="h-4 w-4 text-amber-600" />,
   };
 
+  // === Етап «Зустріч» → пропозиція запланувати точну дату й час ===
+  // Коли менеджер у select Stage обирає «Зустріч», пропонуємо одразу створити
+  // подію у /meetings (закриває цикл план→подія, інакше менеджер забуде).
+  // Soft prompt — Stage пишеться як завжди, відмова просто закриває діалог.
+  const [meetingPrompt, setMeetingPrompt] = useState<{ clientId: string; clientName: string } | null>(null);
+  const [meetingFormState, setMeetingFormState] = useState<{ clientId: string } | null>(null);
+  // Hook useMeetings — щоб мати createMeeting. Range «Сьогодні» дефолтний —
+  // нам тут range не важливий, лише createMeeting.
+  const { createMeeting } = useMeetings();
+
+  /** Дата для prefill у MeetingForm: 1-ше число місяця плану або сьогодні
+   *  (якщо плановий місяць — поточний). YYYY-MM-DD. */
+  const planDateHint = useMemo(() => {
+    const month = currentPeriod?.month; // YYYY-MM
+    if (!month) return undefined;
+    const today = new Date();
+    const todayMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    if (month === todayMonth) return today.toISOString().slice(0, 10);
+    return `${month}-01`;
+  }, [currentPeriod?.month]);
+
   const updateForecast = (clientId: string, field: keyof ForecastRow, value: string | number | boolean | null | undefined) => {
     // Якщо менеджер редагує factAmount вручну — позначаємо рядок щоб
     // auto-sync з 1С НЕ перетирав цю зміну при наступному revalidate.
@@ -1011,6 +1034,10 @@ export function PlanningForm({
       }
       return updated;
     }));
+    if (field === 'stage' && value === 'Зустріч') {
+      const row = forecasts.find(f => f.clientId1c === clientId);
+      setMeetingPrompt({ clientId, clientName: row?.clientName || 'клієнтом' });
+    }
   };
 
   const updateGap = (i: number, field: keyof GapClosureRow, value: string | number | boolean | null | undefined) => {
@@ -1035,6 +1062,26 @@ export function PlanningForm({
       n[i] = updated;
       return n;
     });
+    if (field === 'stage' && value === 'Зустріч') {
+      const row = gapClosures[i];
+      if (row?.clientId1c) {
+        setMeetingPrompt({ clientId: row.clientId1c, clientName: row.clientName || 'клієнтом' });
+      }
+    }
+  };
+
+  /** Викликається коли менеджер у MeetingForm натиснув «Зберегти». */
+  const handleMeetingSave = async (data: MeetingFormData) => {
+    await createMeeting({
+      clientId1c: data.clientId1c,
+      date: data.date,
+      time: data.time,
+      durationMin: data.durationMin,
+      purpose: data.purpose,
+      comment: data.comment || null,
+      plannedAddress: data.plannedAddress || null,
+    });
+    setMeetingFormState(null);
   };
 
   const removeForecast = (clientId: string) => {
@@ -1335,13 +1382,29 @@ export function PlanningForm({
         ) : (
         <div className="divide-y divide-[#f0f2f8]">
           {categories.map(cat => (
-            <div key={cat.category} className="flex md:grid md:grid-cols-[32px_1fr_70px_100px_90px_60px] flex-wrap gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb] shrink-0">{CAT_ICONS[cat.category]}</div>
-              <p className="text-[13px] font-medium flex-1 min-w-0">{cat.label}</p>
-              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Заплан.</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
-              <div className="text-right basis-[90px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
-              <div className="text-right basis-[80px] md:basis-auto"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-emerald-700">{formatUSD(cat.factAmount)}</p></div>
-              <div className="text-right basis-[60px] md:basis-auto"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-emet-blue">{cat.planCoveragePercent.toFixed(1)}%</p></div>
+            <div key={cat.category} className="px-4 md:px-5 py-3">
+              {/* Desktop — grid рядок як було */}
+              <div className="hidden md:grid md:grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb] shrink-0">{CAT_ICONS[cat.category]}</div>
+                <p className="text-[13px] font-medium">{cat.label}</p>
+                <div className="text-right"><p className="text-[10px] text-muted-foreground">Заплан.</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
+                <div className="text-right"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
+                <div className="text-right"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-emerald-700">{formatUSD(cat.factAmount)}</p></div>
+                <div className="text-right"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-emet-blue">{cat.planCoveragePercent.toFixed(1)}%</p></div>
+              </div>
+              {/* Mobile — header (іконка+назва) + 2×2 grid метрик */}
+              <div className="md:hidden flex flex-col gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb] shrink-0">{CAT_ICONS[cat.category]}</div>
+                  <p className="text-[13px] font-semibold leading-tight">{cat.label}</p>
+                </div>
+                <div className="grid grid-cols-4 gap-x-2 pl-[42px]">
+                  <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Заплан.</p><p className="text-[13px] font-bold tabular-nums">{cat.clientCount}</p></div>
+                  <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Очікув.</p><p className="text-[12px] font-bold font-mono amount tabular-nums">{formatUSD(cat.expectedAmount)}</p></div>
+                  <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Факт</p><p className="text-[12px] font-bold font-mono amount tabular-nums text-emerald-700">{formatUSD(cat.factAmount)}</p></div>
+                  <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">% план</p><p className="text-[13px] font-bold tabular-nums text-emet-blue">{cat.planCoveragePercent.toFixed(1)}%</p></div>
+                </div>
+              </div>
             </div>
           ))}
           {/* Незаплановані — покупці яких немає у плані менеджера, але вони
@@ -1359,27 +1422,40 @@ export function PlanningForm({
             ];
             return (
               <>
-                <div className="grid grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center px-5 py-3 bg-fuchsia-50/40">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fuchsia-100">
-                    <AlertCircle className="h-4 w-4 text-fuchsia-600" />
+                <div className="px-4 md:px-5 py-3 bg-fuchsia-50/40">
+                  {/* Desktop */}
+                  <div className="hidden md:grid md:grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fuchsia-100">
+                      <AlertCircle className="h-4 w-4 text-fuchsia-600" />
+                    </div>
+                    <p className="text-[13px] font-semibold">Незаплановані <span className="text-[10px] text-muted-foreground font-normal">(купили без плану)</span></p>
+                    <div className="text-right"><p className="text-[10px] text-muted-foreground">Купили</p><p className="text-[14px] font-bold">{unplannedAll.length}</p></div>
+                    <div className="text-right"><p className="text-[10px] text-muted-foreground">—</p><p className="text-[14px] font-bold text-muted-foreground/40">—</p></div>
+                    <div className="text-right"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-fuchsia-700">{formatUSD(unplannedTotal)}</p></div>
+                    <div className="text-right"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-fuchsia-700">{unplannedPct.toFixed(1)}%</p></div>
                   </div>
-                  <p className="text-[13px] font-semibold">Незаплановані <span className="text-[10px] text-muted-foreground font-normal">(купили без плану)</span></p>
-                  <div className="text-right"><p className="text-[10px] text-muted-foreground">Купили</p><p className="text-[14px] font-bold">{unplannedAll.length}</p></div>
-                  <div className="text-right"><p className="text-[10px] text-muted-foreground">—</p><p className="text-[14px] font-bold text-muted-foreground/40">—</p></div>
-                  <div className="text-right"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-fuchsia-700">{formatUSD(unplannedTotal)}</p></div>
-                  <div className="text-right"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-fuchsia-700">{unplannedPct.toFixed(1)}%</p></div>
+                  {/* Mobile */}
+                  <div className="md:hidden flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fuchsia-100 shrink-0">
+                        <AlertCircle className="h-4 w-4 text-fuchsia-600" />
+                      </div>
+                      <p className="text-[13px] font-semibold leading-tight">Незаплановані <span className="text-[10px] text-muted-foreground font-normal">(без плану)</span></p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-x-2 pl-[42px]">
+                      <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Купили</p><p className="text-[13px] font-bold tabular-nums">{unplannedAll.length}</p></div>
+                      <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Факт</p><p className="text-[12px] font-bold font-mono amount tabular-nums text-fuchsia-700">{formatUSD(unplannedTotal)}</p></div>
+                      <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">% план</p><p className="text-[13px] font-bold tabular-nums text-fuchsia-700">{unplannedPct.toFixed(1)}%</p></div>
+                    </div>
+                  </div>
                 </div>
                 {subRows.filter(([, items]) => items.length > 0).map(([label, items]) => {
                   const sum = items.reduce((s, b) => s + b.factAmount, 0);
                   return (
                     <div key={`unp-${label}`}
-                         className="grid grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center px-5 py-2 pl-12 bg-fuchsia-50/20">
-                      <div />
-                      <p className="text-[12px] text-muted-foreground">↳ {label}</p>
-                      <p className="text-[12px] text-right">{items.length}</p>
-                      <p />
-                      <p className="text-[12px] font-mono text-right amount text-muted-foreground">{formatUSD(sum)}</p>
-                      <div />
+                         className="flex items-center justify-between gap-3 px-5 md:px-5 py-2 md:pl-12 pl-12 bg-fuchsia-50/20">
+                      <p className="text-[12px] text-muted-foreground flex-1 min-w-0 truncate">↳ {label} <span className="text-muted-foreground/70">· {items.length}</span></p>
+                      <p className="text-[12px] font-mono amount text-muted-foreground shrink-0">{formatUSD(sum)}</p>
                     </div>
                   );
                 })}
@@ -1387,13 +1463,26 @@ export function PlanningForm({
             );
           })()}
 
-          <div className="grid grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center px-5 py-3 bg-[#f4f7fb]">
-            <div />
-            <p className="text-[13px] font-bold">Всього</p>
-            <p className="text-[14px] font-bold text-right">{totalCatClients}</p>
-            <p className="text-[14px] font-bold font-mono text-right amount">{formatUSD(totalCatAmount)}</p>
-            <p className="text-[14px] font-bold font-mono text-right amount text-emerald-700">{formatUSD(totalCatFact)}</p>
-            <p className="text-[14px] font-bold text-emet-blue text-right">{totalCatPct.toFixed(1)}%</p>
+          <div className="px-4 md:px-5 py-3 bg-[#f4f7fb]">
+            {/* Desktop */}
+            <div className="hidden md:grid md:grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center">
+              <div />
+              <p className="text-[13px] font-bold">Всього</p>
+              <p className="text-[14px] font-bold text-right">{totalCatClients}</p>
+              <p className="text-[14px] font-bold font-mono text-right amount">{formatUSD(totalCatAmount)}</p>
+              <p className="text-[14px] font-bold font-mono text-right amount text-emerald-700">{formatUSD(totalCatFact)}</p>
+              <p className="text-[14px] font-bold text-emet-blue text-right">{totalCatPct.toFixed(1)}%</p>
+            </div>
+            {/* Mobile */}
+            <div className="md:hidden flex flex-col gap-2">
+              <p className="text-[13px] font-bold">Всього</p>
+              <div className="grid grid-cols-4 gap-x-2 pl-2">
+                <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Клієнтів</p><p className="text-[13px] font-bold tabular-nums">{totalCatClients}</p></div>
+                <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Очікув.</p><p className="text-[12px] font-bold font-mono amount tabular-nums">{formatUSD(totalCatAmount)}</p></div>
+                <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Факт</p><p className="text-[12px] font-bold font-mono amount tabular-nums text-emerald-700">{formatUSD(totalCatFact)}</p></div>
+                <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">% план</p><p className="text-[13px] font-bold tabular-nums text-emet-blue">{totalCatPct.toFixed(1)}%</p></div>
+              </div>
+            </div>
           </div>
         </div>
         )}
@@ -2158,7 +2247,7 @@ export function PlanningForm({
           global-block / user-block / поза вікном). Admin завжди бачить
           кнопки — він має bypass усіх обмежень. */}
       {!readOnly && (isAdmin || !isWindowLocked) && (
-        <div className="sticky bottom-0 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex items-center justify-end gap-3 z-10">
+        <div className="sticky bottom-0 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-t border-[#e2e7ef] flex flex-wrap items-center justify-end gap-2 md:gap-3 z-10">
           {lastSavedAt && !saveResult && (
             <span className="text-[11px] text-muted-foreground mr-auto">
               Остання чернетка: {new Date(lastSavedAt).toLocaleString('uk-UA', {
@@ -2176,7 +2265,7 @@ export function PlanningForm({
           <Button
             onClick={handleSave}
             disabled={saving || finalizing}
-            className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+            className="flex-1 md:flex-initial gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
           >
             {saving ? (
               <>
@@ -2191,22 +2280,24 @@ export function PlanningForm({
             <Button
               onClick={handleFinalize}
               disabled={saving || finalizing}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+              className="flex-1 md:flex-initial gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
               title="Заблокувати план від подальших змін сум і списку клієнтів"
             >
               <Lock className="h-4 w-4" />
-              {finalizing ? 'Зберігаю…' : 'Фінальне збереження'}
+              <span className="md:hidden">{finalizing ? 'Зберігаю…' : 'Фіналізувати'}</span>
+              <span className="hidden md:inline">{finalizing ? 'Зберігаю…' : 'Фінальне збереження'}</span>
             </Button>
           )}
           {isFinalized && isAdmin && (
             <Button
               onClick={handleUnfinalize}
               disabled={saving || finalizing}
-              className="gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/15 rounded-xl h-11 px-6 text-[14px] font-semibold disabled:opacity-50"
+              className="flex-1 md:flex-initial gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
               title="Зняти фіналізацію — дозволити менеджеру редагувати"
             >
               <RefreshCw className="h-4 w-4" />
-              {finalizing ? 'Розфіналізую…' : 'Розфіналізувати'}
+              <span className="md:hidden">{finalizing ? 'Розфін…' : 'Розфіналіз.'}</span>
+              <span className="hidden md:inline">{finalizing ? 'Розфіналізую…' : 'Розфіналізувати'}</span>
             </Button>
           )}
         </div>
@@ -2266,6 +2357,33 @@ export function PlanningForm({
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+
+      {/* Етап «Зустріч» → пропозиція запланувати точну дату й час. */}
+      <ConfirmDialog
+        open={meetingPrompt !== null}
+        title="Запланувати зустріч?"
+        description={
+          meetingPrompt
+            ? `Хочете одразу запланувати точну дату й час зустрічі з «${meetingPrompt.clientName}»? Подія з'явиться у блоці «Зустрічі».`
+            : ''
+        }
+        confirmLabel="Так, запланувати"
+        cancelLabel="Пізніше"
+        onConfirm={() => {
+          if (meetingPrompt) setMeetingFormState({ clientId: meetingPrompt.clientId });
+          setMeetingPrompt(null);
+        }}
+        onCancel={() => setMeetingPrompt(null)}
+      />
+
+      <MeetingForm
+        open={meetingFormState !== null}
+        mode="create"
+        prefilledClientId={meetingFormState?.clientId}
+        prefilledDate={planDateHint}
+        onClose={() => setMeetingFormState(null)}
+        onSave={handleMeetingSave}
       />
     </div>
   );

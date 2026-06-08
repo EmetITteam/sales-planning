@@ -10,7 +10,8 @@
  * Stage 2 (наступний коміт): план/факт інтеграція + тег «Виконав заплановане».
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
@@ -19,6 +20,11 @@ import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from
 import { useRegistryPlans } from '@/lib/use-registry-plans';
 import { adaptRegistryPlans } from '@/lib/onec-adapters';
 import { isTrialManager } from '@/lib/trial-manager';
+import { NewClientDialog } from './new-client-dialog';
+import { GlobalClientSearchDialog } from './global-client-search-dialog';
+import { CustomMonthPicker } from '@/components/ui/custom-month-picker';
+import { UserPlus } from 'lucide-react';
+import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -129,15 +135,87 @@ export function ClientsPage() {
   // 'all' / категорія / 'focused' (у фокусі) / 'with-plan' (з планом)
   const [activeFilter, setActiveFilter] = useState<UICategory | 'all' | 'focused' | 'with-plan'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [newClientOpen, setNewClientOpen] = useState(false);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [meetingForClient, setMeetingForClient] = useState<ClientFromOneC | null>(null);
+
+  // Локальний month-фільтр (поточний / попередні 3 / свій). Default — поточний
+  // місяць. Незалежний від глобального currentPeriod (planning-режим).
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const isCurrentMonth = useMemo(() => {
+    const d = new Date();
+    const cur = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return cur === selectedMonth;
+  }, [selectedMonth]);
+
+  // Deep-link ?focus=ID — приходить з /meetings dossier dialog (link «Відкрити
+  // повне досьє»). Single-client view: ховаємо всіх інших + одразу expand.
+  // Так UX не змушує скролити повз 250+ клієнтів.
+  //
+  // useSearchParams реактивний у Next.js 16 App Router, але `router.replace`
+  // інколи не triggers повний re-render у same-path navigation. Тримаємо
+  // локальний `focusOverride` state який можемо примусово очистити кліком —
+  // він має перевагу над URL-параметром.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlFocusId = searchParams?.get('focus') ?? null;
+  const [focusOverride, setFocusOverride] = useState<string | null | 'cleared'>(null);
+  const focusId = focusOverride === 'cleared' ? null : (focusOverride ?? urlFocusId);
+  const focusHandledRef = useRef(false);
+
+  useEffect(() => {
+    // Якщо користувач знов прийшов з ?focus=, скидаємо override
+    if (urlFocusId) setFocusOverride(null);
+  }, [urlFocusId]);
+
+  useEffect(() => {
+    if (!focusId || focusHandledRef.current) return;
+    if (clients.length === 0) return;
+    setActiveFilter('all');
+    setSearch('');
+    setExpandedId(focusId);
+    focusHandledRef.current = true;
+  }, [focusId, clients.length]);
+
+  const clearFocus = () => {
+    focusHandledRef.current = false;
+    setExpandedId(null);
+    setFocusOverride('cleared');
+    // best-effort: прибираємо ?focus= з URL (history-only, не triggers re-render)
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/clients');
+    }
+  };
 
   // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
   const clientIds = useMemo(() => clients.map(c => c.ClientID).filter(Boolean), [clients]);
-  const { planByClient, factByClient, loading: totalsLoading } = useClientsTotals(
+  const { planByClient, factByClient, meetingStageClientIds, loading: totalsLoading } = useClientsTotals(
     sessionUser?.login ?? null,
     clientIds,
+    selectedMonth,
   );
   // Контактна активність (зустрічі/дзвінки цього міс) — для Hero Card 4
-  const { activityByClient, loading: activitiesLoading } = useClientActivities(sessionUser?.login ?? null, clientIds);
+  const { activityByClient, loading: activitiesLoading } = useClientActivities(
+    sessionUser?.login ?? null,
+    clientIds,
+    selectedMonth,
+  );
+
+  // Клієнти, у яких в плані поточного місяця стоїть етап «Зустріч», але у 1С
+  // ще нема жодної зустрічі цього місяця. Менеджер забув запланувати дату/час.
+  // Допоки activities ще тягнуться — порожній set (не блимаємо червоним).
+  const meetingMissingClientIds = useMemo(() => {
+    if (activitiesLoading) return new Set<string>();
+    const out = new Set<string>();
+    meetingStageClientIds.forEach(id => {
+      if (!activityByClient[id]?.hasMeeting) out.add(id);
+    });
+    return out;
+  }, [meetingStageClientIds, activityByClient, activitiesLoading]);
   // Фокуси клієнтів (Action A) — для chip у рядку + блок у expanded
   const { focusByClient } = useClientFocuses(sessionUser?.login ?? null, clientIds);
 
@@ -352,6 +430,8 @@ export function ClientsPage() {
   const groupedClients = useMemo(() => {
     const lowSearch = search.trim().toLowerCase();
     const filtered = baseClients.filter(c => {
+      // Deep-link focus → показуємо ТІЛЬКИ цього клієнта (single-client view).
+      if (focusId) return c.ClientID === focusId;
       // Спочатку фільтр (категорія / focused / with-plan)
       if (activeFilter === 'focused') {
         if ((focusByClient[c.ClientID]?.length ?? 0) === 0) return false;
@@ -374,7 +454,7 @@ export function ClientsPage() {
       arr.sort((a, b) => getClientName(a).localeCompare(getClientName(b), 'uk'));
     }
     return groups;
-  }, [baseClients, search, activeFilter]);
+  }, [baseClients, search, activeFilter, focusId, focusByClient, planByClient]);
 
   // === Резерв-клієнти (всі резерв, незалежно від купівлі) — для окремої секції ===
   const reservedClients = useMemo(() => {
@@ -416,9 +496,62 @@ export function ClientsPage() {
     );
   }
 
+  // Focus-mode (?focus=ID): show single client view, Hero band/search ховаємо.
+  // ШУКАЄМО У ПОВНОМУ clients-списку (не у baseClients): резерв-некупуючі
+  // клієнти все одно можуть мати зустріч і вести на /clients?focus=, але
+  // baseClients їх виключає → видно «не знайдено» хоча клієнт існує.
+  if (focusId) {
+    const focusClient = clients.find(c => c.ClientID === focusId);
+    const focusName = focusClient ? getClientName(focusClient) : focusId;
+    return (
+      <div className="space-y-4 max-w-full overflow-x-hidden">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={clearFocus}
+            className="inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-xl bg-white/60 border border-slate-200 text-[13px] font-semibold text-slate-700 hover:bg-white hover:border-emet-blue hover:text-emet-blue transition-colors"
+          >
+            <span aria-hidden>←</span> Усі клієнти
+          </button>
+          <div className="text-[14px] text-slate-600">
+            Показую лише <strong className="text-emet-ink">{focusName}</strong>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {focusClient ? (
+            <ClientRow
+              key={focusClient.ClientID}
+              client={focusClient}
+              plan={planByClient[focusClient.ClientID]?.planTotal ?? null}
+              fact={factByClient[focusClient.ClientID]?.factTotal ?? null}
+              planBrands={planByClient[focusClient.ClientID]?.brands ?? {}}
+              factBrands={factByClient[focusClient.ClientID]?.brands ?? {}}
+              focuses={focusByClient[focusClient.ClientID] ?? []}
+              meetingMissing={meetingMissingClientIds.has(focusClient.ClientID)}
+              totalsLoading={totalsLoading}
+              expanded={expandedId === focusClient.ClientID}
+              onToggle={() => setExpandedId(expandedId === focusClient.ClientID ? null : focusClient.ClientID)}
+              onCreateMeeting={(c) => setMeetingForClient(c)}
+            />
+          ) : (
+            <div className="glass-card-flat px-4 py-6 text-center text-[13px] text-slate-500">
+              Клієнт з кодом <span className="font-mono">{focusId}</span> не знайдено у вашому списку.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <PageTitle subtitle={buildHeaderSubtitle(clients.length)} />
+      <PageTitle
+        subtitle={buildHeaderSubtitle(clients.length, selectedMonth, isCurrentMonth)}
+        onNewClient={() => setNewClientOpen(true)}
+        onGlobalSearch={() => setGlobalSearchOpen(true)}
+      />
+      <ClientsMonthFilter selectedMonth={selectedMonth} onChange={setSelectedMonth} />
 
       {/* === HERO BAND — 4 картки за домовленістю 2026-05-27 === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -544,9 +677,11 @@ export function ClientsPage() {
                   planByClient={planByClient}
                   factByClient={factByClient}
                   focusByClient={focusByClient}
+                  meetingMissingClientIds={meetingMissingClientIds}
                   totalsLoading={totalsLoading}
                   expandedId={expandedId}
                   onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
+                  onCreateMeeting={(c) => setMeetingForClient(c)}
                 />
               );
             })}
@@ -556,48 +691,211 @@ export function ClientsPage() {
                 planByClient={planByClient}
                 factByClient={factByClient}
                 focusByClient={focusByClient}
+                meetingMissingClientIds={meetingMissingClientIds}
                 totalsLoading={totalsLoading}
                 expandedId={expandedId}
                 onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
+                onCreateMeeting={(c) => setMeetingForClient(c)}
               />
             )}
           </>
         );
       })()}
+
+      <GlobalClientSearchDialog
+        open={globalSearchOpen}
+        onClose={() => setGlobalSearchOpen(false)}
+        onSelectMine={clientId => {
+          // Тицянув свого клієнта у результатах пошуку → закриваємо діалог
+          // і фокусуємо картку в «Мої клієнти» (single-client view + expand).
+          // Скидаємо handled-flag щоб ефект focusId спрацював заново на новий ID.
+          focusHandledRef.current = false;
+          setFocusOverride(clientId);
+          setGlobalSearchOpen(false);
+        }}
+      />
+
+      <NewClientDialog
+        open={newClientOpen}
+        onClose={() => setNewClientOpen(false)}
+        onCreated={createdName => {
+          setToastMsg(`Клієнта «${createdName}» успішно створено.`);
+          refetch();
+          setTimeout(() => setToastMsg(null), 4000);
+        }}
+        onOpenExistingClient={clientId => {
+          // Duplicate-warning: менеджер натиснув «Відкрити» на існуючому
+          // своєму клієнті → фокусуємо картку через той самий focusOverride.
+          focusHandledRef.current = false;
+          setFocusOverride(clientId);
+        }}
+      />
+
+      <MeetingForm
+        open={meetingForClient !== null}
+        mode="create"
+        prefilledClientId={meetingForClient?.ClientID}
+        onClose={() => setMeetingForClient(null)}
+        onSave={async (data: MeetingFormData) => {
+          try {
+            const res = await fetch('/api/meetings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({
+                clientId1c: data.clientId1c,
+                date: data.date,
+                time: data.time,
+                durationMin: data.durationMin,
+                purpose: data.purpose || null,
+                comment: data.comment || null,
+                plannedAddress: data.plannedAddress || null,
+              }),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              throw new Error(body.error ?? `HTTP ${res.status}`);
+            }
+            const name = meetingForClient ? getClientName(meetingForClient) : 'клієнт';
+            setToastMsg(`Зустріч з «${name}» створено.`);
+            setMeetingForClient(null);
+            setTimeout(() => setToastMsg(null), 4000);
+          } catch (e) {
+            setToastMsg(`Помилка: ${(e as Error).message}`);
+            setTimeout(() => setToastMsg(null), 5000);
+          }
+        }}
+      />
+
+      {toastMsg && (
+        <div className="fixed z-[60] bottom-4 right-4 left-4 sm:left-auto sm:max-w-[360px] pointer-events-none">
+          <div className="pointer-events-auto rounded-xl px-4 py-3 text-[13px] font-semibold bg-teal-600 text-white shadow-[0_12px_28px_rgba(6,42,61,0.25)]">
+            {toastMsg}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // === Page title ===
-function PageTitle({ subtitle }: { subtitle: React.ReactNode }) {
+function PageTitle({
+  subtitle,
+  onNewClient,
+  onGlobalSearch,
+}: {
+  subtitle: React.ReactNode;
+  onNewClient?: () => void;
+  onGlobalSearch?: () => void;
+}) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl bg-emet-blue text-white flex items-center justify-center shadow-[0_4px_12px_rgba(6,106,171,0.25)]">
+    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+      <div className="w-10 h-10 rounded-xl bg-emet-blue text-white flex items-center justify-center shadow-[0_4px_12px_rgba(6,106,171,0.25)] shrink-0">
         <Users className="h-5 w-5" />
       </div>
-      <div>
-        <h1 className="text-[18px] font-bold tracking-tight">Мої клієнти</h1>
+      <div className="flex-1 min-w-0">
+        <h1 className="text-[18px] font-bold tracking-tight">Клієнти</h1>
         <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">{subtitle}</div>
       </div>
+      {onGlobalSearch && (
+        <button
+          type="button"
+          onClick={onGlobalSearch}
+          className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-white/70 border border-emet-blue/25 text-emet-blue text-[13px] font-bold hover:bg-emet-blue hover:text-white hover:border-emet-blue active:translate-y-px transition-all shrink-0"
+          aria-label="Пошук по всій базі"
+        >
+          <Search className="w-4 h-4" />
+          <span className="max-sm:hidden">По всій базі</span>
+        </button>
+      )}
+      {onNewClient && (
+        <button
+          type="button"
+          onClick={onNewClient}
+          className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] font-bold shadow-[0_4px_14px_rgba(6,106,171,0.3)] hover:shadow-[0_6px_20px_rgba(6,106,171,0.4)] active:translate-y-px transition-all shrink-0"
+          aria-label="Новий клієнт"
+        >
+          <UserPlus className="w-4 h-4" />
+          <span className="max-sm:hidden">Новий клієнт</span>
+        </button>
+      )}
     </div>
   );
 }
 
 /**
- * Helper для заголовка — рядок 1 (поточна дата + місяць) + рядок 2 (як працює LIVE).
- * Виноситься відразу під «Мої клієнти» щоб менеджер розумів window даних.
+ * Helper для заголовка — кількість клієнтів + обраний місяць + live-індикатор.
+ * Рядок про LIVE прибрано (live-toggle більше не у шапці).
  */
-function buildHeaderSubtitle(clientsCount: number): React.ReactNode {
-  const d = new Date();
-  const monthLabel = `${UA_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-  const today = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+function buildHeaderSubtitle(clientsCount: number, selectedMonth: string, isCurrentMonth: boolean): React.ReactNode {
+  const [y, m] = selectedMonth.split('-').map(Number);
+  const monthLabel = `${UA_MONTHS[m - 1]} ${y}`;
+  const todayD = new Date();
+  const today = `${String(todayD.getDate()).padStart(2, '0')}.${String(todayD.getMonth() + 1).padStart(2, '0')}.${todayD.getFullYear()}`;
   return (
-    <>
-      <span>{clientsCount} клієнтів · {monthLabel} · станом на <span className="font-semibold tabular-nums text-foreground/80">{today}</span></span>
-      <span className="block text-[11px] text-muted-foreground/70 mt-0.5">
-        Дані «План × Факт» — за поточний місяць. Кнопка <strong className="text-foreground/80">LIVE</strong> міняє лише швидкість оновлення, діапазон завжди «з 1-го по сьогодні».
-      </span>
-    </>
+    <span className="inline-flex items-center gap-1.5 flex-wrap">
+      <span>{clientsCount} клієнтів · {monthLabel}</span>
+      {isCurrentMonth ? (
+        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_#10b981] animate-pulse" />
+          live · станом на <span className="font-semibold tabular-nums">{today}</span>
+        </span>
+      ) : (
+        <span className="text-[11px] text-slate-500">архівні дані</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * ClientsMonthFilter — pill-toggle для перемикання між поточним місяцем і
+ * минулими (до 3х). + опція «Свій» для довільного місяця (через native input).
+ */
+function ClientsMonthFilter({
+  selectedMonth,
+  onChange,
+}: {
+  selectedMonth: string;
+  onChange: (month: string) => void;
+}) {
+  const options = useMemo(() => {
+    const out: { value: string; label: string }[] = [];
+    const d = new Date();
+    for (let i = 0; i < 4; i++) {
+      const dd = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      const value = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = UA_MONTHS[dd.getMonth()];
+      const label = i === 0 ? 'Поточний' : `${monthName.slice(0, 3)}.`;
+      out.push({ value, label });
+    }
+    return out;
+  }, []);
+
+  const isCustom = !options.some(o => o.value === selectedMonth);
+
+  return (
+    <div className="inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 shrink-0">
+      {options.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+            selectedMonth === opt.value && !isCustom
+              ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+      <CustomMonthPicker
+        label="Свій"
+        active={isCustom}
+        value={selectedMonth}
+        onChange={onChange}
+      />
+    </div>
   );
 }
 
@@ -902,14 +1200,16 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand,
+  cat, clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
+  meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
+  onCreateMeeting?: (client: ClientFromOneC) => void;
 }) {
   // 4-bucket sort:
   //   0 — у роботі (план>0, факт<план): TOP
@@ -991,9 +1291,11 @@ function CategorySection({
               planBrands={planBrands}
               factBrands={factBrands}
               focuses={focuses}
+              meetingMissing={meetingMissingClientIds.has(c.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === c.ClientID}
               onToggle={() => onToggleExpand(c.ClientID)}
+              onCreateMeeting={onCreateMeeting}
             />
           );
         })}
@@ -1007,13 +1309,15 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, focusByClient, totalsLoading, expandedId, onToggleExpand }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
+  meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
+  onCreateMeeting?: (client: ClientFromOneC) => void;
 }) {
   const [sectionOpen, setSectionOpen] = useState(false);
 
@@ -1057,9 +1361,11 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, t
                 planBrands={planBrands}
                 factBrands={factBrands}
                 focuses={focuses}
+                meetingMissing={meetingMissingClientIds.has(c.ClientID)}
                 totalsLoading={totalsLoading}
                 expanded={expandedId === c.ClientID}
                 onToggle={() => onToggleExpand(c.ClientID)}
+                onCreateMeeting={onCreateMeeting}
               />
             );
           })}
@@ -1070,16 +1376,19 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, t
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totalsLoading, expanded, onToggle }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
   planBrands: Record<string, number>;
   factBrands: Record<string, number>;
   focuses: ClientFocusItem[];
+  /** У плані поточного місяця stage='Зустріч', але реальної події у 1С ще нема. */
+  meetingMissing?: boolean;
   totalsLoading: boolean;
   expanded: boolean;
   onToggle: () => void;
+  onCreateMeeting?: (client: ClientFromOneC) => void;
 }) {
   const cat = toUICategory(client.ClientCategory);
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
@@ -1101,22 +1410,38 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
   const dimmedRow = noPlanNoFact; // приглушуємо тільки повністю-порожні
 
   return (
-    <div className={`glass-card-flat overflow-hidden ${dimmedRow ? 'opacity-70' : ''}`}>
-      <button
-        type="button"
+    <div data-client-row={client.ClientID} className={`glass-card-flat overflow-hidden ${dimmedRow ? 'opacity-70' : ''}`}>
+      {/* HTML забороняє button-в-button — а нам треба фон-toggle + внутрішні
+          tel/«Запланувати зустріч» дії. Тому outer = div role="button" з
+          keyboard support, а inner phone/calendar лишаються справжніми
+          <a>/<button> й працюють як треба. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[40px_minmax(0,1fr)_24px] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3 md:gap-4 items-center px-4 py-3 hover:bg-white/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
-        {/* Avatar */}
-        <div className={`w-10 h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} flex items-center justify-center text-[12px] font-bold shrink-0`}>
+        {/* Avatar — 36px mobile / 40px desktop. */}
+        <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0 mt-0.5 md:mt-0`}>
           {initials(name)}
         </div>
 
-        {/* Name + UA-category-chip | address · phone */}
+        {/* Name + UA-category-chip | address · phone.
+            На мобільному (max-md): name окремим рядком, а chips переносимо
+            нижче — інакше «Активний» chip перекриває truncated ім'я. */}
         <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-[14px] font-bold truncate">{name || '— без назви —'}</p>
+          {/* Mobile: ПІБ на 2 рядки + chips новим рядком нижче.
+              Desktop: ПІБ + chips inline в одному рядку (з wrap). */}
+          <div className="md:flex md:items-center md:gap-2 md:flex-wrap min-w-0">
+          <p className="text-[14px] font-bold md:truncate line-clamp-2 md:line-clamp-none leading-tight min-w-0">{name || '— без назви —'}</p>
+          <div className="flex items-center gap-1.5 mt-1 md:mt-0 min-w-0 flex-wrap">
             {/* Chip-категорія українською (Активний/Сплячий/Новий/Втрачений/Без закупок) */}
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
               {toUkrainianChip(client.ClientCategory)}
@@ -1125,6 +1450,17 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
             {isClientReserved(client) && (
               <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-400/12 text-slate-600 border border-slate-300/50 backdrop-blur-sm" title="Клієнт у Резерві — виключений з планування">
                 Резерв
+              </span>
+            )}
+            {/* Meeting-missing-tag (amber) — у плані Зустріч, але події ще нема.
+                Підказка щоб менеджер натиснув «Запланувати зустріч» (поряд). */}
+            {meetingMissing && (
+              <span
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-amber-500/12 text-amber-700 border border-amber-300/50 backdrop-blur-sm"
+                title="У плані стоїть етап «Зустріч», але точну дату й час ще не заплановано."
+              >
+                <Calendar className="w-2.5 h-2.5" />
+                Зустріч без дати
               </span>
             )}
             {/* Focus-tag (violet) — є хоча б 1 активний фокус */}
@@ -1153,22 +1489,74 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 min-w-0">
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0">
             {address && <span className="truncate">{address}</span>}
+            {/* Desktop: текстовий номер як link (старий вигляд) */}
             {client.Phone && (
               <>
-                {address && <span className="text-muted-foreground/40 shrink-0">·</span>}
+                {address && <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>}
                 <a
                   href={`tel:${phoneClean}`}
                   onClick={e => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 hover:text-emet-blue transition-colors shrink-0"
+                  className="hidden md:inline-flex items-center gap-1 hover:text-emet-blue transition-colors shrink-0"
                 >
                   <Phone className="h-3 w-3" />
                   <span className="tabular-nums">{client.Phone}</span>
                 </a>
               </>
             )}
+            {/* Desktop text-link — «Запланувати зустріч» */}
+            {onCreateMeeting && (
+              <>
+                {(address || client.Phone) && (
+                  <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>
+                )}
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onCreateMeeting(client);
+                  }}
+                  className="hidden md:inline-flex items-center gap-1 text-emet-blue hover:text-emet-blue-light font-semibold shrink-0"
+                >
+                  <Calendar className="h-3 w-3" />
+                  Запланувати зустріч
+                </button>
+              </>
+            )}
           </div>
+        </div>
+
+        {/* Mobile-only icon-кнопки: phone + create meeting у одному контейнері.
+            Quadratic-style (rounded-[10px]) щоб не конфліктували з round phone-call
+            на /meetings — тут вони у читаючому контексті, не CTA. */}
+        <div className="md:hidden inline-flex items-center gap-1.5 shrink-0">
+          {client.Phone && (
+            <a
+              href={`tel:${phoneClean}`}
+              onClick={e => e.stopPropagation()}
+              aria-label={`Подзвонити ${name}`}
+              title={client.Phone}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white shadow-sm active:scale-95 transition-all"
+            >
+              <Phone className="w-[15px] h-[15px]" />
+            </a>
+          )}
+          {onCreateMeeting && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                onCreateMeeting(client);
+              }}
+              aria-label={`Запланувати зустріч з ${name}`}
+              title="Запланувати зустріч"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white shadow-sm active:scale-95 transition-all"
+            >
+              <Calendar className="w-[15px] h-[15px]" />
+            </button>
+          )}
         </div>
 
         {/* План / Факт / % — desktop only. */}
@@ -1176,8 +1564,9 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, totals
         <NumCol label="Факт" value={fact} loading={totalsLoading} emptyAs="zero" />
         <PctCol pct={pct} loading={totalsLoading} disabled={!hasPlan} />
 
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
-      </button>
+        {/* Desktop chevron — візуальний натяк що рядок розгортається. */}
+        <ChevronDown className={`hidden md:block h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </div>
       {expanded && (
         <ClientExpand
           clientID={client.ClientID}
@@ -1512,42 +1901,86 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
         {sorted.map(b => {
           const byMonth = b.byYM;
           const inPlan = isBrandInPlan(b.brandName);
+          const total = Math.round(b.totalAmount || 0);
+          const planPill = (
+            <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+              inPlan
+                ? 'bg-emet-blue/10 text-emet-blue border border-emet-blue/20'
+                : 'bg-slate-400/10 text-slate-500 border border-slate-300/50'
+            }`}>
+              {inPlan ? 'В плані' : 'Немає в плані'}
+            </span>
+          );
           return (
-            <div
-              key={b.brandName}
-              className="glass-card-soft p-3 grid items-center gap-3"
-              style={{ gridTemplateColumns: `minmax(0,1.4fr) repeat(${monthOrder.length}, 1fr) 90px 120px` }}
-            >
-              <div className="font-semibold text-[13px] truncate flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
-                {cleanBrandName(b.brandName)}
+            <div key={b.brandName} className="glass-card-soft p-3">
+              {/* MOBILE: brand + статус + total зверху, місяці inline-list
+                  показуються ТІЛЬКИ якщо є покупка — пусті «—» прибрано щоб
+                  картка не виглядала роз'єднано і не «літали» цифри у пустоті. */}
+              <div className="md:hidden">
+                <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
+                  <span className="font-semibold text-[13px] truncate min-w-0">{cleanBrandName(b.brandName)}</span>
+                  {!inPlan && (
+                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-400/10 text-slate-500 border border-slate-300/50">
+                      не в плані
+                    </span>
+                  )}
+                  <span className="ml-auto font-mono font-bold tabular-nums text-[13px] shrink-0 amount">${total.toLocaleString('en-US')}</span>
+                </div>
+                {(() => {
+                  const purchases = monthOrder
+                    .map(m => ({ month: m, amount: byMonth[m] ?? 0 }))
+                    .filter(p => p.amount > 0);
+                  if (purchases.length === 0) {
+                    return (
+                      <div className="pl-4 text-[11px] text-muted-foreground/60">
+                        За 6 місяців покупок не зафіксовано.
+                      </div>
+                    );
+                  }
+                  // Фіксовані 3 колонки — місяці вирівнюються один під одним
+                  // незалежно від довжини сум; решта рядка лишається пустою
+                  // без «з'їжджаючого» тексту.
+                  return (
+                    <div className="pl-4 grid grid-cols-3 gap-x-3 gap-y-1.5">
+                      {purchases.map(p => (
+                        <div key={p.month} className="flex flex-col leading-none">
+                          <span className="text-[9px] uppercase text-muted-foreground font-semibold">{fmtYMShort(p.month)}</span>
+                          <span className="font-mono font-bold tabular-nums text-[12px] mt-1 amount">${Math.round(p.amount).toLocaleString('en-US')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
-              {monthOrder.map(m => {
-                const amount = byMonth[m] ?? 0;
-                return (
-                  <div key={m} className="text-right">
-                    <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{fmtYMShort(m)}</p>
-                    <p className={`font-mono font-bold tabular-nums text-[12px] mt-1 leading-none amount ${amount > 0 ? '' : 'text-muted-foreground/40'}`}>
-                      {amount > 0 ? `$${Math.round(amount).toLocaleString('en-US')}` : '—'}
-                    </p>
-                  </div>
-                );
-              })}
-              <div className="text-right border-l border-white/50 pl-3">
-                <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">Всього</p>
-                <p className="font-mono font-bold tabular-nums text-[14px] mt-1 leading-none amount">
-                  ${Math.round(b.totalAmount || 0).toLocaleString('en-US')}
-                </p>
-              </div>
-              {/* Позначка чи бренд у плануванні цього місяця */}
-              <div className="flex justify-end">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap backdrop-blur-sm ${
-                  inPlan
-                    ? 'bg-emet-blue/10 text-emet-blue border border-emet-blue/20'
-                    : 'bg-slate-400/10 text-slate-500 border border-slate-300/50'
-                }`}>
-                  {inPlan ? 'В плануванні' : 'Немає в плані'}
-                </span>
+
+              {/* DESKTOP: original grid */}
+              <div
+                className="hidden md:grid items-center gap-3"
+                style={{ gridTemplateColumns: `minmax(160px,1.4fr) repeat(${monthOrder.length}, minmax(70px,1fr)) 90px 120px` }}
+              >
+                <div className="font-semibold text-[13px] truncate flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${inPlan ? 'bg-emet-blue' : 'bg-slate-400'}`} />
+                  {cleanBrandName(b.brandName)}
+                </div>
+                {monthOrder.map(m => {
+                  const amount = byMonth[m] ?? 0;
+                  return (
+                    <div key={m} className="text-right">
+                      <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">{fmtYMShort(m)}</p>
+                      <p className={`font-mono font-bold tabular-nums text-[12px] mt-1 leading-none amount ${amount > 0 ? '' : 'text-muted-foreground/40'}`}>
+                        {amount > 0 ? `$${Math.round(amount).toLocaleString('en-US')}` : '—'}
+                      </p>
+                    </div>
+                  );
+                })}
+                <div className="text-right border-l border-white/50 pl-3">
+                  <p className="text-[9px] uppercase text-muted-foreground font-semibold leading-none">Всього</p>
+                  <p className="font-mono font-bold tabular-nums text-[14px] mt-1 leading-none amount">
+                    ${total.toLocaleString('en-US')}
+                  </p>
+                </div>
+                <div className="flex justify-end">{planPill}</div>
               </div>
             </div>
           );
@@ -1907,6 +2340,8 @@ function PlanFactByBrand({ planBrands, factBrands }: {
   return (
     <div>
       <PlanFactHeader rowsCount={rows.length} />
+      {/* PlanFactBrandRow має mobile-first 2-row compact layout — горизонтальний
+          scroll більше не потрібен, картка вписується у 360px viewport. */}
       <div className="space-y-1.5">
         {rows.map(r => (
           <PlanFactBrandRow key={r.code} row={r} />
@@ -1957,41 +2392,61 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
     unplanned: { dot: 'bg-violet-500',   label: '⚡ Поза плануванням', pillBg: 'bg-violet-500/12 border border-violet-300/40 text-violet-700 backdrop-blur-sm' },
   } as const;
   const meta = STATUS_META[status];
+  const pctClass = pct === null ? 'text-muted-foreground/40'
+    : pct >= 100 ? 'text-emerald-700'
+    : pct >= 80 ? 'text-emerald-600'
+    : pct >= 50 ? 'text-amber-600'
+    : 'text-rose-600';
+
+  const planStr = plan > 0 ? `$${Math.round(plan).toLocaleString('en-US')}` : '—';
+  const factStr = fact > 0 ? `$${Math.round(fact).toLocaleString('en-US')}` : '$0';
+  const pctStr = pct === null ? '—' : `${pct.toFixed(0)}%`;
+
   return (
-    // Фіксовані ширини колонок План/Факт/Викон/Status — щоб усі рядки
-    // вирівнювались строго (раніше 1fr+auto давало «гуляючі» значення
-    // коли status-pill мав різну довжину).
-    <div className="glass-card-soft p-3 grid grid-cols-[12px_minmax(0,1fr)_110px_110px_75px_150px] gap-3 items-center">
-      <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
-      <div className="font-semibold text-[13px] truncate">{name}</div>
-      <div className="text-right">
-        <p className="text-[9px] uppercase text-muted-foreground font-semibold">План</p>
-        <p className="font-mono font-bold tabular-nums text-[12px] mt-0.5 amount">
-          {plan > 0 ? `$${Math.round(plan).toLocaleString('en-US')}` : <span className="text-muted-foreground/40">—</span>}
-        </p>
+    <div className="glass-card-soft p-3">
+      {/* MOBILE: inline-row — dot+brand+chip зверху, дані inline нижче.
+          Замість grid 3-col (де метки і цифри плавали окремо) — суцільна
+          rядок «План $X · Факт $Y · X%» компактно під брендом. */}
+      <div className="md:hidden">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.dot}`} />
+          <span className="font-semibold text-[13px] truncate flex-1 min-w-0">{name}</span>
+          <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
+            {meta.label}
+          </span>
+        </div>
+        <div className="pl-[18px] text-[11px] flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="text-muted-foreground">План</span>
+          <span className={`font-mono font-bold tabular-nums text-[12px] amount ${plan === 0 ? 'text-muted-foreground/40' : ''}`}>{planStr}</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground">Факт</span>
+          <span className={`font-mono font-bold tabular-nums text-[12px] amount ${fact === 0 ? 'text-muted-foreground/40' : ''}`}>{factStr}</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className={`font-mono font-bold tabular-nums text-[12px] ${pctClass}`}>{pctStr}</span>
+        </div>
       </div>
-      <div className="text-right">
-        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Факт</p>
-        <p className="font-mono font-bold tabular-nums text-[12px] mt-0.5 amount">
-          {fact > 0 ? `$${Math.round(fact).toLocaleString('en-US')}` : <span className="text-muted-foreground/40">$0</span>}
-        </p>
-      </div>
-      <div className="text-right">
-        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Викон.</p>
-        <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 ${
-          pct === null ? 'text-muted-foreground/40'
-          : pct >= 100 ? 'text-emerald-700'
-          : pct >= 80 ? 'text-emerald-600'
-          : pct >= 50 ? 'text-amber-600'
-          : 'text-rose-600'
-        }`}>
-          {pct === null ? '—' : `${pct.toFixed(0)}%`}
-        </p>
-      </div>
-      <div className="flex justify-end">
-        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
-          {meta.label}
-        </span>
+
+      {/* DESKTOP: original grid layout */}
+      <div className="hidden md:grid grid-cols-[12px_minmax(160px,1fr)_110px_110px_75px_150px] gap-3 items-center">
+        <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
+        <div className="font-semibold text-[13px] truncate">{name}</div>
+        <div className="text-right">
+          <p className="text-[9px] uppercase text-muted-foreground font-semibold">План</p>
+          <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 amount ${plan === 0 ? 'text-muted-foreground/40' : ''}`}>{planStr}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] uppercase text-muted-foreground font-semibold">Факт</p>
+          <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 amount ${fact === 0 ? 'text-muted-foreground/40' : ''}`}>{factStr}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] uppercase text-muted-foreground font-semibold">Викон.</p>
+          <p className={`font-mono font-bold tabular-nums text-[12px] mt-0.5 ${pctClass}`}>{pctStr}</p>
+        </div>
+        <div className="flex justify-end">
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${meta.pillBg}`}>
+            {meta.label}
+          </span>
+        </div>
       </div>
     </div>
   );

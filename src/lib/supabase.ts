@@ -102,6 +102,11 @@ class SupabaseTable {
   insert(rows: Record<string, unknown>[]): this {
     this._method = 'POST';
     this._body = rows;
+    // PostgREST за замовчуванням НЕ повертає вставлені рядки — нам треба
+    // `.select('*')` після insert щоб отримати ID/timestamps, тож просимо
+    // representation у відповіді. Інакше `data` порожній → caller думає що
+    // запис не зробився ("no row returned after insert").
+    this._extraHeaders['Prefer'] = 'return=representation';
     return this;
   }
 
@@ -119,6 +124,19 @@ class SupabaseTable {
       ? 'resolution=ignore-duplicates'
       : 'resolution=merge-duplicates';
     if (opts?.onConflict) this.queryParts.push(`on_conflict=${opts.onConflict}`);
+    return this;
+  }
+
+  /**
+   * Atomic UPDATE з фільтрами через `.eq()` / `.in()`. Використовуй для CAS-
+   * patterns: «оновити X тільки якщо status='pending'». Повертає {data, error}
+   * з updated rows (Prefer: return=representation). Якщо 0 rows match — це
+   * не error, просто пустий array.
+   */
+  update(patch: Record<string, unknown>): this {
+    this._method = 'PATCH';
+    this._body = patch;
+    this._extraHeaders['Prefer'] = 'return=representation';
     return this;
   }
 

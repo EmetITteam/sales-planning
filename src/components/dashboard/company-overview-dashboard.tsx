@@ -12,7 +12,7 @@
  * Render внутрішнього `<main>` теж нема — це обгортка parent-а.
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useAppStore } from '@/lib/store';
 import { useCountUp } from '@/hooks/use-count-up';
@@ -21,6 +21,7 @@ import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { Building2, RefreshCw, Zap, Target, DollarSign, TrendingUp, TrendingDown, AlertTriangle, CalendarDays, Users } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
+import { CustomMonthPicker } from '@/components/ui/custom-month-picker';
 
 const HEADERS_JSON = {
   'Content-Type': 'application/json',};
@@ -67,34 +68,44 @@ export function CompanyOverviewDashboard() {
   // Selectors замість деструктурування — підписка тільки на потрібні слайси
   // (інакше будь-яка зміна store ре-рендерить важкий дашборд).
   const user = useAppStore(s => s.user);
-  const currentPeriod = useAppStore(s => s.currentPeriod);
-  const liveMode = useAppStore(s => s.liveMode);
-  const setLiveMode = useAppStore(s => s.setLiveMode);
 
-  // Огляд компанії авто-вмикає LIVE при вході (зріз «на сьогодні» доречніший
-  // за звітний період для огляду стану всієї компанії). Перемикач у шапці
-  // лишається робочим — користувач може вимкнути вручну. При виході назад на
-  // Планування відновлюємо попередній стан, щоб не «забруднити» планувальний
-  // режим (там правило live лишається як було).
-  useEffect(() => {
-    const prevLive = useAppStore.getState().liveMode;
-    setLiveMode(true);
-    return () => setLiveMode(prevLive);
-  }, [setLiveMode]);
+  // Локальний date-фільтр (2026-06-04). Раніше використовував глобальний
+  // currentPeriod+liveMode (planning store), що плутало менеджерів — toggle
+  // LIVE з шапки керував і Плануванням, і Оглядом. Тепер фільтр локальний:
+  //  - preset 'today'   → period=поточний місяць, asOfDate=сьогодні (live)
+  //  - preset 'prev'    → period=минулий місяць, asOfDate=останній день того
+  //  - preset 'custom'  → user обирає month через native input
+  type DatePreset = 'today' | 'prev' | 'custom';
+  const [datePreset, setDatePreset] = useState<DatePreset>('today');
+  const [customMonth, setCustomMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
-  const now = new Date();
-  // Period беремо з глобального стору (той самий що у шапці). Live-режим = поточний місяць.
-  // Без локального state — щоб уникнути двох паралельних фільтрів.
-  const period = liveMode
-    ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    : currentPeriod.month.slice(0, 7);
-  // asOfDate — дата зрізу. У live-режимі — сьогодні. Інакше — weekEnd
-  // з обраного періоду (наприклад 17.05 коли вибрано «01.05 — 17.05»).
-  // Передається у 1С — щоб реально отримати дані станом на ту дату, а
-  // не «сьогодні», як було досі.
-  const asOfDate = liveMode
-    ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    : (currentPeriod.weekEnd || '');
+  const { period, asOfDate, isLive } = useMemo(() => {
+    const now = new Date();
+    const lastDay = (y: number, m: number) => new Date(y, m, 0); // m=1-12, day 0 наступного
+    const fmtDate = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const fmtMonth = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+    if (datePreset === 'today') {
+      return { period: fmtMonth(now), asOfDate: fmtDate(now), isLive: true };
+    }
+    if (datePreset === 'prev') {
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last = lastDay(prev.getFullYear(), prev.getMonth() + 1);
+      return { period: fmtMonth(prev), asOfDate: fmtDate(last), isLive: false };
+    }
+    // custom
+    const [y, m] = customMonth.split('-').map(Number);
+    const todayMonth = fmtMonth(now);
+    if (customMonth === todayMonth) {
+      return { period: customMonth, asOfDate: fmtDate(now), isLive: true };
+    }
+    return { period: customMonth, asOfDate: fmtDate(lastDay(y, m)), isLive: false };
+  }, [datePreset, customMonth]);
 
   const [accordionMode, setAccordionMode] = useState<'by-div' | 'by-brand'>('by-div');
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
@@ -252,15 +263,13 @@ export function CompanyOverviewDashboard() {
   const factDelta = filteredTotalFact - filteredTotalPrevFact;
 
   const periodDate = new Date(`${period}-01T00:00:00`);
-  // asOfDate (Date) — для розрахунку робочих днів і норми. Якщо live — сьогодні;
-  // якщо фільтр історичний — weekEnd. Якщо weekEnd порожній — періодний місяць.
+  // asOfDate (Date) — для розрахунку робочих днів і норми. Парсимо з asOfDate
+  // (YYYY-MM-DD), який обчислений з локального датового пресету.
   const asOfForCalc = useMemo(() => {
-    if (liveMode) return now;
-    const [py, pm, pd] = (currentPeriod.weekEnd || '').split('-').map(Number);
+    const [py, pm, pd] = asOfDate.split('-').map(Number);
     if (Number.isFinite(py) && Number.isFinite(pm) && Number.isFinite(pd)) return new Date(py, pm - 1, pd);
-    return now;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveMode, currentPeriod.weekEnd]);
+    return new Date();
+  }, [asOfDate]);
   const calcPct = getMonthProgressPct(periodDate.getFullYear(), periodDate.getMonth(), asOfForCalc);
   // «Норма на ранок» = % робочих днів пройдено станом на ВЧОРА (asOf − 1). Дає
   // baseline «що було на початку дня vs зараз».
@@ -305,11 +314,36 @@ export function CompanyOverviewDashboard() {
         </div>
       </div>
 
-      {error && (
-        <div className="px-4 py-2 rounded-xl bg-rose-50/60 backdrop-blur-md border border-rose-200/70 text-[12px] text-rose-700">
-          Помилка завантаження: {String(error.message || error)}
-        </div>
-      )}
+      {error && (() => {
+        const raw = String(error.message || error);
+        // Action 5 1С-помилка для деяких архівних місяців: "Значение не
+        // является значением объектного типа (Наименование)" або інші
+        // 500 від /api/admin/company-overview. Показуємо friendly text;
+        // raw — у tooltip і за <summary>.
+        const is1cError = raw.includes('Action ') || raw.includes('HTTP 500');
+        return (
+          <div className="px-4 py-3 rounded-xl bg-amber-50/70 backdrop-blur-md border border-amber-200/70 text-[12px] text-amber-900">
+            {is1cError ? (
+              <>
+                <p className="font-bold">Для цього періоду 1С не повернула даних.</p>
+                <p className="mt-1">
+                  Можливі причини: на той місяць план ще не виставлений,
+                  або у 1С зміна довідників.
+                  Спробуйте поточний/минулий місяць — там завжди є дані.
+                </p>
+                <details className="mt-2">
+                  <summary className="text-[11px] text-amber-700/80 cursor-pointer hover:underline">
+                    Технічні деталі
+                  </summary>
+                  <p className="mt-1 text-[11px] font-mono break-words">{raw}</p>
+                </details>
+              </>
+            ) : (
+              <>Помилка завантаження: {raw}</>
+            )}
+          </div>
+        );
+      })()}
 
       {isLoading && !data && (
         <>
@@ -353,18 +387,51 @@ export function CompanyOverviewDashboard() {
 
       {data && (
         <>
-          {/* Контекст періоду (із шапки) + фільтр Група.
-              Період БЕРЕМО з глобального PeriodFilter у шапці — не дублюємо тут. */}
-          <div className="glass-card-soft p-3 flex items-center gap-3 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-white/50 text-[12px] font-semibold text-foreground">
-              {liveMode ? (
-                <>
-                  <Zap className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
-                  <span className="uppercase tracking-wider text-[10px] font-bold text-amber-700">LIVE</span>
-                  <span className="text-muted-foreground">·</span>
-                </>
-              ) : null}
+          {/* Локальний date-фільтр + фільтр Група. Раніше period брався з
+              глобального PeriodFilter (шапка), що змішувало фільтр Планування
+              і Огляду. Тепер фільтр локальний — той самий patternthat у /clients. */}
+          <div className="glass-card-soft p-3 flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 shrink-0">
+              <button
+                onClick={() => setDatePreset('today')}
+                className={`inline-flex items-center gap-1 h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  datePreset === 'today'
+                    ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Zap className={`h-3 w-3 ${datePreset === 'today' ? 'fill-white/30' : ''}`} />
+                Сьогодні
+              </button>
+              <button
+                onClick={() => setDatePreset('prev')}
+                className={`inline-flex items-center h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  datePreset === 'prev'
+                    ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Минулий міс.
+              </button>
+              <CustomMonthPicker
+                label="Свій"
+                active={datePreset === 'custom'}
+                value={customMonth}
+                onChange={m => {
+                  setCustomMonth(m);
+                  setDatePreset('custom');
+                }}
+              />
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 text-[11px] font-semibold text-foreground/80">
+              {isLive && (
+                <span className="inline-flex items-center gap-1 text-emerald-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_#10b981] animate-pulse" />
+                  live
+                </span>
+              )}
               {new Date(`${period}-01T00:00:00`).toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' })}
+              {!isLive && <span className="text-muted-foreground">· архів</span>}
             </span>
             <div className="flex-1" />
             <div className="flex items-center gap-2 flex-wrap">
@@ -503,7 +570,7 @@ export function CompanyOverviewDashboard() {
                 const py = periodDate.getFullYear();
                 const pm = periodDate.getMonth();
                 const totalWD = getWorkingDaysInMonth(py, pm);
-                const passedWD = getPassedWorkingDays(py, pm, now);
+                const passedWD = getPassedWorkingDays(py, pm, asOfForCalc);
                 const remainingWD = Math.max(0, totalWD - passedWD);
                 return (
                   <MetricCard

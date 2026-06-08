@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionBootstrap } from "@/components/layout/session-bootstrap";
+import { ZoomGuard } from "@/components/layout/zoom-guard";
+import { ScrollTopButton } from "@/components/layout/scroll-top-button";
 
 // ⚠️ next/font/google вимкнено 2026-05-21: після переходу на Vercel Pro
 // build не завантажував файли шрифтів у `/_next/static/media/`, у UI
@@ -45,6 +47,15 @@ export default function RootLayout({
   return (
     <html lang="uk" className="h-full antialiased">
       <head>
+        {/* Явний viewport meta. Next.js viewport API серіалізує
+            `userScalable: false` у `user-scalable=no`, але iOS Safari
+            <16 ігнорує його якщо не написано всі три (minimum/maximum/
+            user-scalable) у одному тегу. Явний тег ➜ pinch-zoom
+            гарантовано вимкнено в PWA standalone і у Safari табі. */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -53,6 +64,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background">
+        <ZoomGuard />
         {/* Glass redesign — animated background mesh + floating blobs + noise.
             Лежать за всім контентом (z-index: -2/-1). prefers-reduced-motion
             вимикає анімацію через CSS. */}
@@ -65,6 +77,7 @@ export default function RootLayout({
         <SessionBootstrap>
           <TooltipProvider>{children}</TooltipProvider>
         </SessionBootstrap>
+        <ScrollTopButton />
       </body>
     </html>
   );

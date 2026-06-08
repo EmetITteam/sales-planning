@@ -18,6 +18,7 @@ import useSWR from 'swr';
 import { useMemo } from 'react';
 import { useOneCData } from './use-onec-data';
 import { useAppStore } from './store';
+import { monthlyPidFromMonth } from './periods';
 import type { ClientFromOneC, ClientReport } from './mityng-types';
 import {
   chunkClientIds,
@@ -95,6 +96,58 @@ export function useClientReport(clientID: string | null): UseClientReportResult 
   };
 }
 
+// === Повна історія зустрічей по клієнту (Action getAllMeetingsForClient) ===
+// Lazy: викликати тільки коли менеджер натиснув «Показати всі зустрічі» у
+// досьє. Дешевий запит — список без тіл деталей.
+
+interface ClientMeetingHistoryItem {
+  id: string;
+  date: string;
+  time: string;
+  status: string;
+  purpose: string;
+  comment: string;
+  plannedAddress: string;
+  durationMin: number | null;
+}
+
+interface UseClientMeetingsHistoryResult {
+  meetings: ClientMeetingHistoryItem[];
+  loading: boolean;
+  error: string | null;
+}
+
+export function useClientMeetingsHistory(clientID: string | null): UseClientMeetingsHistoryResult {
+  const payload = clientID ? { clientID } : null;
+  const { data, loading, error } = useOneCData('getAllMeetingsForClient', payload);
+
+  const meetings = useMemo<ClientMeetingHistoryItem[]>(() => {
+    const raw = data?.meetings;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map(m => ({
+        id: m.ID ?? '',
+        date: m.Date ?? '',
+        time: m.Time ?? '',
+        status: m.Status ?? '',
+        purpose: m.Purpose ?? '',
+        comment: m.Comment ?? '',
+        plannedAddress: m.PlannedAddress ?? m.StartAddress ?? '',
+        durationMin:
+          typeof m.DurationMin === 'number'
+            ? m.DurationMin
+            : m.DurationMin
+              ? parseInt(String(m.DurationMin), 10) || null
+              : null,
+      }))
+      .filter(m => m.id)
+      // 1С повертає у довільному порядку — сортуємо новіші зверху.
+      .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+  }, [data]);
+
+  return { meetings, loading, error };
+}
+
 // === План по клієнтах (наш Supabase) + Факт по клієнтах (1С Action 3) ===
 
 interface UseClientsTotalsResult {
@@ -102,6 +155,8 @@ interface UseClientsTotalsResult {
   planByClient: Record<string, ClientPlanTotal>;
   /** factByClient[clientId] → { factTotal, brands: {segCode: amount} } */
   factByClient: Record<string, ClientFactTotal>;
+  /** Клієнти у яких stage='Зустріч' хоч в одному forecast/gap row поточного періоду. */
+  meetingStageClientIds: Set<string>;
   loading: boolean;
   error: string | null;
 }
@@ -112,10 +167,19 @@ interface UseClientsTotalsResult {
  * @param login Логін менеджера (override з сесії на бекенді — можна не парити)
  * @param clientIds Список ID контрагентів для яких потрібен факт (з getSalesFact)
  */
-export function useClientsTotals(login: string | null, clientIds: string[]): UseClientsTotalsResult {
+/**
+ * @param monthOverride YYYY-MM. Якщо передано — використовується замість
+ *   глобального currentPeriod (для локальних фільтрів /clients). Інакше —
+ *   читається зі store (legacy / /planning інтеграція).
+ */
+export function useClientsTotals(
+  login: string | null,
+  clientIds: string[],
+  monthOverride?: string | null,
+): UseClientsTotalsResult {
   const currentPeriod = useAppStore(s => s.currentPeriod);
-  const periodId = currentPeriod.id;
-  const month = currentPeriod.month?.slice(0, 7); // 'YYYY-MM'
+  const month = monthOverride ?? currentPeriod.month?.slice(0, 7); // 'YYYY-MM'
+  const periodId = monthOverride ? monthlyPidFromMonth(monthOverride) : currentPeriod.id;
 
   // 1) План з Supabase
   const planKey = login && periodId ? `clientPlanTotals|${login}|${periodId}` : null;
@@ -128,20 +192,38 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
         body: JSON.stringify({ login, periodId, month }),
       });
       if (!r.ok) throw new Error(`plan-totals ${r.status}`);
-      return r.json() as Promise<{ totals: Record<string, ClientPlanTotal> }>;
+      return r.json() as Promise<{ totals: Record<string, ClientPlanTotal>; meetingStageClientIds?: string[] }>;
     },
     { revalidateOnFocus: false, dedupingInterval: 30_000 },
   );
 
-  // 2) Факт з 1С: getSalesFact({login, period, clientIds})
+  // 2) Факт з 1С: getSalesFact({login, period, clientIds, asOfDate})
   // 1С ліміт — 400 ID за запит. У менеджера може бути 481+ клієнтів →
   // batch'имо у 3 чанки по 400 (підтримує до 1200 клієнтів).
   // Hooks rules satisfied: ЗАВЖДИ викликаємо 3 useOneCData (порожні чанки
   // → payload=null → SWR не fetch'ить).
+  //
+  // ⚠️ asOfDate ЗАВЖДИ передаємо явно (як у dashboards). Без нього 1С могла
+  // повертати завищені цифри для минулих місяців (баг помічений 2026-06-04:
+  // квітень показував $120К при реальних ~$55К — підозра що 1С брала діапазон
+  // 1.04 → today, а не 1.04 → 30.04). Поточний місяць → today; минулий →
+  // останній день того місяця.
+  const asOfDate = useMemo(() => {
+    if (!month) return undefined;
+    const [y, m] = month.split('-').map(Number);
+    const today = new Date();
+    const todayMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    if (month === todayMonth) {
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+    const last = new Date(y, m, 0); // day 0 наступного = останній день поточного
+    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+  }, [month]);
+
   const [chunk1, chunk2, chunk3] = chunkClientIds(clientIds, 400, 3);
   const mkPayload = (chunk: string[]) =>
     login && month && chunk.length > 0
-      ? { login, period: month, clientIds: chunk }
+      ? { login, period: month, clientIds: chunk, asOfDate }
       : null;
   const { data: f1, loading: l1, error: e1 } = useOneCData('getSalesFact', mkPayload(chunk1));
   const { data: f2, loading: l2, error: e2 } = useOneCData('getSalesFact', mkPayload(chunk2));
@@ -155,6 +237,7 @@ export function useClientsTotals(login: string | null, clientIds: string[]): Use
   return {
     planByClient: planRes?.totals ?? {},
     factByClient,
+    meetingStageClientIds: new Set(planRes?.meetingStageClientIds ?? []),
     loading: planLoading || factLoading,
     error: planErr?.message || factErr || null,
   };
@@ -221,9 +304,18 @@ export function useClientActivationPlan(login: string | null, month: string | nu
   return { plan: data ?? null, loading, error };
 }
 
-export function useClientActivities(login: string | null, clientIds: string[]): UseClientActivitiesResult {
+/**
+ * @param monthOverride YYYY-MM. Якщо передано — checkActivities бере цей
+ *   місяць замість глобального currentPeriod. Використовується для локального
+ *   фільтра /clients.
+ */
+export function useClientActivities(
+  login: string | null,
+  clientIds: string[],
+  monthOverride?: string | null,
+): UseClientActivitiesResult {
   const currentPeriod = useAppStore(s => s.currentPeriod);
-  const month = currentPeriod.month?.slice(0, 7);
+  const month = monthOverride ?? currentPeriod.month?.slice(0, 7);
 
   // 4 чанки по 200 = до 800 клієнтів. Порожні чанки → payload null → без запиту
   // (безкоштовно для менших менеджерів). Раніше 3 (600) — впритул до найбільших.

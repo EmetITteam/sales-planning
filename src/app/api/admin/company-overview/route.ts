@@ -17,10 +17,10 @@
 import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
-import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
 import { mapSegmentCode } from '@/lib/onec-adapters';
 import { isTrialBrandPlan } from '@/lib/trial-manager';
 import { supabase } from '@/lib/supabase';
+import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
 import {
   type DivisionGroup,
   type SegmentTotals,
@@ -179,6 +179,11 @@ export async function GET(request: NextRequest) {
     // у цьому endpoint вже є гард role==='admin' вище.
     // asOfDate передаємо у 1С — щоб історичні знімки (вибраний тиждень) реально
     // повертали те що було на ту дату, а не на сьогодні.
+    // Admin (itd@) є у 1С з повними правами АЛЕ не закріплений за регіонами як
+    // менеджер — тому getRegionData(login=itd@) повертає 0 регіонів. Для
+    // company-wide огляду шлемо через DIRECTOR_PROXY_LOGIN (sdu@) щоб 1С
+    // повернула повну структуру компанії. Зустрічі/sync — окрема історія,
+    // там admin шле свій логін.
     const currentPayload: Record<string, unknown> = { login: DIRECTOR_PROXY_LOGIN, period, includeAll: true };
     if (asOfDate) currentPayload.asOfDate = asOfDate;
     const [a4, a5, a5prev] = await Promise.all([

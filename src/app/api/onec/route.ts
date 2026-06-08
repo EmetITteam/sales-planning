@@ -23,6 +23,21 @@ import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 
+/**
+ * Actions де admin прокситься через DIRECTOR_PROXY_LOGIN бо admin не
+ * закріплений у 1С за регіонами/менеджерами — без proxy 1С повертає пусто.
+ * Це company-wide actions для DirectorDashboard/CompanyOverview.
+ *
+ * ВСІ ІНШІ actions admin шле під СВОЇМ логіном — її особисті клієнти/зустрічі.
+ * Якщо у 1С нема даних під itd@ → нехай порожнє, admin створює тестові
+ * самостійно. Це чисто для перевірки функціоналу.
+ */
+const ADMIN_PROXY_ACTIONS = new Set([
+  'getRegionData',          // регіональна структура компанії
+  'getClientsForPlanning',  // план менеджерів
+  'getTrainings',           // тренінги менеджерів
+]);
+
 // Дозволені 1С actions — whitelist щоб через прокі не можна було звертатись
 // до довільних 1С-методів. `login` НЕ дозволений тут — для нього є /api/auth/login
 // (там одразу cookie ставиться). Інакше можна було б обходити cookie встановлення.
@@ -42,6 +57,9 @@ const ALLOWED_ACTIONS = new Set([
   'getAllMeetingsForClient',   // всі зустрічі по клієнту (clientID)
   'getClientFocus',            // фокуси по клієнтах bulk (login + clientIds[])
   'getClientActivationPlan',   // план активації бази по категоріях (login + period) — Action B
+  'saveClientSurvey',          // зберегти анкету клієнта (з meeting-app outcome flow)
+  'getInitialData',            // довідник purposes + meetings за період (meeting-app legacy)
+  'registerNewClient',         // створити нового клієнта з документами (meeting-app legacy)
 ]);
 
 // Action → яке поле у payload.login треба ОВЕРРАЙДНУТИ з сесії.
@@ -54,6 +72,7 @@ const LOGIN_BOUND_ACTIONS = new Set([
   'getManagerClients',
   'getClientFocus',  // приймає {login, clientIds} — login ОБОВ'ЯЗКОВО override з сесії
   'getClientActivationPlan',  // приймає {login, period} — login override з сесії
+  'getInitialData',  // приймає {login, startDateString, endDateString} — login override
 ]);
 
 // `findClient` — окремий випадок: поле зветься `managerLogin`, не `login`.
@@ -61,6 +80,7 @@ const LOGIN_BOUND_ACTIONS = new Set([
 // пошукати «як від імені іншого менеджера» і побачити чужий ClientCategory/Phone.
 const MANAGER_LOGIN_BOUND_ACTIONS = new Set([
   'findClient',
+  'registerNewClient',  // {managerLogin, name, phone, address, education, files} → override managerLogin з сесії
 ]);
 
 // `getClientReport` / `getAllMeetingsForClient` приймають `clientID` без login.
@@ -123,22 +143,24 @@ export async function POST(request: NextRequest) {
   // або перевіряємо доступ.
   // - Менеджер: тільки свій логін
   // - РМ: свій + managedUsers (менеджери регіону) напряму
-  // - Director / Admin: будь-хто. Admin без явного login → proxy через
-  //   DIRECTOR_PROXY_LOGIN бо 1С не знає що itd@emet.in.ua = Director.
+  // - Director: будь-хто (закріплений у 1С з повними правами)
+  // - Admin (itd@): існує у 1С з повними правами, шле СВІЙ логін для personal
+  //   actions (свої клієнти, зустрічі, активності). Для company-wide
+  //   ADMIN_PROXY_ACTIONS (getRegionData, getClientsForPlanning, getTrainings) —
+  //   proxy через DIRECTOR_PROXY_LOGIN, бо admin не закріплений за регіонами.
+  // - Multi-region RM (Пашковська) — як director (будь-який login). Drill-down
+  //   у менеджерів іншого регіону, але managedUsers тільки Одеса.
   let safePayload = payload ?? {};
   if (LOGIN_BOUND_ACTIONS.has(action)) {
     const requestedLogin = (safePayload as { login?: string }).login;
     const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
-    // Admin → 1С не знає його як Director. Якщо payload.login або відсутній,
-    // або вказує на самого admin (own login) — підміняємо на DIRECTOR_PROXY_LOGIN.
-    // Якщо admin явно передав ЧУЖИЙ targetLogin (drill-down менеджера) —
-    // пропускаємо як є.
-    // Multi-region RM (Пашковська) — дозволяємо як director (будь-який login).
-    // Бо вона drill-down'ить у менеджерів іншого регіону (Лопушанська, Клименко
-    // з Миколаїва) — а в її managedUsers тільки Одеса.
     const sessionLoginLower = session.login.toLowerCase().trim();
     const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLoginLower];
-    if (session.role === 'admin' && (!requestedLogin || requestedLogin === session.login)) {
+    const adminNeedsProxy =
+      session.role === 'admin'
+      && ADMIN_PROXY_ACTIONS.has(action)
+      && (!requestedLogin || requestedLogin === session.login);
+    if (adminNeedsProxy) {
       safePayload = { ...safePayload, login: DIRECTOR_PROXY_LOGIN };
     } else if (!requestedLogin) {
       safePayload = { ...safePayload, login: session.login };
@@ -164,13 +186,12 @@ export async function POST(request: NextRequest) {
 
   // findClient: override `managerLogin` (а не `login`) тим самим способом.
   // Менеджер не може шукати «як від імені іншого менеджера».
-  // Admin/Director — як завжди з DIRECTOR_PROXY_LOGIN коли власний логін.
+  // Admin: шукає у СВОЇХ клієнтах під своїм логіном (не proxy). Якщо порожньо —
+  // створить тестові через registerNewClient.
   if (MANAGER_LOGIN_BOUND_ACTIONS.has(action)) {
     const requested = (safePayload as { managerLogin?: string }).managerLogin;
     const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
-    if (session.role === 'admin' && (!requested || requested === session.login)) {
-      safePayload = { ...safePayload, managerLogin: DIRECTOR_PROXY_LOGIN };
-    } else if (!requested) {
+    if (!requested) {
       safePayload = { ...safePayload, managerLogin: session.login };
     } else if (
       requested !== session.login
@@ -194,6 +215,11 @@ export async function POST(request: NextRequest) {
     headers['Authorization'] = 'Basic ' + Buffer.from(`${login}:${password}`).toString('base64');
   }
 
+  // Console-лог для debug у Vercel logs (формат meeting-app).
+  // Показує що саме відправили в 1С — payload з усіма security-override-ами.
+  console.log(`[ШАГ 1] Відправка в 1С для дії "${action}":`, JSON.stringify({ action, payload: safePayload }, null, 2));
+
+  const callStarted = Date.now();
   try {
     // Server-side timeout — інакше Vercel function висить до killу платформи (~10-60с).
     // Клієнт окремо має свій 15с timeout у onec-client.ts; цей — підстраховка.
@@ -206,12 +232,13 @@ export async function POST(request: NextRequest) {
     });
 
     const text = await upstream.text();
+    const callDuration = Date.now() - callStarted;
     let json;
     try {
       json = JSON.parse(text);
     } catch {
       // У проді не показуємо raw 1С body (може бути IIS stack trace).
-      console.error(`[/api/onec] 1С returned non-JSON HTTP ${upstream.status}: ${text.slice(0, 200)}`);
+      console.error(`[ШАГ 2] Помилка від 1С "${action}" (${callDuration}ms): non-JSON HTTP ${upstream.status}: ${text.slice(0, 200)}`);
       return Response.json(
         {
           status: 'error',
@@ -222,10 +249,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Console-лог відповіді — обмежуємо до 1000 знаків бо bulk endpoints
+    // (getInitialData, getManagerClients) можуть бути 50KB+ JSON.
+    const jsonStr = JSON.stringify(json);
+    const truncated = jsonStr.length > 1000 ? jsonStr.slice(0, 1000) + `...(+${jsonStr.length - 1000} chars)` : jsonStr;
+    if (upstream.ok && json?.status !== 'error') {
+      console.log(`[ШАГ 2] Відповідь від 1С "${action}" OK (${callDuration}ms):`, truncated);
+    } else {
+      console.error(`[ШАГ 2] Помилка від 1С "${action}" (${callDuration}ms, HTTP ${upstream.status}):`, truncated);
+    }
+
     // Передаємо відповідь 1С як є — клієнт сам розбере success/error
     return Response.json(json, { status: upstream.ok ? 200 : upstream.status });
   } catch (err) {
+    const callDuration = Date.now() - callStarted;
     const message = err instanceof Error ? err.message : String(err);
+    console.error(`[ШАГ 2] Помилка зв'язку з 1С "${action}" (${callDuration}ms):`, message);
     return Response.json(
       { status: 'error', message: `Помилка зв'язку з 1С: ${message}` },
       { status: 502 },
