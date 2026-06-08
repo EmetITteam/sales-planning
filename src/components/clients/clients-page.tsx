@@ -263,7 +263,7 @@ export function ClientsPage() {
   // Cold-start 1С обробляє сам хук: передаємо login → isEmptyResponse рахує
   // «порожньо» = немає плану для ЦЬОГО менеджера, тож вбудований retry
   // (3× з backoff, тримає loading=true) відновлює план без блимання $0.
-  const { data: registryPlansResponse } = useRegistryPlans(
+  const { data: registryPlansResponse, loading: registryPlansLoading } = useRegistryPlans(
     sessionLoginLower !== 'anonymous' ? dateFrom : null,
     sessionLoginLower !== 'anonymous' ? dateTo : null,
     sessionUser?.login ?? null,
@@ -567,6 +567,7 @@ export function ClientsPage() {
           completedCount={heroMetrics.completedCnt}
           withPlanCount={heroMetrics.withPlanCnt}
           isTrial={registryPlan.isTrial}
+          loading={registryPlansLoading && heroMetrics.planTotal === 0}
         />
 
         {/* Card 2 — БАЗА КЛІЄНТІВ (включно з резерв-купуючими; резерв-sub-row) */}
@@ -908,13 +909,34 @@ const fmtUSD = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 const heroCardCls = 'glass-card p-5 relative flex flex-col gap-3 fade-stagger';
 
 /** Card 1 — Виконання (план / факт / % / норма / темп). */
-function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct, completedCount, withPlanCount, isTrial }: {
+function HeroVykonannya({ index, planTotal, factTotal, pct, calcPct, forecastPct, completedCount, withPlanCount, isTrial, loading }: {
   index: number;
   planTotal: number; factTotal: number; pct: number;
   calcPct: number; forecastPct: number;
   completedCount: number; withPlanCount: number;
   isTrial: boolean;
+  loading?: boolean;
 }) {
+  // Loading стан — поки 1С getRegistryPlans тягнеться (5-15с cold-start + до
+  // 21с retry якщо empty). Без цього card показувала $0/0% і фарбувалась rose
+  // як «відставання» при першому логіні до завантаження плану.
+  if (loading) {
+    return (
+      <div className={`${heroCardCls} ambient-accent`} style={{ ['--i' as string]: index }}>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emet-blue animate-pulse" />
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Виконання</p>
+        </div>
+        <p className="text-[36px] font-bold tracking-[-1px] leading-none text-slate-300 animate-pulse">—</p>
+        <div className="flex flex-col gap-1.5">
+          <div className="h-2.5 w-24 bg-slate-200/60 rounded animate-pulse" />
+          <div className="h-2.5 w-32 bg-slate-200/60 rounded animate-pulse" />
+          <div className="h-2.5 w-20 bg-slate-200/60 rounded animate-pulse" />
+        </div>
+        <p className="text-[10px] text-muted-foreground/70 mt-1">Завантаження плану з 1С…</p>
+      </div>
+    );
+  }
   // Trial-новачок: 1С виставила $1-sentinel замість плану → % безглуздий.
   if (isTrial) {
     return (
