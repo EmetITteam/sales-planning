@@ -16,6 +16,8 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { callOneCServer } from '@/lib/onec-server';
+import { mapBufferOpToOneC, type BufferSnapshot } from './sync-mapping';
 import {
   adaptMeetingRow,
   toMeetingRowDb,
@@ -24,6 +26,45 @@ import {
   type MeetingStatus,
   type MeetingSyncOperation,
 } from './types';
+
+/**
+ * Викликати 1С action синхронно для конкретної операції над зустріччю.
+ * Повертає { ok, legacyOneCId } — legacy_1c_id з 1С response для save,
+ * або існуючий для update/start/finish.
+ *
+ * Якщо fail — повертає errorMessage; caller має передати юзеру і НЕ змінювати БД.
+ *
+ * ⚠️ Це СИНХРОННА передача в 1С: caller (POST/PATCH route) чекає 5-15с.
+ * Раніше була buffer-черга через cron, але race window між create і start
+ * створював дублі у 1С. Synchronous — як meeting-app робила, без race.
+ */
+async function sendToOneC(
+  operation: MeetingSyncOperation,
+  snapshot: BufferSnapshot,
+): Promise<{ ok: true; legacyOneCId: string } | { ok: false; error: string }> {
+  const spec = mapBufferOpToOneC(operation, snapshot);
+  if (!spec) {
+    // no-op operation (e.g. майбутні local-only) — вважаємо успішною
+    return { ok: true, legacyOneCId: snapshot.legacyOneCId ?? snapshot.id };
+  }
+  const res = await callOneCServer(spec.action, spec.payload);
+  if (!res.ok) {
+    return { ok: false, error: res.errorMessage ?? 'unknown 1С error' };
+  }
+  // Для save 1С повертає legacy_1c_id у data.ID або data.meetingId — потім
+  // зберігаємо у meetings.legacy_1c_id. Для update/start/finish ID не змінюється.
+  const data = res.data as { ID?: string; meetingId?: string } | null | undefined;
+  const returnedId =
+    typeof data?.ID === 'string' && data.ID.trim()
+      ? data.ID.trim()
+      : typeof data?.meetingId === 'string' && data.meetingId.trim()
+        ? data.meetingId.trim()
+        : null;
+  return {
+    ok: true,
+    legacyOneCId: returnedId ?? snapshot.legacyOneCId ?? snapshot.id,
+  };
+}
 
 // ============================================================================
 // LIST
@@ -96,6 +137,40 @@ export async function createMeeting(
   managerLogin: string,
   input: CreateMeetingInput,
 ): Promise<{ data: Meeting | null; error: string | null }> {
+  // 1. Згенеруємо наш UUID для зустрічі — буде відправлений у 1С як ID.
+  //    1С створить запис під цим ID і поверне legacy_1c_id (свій формат).
+  const newId = crypto.randomUUID();
+
+  // 2. Спершу — СИНХРОННИЙ виклик 1С saveNewMeeting. Якщо 1С відмовила —
+  //    взагалі НЕ записуємо у БД (інакше дубль на retry).
+  const snapshot: BufferSnapshot = {
+    id: newId,
+    legacyOneCId: null,
+    managerLogin,
+    clientId1c: input.clientId1c,
+    clientName: input.clientName ?? null,
+    clientPhone: input.clientPhone ?? null,
+    date: input.date,
+    time: input.time,
+    durationMin: input.durationMin,
+    status: 'planned',
+    purpose: input.purpose,
+    comment: input.comment,
+    plannedAddress: input.plannedAddress,
+    startAddress: null,
+    startLat: null,
+    startLon: null,
+    endAddress: null,
+    endLat: null,
+    endLon: null,
+    geoManual: false,
+  };
+  const onec = await sendToOneC('save', snapshot);
+  if (!onec.ok) {
+    return { data: null, error: `1С: ${onec.error}` };
+  }
+
+  // 3. INSERT у БД як кеш — legacy_1c_id вже відомий, race window закритий.
   const row = toMeetingRowDb({
     managerLogin,
     clientId1c: input.clientId1c,
@@ -107,30 +182,30 @@ export async function createMeeting(
     comment: input.comment,
     plannedAddress: input.plannedAddress,
     geoManual: false,
-    // Snapshot client fields одразу у БД — інакше у вікні [0..60с] до першого
-    // bulk-import meetingToSnapshot() поверне null clientName/Phone і 1С
-    // відмовить «Поле объекта не обнаружено».
     clientNameFromOneC: input.clientName ?? null,
     clientPhoneFromOneC: input.clientPhone ?? null,
   });
+  const rowWithId = { ...row, id: newId, legacy_1c_id: onec.legacyOneCId };
 
   const { data, error } = await supabase
     .from('meetings')
-    .insert([row as Record<string, unknown>])
+    .insert([rowWithId as Record<string, unknown>])
     .select('*');
-  if (error) return { data: null, error: error.message };
+  if (error) {
+    // 1С створила запис але БД-INSERT впав — критична inconsistency.
+    // Лог для розслідування; юзеру повертаємо помилку (1С запис залишиться,
+    // bulk-import підтягне на наступний refresh).
+    console.error('[meetings/repo] createMeeting: 1С ok but BD INSERT failed', {
+      id: newId,
+      legacy_1c_id: onec.legacyOneCId,
+      error: error.message,
+    });
+    return { data: null, error: `БД: ${error.message}` };
+  }
 
   const rows = (data ?? []) as unknown as MeetingRowDb[];
   if (rows.length === 0) return { data: null, error: 'no row returned after insert' };
-  const meeting = adaptMeetingRow(rows[0]);
-
-  // Snapshot include транзитні поля з input (БД-зберігаються тільки persisted).
-  await enqueueSync(meeting.id, 'save', {
-    ...meeting,
-    clientName: input.clientName ?? null,
-    clientPhone: input.clientPhone ?? null,
-  });
-  return { data: meeting, error: null };
+  return { data: adaptMeetingRow(rows[0]), error: null };
 }
 
 // ============================================================================
@@ -178,13 +253,30 @@ async function patchOwned(
   return { data: adaptMeetingRow(rows[0]), error: null };
 }
 
-/** Snapshot з Meeting для enqueueSync — додає transient client name/phone
- *  з адаптера (БД має snapshot з 1С). 1С відмовляє якщо Phone/Client порожні. */
-function meetingToSnapshot(m: Meeting): Record<string, unknown> {
+/** Snapshot з Meeting для 1С — додає transient client name/phone з адаптера
+ *  (БД має snapshot з 1С). 1С відмовляє якщо Phone/Client порожні. */
+function meetingToSnapshot(m: Meeting): BufferSnapshot {
   return {
-    ...m,
+    id: m.id,
+    legacyOneCId: m.legacyOneCId ?? null,
+    managerLogin: m.managerLogin,
+    clientId1c: m.clientId1c,
     clientName: m.clientNameFromOneC ?? null,
     clientPhone: m.clientPhoneFromOneC ?? null,
+    date: m.date,
+    time: m.time,
+    durationMin: m.durationMin,
+    status: m.status,
+    purpose: m.purpose,
+    comment: m.comment,
+    plannedAddress: m.plannedAddress,
+    startAddress: m.startAddress,
+    startLat: m.startLat,
+    startLon: m.startLon,
+    endAddress: m.endAddress,
+    endLat: m.endLat,
+    endLon: m.endLon,
+    geoManual: m.geoManual,
   };
 }
 
@@ -193,6 +285,39 @@ export async function updateMeeting(
   id: string,
   patch: UpdateMeetingPatch,
 ): Promise<{ data: Meeting | null; error: string | null }> {
+  // 1. SELECT existing щоб мати поточний стан (legacy_1c_id + всі snapshot fields).
+  //    1С updateMeeting приймає newData + oldData — для diff на стороні 1С.
+  const { data: existingData, error: selErr } = await supabase
+    .from('meetings')
+    .select('*')
+    .eq('id', id)
+    .eq('manager_login', managerLogin);
+  if (selErr) return { data: null, error: selErr.message };
+  const existing = ((existingData ?? []) as unknown as MeetingRowDb[])[0];
+  if (!existing) return { data: null, error: 'meeting not found or not owned' };
+  const existingMeeting = adaptMeetingRow(existing);
+
+  // 2. Будуємо новий стан (merge patch over existing) для 1С payload.
+  const mergedSnapshot = meetingToSnapshot({
+    ...existingMeeting,
+    clientId1c: patch.clientId1c ?? existingMeeting.clientId1c,
+    clientNameFromOneC: patch.clientName ?? existingMeeting.clientNameFromOneC,
+    clientPhoneFromOneC: patch.clientPhone ?? existingMeeting.clientPhoneFromOneC,
+    clientCategoryFromOneC: patch.clientCategory ?? existingMeeting.clientCategoryFromOneC,
+    date: patch.date ?? existingMeeting.date,
+    time: patch.time ?? existingMeeting.time,
+    durationMin: patch.durationMin ?? existingMeeting.durationMin,
+    purpose: patch.purpose ?? existingMeeting.purpose,
+    comment: patch.comment ?? existingMeeting.comment,
+    plannedAddress: patch.plannedAddress ?? existingMeeting.plannedAddress,
+    status: patch.status ?? existingMeeting.status,
+  });
+
+  // 3. Синхронний 1С виклик. Якщо fail — НЕ оновлюємо БД (зберігаємо consistency).
+  const onec = await sendToOneC('update', mergedSnapshot);
+  if (!onec.ok) return { data: null, error: `1С: ${onec.error}` };
+
+  // 4. UPDATE БД після успішного 1С.
   const dbPatch = toMeetingRowDb({
     clientId1c: patch.clientId1c,
     clientNameFromOneC: patch.clientName,
@@ -206,9 +331,7 @@ export async function updateMeeting(
     plannedAddress: patch.plannedAddress,
     status: patch.status,
   });
-  const res = await patchOwned(managerLogin, id, dbPatch);
-  if (res.data) await enqueueSync(id, 'update', meetingToSnapshot(res.data));
-  return res;
+  return patchOwned(managerLogin, id, dbPatch);
 }
 
 export interface StartMeetingDbInput {
@@ -223,10 +346,18 @@ export async function startMeeting(
   id: string,
   payload: StartMeetingDbInput,
 ): Promise<{ data: Meeting | null; error: string | null }> {
+  // SELECT existing щоб мати legacy_1c_id (1С startMeeting вимагає 1С-ID).
+  const { data: existingData, error: selErr } = await supabase
+    .from('meetings')
+    .select('*')
+    .eq('id', id)
+    .eq('manager_login', managerLogin);
+  if (selErr) return { data: null, error: selErr.message };
+  const existing = ((existingData ?? []) as unknown as MeetingRowDb[])[0];
+  if (!existing) return { data: null, error: 'meeting not found or not owned' };
+  const existingMeeting = adaptMeetingRow(existing);
+
   // Як у meeting-app: при START фізичний час зустрічі замінюється на реальний.
-  // Vercel server у UTC, а нам треба Київ (UTC+2/+3 з літнім часом).
-  // Використовуємо toLocaleString з timeZone='Europe/Kyiv' — js автоматично
-  // враховує DST (літо/зима).
   const now = new Date();
   const kyivParts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Kyiv',
@@ -241,6 +372,24 @@ export async function startMeeting(
   const get = (type: string) => kyivParts.find(p => p.type === type)?.value ?? '00';
   const startDate = `${get('year')}-${get('month')}-${get('day')}`;
   const startTime = `${get('hour')}:${get('minute')}:${get('second')}`;
+
+  // Synchronous 1С call. legacyOneCId — як snapshot, бо start payload
+  // повинен містити фактичний 1С-ID, не наш UUID.
+  const snapshot = meetingToSnapshot({
+    ...existingMeeting,
+    status: 'in_progress',
+    date: startDate,
+    time: startTime,
+    startAddress: payload.address,
+    startLat: payload.lat,
+    startLon: payload.lon,
+    geoManual: payload.geoManual,
+    startedAt: now.toISOString(),
+  });
+  const onec = await sendToOneC('start', snapshot);
+  if (!onec.ok) return { data: null, error: `1С: ${onec.error}` };
+
+  // UPDATE БД після успішного 1С виклику.
   const patch = toMeetingRowDb({
     status: 'in_progress',
     date: startDate,
@@ -251,9 +400,7 @@ export async function startMeeting(
     geoManual: payload.geoManual,
     startedAt: now.toISOString(),
   });
-  const res = await patchOwned(managerLogin, id, patch);
-  if (res.data) await enqueueSync(id, 'start', meetingToSnapshot(res.data));
-  return res;
+  return patchOwned(managerLogin, id, patch);
 }
 
 export interface FinishMeetingDbInput {
@@ -273,21 +420,40 @@ export async function finishMeeting(
   id: string,
   payload: FinishMeetingDbInput = {},
 ): Promise<{ data: Meeting | null; error: string | null }> {
+  const { data: existingData, error: selErr } = await supabase
+    .from('meetings')
+    .select('*')
+    .eq('id', id)
+    .eq('manager_login', managerLogin);
+  if (selErr) return { data: null, error: selErr.message };
+  const existing = ((existingData ?? []) as unknown as MeetingRowDb[])[0];
+  if (!existing) return { data: null, error: 'meeting not found or not owned' };
+  const existingMeeting = adaptMeetingRow(existing);
+
   const now = new Date();
+  const snapshot = meetingToSnapshot({
+    ...existingMeeting,
+    status: 'done',
+    endAddress: payload.address ?? existingMeeting.endAddress,
+    endLat: payload.lat ?? existingMeeting.endLat,
+    endLon: payload.lon ?? existingMeeting.endLon,
+    comment: payload.comment ?? existingMeeting.comment,
+    geoManual: payload.geoManual === true ? true : existingMeeting.geoManual,
+    finishedAt: now.toISOString(),
+  });
+  const onec = await sendToOneC('finish', snapshot);
+  if (!onec.ok) return { data: null, error: `1С: ${onec.error}` };
+
   const patch = toMeetingRowDb({
     status: 'done',
     endAddress: payload.address ?? null,
     endLat: payload.lat ?? null,
     endLon: payload.lon ?? null,
     comment: payload.comment ?? undefined,
-    // Тільки upgrade у true. Якщо start був GPS а finish manual — geoManual=true.
-    // Якщо обидва GPS — patch не міняє існуюче значення (не передаємо).
     geoManual: payload.geoManual === true ? true : undefined,
     finishedAt: now.toISOString(),
   });
-  const res = await patchOwned(managerLogin, id, patch);
-  if (res.data) await enqueueSync(id, 'finish', meetingToSnapshot(res.data));
-  return res;
+  return patchOwned(managerLogin, id, patch);
 }
 
 // ============================================================================
