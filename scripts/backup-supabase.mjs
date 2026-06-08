@@ -26,7 +26,13 @@ if (!URL || !KEY) {
 }
 
 // ⚠️ Додавати сюди КОЖНУ нову таблицю при створенні. Інакше backup її пропустить.
-const TABLES = ['users', 'periods', 'forecasts', 'gap_closures', 'period_summaries', 'planning_snapshots'];
+const TABLES = [
+  'users', 'periods', 'forecasts', 'gap_closures', 'period_summaries', 'planning_snapshots',
+  // Admin tables
+  'planning_locks', 'planning_settings',
+  // Sprint 1.5: meetings buffer-sync
+  'meetings', 'meeting_syncs',
+];
 const PAGE = 1000;
 
 async function dumpTable(table) {
