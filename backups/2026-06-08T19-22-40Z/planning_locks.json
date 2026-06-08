@@ -1,0 +1,42 @@
+[
+  {
+    "id": 7,
+    "scope": "user",
+    "user_login": "sm.kiev2@emet.in.ua",
+    "month": "2026-06-01",
+    "type": "allow",
+    "reason": null,
+    "created_by": "itd@emet.in.ua",
+    "created_at": "2026-06-08T06:43:08.309+00:00"
+  },
+  {
+    "id": 8,
+    "scope": "user",
+    "user_login": "sm.zp@emet.in.ua",
+    "month": "2026-06-01",
+    "type": "allow",
+    "reason": null,
+    "created_by": "itd@emet.in.ua",
+    "created_at": "2026-06-08T07:06:29.515+00:00"
+  },
+  {
+    "id": 10,
+    "scope": "user",
+    "user_login": "sm.kiev3@emet.in.ua",
+    "month": "2026-06-01",
+    "type": "allow",
+    "reason": null,
+    "created_by": "itd@emet.in.ua",
+    "created_at": "2026-06-08T09:56:09.614+00:00"
+  },
+  {
+    "id": 11,
+    "scope": "user",
+    "user_login": "sm.vinnitsa@emet.in.ua",
+    "month": "2026-06-01",
+    "type": "allow",
+    "reason": null,
+    "created_by": "itd@emet.in.ua",
+    "created_at": "2026-06-08T10:15:30.886+00:00"
+  }
+]
