@@ -4,193 +4,218 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#066aab">
-<title>Митинг 4.0 — перехід у Планування продажів</title>
+<title>Зустрічі — перехід у Планування продажів</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+  /* Палітра 1-в-1 із sales-planning (LoginForm + AppHeader): */
   :root {
-    --emet: #066aab;
-    --emet-light: #0880cc;
-    --emet-mint: #5bd5bc;
-    --ink: #081e2d;
+    --ink: #081E2D;           /* primary text + primary button */
+    --ink-hover: #0d2a3d;
+    --emet-blue: #066aab;
+    --emet-50: #eff6fa;        /* background tint */
+    --emet-100: rgba(150,196,224,.4); /* decorative circles */
     --muted: #64748b;
-    --border: #e2e7ef;
+    --border: rgba(226,231,239,.5);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
     color: var(--ink);
-    background: linear-gradient(135deg, #eff7fb 0%, #e9f5f1 50%, #f4f7fb 100%);
+    background: linear-gradient(to bottom right, var(--emet-50), #ffffff, var(--emet-50));
     -webkit-font-smoothing: antialiased;
     min-height: 100dvh;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 16px;
     position: relative;
     overflow: hidden;
   }
 
-  /* Декоративні blob-и у фоні (як у sales-planning glass-style) */
+  /* Decorative circles — копія з LoginForm sales-planning */
   body::before, body::after {
     content: "";
     position: fixed;
     border-radius: 50%;
-    filter: blur(80px);
-    opacity: .5;
+    background: var(--emet-100);
+    filter: blur(48px);
     pointer-events: none;
     z-index: 0;
   }
   body::before {
-    width: 420px; height: 420px;
-    background: radial-gradient(circle, rgba(91,213,188,.35), transparent 70%);
-    top: -100px; right: -120px;
+    width: 500px; height: 500px;
+    top: -200px; right: -100px;
   }
   body::after {
-    width: 500px; height: 500px;
-    background: radial-gradient(circle, rgba(6,106,171,.28), transparent 70%);
-    bottom: -150px; left: -150px;
+    width: 400px; height: 400px;
+    bottom: -150px; left: -100px;
   }
 
-  .card {
+  .wrapper {
+    width: 100%;
+    max-width: 380px;
     position: relative;
     z-index: 1;
-    background: rgba(255,255,255,.72);
-    backdrop-filter: blur(20px) saturate(140%);
-    -webkit-backdrop-filter: blur(20px) saturate(140%);
-    border: 1px solid rgba(255,255,255,.6);
-    border-radius: 28px;
-    box-shadow: 0 24px 60px rgba(6,42,61,.10);
-    padding: 48px 40px;
-    max-width: 560px;
-    width: 100%;
-    text-align: center;
-  }
-  @media (max-width: 540px) {
-    .card { padding: 36px 24px; border-radius: 24px; }
   }
 
-  .logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
+  /* Header — лого + назва над карткою (як у LoginForm) */
+  .header {
+    text-align: center;
     margin-bottom: 32px;
   }
-  .logo img { height: 40px; width: auto; display: block; }
-  .logo-text {
-    font-size: 14px;
+  .header img {
+    height: 56px;
+    width: auto;
+    max-width: 100%;
+    margin: 0 auto 24px;
+    display: block;
+  }
+  .header h1 {
+    font-size: 24px;
     font-weight: 700;
+    letter-spacing: -.5px;
     color: var(--ink);
-    letter-spacing: -.2px;
   }
 
-  h1 {
-    font-size: clamp(24px, 5vw, 32px);
-    font-weight: 800;
-    letter-spacing: -.6px;
-    line-height: 1.2;
-    margin-bottom: 16px;
+  /* Картка — біла, rounded-2xl, shadow-xl як у LoginForm */
+  .card {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(6,106,171,.10), 0 8px 10px -6px rgba(6,106,171,.10);
+    padding: 24px;
+    text-align: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: rgba(245,158,11,.10);
+    color: #b45309;
+    border: 1px solid rgba(245,158,11,.25);
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+  }
+  .badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+  }
+
+  .card h2 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+    line-height: 1.3;
+    margin-bottom: 12px;
   }
 
   .lead {
-    font-size: 16px;
+    font-size: 14px;
     color: var(--muted);
     line-height: 1.55;
-    max-width: 440px;
-    margin: 0 auto 8px;
+    margin-bottom: 6px;
   }
   .lead strong { color: var(--ink); font-weight: 700; }
 
   .note {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--muted);
-    margin-top: 6px;
+    line-height: 1.5;
   }
 
+  /* CTA — primary ink button (як «Увійти» у LoginForm) */
   .cta {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 32px;
-    padding: 16px 32px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--emet), var(--emet-light));
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 20px;
+    padding: 11px 16px;
+    border-radius: 10px;
+    background: var(--ink);
     color: white;
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
     text-decoration: none;
-    box-shadow: 0 8px 24px rgba(6,106,171,.28);
-    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 4px 6px -1px rgba(8,30,45,.25);
+    transition: background .15s, transform .15s, box-shadow .15s;
   }
   .cta:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 12px 32px rgba(6,106,171,.36);
+    background: var(--ink-hover);
+    box-shadow: 0 6px 10px -2px rgba(8,30,45,.30);
   }
-  .cta:active { transform: translateY(0); }
-  .cta svg { width: 16px; height: 16px; }
+  .cta:active { transform: translateY(1px); }
+  .cta svg {
+    width: 16px;
+    height: 16px;
+  }
 
+  /* Helper-text внизу */
   .helper {
-    margin-top: 28px;
-    padding-top: 24px;
+    margin-top: 20px;
+    padding-top: 18px;
     border-top: 1px solid var(--border);
-    font-size: 13px;
+    font-size: 12px;
     color: var(--muted);
     line-height: 1.6;
   }
-  .helper a { color: var(--emet); text-decoration: none; font-weight: 600; }
-  .helper a:hover { text-decoration: underline; }
-
-  .badge {
-    display: inline-block;
-    padding: 4px 10px;
-    background: rgba(91,213,188,.18);
-    color: #0e7a63;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .8px;
-    margin-bottom: 20px;
+  .helper strong { color: var(--ink); font-weight: 600; }
+  .helper a {
+    color: var(--emet-blue);
+    text-decoration: none;
+    font-weight: 600;
   }
+  .helper a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo">
-      <img src="/emet-logo.png" alt="EMET" onerror="this.style.display='none'">
-      <span class="logo-text">EMET</span>
+  <div class="wrapper">
+    <div class="header">
+      <img src="/emet-logo.svg" alt="EMET" onerror="this.style.display='none'">
+      <h1>Зустрічі</h1>
     </div>
 
-    <span class="badge">Архівовано</span>
+    <div class="card">
+      <span class="badge">Архівовано</span>
 
-    <h1>Митинг 4.0 більше не оновлюється</h1>
+      <h2>Цей застосунок більше не оновлюється</h2>
 
-    <p class="lead">
-      Усі функції зустрічей і клієнтської бази перенесено у нову систему
-      <strong>«Планування продажів»</strong>.
-    </p>
+      <p class="lead">
+        Усі функції зустрічей і клієнтської бази перенесено у
+        <strong>«Планування продажів»</strong>.
+      </p>
+      <p class="note">
+        Логін і пароль — ті самі, що ви використовували тут.
+      </p>
 
-    <p class="note">
-      Логін і пароль — ті самі, що ви використовували тут.
-    </p>
+      <a href="https://sales-planning-lyart.vercel.app/" class="cta">
+        Перейти у Планування продажів
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </a>
 
-    <a href="https://sales-planning-lyart.vercel.app/" class="cta">
-      Перейти у Планування продажів
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12"/>
-        <polyline points="12 5 19 12 12 19"/>
-      </svg>
-    </a>
-
-    <div class="helper">
-      Що там доступно: <strong>зустрічі</strong> (планування / старт-фініш з геолокацією / перенесення),
-      <strong>клієнти</strong> (база, пошук, історія покупок, картка клієнта),
-      <strong>планування продажів</strong> (прогноз + закриття розриву).
-      <br><br>
-      Якщо щось не зрозуміло або не вдається зайти — напишіть <a href="mailto:itd@emet.in.ua">itd@emet.in.ua</a>.
+      <div class="helper">
+        Що там доступно: <strong>зустрічі</strong> (планування, старт-фініш з геолокацією, перенесення),
+        <strong>клієнти</strong> (база, пошук, історія покупок),
+        <strong>планування продажів</strong> (прогноз + закриття розриву).
+        <br><br>
+        Питання — <a href="mailto:itd@emet.in.ua">itd@emet.in.ua</a>
+      </div>
     </div>
   </div>
 </body>
