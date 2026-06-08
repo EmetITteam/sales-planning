@@ -29,7 +29,11 @@ import type {
   MeetingSyncOperation,
 } from '@/lib/meetings/types';
 
-const BATCH_SIZE = 50;
+// BATCH_SIZE: до 10 рядків за tick. Sequential виклик 1С — 5-15с cold-start
+// per row → 10 × 15с = 150с macc. Vercel cron timeout = 60с (Pro) → ризик
+// timeout на накопиченому backlog. 10 — компроміс: усувається з backlog за
+// кілька tick'ів, але не валиться у timeout. Раніше було 50 (audit-блокер R1).
+const BATCH_SIZE = 10;
 const MAX_RETRIES = 2;
 
 interface SyncResult {

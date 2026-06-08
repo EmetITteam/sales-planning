@@ -10,6 +10,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { after } from 'next/server';
 import { createHash } from 'node:crypto';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
@@ -191,13 +192,24 @@ export async function GET(request: NextRequest) {
   const dateTo = searchParams.get('to') ?? undefined;
   const limit = Number(searchParams.get('limit') ?? '500');
 
-  // bulk-import з 1С — NON-BLOCKING через waitUntil. Користувач не чекає
-  // 30с на холодне 1С — отримує snapshot з БД одразу, нові зустрічі
+  // bulk-import з 1С — NON-BLOCKING через `next/server.after`. Користувач
+  // не чекає 30с на холодне 1С — отримує snapshot з БД одразу. Нові зустрічі
   // з'являться на наступному poll/F5 (60с refreshInterval у useMeetings).
+  //
+  // ⚠️ Раніше було fire-and-forget `.catch()`. На Vercel serverless це
+  // означало що runtime kill-ить async-роботу одразу після response — і
+  // bulk-import з 1С НЕ дописувався у БД. `after()` гарантує що runtime
+  // дочекається завершення background-роботи перед kill.
   if (dateFrom && dateTo) {
-    // Fire-and-forget. Error логуємо у Sentry через onRequestError hook.
-    syncFromOneC(session.login, dateFrom, dateTo).catch(e => {
-      console.warn('[/api/meetings] background sync failed:', (e as Error).message);
+    const login = session.login;
+    const from = dateFrom;
+    const to = dateTo;
+    after(async () => {
+      try {
+        await syncFromOneC(login, from, to);
+      } catch (e) {
+        console.warn('[/api/meetings] background sync failed:', (e as Error).message);
+      }
     });
   }
 
