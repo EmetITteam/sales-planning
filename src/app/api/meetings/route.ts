@@ -192,25 +192,42 @@ export async function GET(request: NextRequest) {
   const dateTo = searchParams.get('to') ?? undefined;
   const limit = Number(searchParams.get('limit') ?? '500');
 
-  // bulk-import з 1С — NON-BLOCKING через `next/server.after`. Користувач
-  // не чекає 30с на холодне 1С — отримує snapshot з БД одразу. Нові зустрічі
-  // з'являться на наступному poll/F5 (60с refreshInterval у useMeetings).
+  // bulk-import з 1С. Дві стратегії за діапазоном:
   //
-  // ⚠️ Раніше було fire-and-forget `.catch()`. На Vercel serverless це
-  // означало що runtime kill-ить async-роботу одразу після response — і
-  // bulk-import з 1С НЕ дописувався у БД. `after()` гарантує що runtime
-  // дочекається завершення background-роботи перед kill.
+  // 1. ВУЗЬКИЙ діапазон (≤2 дні: today/tomorrow) → background через `after()`.
+  //    БД одразу повертає кеш, нові зустрічі через 60с polling. UX: миттєвий
+  //    рендер.
+  //
+  // 2. ШИРОКИЙ діапазон (>2 дні: тиждень/місяць) → СИНХРОННО. Користувач
+  //    переключив фільтр на «Поточний місяць» — ОЧІКУЄ побачити ВСІ зустрічі
+  //    з 1С за період одразу, а не через 60с poll. Чекаємо 5-15с на 1С,
+  //    дописуємо у БД, тоді робимо SELECT з оновленої БД. Це повторює UX
+  //    meeting-app (там завжди sync read).
   if (dateFrom && dateTo) {
     const login = session.login;
     const from = dateFrom;
     const to = dateTo;
-    after(async () => {
+    const daysSpan = Math.abs(
+      (new Date(to).getTime() - new Date(from).getTime()) / (24 * 60 * 60 * 1000),
+    );
+    if (daysSpan > 2) {
+      // Синхронний sync — користувач очікує побачити всі зустрічі за період.
+      // Errors silenced — нехай БД-кеш покаже хоч щось замість 500.
       try {
         await syncFromOneC(login, from, to);
       } catch (e) {
-        console.warn('[/api/meetings] background sync failed:', (e as Error).message);
+        console.warn('[/api/meetings] sync bulk-import failed:', (e as Error).message);
       }
-    });
+    } else {
+      // Background через after() для today/tomorrow — миттєвий рендер.
+      after(async () => {
+        try {
+          await syncFromOneC(login, from, to);
+        } catch (e) {
+          console.warn('[/api/meetings] background sync failed:', (e as Error).message);
+        }
+      });
+    }
   }
 
   // P1 #12: admin/director бачать СВОЇ + managedUsers. РМ — те саме.
