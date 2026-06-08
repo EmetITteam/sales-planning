@@ -33,7 +33,7 @@
 
 ### Бізнес-функція
 
-Система виросла з інструмента місячного планування у **операційну платформу відділу продажів** із трьох модулів:
+Система виросла з інструмента місячного планування у **операційну платформу відділу продажів** із **чотирьох модулів**:
 
 **1. Планування (прогноз + розрив)** — менеджери щомісяця планують:
 - **Прогноз** — кого з активних клієнтів обзвонять/зустрінуться для повторної покупки + орієнтовна сума
@@ -42,19 +42,43 @@
 
 **2. CRM «Мої клієнти»** (`/clients`) — щоденний робочий інструмент менеджера (не лише раз на місяць): уся клієнтська база по категоріях, пошук, план×факт по брендах, 6-міс історія покупок, план активації з 1С, контактна активність, події. Менеджер відкриває картку клієнта перед/під час дзвінка.
 
-**3. Операційний огляд** — РМ і Директор бачать агрегацію по своїй ієрархії (регіон/менеджер/бренд) з кольоровою індикацією виконання й готовності планування; admin/директор — окремий дашборд **«Огляд компанії»** по всіх підрозділах (включно з не-планувальними).
+**3. Зустрічі (Sprint 1.5, 2026-06)** (`/meetings`) — **операційний модуль** для планування і проведення зустрічей з клієнтами. Замінює окремий застосунок «СРМ Зустрічі»:
+- Створення / перенесення / скасування зустрічі (синхронний write у 1С — без race conditions, без дублів)
+- Розпочати / завершити зустріч з геолокацією (start/end address + GPS, fallback на manual)
+- Анкета клієнта при завершенні (структура з 1С Survey-схеми)
+- Фільтри по даті (today / week / month / custom) і статусу — широкий діапазон робить SYNCHRONOUS bulk-import з 1С `getInitialData`
+- БД як read-кеш, 1С — source of truth. Mutations синхронно до 1С (як у meeting-app)
+
+**4. Операційний огляд** — РМ і Директор бачать агрегацію по своїй ієрархії (регіон/менеджер/бренд) з кольоровою індикацією виконання й готовності планування; admin/директор — окремий дашборд **«Огляд компанії»** по всіх підрозділах (включно з не-планувальними).
 
 ### Ключові механіки
 
 - **Жорстке finalize** — менеджер фіксує план («Фінальне збереження») і далі може правити тільки коментарі по етапах. РМ/Director бачать на dashboard у скільки людей план уже фінальний.
+- **Розфіналізація — per-user permission** (M10, 2026-06-08). Раніше тільки admin міг розфіналізувати. Тепер через `users.can_unfinalize_plans=true` (UI у `/admin/unfinalize-permissions`) admin може передати таку можливість конкретному юзеру (асистент директора, керівник).
 - **Активність по бренду = 3 місяці**, а не 1С-категорія. Клієнт «активний по Petaran» якщо купував Petaran за останні 90 днів — інакше йде у Gap.
 - **Window-lock** — Director керує вікном планування: глобальний lock на період, або per-user allow/block override.
 - **One-way activity sync** з 1С — Action 7 повертає `hasCall`/`hasMeeting` per клієнта → frontend автоматично ставить `stage_done=true` (але назад не скидає).
 - **Snapshot fixation** — при першому збереженні плану `planning_snapshots` записує список клієнтів навіки, щоб історичні «незаплановані» не зникали при правках.
+- **Auto-reload guard для cold-start 1С** (2026-06-08) — якщо `getRegistryPlans` повертає пустий список через 30с після mount /clients, system робить одноразовий `window.location.reload()` (sessionStorage flag блокує loop). Це покриває рідкісну ситуацію коли 1С handler застряг у холодному стані.
 
 ### Дизайн (2026-05, glass-реліз)
 
 Повний glass-morphism редизайн усіх дашбордів: напівпрозорі картки з ambient-glow за станом (зелений/помаранчевий/червоний), EMET-лого (#081E2D), уніфікована мова кольорів, фавікон/PWA-іконка зі знаком EMET. Тег-еталон `etalon-glass-prod-2026-05-29`.
+
+### Sprint 1.5 — Meetings module (2026-06-08)
+
+Sprint 1.5 додав модуль зустрічей у production. Архітектурні рішення:
+
+| Аспект | Рішення | Чому |
+|---|---|---|
+| READ flow | БД як кеш + `getInitialData` з 1С при кожному запиті | Source of truth = 1С, БД для швидкого SELECT по власних UUID |
+| WRITE flow (create/start/finish/update/cancel) | **Синхронний** виклик 1С → потім UPDATE БД | Buffer-pattern спершу спробували (Sprint 1.5.3) — створював дублі через race condition cron-failure. Переписано на sync-mode (як meeting-app) — 0 дублів |
+| Wide-filter bulk-import | Sync if range > 2 days, background if ≤2 days | Юзер чекає на 1С для тижня/місяця (5-15с разово), але миттєвий рендер для today |
+| Buffer queue (`meeting_syncs`) | Лишилась у БД для майбутніх arch-ітерацій, але неактивна | Cron-worker tick'ає no-op. Sprint 2 повернеться до idempotent buffer коли 1С підтримуватиме що saveNewMeeting не дублює |
+| Geo | navigator.geolocation + manual fallback | Браузер blocks → manual ввід адреси з прапором `geo_manual=true` |
+| Sentry | @sentry/nextjs v10 + tunnel `/monitoring` | Error tracking у проді |
+
+Migrations 013-020: meetings/meeting_syncs schema + legacy_1c_id + client snapshot + RLS safety net + started_at/finished_at + anketa_data_json + can_unfinalize_plans.
 
 ---
 
@@ -259,6 +283,34 @@ planning_locks                                 ← window-lock (M10)
 actual_activities                              ← кеш Action 7 (M11)
   login, period_id, client_id_1c
   has_call, has_meeting, checked_at
+
+users.can_unfinalize_plans                     ← M10 (2026-06-08)
+  boolean default false — per-user дозвіл розфіналізації
+
+meetings                                       ← Sprint 1.5 (2026-06)
+  id (uuid PK)
+  legacy_1c_id                ← 1С-ID (формат "0000001287920260608"), unique
+  manager_login, client_id_1c
+  client_name, client_phone, client_category  ← snapshot з 1С (для display)
+  date, time, duration_min
+  status ← planned/in_progress/done/cancelled/postponed
+  purpose, comment, planned_address
+  start_address, start_lat, start_lon, started_at
+  end_address, end_lat, end_lon, finished_at
+  geo_manual ← true якщо адресу ввели руками
+  anketa_data_json ← підсумкова анкета клієнта (структура з 1С Survey)
+  created_at, updated_at
+
+meeting_syncs                                  ← buffer queue (Sprint 1.5, наразі неактивна)
+  id (uuid PK), meeting_id (FK)
+  operation ← save/update/start/finish/reschedule/cancel
+  status    ← pending/syncing/synced/failed
+  payload_snapshot (jsonb), onec_response (jsonb)
+  retry_count, failure_reason, next_retry_at, synced_at
+  created_at
+  -- Cron-worker /api/cron/sync-meetings виявся непридатним
+  -- (race conditions при cron-failure → дублі). Sprint 1.5 переписаний
+  -- на sync writes. Таблиця залишена для майбутніх arch-ітерацій.
 ```
 
 Документ зі схемою у memory (`supabase_schema.md`) — оновлюваний reference.
@@ -289,11 +341,25 @@ src/app/api/
 │   ├── init-snapshot/route.ts POST  → одноразова фіксація списку клієнтів
 │   └── window-check/route.ts  GET   → can-edit-now check
 ├── admin/
-│   ├── planning-locks/route.ts      GET/POST/DELETE для window-lock CRUD
-│   └── planning-settings/route.ts   глобальні налаштування
+│   ├── planning-locks/route.ts          GET/POST/DELETE для window-lock CRUD
+│   ├── planning-settings/route.ts       глобальні налаштування
+│   ├── company-overview/route.ts        Дашборд «Огляд компанії» (admin/director)
+│   ├── company-overview-permissions/    Toggle доступу до «Огляду компанії» (admin only)
+│   ├── stage-edit-permissions/          M9: per-user дозвіл редагувати etap після фіналу
+│   ├── unfinalize-permissions/          M10 (2026-06-08): per-user дозвіл розфіналізувати
+│   ├── sync-dlq/                        DLQ зустрічей — sync errors (admin tools)
+│   └── sync-meetings-now/               Manual trigger cron-worker (admin only)
+├── meetings/                            🆕 Sprint 1.5
+│   ├── route.ts                  GET   → list (БД + sync 1С getInitialData)
+│   │                             POST  → create (sync 1С saveNewMeeting → INSERT)
+│   ├── [id]/route.ts             PATCH → op: update/start/finish/cancel (sync 1С → UPDATE БД)
+│   └── check-conflict/route.ts   POST  → перевірка чи є конфлікт у даті/часі менеджера
+├── cron/
+│   └── sync-meetings/route.ts    GET   → cron-worker (зараз no-op після переходу на sync write)
+├── geocode/route.ts              POST  → reverse-geocode lat/lon → address (для зустрічей)
 ├── clients/
-│   └── plan-totals/route.ts   POST  → план з Supabase forecasts+gap_closures per-client (для /clients page)
-└── archive/route.ts           POST  → soft-delete forecast/gap (set archived_at)
+│   └── plan-totals/route.ts      POST  → план з Supabase forecasts+gap_closures per-client (/clients)
+└── archive/route.ts              POST  → soft-delete forecast/gap (set archived_at)
 ```
 
 ### Критичні правила
@@ -301,6 +367,8 @@ src/app/api/
 - POST `/api/planning` має **filtered-mode**: коли план фіналізований і викликає не admin, дозволені тільки `stage_comment` + `stage_done`. Інші поля ігноруються.
 - Усі POST з модифікацією йдуть через `assertWindowAllowed` ([src/lib/window-guard.ts](./src/lib/window-guard.ts)).
 - `targetLogin` з body допустимий тільки якщо сесія = rm/director/admin (інакше використовується `session.login`).
+- DELETE `/api/planning/finalize` (розфіналізація) — admin завжди, інші юзери тільки якщо `users.can_unfinalize_plans=true` (M10).
+- POST/PATCH `/api/meetings/*` — синхронний 1С виклик (5-15с). Якщо 1С fail → БД не змінюється (нема дублів). Це SPRINT 1.5 архітектурне рішення після того як buffer-pattern створив дублі у проді 2026-06-08.
 
 ---
 
@@ -337,6 +405,30 @@ src/app/api/
 
 - [src/app/clients/page.tsx](./src/app/clients/page.tsx) — entry-point з auth-gate
 - [src/components/clients/clients-page.tsx](./src/components/clients/clients-page.tsx) — основний компонент (~1846 рядків): 4-картковий Hero band, Reserved-секція, expandable client rows, brand plan/fact table, search, focus chips. TD-11: god component — розбити на модулі (див. BACKLOG.md).
+
+### Admin сторінки
+
+- [src/app/admin/page.tsx](./src/app/admin/page.tsx) — меню адмін-функцій (8 карток)
+- [planning-locks/page.tsx](./src/app/admin/planning-locks/page.tsx) — графік + персональні allow/block
+- [stage-edit-permissions/page.tsx](./src/app/admin/stage-edit-permissions/page.tsx) — M9: дозвіл редагувати «Етап» після фіналу
+- [unfinalize-permissions/page.tsx](./src/app/admin/unfinalize-permissions/page.tsx) — **M10 (2026-06-08)**: дозвіл розфіналізовувати плани (без admin)
+- [company-overview/page.tsx](./src/app/admin/company-overview/page.tsx) — дашборд по 13 підрозділах
+- [company-overview-permissions/page.tsx](./src/app/admin/company-overview-permissions/page.tsx) — кому показувати toggle
+- [sync-dlq/page.tsx](./src/app/admin/sync-dlq/page.tsx) — DLQ зустрічей (failed sync items)
+- [analytics-preview/page.tsx](./src/app/admin/analytics-preview/page.tsx) — preview 5 додаткових KPI
+
+### Зустрічі (Sprint 1.5)
+
+- [src/app/meetings/page.tsx](./src/app/meetings/page.tsx) — entry-point з auth-gate
+- [src/components/meetings/meetings-dashboard.tsx](./src/components/meetings/meetings-dashboard.tsx) — основна сторінка: 4 KPI cards, filters bar, search, day-groups, MeetingForm/Reschedule/Outcome dialogs orchestration
+- [meeting-card.tsx](./src/components/meetings/meeting-card.tsx) — картка однієї зустрічі (5 станів: planned/in_progress/done/cancelled/postponed) + LiveTimer + action buttons
+- [meeting-form.tsx](./src/components/meetings/meeting-form.tsx) — форма create/edit (клієнт-picker, дата/час, тривалість, мета, адреса, коментар + conflict-check debounce 400ms)
+- [location-capture-dialog.tsx](./src/components/meetings/location-capture-dialog.tsx) — Start/Finish з GPS (navigator.geolocation + manual fallback)
+- [meeting-outcome-dialog.tsx](./src/components/meetings/meeting-outcome-dialog.tsx) — анкета клієнта при finish (динамічна структура з 1С Survey)
+- [reschedule-dialog.tsx](./src/components/meetings/reschedule-dialog.tsx) — перенесення (auto-comment «Перенесено зі старої дати»)
+- [client-picker-dialog.tsx](./src/components/meetings/client-picker-dialog.tsx) — bottom-sheet з 3 джерелами (мої / всі EMET / новий)
+- [day-group.tsx](./src/components/meetings/day-group.tsx) — групування «Сьогодні / Завтра / DD.MM.YYYY»
+- [meetings-filters.tsx](./src/components/meetings/meetings-filters.tsx) — date presets + status pills + search
 
 ### Інше
 
