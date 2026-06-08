@@ -197,6 +197,13 @@ export function PlanningForm({
   const [formEverEdited, setFormEverEdited] = useState(false);
 
   // FEATURE: завантаження збережених даних з Supabase.
+  // При відкритті форми (та при зміні бренду чи менеджера) — скролимо нагору.
+  // Без цього перехід «Перейти у форму» з середини дашборду залишав scroll
+  // position попередньої сторінки, і форма відкривалась посередині.
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [segmentCode, effectiveLogin]);
+
   // ⚠️ При зміні (effectiveLogin, segmentCode, currentPeriod) ОЧИЩАЄМО stale state
   // ДО fetch — інакше при логауті/drill-down іншого менеджера у формі лишаються
   // прогнози попереднього користувача. supabaseLoaded скидаємо щоб handleSave guard
