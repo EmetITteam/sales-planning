@@ -130,8 +130,8 @@ async function syncFromOneC(
 
       if (existingRow) {
         // UPDATE: оновлюємо тільки safe snapshot fields (manager_login + name/
-        // phone/category + legacy_1c_id). Local статус/коментар/start_*/end_*
-        // не торкаємо — це local user state.
+        // phone/category + anketa_data_json + legacy_1c_id). Local статус/
+        // коментар/start_*/end_* не торкаємо — це local user state.
         toUpdate.push({
           id: existingRow.id,
           legacy_1c_id: legacyId,
@@ -140,6 +140,7 @@ async function syncFromOneC(
             client_name: dbRow.client_name,
             client_phone: dbRow.client_phone,
             client_category: dbRow.client_category,
+            anketa_data_json: dbRow.anketa_data_json,
             legacy_1c_id: legacyId,
           },
         });

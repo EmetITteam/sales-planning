@@ -124,6 +124,17 @@ export async function POST(request: NextRequest) {
     if (oneCRes.ok) {
       console.log(`[ШАГ 2] Відповідь від 1С "${call.action}" OK (${callDuration}ms):`, JSON.stringify(oneCRes.data, null, 2));
       await markSynced(row.id, oneCRes.data);
+      // Симетрично з cron — після save оновлюємо meetings.legacy_1c_id.
+      if (call.action === 'saveNewMeeting' && row.meeting_id) {
+        const onecId =
+          (oneCRes.data && typeof oneCRes.data === 'object' && (oneCRes.data as Record<string, unknown>).ID) ||
+          (oneCRes.data && typeof oneCRes.data === 'object' && (oneCRes.data as Record<string, unknown>).meetingId);
+        const legacyId = typeof onecId === 'string' && onecId.trim() ? onecId.trim() : row.meeting_id;
+        await supabase
+          .from('meetings')
+          .eq('id', row.meeting_id)
+          .update({ legacy_1c_id: legacyId });
+      }
       result.succeeded++;
     } else {
       console.error(`[ШАГ 2] Помилка 1С "${call.action}" (${callDuration}ms, HTTP ${oneCRes.httpStatus}):`, oneCRes.errorMessage);

@@ -194,8 +194,15 @@ export function MeetingsDashboard() {
         });
         pushToast('success', 'Зустріч створено.');
       } else if (editingMeeting) {
+        // Якщо змінився клієнт — додаємо snapshot fields щоб name/phone у БД
+        // теж оновились (інакше залишиться старе ім'я).
+        const clientChanged = data.clientId1c !== editingMeeting.clientId1c;
         await apiUpdateMeeting(editingMeeting.id, {
           clientId1c: data.clientId1c,
+          ...(clientChanged && {
+            clientName: data.clientName,
+            clientPhone: data.clientPhone,
+          }),
           date: data.date,
           time: data.time,
           durationMin: data.durationMin,

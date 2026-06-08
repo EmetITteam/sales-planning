@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import { XIcon, CheckIcon, CalendarIcon } from 'lucide-react';
+import { XIcon, CheckIcon, CalendarIcon, AlertTriangleIcon } from 'lucide-react';
 import type { MeetingWithSync } from '@/lib/meetings/mock-data';
 import { MOCK_CLIENT_NAMES } from '@/lib/meetings/mock-data';
 import { useMyClients } from '@/lib/use-my-clients';
@@ -189,7 +189,10 @@ export function RescheduleDialog({ open, meeting, onClose, onConfirm }: Props) {
 
             {conflicts.length > 0 && (
               <div className="px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[12px] text-amber-900">
-                <p className="font-bold mb-0.5">⚠ На новий час уже {conflicts.length === 1 ? 'є зустріч' : `є ${conflicts.length} зустрічі`}:</p>
+                <p className="font-bold mb-0.5 inline-flex items-center gap-1.5">
+                  <AlertTriangleIcon className="w-3.5 h-3.5" />
+                  На новий час уже {conflicts.length === 1 ? 'є зустріч' : `є ${conflicts.length} зустрічі`}:
+                </p>
                 <ul className="space-y-0.5">
                   {conflicts.map(c => (
                     <li key={c.id}>

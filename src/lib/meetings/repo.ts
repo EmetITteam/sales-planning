@@ -107,6 +107,11 @@ export async function createMeeting(
     comment: input.comment,
     plannedAddress: input.plannedAddress,
     geoManual: false,
+    // Snapshot client fields одразу у БД — інакше у вікні [0..60с] до першого
+    // bulk-import meetingToSnapshot() поверне null clientName/Phone і 1С
+    // відмовить «Поле объекта не обнаружено».
+    clientNameFromOneC: input.clientName ?? null,
+    clientPhoneFromOneC: input.clientPhone ?? null,
   });
 
   const { data, error } = await supabase

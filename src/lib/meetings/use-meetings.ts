@@ -58,6 +58,12 @@ export interface CreateMeetingInput {
 
 export interface UpdateMeetingPatch {
   clientId1c?: string;
+  /** Display name + phone + category клієнта — snapshot fields у БД.
+   *  Якщо змінюється clientId1c — треба передати щоб snapshot оновився
+   *  (інакше залишиться name старого клієнта). */
+  clientName?: string;
+  clientPhone?: string;
+  clientCategory?: string;
   date?: string;
   time?: string;
   durationMin?: number | null;
@@ -243,7 +249,21 @@ export function useMeetings(range?: DateRange): UseMeetingsApi {
           status: patchData.status ?? m.status,
           updatedAt: new Date().toISOString(),
         }),
-        { op: 'update', update: patchData },
+        {
+          op: 'update',
+          update: patchData,
+          // Якщо переданий client snapshot — упаковуємо у окремий блок
+          // що route.ts читає як body.client (#P1 wire-up для snapshot полів).
+          ...(patchData.clientName !== undefined || patchData.clientPhone !== undefined
+            ? {
+                client: {
+                  name: patchData.clientName ?? '',
+                  phone: patchData.clientPhone ?? '',
+                  category: patchData.clientCategory ?? '',
+                },
+              }
+            : {}),
+        },
       ),
     [patch],
   );

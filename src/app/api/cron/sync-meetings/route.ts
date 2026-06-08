@@ -129,6 +129,21 @@ export async function GET(request: NextRequest) {
     if (oneCRes.ok) {
       console.log(`[ШАГ 2] Відповідь від 1С "${call.action}" OK (${callDuration}ms):`, JSON.stringify(oneCRes.data, null, 2));
       await markSynced(row.id, oneCRes.data);
+      // P0 fix: після успішного save у 1С пишемо legacy_1c_id = наш UUID
+      // у meetings. Тоді подальші start/finish/cancel-операції шлють у 1С
+      // правильний meetingId (не натирають NULL з snapshot.legacyOneCId).
+      // Закриває race window [0..60c] між create і першим bulk-import.
+      // Якщо 1С повертає свій ID у oneCRes.data — пишемо його, інакше наш UUID.
+      if (call.action === 'saveNewMeeting' && row.meeting_id) {
+        const onecId =
+          (oneCRes.data && typeof oneCRes.data === 'object' && (oneCRes.data as Record<string, unknown>).ID) ||
+          (oneCRes.data && typeof oneCRes.data === 'object' && (oneCRes.data as Record<string, unknown>).meetingId);
+        const legacyId = typeof onecId === 'string' && onecId.trim() ? onecId.trim() : row.meeting_id;
+        await supabase
+          .from('meetings')
+          .eq('id', row.meeting_id)
+          .update({ legacy_1c_id: legacyId });
+      }
       result.succeeded++;
     } else {
       console.error(`[ШАГ 2] Помилка 1С "${call.action}" (${callDuration}ms, HTTP ${oneCRes.httpStatus}):`, oneCRes.errorMessage);
