@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#066aab">
+<title>Митинг 4.0 — перехід у Планування продажів</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --emet: #066aab;
+    --emet-light: #0880cc;
+    --emet-mint: #5bd5bc;
+    --ink: #081e2d;
+    --muted: #64748b;
+    --border: #e2e7ef;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(135deg, #eff7fb 0%, #e9f5f1 50%, #f4f7fb 100%);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Декоративні blob-и у фоні (як у sales-planning glass-style) */
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: .5;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    width: 420px; height: 420px;
+    background: radial-gradient(circle, rgba(91,213,188,.35), transparent 70%);
+    top: -100px; right: -120px;
+  }
+  body::after {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(6,106,171,.28), transparent 70%);
+    bottom: -150px; left: -150px;
+  }
+
+  .card {
+    position: relative;
+    z-index: 1;
+    background: rgba(255,255,255,.72);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(255,255,255,.6);
+    border-radius: 28px;
+    box-shadow: 0 24px 60px rgba(6,42,61,.10);
+    padding: 48px 40px;
+    max-width: 560px;
+    width: 100%;
+    text-align: center;
+  }
+  @media (max-width: 540px) {
+    .card { padding: 36px 24px; border-radius: 24px; }
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .logo img { height: 40px; width: auto; display: block; }
+  .logo-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -.2px;
+  }
+
+  h1 {
+    font-size: clamp(24px, 5vw, 32px);
+    font-weight: 800;
+    letter-spacing: -.6px;
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  .lead {
+    font-size: 16px;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 440px;
+    margin: 0 auto 8px;
+  }
+  .lead strong { color: var(--ink); font-weight: 700; }
+
+  .note {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 32px;
+    padding: 16px 32px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--emet), var(--emet-light));
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 24px rgba(6,106,171,.28);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 32px rgba(6,106,171,.36);
+  }
+  .cta:active { transform: translateY(0); }
+  .cta svg { width: 16px; height: 16px; }
+
+  .helper {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .helper a { color: var(--emet); text-decoration: none; font-weight: 600; }
+  .helper a:hover { text-decoration: underline; }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(91,213,188,.18);
+    color: #0e7a63;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <img src="/emet-logo.png" alt="EMET" onerror="this.style.display='none'">
+      <span class="logo-text">EMET</span>
+    </div>
+
+    <span class="badge">Архівовано</span>
+
+    <h1>Митинг 4.0 більше не оновлюється</h1>
+
+    <p class="lead">
+      Усі функції зустрічей і клієнтської бази перенесено у нову систему
+      <strong>«Планування продажів»</strong>.
+    </p>
+
+    <p class="note">
+      Логін і пароль — ті самі, що ви використовували тут.
+    </p>
+
+    <a href="https://sales-planning-lyart.vercel.app/" class="cta">
+      Перейти у Планування продажів
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+    </a>
+
+    <div class="helper">
+      Що там доступно: <strong>зустрічі</strong> (планування / старт-фініш з геолокацією / перенесення),
+      <strong>клієнти</strong> (база, пошук, історія покупок, картка клієнта),
+      <strong>планування продажів</strong> (прогноз + закриття розриву).
+      <br><br>
+      Якщо щось не зрозуміло або не вдається зайти — напишіть <a href="mailto:itd@emet.in.ua">itd@emet.in.ua</a>.
+    </div>
+  </div>
+</body>
+</html>
