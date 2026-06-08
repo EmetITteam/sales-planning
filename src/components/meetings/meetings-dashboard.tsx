@@ -490,18 +490,16 @@ function EmptyState({ filter }: { filter: StatusFilter }) {
 }
 
 function LoadingState() {
+  // Один центральний spinner — раніше було 3 skeleton-картки з сірими барами,
+  // які на мобільному виглядали як «квадратики» без сенсу. Просто spinner з
+  // підказкою — чистіше і менш візуально нав'язливо.
   return (
-    <div className="space-y-3">
-      {[0, 1, 2].map(i => (
-        <div
-          key={i}
-          className="bg-white/55 backdrop-blur-xl border border-white/55 rounded-2xl p-5 animate-pulse"
-        >
-          <div className="h-3 w-32 bg-slate-200 rounded mb-2.5" />
-          <div className="h-4 w-52 bg-slate-200 rounded mb-1.5" />
-          <div className="h-3 w-40 bg-slate-100 rounded" />
-        </div>
-      ))}
+    <div className="bg-white/55 backdrop-blur-xl border border-white/55 rounded-2xl p-10 flex flex-col items-center justify-center gap-3">
+      <svg className="h-6 w-6 animate-spin text-emet-blue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+        <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+      <p className="text-[12px] text-muted-foreground">Завантажую зустрічі…</p>
     </div>
   );
 }
