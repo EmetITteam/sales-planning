@@ -28,14 +28,16 @@ export async function GET(request: NextRequest) {
   // (до applі M9/M10) — fallback false.
   let canEditStagesAfterFinalize = false;
   let canViewCompanyOverview = false;
+  let canUnfinalizePlans = false;
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('can_edit_stages_after_finalize, can_view_company_overview')
+      .select('can_edit_stages_after_finalize, can_view_company_overview, can_unfinalize_plans')
       .eq('login', session.login);
     if (!error && Array.isArray(data) && data.length > 0) {
       canEditStagesAfterFinalize = !!data[0].can_edit_stages_after_finalize;
       canViewCompanyOverview = !!data[0].can_view_company_overview;
+      canUnfinalizePlans = !!data[0].can_unfinalize_plans;
     }
   } catch {
     // Колонки не існують — мовчки лишаємо false.
@@ -51,6 +53,7 @@ export async function GET(request: NextRequest) {
       managedUsers: session.managedUsers,
       canEditStagesAfterFinalize,
       canViewCompanyOverview,
+      canUnfinalizePlans,
     },
   });
 }

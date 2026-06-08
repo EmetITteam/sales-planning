@@ -56,6 +56,12 @@ export interface UserSession {
    * тільки якщо admin вмикнув їм у /admin/company-overview-permissions.
    */
   canViewCompanyOverview?: boolean;
+  /**
+   * Дозвіл натискати «Розфіналізувати» у формі планування менеджера.
+   * Admin завжди має дозвіл. Інші юзери — тільки якщо admin вмикнув їм у
+   * /admin/unfinalize-permissions. Fetch fresh з /api/auth/me.
+   */
+  canUnfinalizePlans?: boolean;
 }
 
 // === Сегменти (ТМ) ===

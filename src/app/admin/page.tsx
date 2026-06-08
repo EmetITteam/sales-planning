@@ -66,9 +66,11 @@ export default function AdminPage() {
             ready
           />
           <AdminCard
-            icon={<Settings2 className="h-4 w-4 text-amber-700" />}
+            href="/admin/unfinalize-permissions"
+            icon={<Settings2 className="h-4 w-4 text-rose-600" />}
             title="Розфіналізація планів"
-            description="Скасування фіналізації — кнопка «Розфіналізувати» доступна прямо у формі планування менеджера у режимі адміна."
+            description="Кому дозволено натискати «Розфіналізувати» у формі планування менеджера. Admin завжди має дозвіл. Іншим юзерам — за галочкою (наприклад, асистент директора)."
+            ready
           />
           <AdminCard
             href="/admin/stage-edit-permissions"

@@ -41,7 +41,7 @@ interface FinalizeBody {
   targetLogin?: string;
 }
 
-async function parseAndAuthorize(request: NextRequest, requireAdmin: boolean) {
+async function parseAndAuthorize(request: NextRequest, requireUnfinalizePermission: boolean) {
   const auth = validateApiRequest(request);
   if (!auth.valid) return { error: Response.json({ error: auth.error }, { status: 401 }) };
   const session = await getSession();
@@ -56,8 +56,18 @@ async function parseAndAuthorize(request: NextRequest, requireAdmin: boolean) {
     };
   }
 
-  if (requireAdmin && session.role !== 'admin') {
-    return { error: Response.json({ error: 'Розфіналізація доступна лише адміну' }, { status: 403 }) };
+  // Розфіналізація (DELETE): admin завжди дозволено, інші — тільки якщо у
+  // БД виставлено users.can_unfinalize_plans = true (M10). Перевіряємо через
+  // SELECT — флаг не у JWT (щоб toggle діяв одразу).
+  if (requireUnfinalizePermission && session.role !== 'admin') {
+    const { data: uRows } = await supabase
+      .from('users')
+      .select('can_unfinalize_plans')
+      .eq('login', session.login);
+    const hasPermission = Array.isArray(uRows) && uRows.length > 0 && !!uRows[0].can_unfinalize_plans;
+    if (!hasPermission) {
+      return { error: Response.json({ error: 'Розфіналізація недоступна — потрібен дозвіл адміна' }, { status: 403 }) };
+    }
   }
 
   let body: FinalizeBody;

@@ -169,13 +169,19 @@ export function AppHeader() {
           </div>
         )}
 
-        {/* View toggle — для admin завжди, для решти — за canViewCompanyOverview */}
+        {/* View toggle — для admin завжди, для решти — за canViewCompanyOverview.
+            Якщо ми НЕ на головній (/clients, /meetings, /admin/...) — клік
+            переводить на головну з відповідним activeView. Інакше — звичайний
+            in-place toggle (state-only). */}
         {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
           <div className="hidden md:inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2 shrink-0">
             <button
-              onClick={() => setActiveView('planning')}
+              onClick={() => {
+                setActiveView('planning');
+                if (!isOnPlanningPage) router.push('/');
+              }}
               className={`inline-flex items-center h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                activeView === 'planning'
+                isOnPlanningPage && activeView === 'planning'
                   ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -183,9 +189,12 @@ export function AppHeader() {
               Планування
             </button>
             <button
-              onClick={() => setActiveView('company-overview')}
+              onClick={() => {
+                setActiveView('company-overview');
+                if (!isOnPlanningPage) router.push('/');
+              }}
               className={`inline-flex items-center h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                activeView === 'company-overview'
+                isOnPlanningPage && activeView === 'company-overview'
                   ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -302,9 +311,12 @@ export function AppHeader() {
       {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
         <div className="md:hidden flex gap-1 mx-4 mb-2 p-1 rounded-full bg-white/60 backdrop-blur-md border border-white/50">
           <button
-            onClick={() => setActiveView('planning')}
+            onClick={() => {
+              setActiveView('planning');
+              if (!isOnPlanningPage) router.push('/');
+            }}
             className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
-              activeView === 'planning'
+              isOnPlanningPage && activeView === 'planning'
                 ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                 : 'text-muted-foreground'
             }`}
@@ -312,9 +324,12 @@ export function AppHeader() {
             Планування
           </button>
           <button
-            onClick={() => setActiveView('company-overview')}
+            onClick={() => {
+              setActiveView('company-overview');
+              if (!isOnPlanningPage) router.push('/');
+            }}
             className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
-              activeView === 'company-overview'
+              isOnPlanningPage && activeView === 'company-overview'
                 ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                 : 'text-muted-foreground'
             }`}

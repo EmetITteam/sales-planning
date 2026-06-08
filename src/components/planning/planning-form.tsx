@@ -141,6 +141,9 @@ export function PlanningForm({
   // Інші поля (амоунти, клієнти, тренінг) лишаються заблокованими.
   const canEditStagesAfterFinalize = !!user?.canEditStagesAfterFinalize;
   const stageUnlockedAfterFinalize = isFinalized && !isAdmin && canEditStagesAfterFinalize;
+  // M10: дозвіл «Розфіналізувати» — admin завжди має, плюс юзери з прапором
+  // can_unfinalize_plans (asistент директора, керівник). Toggle у /admin/unfinalize-permissions.
+  const canUnfinalize = isAdmin || !!user?.canUnfinalizePlans;
   // Дозвіл редагувати etap після фіналу теж BYPASS window-lock — інакше
   // після 5-го числа місяця менеджер не зможе нічого поміняти навіть з
   // дозволом. Use case "поміняти Дзвінок на Зустріч" актуальний весь місяць.
@@ -1364,7 +1367,7 @@ export function PlanningForm({
               <span className="hidden md:inline">{finalizing ? 'Зберігаю…' : 'Фінальне збереження'}</span>
             </Button>
           )}
-          {isFinalized && isAdmin && (
+          {isFinalized && canUnfinalize && (
             <Button
               onClick={handleUnfinalize}
               disabled={saving || finalizing}
