@@ -56,35 +56,6 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
     return () => clearTimeout(t);
   }, [query]);
 
-  // iOS PWA fix. CSS `vh` рахується від layout viewport (повний екран
-  // включаючи зону клавіатури), а на iOS Safari/Chrome scroll всередині
-  // `position:fixed`-модалки clamp-иться до visual viewport. Через це
-  // при відкритій клавіатурі модалка `h-[88vh]` фізично більша за видиму
-  // зону, і list впирається у нижній край visual viewport — не пускає
-  // прокрутити нижче.
-  //
-  // Рішення: слухаємо visualViewport.resize/scroll і записуємо реальну
-  // висоту видимої зони у CSS-змінну `--gcs-vh` (88% від visualViewport
-  // щоб зберегти bottom-drawer стиль з peek-фоном). Модалка читає її як
-  // `h-[var(--gcs-vh,88vh)]` — fallback 88vh для браузерів без API.
-  useEffect(() => {
-    if (!open) return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const root = document.documentElement;
-    const update = () => {
-      root.style.setProperty('--gcs-vh', `${Math.floor(vv.height * 0.88)}px`);
-    };
-    update();
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    return () => {
-      vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
-      root.style.removeProperty('--gcs-vh');
-    };
-  }, [open]);
-
   const shouldFetch = debouncedQuery.length >= 2;
   const { data, loading } = useOneCData(
     'findClient',
@@ -101,7 +72,7 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
         <DialogPrimitive.Popup
           className="
             fixed z-[60] bg-white overflow-hidden flex flex-col
-            max-md:inset-x-0 max-md:bottom-0 max-md:rounded-t-3xl max-md:h-[var(--gcs-vh,88vh)] max-md:shadow-[0_-8px_40px_rgba(6,42,61,0.20)]
+            max-md:inset-x-0 max-md:bottom-0 max-md:rounded-t-3xl max-md:h-[88vh] max-md:shadow-[0_-8px_40px_rgba(6,42,61,0.20)]
             md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[560px] md:max-w-[calc(100vw-32px)] md:max-h-[calc(100vh-64px)] md:h-[640px] md:rounded-3xl md:shadow-[0_24px_60px_rgba(6,42,61,0.25)]
             data-ending-style:opacity-0 max-md:data-ending-style:translate-y-full md:data-ending-style:scale-95
             data-starting-style:opacity-0 max-md:data-starting-style:translate-y-full md:data-starting-style:scale-95
@@ -144,10 +115,8 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
             </p>
           </div>
 
-          {/* Results — flex-1 + min-h-0 щоб overflow-y-auto спрацював у
-              flex-col контейнері. overscroll-contain блокує
-              scroll-chaining у body на iOS. */}
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
+          {/* Results */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {debouncedQuery.length < 2 && (
               <div className="px-5 py-10 text-center text-[13px] text-slate-500">
                 Введіть мінімум 2 символи для пошуку.
