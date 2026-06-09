@@ -506,16 +506,6 @@ export function ClaimFormDialog({
                   )}
                   <div className="flex-1">
                     <div className="font-semibold">{submit.result.message}</div>
-                    {submit.result.ok && submit.result.link && (
-                      <a
-                        href={submit.result.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[12px] text-emerald-700 underline mt-0.5 inline-block"
-                      >
-                        Відкрити у Bitrix
-                      </a>
-                    )}
                   </div>
                 </div>
               )}
