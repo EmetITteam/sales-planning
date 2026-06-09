@@ -16,6 +16,11 @@ export interface ClaimSummary {
   /** ISO date YYYY-MM-DD з Bitrix `createdTime` (тільки дата, без часу). */
   date: string;
   status: ClaimStatus;
+  /** Тип скарги для прев'ю у списку (наприклад «Якість препарату»). */
+  claimType?: string | null;
+  /** Препарат (UI-label, наприклад «NEURONOX») — щоб не відкривати картку
+   *  і одразу бачити по якому продукту. */
+  product?: string | null;
   /** Sprint 2B.B+: останнє повідомлення у timeline — від мед-відділу і
    *  менеджер ще не відповів. UI показує red badge «Нове повідомлення».
    *  False якщо коментарів нема, або менеджер відповів останнім. */

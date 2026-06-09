@@ -20,25 +20,27 @@ import type { ClaimAttachment, ClaimDetail } from '@/lib/claims/types';
 /**
  * Нормалізує `ufCrm4_FILES` (Bitrix disk-field) у ClaimAttachment[].
  *
- * Bitrix віддає поле як array або об'єкт з downloadUrl/showUrl/urlMachine
- * залежно від версії. Збираємо все що схоже на URL у єдиному форматі.
+ * Bitrix віддає поле як array або об'єкт; кожен елемент часто = просто
+ * file_id (string/number), або об'єкт з полями id/NAME. У старіших версіях
+ * може повертати інший формат (downloadUrl/urlMachine), але цей URL вимагає
+ * Bitrix-сесії та не працює для менеджерів — використовуємо id + proxy.
  */
-function normalizeClaimFiles(raw: unknown): ClaimAttachment[] {
+function normalizeClaimFiles(claimId: number, raw: unknown): ClaimAttachment[] {
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw : typeof raw === 'object' ? Object.values(raw) : [];
   const out: ClaimAttachment[] = [];
   for (const item of arr) {
     if (!item) continue;
-    let url = '';
+    let fileId = '';
     let name = 'файл';
-    if (typeof item === 'string') {
-      url = item;
+    if (typeof item === 'string' || typeof item === 'number') {
+      fileId = String(item);
     } else if (typeof item === 'object') {
       const obj = item as Record<string, unknown>;
-      url = String(obj.downloadUrl ?? obj.url ?? obj.urlMachine ?? obj.showUrl ?? '');
-      name = String(obj.name ?? obj.fileName ?? obj.NAME ?? 'файл');
+      fileId = String(obj.id ?? obj.ID ?? obj.fileId ?? obj.fileID ?? '');
+      name = String(obj.name ?? obj.NAME ?? obj.fileName ?? 'файл');
     }
-    if (!url) continue;
+    if (!fileId || !/^\d+$/.test(fileId)) continue;
     const lower = name.toLowerCase();
     const kind: ClaimAttachment['kind'] =
       /\.(jpe?g|png|gif|webp|bmp|svg|heic)$/i.test(lower)
@@ -46,7 +48,11 @@ function normalizeClaimFiles(raw: unknown): ClaimAttachment[] {
         : /\.(mp4|webm|mov|avi|mkv|3gp)$/i.test(lower)
           ? 'video'
           : 'other';
-    out.push({ url, name, kind });
+    out.push({
+      url: `/api/claims/${claimId}/file?fileId=${encodeURIComponent(fileId)}`,
+      name,
+      kind,
+    });
   }
   return out;
 }
@@ -107,7 +113,7 @@ export async function GET(
     details: (item[CLAIM_FIELDS.details] as string) ?? null,
     managerName: (item[CLAIM_FIELDS.manager] as string) ?? null,
     managerEmail: managerEmail || null,
-    attachments: normalizeClaimFiles(item[CLAIM_FIELDS.files]),
+    attachments: normalizeClaimFiles(id, item[CLAIM_FIELDS.files]),
   };
 
   return Response.json({ claim: detail });

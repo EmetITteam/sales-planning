@@ -234,6 +234,63 @@ export async function bitrixListComments(
 }
 
 /**
+ * Bitrix host з webhook URL — потрібно для побудови повних download-посилань
+ * (DOWNLOAD_URL з `disk.file.get` зазвичай повертається як relative path
+ * `/bitrix/services/...`).
+ */
+export function bitrixHost(): string {
+  const baseUrl = process.env.BITRIX_WEBHOOK_URL;
+  if (!baseUrl) throw new BitrixError_('CONFIG', 'BITRIX_WEBHOOK_URL env not set');
+  return new URL(baseUrl).host;
+}
+
+interface DiskFileGetResult {
+  DOWNLOAD_URL?: string;
+  NAME?: string;
+  SIZE?: number | string;
+  CODE?: string;
+  /** MIME type (FILE/SIZE/тощо різні Bitrix-версії). */
+  TYPE?: string;
+}
+
+/**
+ * Отримати tokenized download URL диск-файла з Bitrix.
+ *
+ * Bitrix Disk файли не публічні: пряме відкриття URL з браузера без сесії
+ * дає 401/403 (`allowed_only_intranet_user`). Через `disk.file.get` ми
+ * отримуємо `DOWNLOAD_URL` з тимчасовим токеном — цей URL валідний для
+ * прямого fetch і не вимагає cookie/sessions.
+ */
+export async function bitrixGetDiskDownloadUrl(
+  fileId: string | number,
+): Promise<{ url: string; name: string; contentType: string } | null> {
+  try {
+    const result = await bitrixCall<DiskFileGetResult>('disk.file.get', { id: fileId });
+    if (!result) return null;
+    let url = result.DOWNLOAD_URL ?? '';
+    if (!url) return null;
+    if (url.startsWith('/')) {
+      url = `https://${bitrixHost()}${url}`;
+    }
+    const name = result.NAME ?? `file-${fileId}`;
+    const lower = name.toLowerCase();
+    const contentType =
+      /\.(jpg|jpeg)$/i.test(lower) ? 'image/jpeg'
+      : /\.png$/i.test(lower) ? 'image/png'
+      : /\.gif$/i.test(lower) ? 'image/gif'
+      : /\.webp$/i.test(lower) ? 'image/webp'
+      : /\.heic$/i.test(lower) ? 'image/heic'
+      : /\.mp4$/i.test(lower) ? 'video/mp4'
+      : /\.mov$/i.test(lower) ? 'video/quicktime'
+      : /\.webm$/i.test(lower) ? 'video/webm'
+      : 'application/octet-stream';
+    return { url, name, contentType };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Отримати display name Bitrix-користувача (для відображення автора коментаря
  * у чаті). Кешуємо у пам'яті процесу (на serverless invocations не зберігається,
  * але у межах одного render-у економить запити).

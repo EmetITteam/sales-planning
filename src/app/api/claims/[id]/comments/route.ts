@@ -31,12 +31,22 @@ import {
 } from '@/lib/claims/bitrix-client';
 import type { ClaimAttachment, ClaimComment } from '@/lib/claims/types';
 
-/** Нормалізуємо FILES з Bitrix (масив або об'єкт-мапа) у ClaimAttachment[]. */
-function normalizeAttachments(files?: BitrixCommentFile[] | Record<string, BitrixCommentFile>): ClaimAttachment[] {
+/**
+ * Нормалізуємо FILES з Bitrix у ClaimAttachment[].
+ *
+ * ⚠️ Bitrix-URL у `f.url` вимагає авторизації Bitrix-сесією — менеджери у
+ * Bitrix не залогінені, тому пряме відкриття дасть `invalid_authentication`.
+ * Замість raw URL віддаємо наш proxy: `/api/claims/{claimId}/file?fileId=X`.
+ * Proxy на сервері викличе `disk.file.get` і стрімить байти через webhook auth.
+ */
+function normalizeAttachments(
+  claimId: number,
+  files?: BitrixCommentFile[] | Record<string, BitrixCommentFile>,
+): ClaimAttachment[] {
   if (!files) return [];
   const arr = Array.isArray(files) ? files : Object.values(files);
   return arr
-    .filter(f => f && typeof f === 'object' && (f.url || f.id))
+    .filter(f => f && typeof f === 'object' && f.id)
     .map(f => {
       const name = String(f.name ?? 'файл');
       const lower = name.toLowerCase();
@@ -47,12 +57,11 @@ function normalizeAttachments(files?: BitrixCommentFile[] | Record<string, Bitri
             ? 'video'
             : 'other';
       return {
-        url: String(f.url ?? ''),
+        url: `/api/claims/${claimId}/file?fileId=${encodeURIComponent(String(f.id))}`,
         name,
         kind,
       };
-    })
-    .filter(a => a.url);
+    });
 }
 
 interface OwnerClaimItem {
@@ -138,7 +147,7 @@ export async function GET(
       author,
       authorType,
       createdAt: c.CREATED,
-      attachments: normalizeAttachments(c.FILES),
+      attachments: normalizeAttachments(id, c.FILES),
     });
   }
 

@@ -27,6 +27,13 @@ import {
   type ClaimType,
   type ProductCode,
 } from '@/lib/claims/constants';
+
+/** Маппінг кодів продукту з Bitrix → user-friendly label
+ *  («NEURONOX» → «NEURONOX», «OTHER» → «Інше / Космецевтика»). */
+function productLabel(code: string | null | undefined): string | null {
+  if (!code) return null;
+  return (PRODUCTS as Record<string, string>)[code] ?? code;
+}
 import { serializeClaimDetails, MEDICAL_CLAIM_TYPES } from '@/lib/claims/anketa-schema';
 import {
   bitrixCreateClaim,
@@ -51,6 +58,7 @@ interface BitrixListItem {
   title: string;
   stageId?: string;
   createdTime?: string;
+  [key: string]: unknown;
 }
 
 export async function GET(request: NextRequest) {
@@ -65,7 +73,11 @@ export async function GET(request: NextRequest) {
 
   let items: BitrixListItem[];
   try {
-    items = await bitrixListClaims<BitrixListItem>(CLAIMS_SPA_ID, filter);
+    items = await bitrixListClaims<BitrixListItem>(
+      CLAIMS_SPA_ID,
+      filter,
+      ['id', 'title', 'stageId', 'createdTime', CLAIM_FIELDS.claim_type, CLAIM_FIELDS.product],
+    );
   } catch (e) {
     if (e instanceof BitrixError_) {
       return Response.json({ error: `Bitrix: ${e.description}` }, { status: 502 });
@@ -79,6 +91,8 @@ export async function GET(request: NextRequest) {
     client: (item.title ?? '').replace(/^Рекламація:\s*/, '').trim() || '—',
     date: (item.createdTime ?? '').slice(0, 10),
     status: normalizeBitrixStage(item.stageId),
+    claimType: (item[CLAIM_FIELDS.claim_type] as string) ?? null,
+    product: productLabel(item[CLAIM_FIELDS.product] as string | null),
   }));
 
   // Sprint 2B.B+: для кожної рекламації паралельно тягнемо timeline-коментарі

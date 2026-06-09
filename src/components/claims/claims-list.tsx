@@ -201,39 +201,51 @@ export function ClaimsList() {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filtered.map(claim => (
-            <Link
-              key={claim.id}
-              href={`/claims/${claim.id}`}
-              className={`relative block ${STATUS_CARD_BG[claim.status]} backdrop-blur-xl backdrop-saturate-150 border rounded-2xl p-3.5 md:p-4 shadow-[0_4px_14px_rgba(6,42,61,0.04)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_10px_28px_rgba(6,42,61,0.08)] hover:border-emet-blue/30`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${STATUS_DOTS[claim.status]}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums">
-                      #{claim.id}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full border ${STATUS_COLORS[claim.status]}`}
-                    >
-                      {STATUS_LABELS[claim.status]}
-                    </span>
-                    {claim.hasUnread && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full bg-rose-500 text-white shadow-sm">
-                        <MessageCircle className="w-2.5 h-2.5" />
-                        Нове
+          {filtered.map(claim => {
+            // Збираємо meta-рядок: дата · тип скарги · препарат (без порожніх).
+            const meta = [claim.date, claim.claimType, claim.product]
+              .filter(Boolean)
+              .join(' · ');
+            return (
+              <Link
+                key={claim.id}
+                href={`/claims/${claim.id}`}
+                className={`relative block ${STATUS_CARD_BG[claim.status]} backdrop-blur-xl backdrop-saturate-150 border rounded-2xl p-3.5 md:p-4 shadow-[0_4px_14px_rgba(6,42,61,0.04)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_10px_28px_rgba(6,42,61,0.08)] hover:border-emet-blue/30`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${STATUS_DOTS[claim.status]}`} />
+                  <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
+                    {/* Зліва — клієнт + meta */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-semibold text-emet-ink truncate">
+                        {claim.client}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 truncate tabular-nums">
+                        {meta || claim.date}
+                      </div>
+                    </div>
+                    {/* Справа — чипи */}
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end max-w-[55%]">
+                      <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums">
+                        #{claim.id}
                       </span>
-                    )}
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full border ${STATUS_COLORS[claim.status]}`}
+                      >
+                        {STATUS_LABELS[claim.status]}
+                      </span>
+                      {claim.hasUnread && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full bg-rose-500 text-white shadow-sm">
+                          <MessageCircle className="w-2.5 h-2.5" />
+                          Нове
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-[14px] font-semibold text-emet-ink truncate">
-                    {claim.client}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">{claim.date}</div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
 
