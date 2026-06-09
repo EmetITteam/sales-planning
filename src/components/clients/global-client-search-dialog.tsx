@@ -115,8 +115,10 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
             </p>
           </div>
 
-          {/* Results */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          {/* Results — flex-1 + min-h-0 щоб overflow-y-auto спрацював у
+              flex-col контейнері (інакше дитина росте за межі і скролить
+              body). overscroll-contain блокує scroll-chaining на iOS. */}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
             {debouncedQuery.length < 2 && (
               <div className="px-5 py-10 text-center text-[13px] text-slate-500">
                 Введіть мінімум 2 символи для пошуку.
