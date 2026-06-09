@@ -96,8 +96,13 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
             </DialogPrimitive.Close>
           </div>
 
-          {/* Search */}
-          <div className="px-5 py-3 md:px-6 shrink-0 border-b border-slate-100">
+          {/* Search.
+              На mobile — sticky внизу (над клавіатурою), а list зверху
+              скролиться. Реалізовано через `order-*`: list має order-2,
+              search order-3, тоді як на desktop default-порядок (search
+              зверху). Border міняємо з b→t на mobile щоб лінія була
+              правильна. */}
+          <div className="px-5 py-3 md:px-6 shrink-0 border-slate-100 md:border-b max-md:order-3 max-md:border-t max-md:bg-white">
             <div className="relative">
               <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
@@ -115,8 +120,10 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
             </p>
           </div>
 
-          {/* Results */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          {/* Results — на mobile order-2 (під шапкою, над search), на
+              desktop default-порядок. `flex-1 min-h-0` потрібен щоб
+              overflow-y-auto спрацював у flex-col контейнері. */}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain max-md:order-2">
             {debouncedQuery.length < 2 && (
               <div className="px-5 py-10 text-center text-[13px] text-slate-500">
                 Введіть мінімум 2 символи для пошуку.
