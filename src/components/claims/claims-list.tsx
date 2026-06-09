@@ -93,8 +93,8 @@ export function ClaimsList() {
           <h1 className="text-[20px] font-bold tracking-tight text-emet-ink">Рекламації</h1>
           <p className="text-[12px] text-muted-foreground">
             {counts.all === 0
-              ? 'У вас ще немає створених претензій'
-              : `${counts.all} ${pluralUA(counts.all, 'претензія', 'претензії', 'претензій')}`}
+              ? 'У вас ще немає створених рекламацій'
+              : `${counts.all} ${pluralUA(counts.all, 'рекламація', 'рекламації', 'рекламацій')}`}
             {counts.new > 0 && (
               <>
                 {' · '}
@@ -172,7 +172,7 @@ export function ClaimsList() {
           <Inbox className="w-10 h-10 mx-auto text-muted-foreground/40" />
           <p className="text-[13px] text-muted-foreground">
             {claims.length === 0
-              ? 'Поки що немає створених претензій. Натисніть «Нова рекламація» щоб подати першу.'
+              ? 'Поки що немає створених рекламацій. Натисніть «Нова рекламація» щоб подати першу.'
               : 'Нічого не знайдено за обраним фільтром'}
           </p>
         </div>

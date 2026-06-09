@@ -234,8 +234,8 @@ export function MeetingCard({
               e.stopPropagation();
               onCreateClaim(meeting);
             }}
-            aria-label={`Подати претензію по ${clientName}`}
-            title="Подати претензію"
+            aria-label={`Подати рекламацію по ${clientName}`}
+            title="Подати рекламацію"
             className="inline-flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-rose-300/40 text-rose-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 shadow-sm active:scale-95 transition-all shrink-0"
           >
             <AlertCircle className="w-4 h-4" />

@@ -27,6 +27,7 @@ import { CustomMonthPicker } from '@/components/ui/custom-month-picker';
 import { UserPlus } from 'lucide-react';
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
 import { ClaimFormDialog } from '@/components/claims/claim-form-dialog';
+import { ClientClaimsSection } from '@/components/claims/client-claims-section';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -1622,7 +1623,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 </button>
               </>
             )}
-            {/* Sprint 2B.C: Desktop text-link — «Подати претензію» */}
+            {/* Sprint 2B.C: Desktop text-link — «Подати рекламацію» */}
             {onCreateClaim && (
               <>
                 <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>
@@ -1635,7 +1636,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                   className="hidden md:inline-flex items-center gap-1 text-rose-700 hover:text-rose-800 font-semibold shrink-0"
                 >
                   <AlertCircle className="h-3 w-3" />
-                  Претензія
+                  Рекламація
                 </button>
               </>
             )}
@@ -1678,8 +1679,8 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 e.stopPropagation();
                 onCreateClaim(client);
               }}
-              aria-label={`Подати претензію по ${name}`}
-              title="Подати претензію"
+              aria-label={`Подати рекламацію по ${name}`}
+              title="Подати рекламацію"
               className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-rose-300/40 text-rose-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 shadow-sm active:scale-95 transition-all"
             >
               <AlertCircle className="w-[15px] h-[15px]" />
@@ -1698,6 +1699,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
       {expanded && (
         <ClientExpand
           clientID={client.ClientID}
+          clientName={name}
           planBrands={planBrands}
           factBrands={factBrands}
           focuses={focuses}
@@ -1756,8 +1758,11 @@ function PctCol({ pct, loading, disabled }: { pct: number | null; loading: boole
 }
 
 // === Accordion-розгортання з детальним звітом ===
-function ClientExpand({ clientID, planBrands, factBrands, focuses }: {
+function ClientExpand({ clientID, clientName, planBrands, factBrands, focuses }: {
   clientID: string;
+  /** Display name — потрібен для секції «Рекламації клієнта» (filter
+   *  по claim.client == name). */
+  clientName: string;
   planBrands: Record<string, number>;
   factBrands: Record<string, number>;
   focuses: ClientFocusItem[];
@@ -1828,6 +1833,10 @@ function ClientExpand({ clientID, planBrands, factBrands, focuses }: {
         seminars={seminars}
         totalCount={eventCount}
       />
+
+      {/* Sprint 2B.C.3: Рекламації цього клієнта — pull з Bitrix через
+          /api/claims (SWR shared cache з ClaimsList). */}
+      <ClientClaimsSection clientName={clientName} />
     </div>
   );
 }

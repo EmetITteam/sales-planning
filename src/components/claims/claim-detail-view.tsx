@@ -93,7 +93,7 @@ export function ClaimDetailView({ claimId }: Props) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Завантажую претензію…
+        Завантажую рекламацію…
       </div>
     );
   }
@@ -114,7 +114,7 @@ export function ClaimDetailView({ claimId }: Props) {
   if (!claim) {
     return (
       <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-700">
-        Претензію не знайдено
+        Рекламацію не знайдено
       </div>
     );
   }
