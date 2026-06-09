@@ -26,6 +26,7 @@ import { GlobalClientSearchDialog } from './global-client-search-dialog';
 import { CustomMonthPicker } from '@/components/ui/custom-month-picker';
 import { UserPlus } from 'lucide-react';
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
+import { ClaimFormDialog } from '@/components/claims/claim-form-dialog';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -140,6 +141,8 @@ export function ClientsPage() {
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [meetingForClient, setMeetingForClient] = useState<ClientFromOneC | null>(null);
+  // Sprint 2B.C: prefill ClaimFormDialog клієнтом з картки. Аналог meetingForClient.
+  const [claimForClient, setClaimForClient] = useState<ClientFromOneC | null>(null);
 
   // Локальний month-фільтр (поточний / попередні 3 / свій). Default — поточний
   // місяць. Незалежний від глобального currentPeriod (planning-режим).
@@ -557,6 +560,7 @@ export function ClientsPage() {
               expanded={expandedId === focusClient.ClientID}
               onToggle={() => setExpandedId(expandedId === focusClient.ClientID ? null : focusClient.ClientID)}
               onCreateMeeting={(c) => setMeetingForClient(c)}
+              onCreateClaim={(c) => setClaimForClient(c)}
             />
           ) : (
             <div className="glass-card-flat px-4 py-6 text-center text-[13px] text-slate-500">
@@ -708,6 +712,7 @@ export function ClientsPage() {
                   expandedId={expandedId}
                   onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
                   onCreateMeeting={(c) => setMeetingForClient(c)}
+                  onCreateClaim={(c) => setClaimForClient(c)}
                 />
               );
             })}
@@ -722,6 +727,7 @@ export function ClientsPage() {
                 expandedId={expandedId}
                 onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
                 onCreateMeeting={(c) => setMeetingForClient(c)}
+                onCreateClaim={(c) => setClaimForClient(c)}
               />
             )}
           </>
@@ -790,6 +796,26 @@ export function ClientsPage() {
             setToastMsg(`Помилка: ${(e as Error).message}`);
             setTimeout(() => setToastMsg(null), 5000);
           }
+        }}
+      />
+
+      {/* Sprint 2B.C: ClaimFormDialog з prefilled клієнтом. */}
+      <ClaimFormDialog
+        open={claimForClient !== null}
+        onClose={() => setClaimForClient(null)}
+        prefilledClient={
+          claimForClient
+            ? {
+                clientId1c: claimForClient.ClientID,
+                clientName: getClientName(claimForClient),
+                phone: claimForClient.Phone ?? '',
+                address: getClientAddress(claimForClient) ?? '',
+              }
+            : null
+        }
+        onCreated={id => {
+          setToastMsg(`Рекламацію №${id} створено.`);
+          setTimeout(() => setToastMsg(null), 4000);
         }}
       />
 
@@ -1265,7 +1291,7 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting,
+  cat, clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
@@ -1275,6 +1301,7 @@ function CategorySection({
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
   onCreateMeeting?: (client: ClientFromOneC) => void;
+  onCreateClaim?: (client: ClientFromOneC) => void;
 }) {
   // 4-bucket sort:
   //   0 — у роботі (план>0, факт<план): TOP
@@ -1361,6 +1388,7 @@ function CategorySection({
               expanded={expandedId === c.ClientID}
               onToggle={() => onToggleExpand(c.ClientID)}
               onCreateMeeting={onCreateMeeting}
+              onCreateClaim={onCreateClaim}
             />
           );
         })}
@@ -1374,7 +1402,7 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
@@ -1383,6 +1411,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, m
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
   onCreateMeeting?: (client: ClientFromOneC) => void;
+  onCreateClaim?: (client: ClientFromOneC) => void;
 }) {
   const [sectionOpen, setSectionOpen] = useState(false);
 
@@ -1431,6 +1460,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, m
                 expanded={expandedId === c.ClientID}
                 onToggle={() => onToggleExpand(c.ClientID)}
                 onCreateMeeting={onCreateMeeting}
+                onCreateClaim={onCreateClaim}
               />
             );
           })}
@@ -1441,7 +1471,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, m
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting, onCreateClaim }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
@@ -1454,6 +1484,8 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
   expanded: boolean;
   onToggle: () => void;
   onCreateMeeting?: (client: ClientFromOneC) => void;
+  /** Sprint 2B.C: відкрити форму нової рекламації з prefilled клієнтом. */
+  onCreateClaim?: (client: ClientFromOneC) => void;
 }) {
   const cat = toUICategory(client.ClientCategory);
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
@@ -1590,6 +1622,23 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 </button>
               </>
             )}
+            {/* Sprint 2B.C: Desktop text-link — «Подати претензію» */}
+            {onCreateClaim && (
+              <>
+                <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onCreateClaim(client);
+                  }}
+                  className="hidden md:inline-flex items-center gap-1 text-rose-700 hover:text-rose-800 font-semibold shrink-0"
+                >
+                  <AlertCircle className="h-3 w-3" />
+                  Претензія
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -1620,6 +1669,20 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
               className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white shadow-sm active:scale-95 transition-all"
             >
               <Calendar className="w-[15px] h-[15px]" />
+            </button>
+          )}
+          {onCreateClaim && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                onCreateClaim(client);
+              }}
+              aria-label={`Подати претензію по ${name}`}
+              title="Подати претензію"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-rose-300/40 text-rose-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 shadow-sm active:scale-95 transition-all"
+            >
+              <AlertCircle className="w-[15px] h-[15px]" />
             </button>
           )}
         </div>
