@@ -31,10 +31,20 @@ import { serializeClaimDetails, MEDICAL_CLAIM_TYPES } from '@/lib/claims/anketa-
 import {
   bitrixCreateClaim,
   bitrixListClaims,
+  bitrixListComments,
   bitrixNotifyUser,
   BitrixError_,
 } from '@/lib/claims/bitrix-client';
 import type { ClaimSummary } from '@/lib/claims/types';
+
+/**
+ * Detect чи останній коментар у timeline — від мед-відділу (без відповіді
+ * менеджера). Використовується для unread-badge у списку /claims.
+ *
+ * Той самий regex що у /api/claims/[id]/comments GET: менеджерські коментарі
+ * мають формат «<b>Name</b> (Менеджер):<br>...». Якщо НЕ matches — це мед-відділ.
+ */
+const MANAGER_PATTERN = /^<b>(.+?)<\/b>\s*\(Менеджер\)/;
 
 interface BitrixListItem {
   id: number | string;
@@ -63,7 +73,7 @@ export async function GET(request: NextRequest) {
     throw e;
   }
 
-  const claims: ClaimSummary[] = items.map(item => ({
+  const baseClaims: ClaimSummary[] = items.map(item => ({
     id: Number(item.id),
     title: item.title ?? '',
     client: (item.title ?? '').replace(/^Рекламація:\s*/, '').trim() || '—',
@@ -71,7 +81,37 @@ export async function GET(request: NextRequest) {
     status: normalizeBitrixStage(item.stageId),
   }));
 
-  return Response.json({ claims });
+  // Sprint 2B.B+: для кожної рекламації паралельно тягнемо timeline-коментарі
+  // і визначаємо чи останній — від мед-відділу (unread badge для менеджера).
+  //
+  // Bitrix REST дозволяє кілька паралельних викликів (~10-20 swift), а у
+  // менеджера зазвичай <50 рекламацій → загалом ~5-15с у найгіршому. Для
+  // подальшої оптимізації можна перейти на batch endpoint.
+  //
+  // Якщо bitrixListComments фейлить для конкретної рекламації — нехай вона
+  // буде без флага unread (не блокуємо весь list).
+  const enriched: ClaimSummary[] = await Promise.all(
+    baseClaims.map(async claim => {
+      try {
+        const comments = await bitrixListComments(claim.id, CLAIMS_SPA_ID);
+        if (comments.length === 0) return claim;
+        // bitrixListComments order DESC → перший це найновіший
+        const last = comments[0];
+        const text = last.COMMENT ?? '';
+        const isManagerLast = MANAGER_PATTERN.test(text);
+        return {
+          ...claim,
+          hasUnread: !isManagerLast,
+          lastCommentAt: last.CREATED,
+        };
+      } catch (err) {
+        console.warn(`[claims.GET] comments for #${claim.id} failed:`, err);
+        return claim;
+      }
+    }),
+  );
+
+  return Response.json({ claims: enriched });
 }
 
 export async function POST(request: NextRequest) {

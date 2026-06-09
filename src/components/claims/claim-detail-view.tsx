@@ -161,7 +161,7 @@ export function ClaimDetailView({ claimId }: Props) {
       </div>
 
       {/* Info card */}
-      <div className="bg-white border border-[#e2e7ef] rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-3 shadow-sm">
+      <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-4 grid grid-cols-2 md:grid-cols-4 gap-3 shadow-[0_4px_14px_rgba(6,42,61,0.04)]">
         <InfoCell label="Препарат" value={claim.product ? (PRODUCTS as Record<string, string>)[claim.product] ?? claim.product : '—'} />
         <InfoCell label="LOT" value={claim.lot ?? '—'} />
         <InfoCell label="Тип скарги" value={claim.claimType ?? '—'} />
@@ -170,12 +170,52 @@ export function ClaimDetailView({ claimId }: Props) {
 
       {/* Details text */}
       {claim.details && (
-        <div className="bg-white border border-[#e2e7ef] rounded-xl p-4 shadow-sm">
+        <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-4 shadow-[0_4px_14px_rgba(6,42,61,0.04)]">
           <h3 className="text-[12px] font-bold uppercase tracking-[0.7px] text-slate-600 mb-2">
             Деталі
           </h3>
           <div className="text-[13px] text-emet-ink whitespace-pre-wrap leading-relaxed">
             {claim.details}
+          </div>
+        </div>
+      )}
+
+      {/* Прикріплені файли з форми створення (фото/відео) */}
+      {claim.attachments && claim.attachments.length > 0 && (
+        <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-4 shadow-[0_4px_14px_rgba(6,42,61,0.04)]">
+          <h3 className="text-[12px] font-bold uppercase tracking-[0.7px] text-slate-600 mb-3">
+            Прикріплені файли · {claim.attachments.length}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {claim.attachments.map((att, i) => (
+              <a
+                key={i}
+                href={att.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={att.name}
+                className="block group"
+              >
+                {att.kind === 'image' ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={att.url}
+                    alt={att.name}
+                    loading="lazy"
+                    className="w-28 h-28 rounded-lg border border-slate-200 object-cover group-hover:opacity-80 group-hover:border-emet-blue transition-all"
+                  />
+                ) : att.kind === 'video' ? (
+                  <div className="w-28 h-28 rounded-lg border border-slate-200 bg-slate-900 text-white flex items-center justify-center group-hover:border-emet-blue transition-all">
+                    <span className="text-[11px] font-bold">VIDEO</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-[12px] text-slate-700 hover:border-emet-blue hover:text-emet-blue transition-all">
+                    <Paperclip className="w-3.5 h-3.5" />
+                    <span className="font-medium truncate max-w-[160px]">{att.name}</span>
+                  </div>
+                )}
+              </a>
+            ))}
           </div>
         </div>
       )}
@@ -280,7 +320,7 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
   };
 
   return (
-    <div className="bg-white border border-[#e2e7ef] rounded-xl shadow-sm flex flex-col overflow-hidden">
+    <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl shadow-[0_4px_14px_rgba(6,42,61,0.04)] flex flex-col overflow-hidden">
       <div className="px-4 py-2.5 border-b border-slate-100">
         <h3 className="text-[13px] font-bold text-emet-ink">
           Чат з мед-відділом
@@ -448,6 +488,10 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
           </div>
         )}
 
+        {/* items-end + textarea що грow-ає від однієї лінії = кнопки і
+            початкова порожня textarea на однаковій висоті 44px з самого
+            початку. Як юзер пише і textarea grow-ає у multi-line — кнопки
+            залишаються знизу (logical для відправки). */}
         <div className="flex gap-2 items-end">
           {/* Attach button */}
           <button
@@ -468,7 +512,6 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
             className="hidden"
             onChange={e => {
               handleFiles(e.target.files);
-              // reset так щоб повторне обрання того ж файла теж тригерило change
               if (fileInputRef.current) fileInputRef.current.value = '';
             }}
           />
@@ -482,9 +525,9 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
                 ? 'Додайте коментар або просто надішліть файли…'
                 : 'Напишіть повідомлення… (Enter — надіслати, Shift+Enter — новий рядок)'
             }
-            rows={2}
+            rows={1}
             disabled={sending}
-            className="flex-1 px-3 py-2 rounded-[10px] border border-slate-200 bg-white/85 text-[13px] outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all resize-none min-h-[44px] max-h-[140px] disabled:opacity-50"
+            className="flex-1 px-3 rounded-[10px] border border-slate-200 bg-white/85 text-[13px] outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all resize-none h-11 min-h-[44px] max-h-[140px] leading-[24px] py-[10px] disabled:opacity-50"
           />
 
           <button

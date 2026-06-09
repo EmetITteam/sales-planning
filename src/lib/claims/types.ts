@@ -16,6 +16,13 @@ export interface ClaimSummary {
   /** ISO date YYYY-MM-DD з Bitrix `createdTime` (тільки дата, без часу). */
   date: string;
   status: ClaimStatus;
+  /** Sprint 2B.B+: останнє повідомлення у timeline — від мед-відділу і
+   *  менеджер ще не відповів. UI показує red badge «Нове повідомлення».
+   *  False якщо коментарів нема, або менеджер відповів останнім. */
+  hasUnread?: boolean;
+  /** ISO timestamp останнього коментаря — для майбутнього сортування
+   *  «нещодавно активні» / Web Push порівнянь. */
+  lastCommentAt?: string;
 }
 
 /** Повна деталь для `/claims/[id]`. */
@@ -34,6 +41,8 @@ export interface ClaimDetail {
   details: string | null;
   managerName: string | null;
   managerEmail: string | null;
+  /** Прикріплені файли з форми створення (фото/відео). */
+  attachments?: ClaimAttachment[];
 }
 
 /** Прикріплений файл до коментаря (Sprint 2B.B+). */

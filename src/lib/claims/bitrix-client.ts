@@ -218,12 +218,16 @@ export async function bitrixListComments(
   entityId: number,
   entityTypeId: number,
 ): Promise<BitrixComment[]> {
+  // ⚠️ Bitrix REST `crm.timeline.comment.list` за замовчуванням повертає
+  // лише ID/COMMENT/AUTHOR_ID/CREATED — БЕЗ поля FILES. Треба явний select
+  // інакше прикріплення зникають з відповіді.
   const result = await bitrixCall<BitrixComment[]>('crm.timeline.comment.list', {
     filter: {
       ENTITY_ID: entityId,
       ENTITY_TYPE: `dynamic_${entityTypeId}`,
       TYPE_ID: 'COMMENT',
     },
+    select: ['ID', 'COMMENT', 'AUTHOR_ID', 'CREATED', 'FILES'],
     order: { ID: 'DESC' },
   });
   return Array.isArray(result) ? result : [];

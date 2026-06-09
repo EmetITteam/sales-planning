@@ -18,6 +18,7 @@ import {
   Search,
   Loader2,
   Inbox,
+  MessageCircle,
 } from 'lucide-react';
 import { ClaimFormDialog } from './claim-form-dialog';
 import { STATUS_LABELS, type ClaimStatus } from '@/lib/claims/constants';
@@ -38,6 +39,15 @@ const STATUS_DOTS: Record<ClaimStatus, string> = {
   in_progress: 'bg-amber-500',
   resolved: 'bg-emerald-500',
   rejected: 'bg-rose-500',
+};
+
+/** Glass-tint картки по статусу — однакова стилістика з MeetingCard:
+ *  легкий gradient від status-color → white/60, прозорий border. */
+const STATUS_CARD_BG: Record<ClaimStatus, string> = {
+  new: 'bg-gradient-to-br from-blue-100/40 to-white/60 border-blue-200/60',
+  in_progress: 'bg-gradient-to-br from-amber-100/40 to-white/60 border-amber-200/60',
+  resolved: 'bg-gradient-to-br from-teal-100/30 to-white/60 border-teal-100/70',
+  rejected: 'bg-gradient-to-br from-rose-100/35 to-white/60 border-rose-200/60',
 };
 
 type StatusFilter = 'all' | ClaimStatus;
@@ -69,6 +79,10 @@ export function ClaimsList() {
     for (const cl of claims) c[cl.status]++;
     return c;
   }, [claims]);
+  const unreadCount = useMemo(
+    () => claims.filter(c => c.hasUnread).length,
+    [claims],
+  );
 
   const filtered = useMemo(() => {
     let list = claims;
@@ -101,6 +115,15 @@ export function ClaimsList() {
                 <span className="font-semibold text-blue-700">{counts.new} нових</span>
               </>
             )}
+            {unreadCount > 0 && (
+              <>
+                {' · '}
+                <span className="inline-flex items-center gap-1 font-semibold text-rose-700">
+                  <MessageCircle className="w-3 h-3" />
+                  {unreadCount} {pluralUA(unreadCount, 'нове повідомлення', 'нові повідомлення', 'нових повідомлень')}
+                </span>
+              </>
+            )}
           </p>
         </div>
         <button
@@ -115,7 +138,7 @@ export function ClaimsList() {
       </div>
 
       {/* Filters + search */}
-      <div className="bg-white border border-[#e2e7ef] rounded-xl p-3 md:p-4 space-y-3 shadow-sm">
+      <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-3 md:p-4 space-y-3 shadow-[0_4px_14px_rgba(6,42,61,0.04)]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -168,7 +191,7 @@ export function ClaimsList() {
           </button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white border border-[#e2e7ef] rounded-xl p-8 text-center space-y-2">
+        <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-8 text-center space-y-2 shadow-[0_4px_14px_rgba(6,42,61,0.04)]">
           <Inbox className="w-10 h-10 mx-auto text-muted-foreground/40" />
           <p className="text-[13px] text-muted-foreground">
             {claims.length === 0
@@ -177,18 +200,18 @@ export function ClaimsList() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {filtered.map(claim => (
             <Link
               key={claim.id}
               href={`/claims/${claim.id}`}
-              className="block bg-white border border-[#e2e7ef] rounded-xl p-3.5 md:p-4 hover:border-emet-blue hover:shadow-md transition-all"
+              className={`relative block ${STATUS_CARD_BG[claim.status]} backdrop-blur-xl backdrop-saturate-150 border rounded-2xl p-3.5 md:p-4 shadow-[0_4px_14px_rgba(6,42,61,0.04)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_10px_28px_rgba(6,42,61,0.08)] hover:border-emet-blue/30`}
             >
               <div className="flex items-start gap-3">
                 <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${STATUS_DOTS[claim.status]}`} />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-mono font-bold text-muted-foreground">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums">
                       #{claim.id}
                     </span>
                     <span
@@ -196,11 +219,17 @@ export function ClaimsList() {
                     >
                       {STATUS_LABELS[claim.status]}
                     </span>
+                    {claim.hasUnread && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full bg-rose-500 text-white shadow-sm">
+                        <MessageCircle className="w-2.5 h-2.5" />
+                        Нове
+                      </span>
+                    )}
                   </div>
                   <div className="text-[14px] font-semibold text-emet-ink truncate">
                     {claim.client}
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">{claim.date}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">{claim.date}</div>
                 </div>
               </div>
             </Link>

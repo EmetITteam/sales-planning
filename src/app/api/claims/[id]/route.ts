@@ -15,7 +15,41 @@ import {
   normalizeBitrixStage,
 } from '@/lib/claims/constants';
 import { bitrixGetClaim, BitrixError_ } from '@/lib/claims/bitrix-client';
-import type { ClaimDetail } from '@/lib/claims/types';
+import type { ClaimAttachment, ClaimDetail } from '@/lib/claims/types';
+
+/**
+ * Нормалізує `ufCrm4_FILES` (Bitrix disk-field) у ClaimAttachment[].
+ *
+ * Bitrix віддає поле як array або об'єкт з downloadUrl/showUrl/urlMachine
+ * залежно від версії. Збираємо все що схоже на URL у єдиному форматі.
+ */
+function normalizeClaimFiles(raw: unknown): ClaimAttachment[] {
+  if (!raw) return [];
+  const arr = Array.isArray(raw) ? raw : typeof raw === 'object' ? Object.values(raw) : [];
+  const out: ClaimAttachment[] = [];
+  for (const item of arr) {
+    if (!item) continue;
+    let url = '';
+    let name = 'файл';
+    if (typeof item === 'string') {
+      url = item;
+    } else if (typeof item === 'object') {
+      const obj = item as Record<string, unknown>;
+      url = String(obj.downloadUrl ?? obj.url ?? obj.urlMachine ?? obj.showUrl ?? '');
+      name = String(obj.name ?? obj.fileName ?? obj.NAME ?? 'файл');
+    }
+    if (!url) continue;
+    const lower = name.toLowerCase();
+    const kind: ClaimAttachment['kind'] =
+      /\.(jpe?g|png|gif|webp|bmp|svg|heic)$/i.test(lower)
+        ? 'image'
+        : /\.(mp4|webm|mov|avi|mkv|3gp)$/i.test(lower)
+          ? 'video'
+          : 'other';
+    out.push({ url, name, kind });
+  }
+  return out;
+}
 
 interface BitrixItem {
   id: number | string;
@@ -73,6 +107,7 @@ export async function GET(
     details: (item[CLAIM_FIELDS.details] as string) ?? null,
     managerName: (item[CLAIM_FIELDS.manager] as string) ?? null,
     managerEmail: managerEmail || null,
+    attachments: normalizeClaimFiles(item[CLAIM_FIELDS.files]),
   };
 
   return Response.json({ claim: detail });
