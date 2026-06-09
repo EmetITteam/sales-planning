@@ -165,6 +165,12 @@ export function ClaimFormDialog({
         },
       });
       if (body.id && body.link) onCreated?.(body.id, body.link);
+      // Auto-close через 1.5с — юзер встигає прочитати «Рекламацію №X створено».
+      // Без цього (а) форма залишається відкрита, (б) кнопка «Готово» дзвонить
+      // handleSubmit вдруге → дубль у Bitrix. Користувач словив це 2026-06-10.
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (e) {
       setSubmit({
         loading: false,
@@ -521,8 +527,8 @@ export function ClaimFormDialog({
               </button>
               <button
                 type="button"
-                onClick={handleSubmit}
-                disabled={!canSubmit}
+                onClick={submit.result?.ok ? onClose : handleSubmit}
+                disabled={submit.result?.ok ? false : !canSubmit}
                 className="flex-1 min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[14px] font-bold shadow-[0_4px_14px_rgba(6,106,171,0.30)] hover:shadow-[0_6px_20px_rgba(6,106,171,0.40)] active:translate-y-px transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
               >
                 {submit.loading ? (
@@ -531,7 +537,7 @@ export function ClaimFormDialog({
                     Надсилаю…
                   </>
                 ) : submit.result?.ok ? (
-                  'Готово'
+                  'Закрити'
                 ) : (
                   'Створити'
                 )}
