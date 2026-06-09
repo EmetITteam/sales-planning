@@ -275,9 +275,16 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
           </div>
         ) : (
           comments.map(c => {
-            const isMine =
-              c.authorType === 'manager' && c.author === (user?.fullName ?? '');
             const isMedDept = c.authorType === 'bitrix';
+            const isManager = c.authorType === 'manager';
+            // Свої повідомлення (саме цього менеджера) — справа.
+            // Чужі менеджерські (рідко, але можливо коли admin/director дивиться) — зліва.
+            const isMine = isManager && c.author.trim() === (user?.fullName ?? '').trim();
+            const authorLabel = isMedDept
+              ? `Мед-відділ · ${c.author}`
+              : isMine
+                ? 'Ви'
+                : `Менеджер · ${c.author}`;
             return (
               <div
                 key={c.id}
@@ -291,6 +298,7 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
                         ? 'bg-emet-blue text-white'
                         : 'bg-slate-200 text-slate-700'
                   }`}
+                  title={isMedDept ? 'Мед-відділ' : isMine ? 'Ви' : 'Інший менеджер'}
                 >
                   {isMedDept ? (
                     <Stethoscope className="w-3.5 h-3.5" />
@@ -300,8 +308,12 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
                 </div>
                 <div className={`flex-1 max-w-[80%] ${isMine ? 'text-right' : ''}`}>
                   <div className="text-[11px] text-muted-foreground mb-0.5 flex items-center gap-2 px-1">
-                    <span className={`font-semibold ${isMedDept ? 'text-emerald-700' : ''}`}>
-                      {c.author}
+                    <span
+                      className={`font-semibold ${
+                        isMedDept ? 'text-emerald-700' : isMine ? 'text-emet-blue' : ''
+                      }`}
+                    >
+                      {authorLabel}
                     </span>
                     <span className="text-muted-foreground/70">
                       {formatChatTime(c.createdAt)}
@@ -313,9 +325,9 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
                         ? 'bg-emet-blue text-white rounded-tr-sm'
                         : isMedDept
                           ? 'bg-emerald-50 border border-emerald-100 text-emerald-900 rounded-tl-sm'
-                          : 'bg-white border border-slate-200 rounded-tl-sm'
+                          : 'bg-slate-100 border border-slate-200 rounded-tl-sm'
                     }`}
-                    dangerouslySetInnerHTML={{ __html: sanitizeCommentHtml(c.text, isMine) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeCommentHtml(c.text, isManager) }}
                   />
                 </div>
               </div>
@@ -357,16 +369,20 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
 /**
  * Очищаємо коментар від HTML і дублювання імені.
  *
- * Bitrix зберігає коментарі менеджера у форматі: «<b>Name</b> (Менеджер):<br>text».
- * Імʼя автора ми вже показуємо у header повідомлення — прибираємо звідти.
+ * Менеджерські коментарі у Bitrix зберігаються у форматі
+ * «<b>Name</b> (Менеджер):<br>text». Імʼя автора ми вже показуємо у header
+ * повідомлення — прибираємо префікс щоб не дублювати.
+ *
+ * `isManagerComment=true` — прибираємо префікс для ВСІХ менеджерських
+ * коментарів (не лише своїх), бо у header вже є "Менеджер · {name}".
  *
  * Не дозволяємо script / iframe / on* — захист від XSS у Bitrix-content.
  */
-function sanitizeCommentHtml(html: string, isMine: boolean): string {
+function sanitizeCommentHtml(html: string, isManagerComment: boolean): string {
   if (!html) return '';
   let clean = html;
-  if (isMine) {
-    // Прибираємо префікс автора "<b>...</b> (Менеджер):<br>"
+  if (isManagerComment) {
+    // Прибираємо префікс "<b>...</b> (Менеджер):<br>" — він дублює автора.
     clean = clean.replace(/^<b>.*?<\/b>\s*\(Менеджер\):\s*<br\s*\/?>/i, '');
   }
   // Strip небезпечні теги

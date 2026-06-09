@@ -83,23 +83,35 @@ export async function GET(
     throw e;
   }
 
-  // Нормалізуємо: вирішуємо authorName залежно від типу
+  // Нормалізуємо: detect authorType по ФОРМАТУ тексту, не по AUTHOR_ID.
+  //
+  // ⚠️ Bitrix webhook-token має власника (інтегратор-юзер), тому ВСІ комент.
+  // з нашого додатку приходять з AUTHOR_ID = той же інтегратор (наприклад 2049).
+  // А цей же ID часто є у MED_DEPT_USER_IDS — тому detect по AUTHOR_ID ламається.
+  //
+  // Натомість дивимось на формат: менеджерські коментарі ми шлемо у форматі
+  // «<b>FullName</b> (Менеджер):<br>text». Якщо текст починається з цього
+  // патерна — це менеджер. Інакше — Bitrix-користувач (мед-відділ).
+  const MANAGER_PATTERN = /^<b>(.+?)<\/b>\s*\(Менеджер\)/;
   const comments: ClaimComment[] = [];
   for (const c of raw) {
-    const authorId = c.AUTHOR_ID;
-    const isManager = !authorId || String(authorId) === '0';
+    const text = c.COMMENT ?? '';
+    const managerMatch = text.match(MANAGER_PATTERN);
     let author = '';
-    if (isManager) {
-      const m = (c.COMMENT ?? '').match(/<b>(.*?)<\/b>/);
-      author = m ? m[1] : 'Менеджер';
+    let authorType: 'manager' | 'bitrix';
+    if (managerMatch) {
+      author = managerMatch[1];
+      authorType = 'manager';
     } else {
-      author = await bitrixGetUserName(authorId!);
+      authorType = 'bitrix';
+      const authorId = c.AUTHOR_ID;
+      author = authorId ? await bitrixGetUserName(authorId) : 'Мед-відділ';
     }
     comments.push({
       id: c.ID,
-      text: c.COMMENT ?? '',
+      text,
       author,
-      authorType: isManager ? 'manager' : 'bitrix',
+      authorType,
       createdAt: c.CREATED,
     });
   }
