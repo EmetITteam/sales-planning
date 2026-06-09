@@ -1623,24 +1623,27 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 </button>
               </>
             )}
-            {/* Sprint 2B.C: Desktop text-link — «Подати рекламацію» */}
-            {onCreateClaim && (
-              <>
-                <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onCreateClaim(client);
-                  }}
-                  className="hidden md:inline-flex items-center gap-1 text-rose-700 hover:text-rose-800 font-semibold shrink-0"
-                >
-                  <AlertCircle className="h-3 w-3" />
-                  Рекламація
-                </button>
-              </>
-            )}
           </div>
+
+          {/* Sprint 2B.C: «Подати рекламацію» — окремим рядком ПІД телефоном
+              і зустріччю, щоб візуально не зливалось з ними (це інша за
+              характером дія — не CTA в один клік, а більш рідкісна).
+              Рожевий цвет — наратує що це окрема функція. */}
+          {onCreateClaim && (
+            <div className="hidden md:flex items-center gap-1 mt-1.5">
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  onCreateClaim(client);
+                }}
+                className="inline-flex items-center gap-1.5 text-[11px] text-rose-700 hover:text-rose-800 font-semibold transition-colors"
+              >
+                <AlertCircle className="h-3 w-3" />
+                Подати рекламацію
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Mobile-only icon-кнопки: phone + create meeting у одному контейнері.
