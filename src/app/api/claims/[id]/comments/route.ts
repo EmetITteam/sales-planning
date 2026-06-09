@@ -25,6 +25,7 @@ import {
   bitrixGetUserName,
   bitrixListComments,
   bitrixNotifyUser,
+  bitrixResolveAttachmentName,
   BitrixError_,
   type BitrixComment,
   type BitrixCommentFile,
@@ -39,16 +40,23 @@ import type { ClaimAttachment, ClaimComment } from '@/lib/claims/types';
  * Замість raw URL віддаємо наш proxy: `/api/claims/{claimId}/file?fileId=X`.
  * Proxy на сервері викличе `disk.file.get` і стрімить байти через webhook auth.
  */
-function normalizeAttachments(
+async function normalizeAttachments(
   claimId: number,
   files?: BitrixCommentFile[] | Record<string, BitrixCommentFile>,
-): ClaimAttachment[] {
+): Promise<ClaimAttachment[]> {
   if (!files) return [];
   const arr = Array.isArray(files) ? files : Object.values(files);
-  return arr
-    .filter(f => f && typeof f === 'object' && f.id)
-    .map(f => {
-      const name = String(f.name ?? 'файл');
+  const candidates = arr.filter(
+    (f): f is BitrixCommentFile => Boolean(f && typeof f === 'object' && f.id),
+  );
+  // Bitrix `crm.timeline.comment.list` повертає FILES часто без NAME →
+  // паралельно резолвимо справжні імена через disk.attachedObject.get.
+  return Promise.all(
+    candidates.map(async f => {
+      let name = String(f.name ?? '');
+      if (!name) {
+        name = (await bitrixResolveAttachmentName(f.id!)) ?? `файл-${f.id}`;
+      }
       const lower = name.toLowerCase();
       const kind: ClaimAttachment['kind'] =
         /\.(jpe?g|png|gif|webp|bmp|svg|heic)$/i.test(lower)
@@ -61,7 +69,8 @@ function normalizeAttachments(
         name,
         kind,
       };
-    });
+    }),
+  );
 }
 
 interface OwnerClaimItem {
@@ -147,7 +156,7 @@ export async function GET(
       author,
       authorType,
       createdAt: c.CREATED,
-      attachments: normalizeAttachments(id, c.FILES),
+      attachments: await normalizeAttachments(id, c.FILES),
     });
   }
 

@@ -14,7 +14,11 @@ import {
   FIELD_MANAGER_EMAIL_IN_CLAIM,
   normalizeBitrixStage,
 } from '@/lib/claims/constants';
-import { bitrixGetClaim, BitrixError_ } from '@/lib/claims/bitrix-client';
+import {
+  bitrixGetClaim,
+  bitrixResolveAttachmentName,
+  BitrixError_,
+} from '@/lib/claims/bitrix-client';
 import type { ClaimAttachment, ClaimDetail } from '@/lib/claims/types';
 
 /**
@@ -25,36 +29,50 @@ import type { ClaimAttachment, ClaimDetail } from '@/lib/claims/types';
  * може повертати інший формат (downloadUrl/urlMachine), але цей URL вимагає
  * Bitrix-сесії та не працює для менеджерів — використовуємо id + proxy.
  */
-function normalizeClaimFiles(claimId: number, raw: unknown): ClaimAttachment[] {
+async function normalizeClaimFiles(claimId: number, raw: unknown): Promise<ClaimAttachment[]> {
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw : typeof raw === 'object' ? Object.values(raw) : [];
-  const out: ClaimAttachment[] = [];
+
+  type Pending = { fileId: string; name: string };
+  const pending: Pending[] = [];
   for (const item of arr) {
     if (!item) continue;
     let fileId = '';
-    let name = 'файл';
+    let name = '';
     if (typeof item === 'string' || typeof item === 'number') {
       fileId = String(item);
     } else if (typeof item === 'object') {
       const obj = item as Record<string, unknown>;
       fileId = String(obj.id ?? obj.ID ?? obj.fileId ?? obj.fileID ?? '');
-      name = String(obj.name ?? obj.NAME ?? obj.fileName ?? 'файл');
+      name = String(obj.name ?? obj.NAME ?? obj.fileName ?? '');
     }
     if (!fileId || !/^\d+$/.test(fileId)) continue;
-    const lower = name.toLowerCase();
-    const kind: ClaimAttachment['kind'] =
-      /\.(jpe?g|png|gif|webp|bmp|svg|heic)$/i.test(lower)
-        ? 'image'
-        : /\.(mp4|webm|mov|avi|mkv|3gp)$/i.test(lower)
-          ? 'video'
-          : 'other';
-    out.push({
-      url: `/api/claims/${claimId}/file?fileId=${encodeURIComponent(fileId)}`,
-      name,
-      kind,
-    });
+    pending.push({ fileId, name });
   }
-  return out;
+
+  // Bitrix `ufCrm4_FILES` повертає id без NAME → паралельно резолвимо
+  // справжні імена щоб фронт коректно визначив kind (image/video) і не
+  // показував generic «Прев'ю недоступне».
+  return Promise.all(
+    pending.map(async ({ fileId, name: rawName }) => {
+      let name = rawName;
+      if (!name) {
+        name = (await bitrixResolveAttachmentName(fileId)) ?? `файл-${fileId}`;
+      }
+      const lower = name.toLowerCase();
+      const kind: ClaimAttachment['kind'] =
+        /\.(jpe?g|png|gif|webp|bmp|svg|heic)$/i.test(lower)
+          ? 'image'
+          : /\.(mp4|webm|mov|avi|mkv|3gp)$/i.test(lower)
+            ? 'video'
+            : 'other';
+      return {
+        url: `/api/claims/${claimId}/file?fileId=${encodeURIComponent(fileId)}`,
+        name,
+        kind,
+      };
+    }),
+  );
 }
 
 interface BitrixItem {
@@ -113,7 +131,7 @@ export async function GET(
     details: (item[CLAIM_FIELDS.details] as string) ?? null,
     managerName: (item[CLAIM_FIELDS.manager] as string) ?? null,
     managerEmail: managerEmail || null,
-    attachments: normalizeClaimFiles(id, item[CLAIM_FIELDS.files]),
+    attachments: await normalizeClaimFiles(id, item[CLAIM_FIELDS.files]),
   };
 
   return Response.json({ claim: detail });

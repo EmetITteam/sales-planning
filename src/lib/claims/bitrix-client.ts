@@ -336,6 +336,48 @@ export async function bitrixGetDiskDownloadUrl(
 }
 
 /**
+ * Резолвимо справжнє ім'я файла за його ID. Bitrix `crm.timeline.comment.list`
+ * повертає FILES без поля NAME (тільки id+url), через це ми скрізь мали
+ * placeholder «файл» — а без розширення фронт не міг визначити kind
+ * (image/video) і показував generic «Прев'ю недоступне».
+ *
+ * Спочатку пробуємо `disk.attachedObject.get` (тип з timeline), потім
+ * `disk.file.get` (тип з disk-полів). Кешуємо у пам'яті процесу.
+ */
+const ATTACHMENT_NAME_CACHE = new Map<string, string>();
+
+export async function bitrixResolveAttachmentName(
+  fileId: string | number,
+): Promise<string | null> {
+  const key = String(fileId);
+  const cached = ATTACHMENT_NAME_CACHE.get(key);
+  if (cached !== undefined) return cached || null;
+
+  try {
+    const result = await bitrixCall<DiskMetaResult>('disk.attachedObject.get', { id: fileId });
+    if (result?.NAME) {
+      const name = String(result.NAME);
+      ATTACHMENT_NAME_CACHE.set(key, name);
+      return name;
+    }
+  } catch {
+    // try disk.file.get below
+  }
+  try {
+    const result = await bitrixCall<DiskMetaResult>('disk.file.get', { id: fileId });
+    if (result?.NAME) {
+      const name = String(result.NAME);
+      ATTACHMENT_NAME_CACHE.set(key, name);
+      return name;
+    }
+  } catch {
+    // unknown id — кешуємо як пустий щоб не повторювати fetch
+  }
+  ATTACHMENT_NAME_CACHE.set(key, '');
+  return null;
+}
+
+/**
  * Отримати display name Bitrix-користувача (для відображення автора коментаря
  * у чаті). Кешуємо у пам'яті процесу (на serverless invocations не зберігається,
  * але у межах одного render-у економить запити).
