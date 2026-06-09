@@ -1,0 +1,400 @@
+'use client';
+
+/**
+ * ClaimDetailView — деталі однієї претензії + чат з мед-відділом.
+ *
+ * Дві SWR-зони:
+ *  - claim: deтal pull з `/api/claims/[id]` (один раз + refresh on focus)
+ *  - comments: pull з `/api/claims/[id]/comments` (polling 15с поки сторінка
+ *    відкрита — щоб менеджер бачив відповіді мед-відділу без F5)
+ *
+ * UI:
+ *  - Header (back-link, статус, ID)
+ *  - Інфо-картка (продукт, LOT, тип, дата)
+ *  - Деталі (текст details — те що серіалізували у submit)
+ *  - Чат (timeline-коментарі у месенджер-стилі)
+ */
+
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import useSWR from 'swr';
+import {
+  AlertCircle,
+  ChevronLeft,
+  Loader2,
+  Send,
+  User,
+  Stethoscope,
+} from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import { STATUS_LABELS, type ClaimStatus, CLAIM_TYPES, PRODUCTS } from '@/lib/claims/constants';
+import type { ClaimDetail, ClaimComment } from '@/lib/claims/types';
+
+const HEADERS_JSON = { 'Content-Type': 'application/json' };
+
+const STATUS_COLORS: Record<ClaimStatus, string> = {
+  new: 'bg-blue-50 text-blue-700 border-blue-200',
+  in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
+  resolved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+};
+
+interface Props {
+  claimId: number;
+}
+
+export function ClaimDetailView({ claimId }: Props) {
+  // === Detail ===
+  const {
+    data: detailData,
+    error: detailError,
+    isLoading: detailLoading,
+  } = useSWR<{ claim: ClaimDetail }>(
+    `claim-${claimId}`,
+    async () => {
+      const r = await fetch(`/api/claims/${claimId}`, {
+        credentials: 'same-origin',
+        headers: HEADERS_JSON,
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${r.status}`);
+      }
+      return r.json();
+    },
+    { revalidateOnFocus: true },
+  );
+
+  // === Comments — polling 15с для real-time-feel ===
+  const {
+    data: commentsData,
+    mutate: mutateComments,
+  } = useSWR<{ comments: ClaimComment[] }>(
+    `claim-${claimId}-comments`,
+    async () => {
+      const r = await fetch(`/api/claims/${claimId}/comments`, {
+        credentials: 'same-origin',
+        headers: HEADERS_JSON,
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${r.status}`);
+      }
+      return r.json();
+    },
+    {
+      revalidateOnFocus: true,
+      refreshInterval: 15_000, // 15с — мед-відділ відповів → менеджер бачить без F5
+      dedupingInterval: 5_000,
+    },
+  );
+
+  if (detailLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        Завантажую претензію…
+      </div>
+    );
+  }
+
+  if (detailError) {
+    return (
+      <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-700">
+        <div className="font-semibold mb-1">Не вдалось завантажити</div>
+        <div className="text-[12px]">{(detailError as Error).message}</div>
+        <Link href="/claims" className="text-[12px] underline mt-2 inline-block">
+          ← До списку
+        </Link>
+      </div>
+    );
+  }
+
+  const claim = detailData?.claim;
+  if (!claim) {
+    return (
+      <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-700">
+        Претензію не знайдено
+      </div>
+    );
+  }
+
+  const comments = commentsData?.comments ?? [];
+
+  return (
+    <div className="space-y-4">
+      {/* Breadcrumb */}
+      <Link
+        href="/claims"
+        className="inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-emet-blue transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        До списку
+      </Link>
+
+      {/* Title */}
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+          <AlertCircle className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="text-[12px] font-mono font-bold text-muted-foreground">
+              #{claim.id}
+            </span>
+            <span
+              className={`text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full border ${STATUS_COLORS[claim.status]}`}
+            >
+              {STATUS_LABELS[claim.status]}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{claim.date}</span>
+          </div>
+          <h1 className="text-[18px] md:text-[20px] font-bold text-emet-ink leading-tight">
+            {claim.client}
+          </h1>
+        </div>
+      </div>
+
+      {/* Info card */}
+      <div className="bg-white border border-[#e2e7ef] rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-3 shadow-sm">
+        <InfoCell label="Препарат" value={claim.product ? (PRODUCTS as Record<string, string>)[claim.product] ?? claim.product : '—'} />
+        <InfoCell label="LOT" value={claim.lot ?? '—'} />
+        <InfoCell label="Тип скарги" value={claim.claimType ?? '—'} />
+        <InfoCell label="№ реалізації" value={claim.invoice && claim.invoice !== '-' ? claim.invoice : '—'} />
+      </div>
+
+      {/* Details text */}
+      {claim.details && (
+        <div className="bg-white border border-[#e2e7ef] rounded-xl p-4 shadow-sm">
+          <h3 className="text-[12px] font-bold uppercase tracking-[0.7px] text-slate-600 mb-2">
+            Деталі
+          </h3>
+          <div className="text-[13px] text-emet-ink whitespace-pre-wrap leading-relaxed">
+            {claim.details}
+          </div>
+        </div>
+      )}
+
+      {/* Chat */}
+      <ClaimChat
+        claimId={claimId}
+        comments={comments}
+        onSent={() => mutateComments()}
+      />
+    </div>
+  );
+}
+
+function InfoCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-bold uppercase tracking-[0.6px] text-slate-500 mb-0.5">
+        {label}
+      </div>
+      <div className="text-[13px] font-semibold text-emet-ink truncate" title={value}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+interface ChatProps {
+  claimId: number;
+  comments: ClaimComment[];
+  onSent: () => void;
+}
+
+function ClaimChat({ claimId, comments, onSent }: ChatProps) {
+  const user = useAppStore(s => s.user);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll до низу при появі нових коментарів.
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+  }, [comments.length]);
+
+  const handleSend = async () => {
+    const trimmed = text.trim();
+    if (!trimmed || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/claims/${claimId}/comments`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: HEADERS_JSON,
+        body: JSON.stringify({ text: trimmed }),
+      });
+      const body = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok || body.error) {
+        setError(body.error ?? `HTTP ${r.status}`);
+        return;
+      }
+      setText('');
+      onSent();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter надсилає, Shift+Enter — newline. Як у месенджерах.
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  return (
+    <div className="bg-white border border-[#e2e7ef] rounded-xl shadow-sm flex flex-col overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-slate-100">
+        <h3 className="text-[13px] font-bold text-emet-ink">
+          Чат з мед-відділом
+          {comments.length > 0 && (
+            <span className="ml-2 text-[11px] text-muted-foreground font-normal">
+              · {comments.length} {comments.length === 1 ? 'повідомлення' : 'повідомлень'}
+            </span>
+          )}
+        </h3>
+      </div>
+
+      <div
+        ref={listRef}
+        className="flex-1 min-h-[200px] max-h-[480px] overflow-y-auto px-4 py-4 space-y-3 bg-slate-50/50"
+      >
+        {comments.length === 0 ? (
+          <div className="text-center py-8 text-[13px] text-muted-foreground">
+            Поки що немає повідомлень. Напишіть першим — мед-відділ отримає сповіщення.
+          </div>
+        ) : (
+          comments.map(c => {
+            const isMine =
+              c.authorType === 'manager' && c.author === (user?.fullName ?? '');
+            const isMedDept = c.authorType === 'bitrix';
+            return (
+              <div
+                key={c.id}
+                className={`flex gap-2 ${isMine ? 'flex-row-reverse' : ''}`}
+              >
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                    isMedDept
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : isMine
+                        ? 'bg-emet-blue text-white'
+                        : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {isMedDept ? (
+                    <Stethoscope className="w-3.5 h-3.5" />
+                  ) : (
+                    <User className="w-3.5 h-3.5" />
+                  )}
+                </div>
+                <div className={`flex-1 max-w-[80%] ${isMine ? 'text-right' : ''}`}>
+                  <div className="text-[11px] text-muted-foreground mb-0.5 flex items-center gap-2 px-1">
+                    <span className={`font-semibold ${isMedDept ? 'text-emerald-700' : ''}`}>
+                      {c.author}
+                    </span>
+                    <span className="text-muted-foreground/70">
+                      {formatChatTime(c.createdAt)}
+                    </span>
+                  </div>
+                  <div
+                    className={`inline-block text-left px-3.5 py-2 rounded-2xl text-[13px] leading-relaxed ${
+                      isMine
+                        ? 'bg-emet-blue text-white rounded-tr-sm'
+                        : isMedDept
+                          ? 'bg-emerald-50 border border-emerald-100 text-emerald-900 rounded-tl-sm'
+                          : 'bg-white border border-slate-200 rounded-tl-sm'
+                    }`}
+                    dangerouslySetInnerHTML={{ __html: sanitizeCommentHtml(c.text, isMine) }}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-slate-100 px-3 py-2.5 bg-white">
+        {error && (
+          <div className="text-[12px] text-rose-700 mb-2 px-1">{error}</div>
+        )}
+        <div className="flex gap-2 items-end">
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Напишіть повідомлення… (Enter — надіслати, Shift+Enter — новий рядок)"
+            rows={2}
+            disabled={sending}
+            className="flex-1 px-3 py-2 rounded-[10px] border border-slate-200 bg-white/85 text-[13px] outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all resize-none min-h-[44px] max-h-[140px] disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!text.trim() || sending}
+            className="h-11 w-11 rounded-[10px] bg-emet-blue text-white flex items-center justify-center hover:bg-emet-blue-light active:translate-y-px transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            aria-label="Надіслати"
+          >
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Очищаємо коментар від HTML і дублювання імені.
+ *
+ * Bitrix зберігає коментарі менеджера у форматі: «<b>Name</b> (Менеджер):<br>text».
+ * Імʼя автора ми вже показуємо у header повідомлення — прибираємо звідти.
+ *
+ * Не дозволяємо script / iframe / on* — захист від XSS у Bitrix-content.
+ */
+function sanitizeCommentHtml(html: string, isMine: boolean): string {
+  if (!html) return '';
+  let clean = html;
+  if (isMine) {
+    // Прибираємо префікс автора "<b>...</b> (Менеджер):<br>"
+    clean = clean.replace(/^<b>.*?<\/b>\s*\(Менеджер\):\s*<br\s*\/?>/i, '');
+  }
+  // Strip небезпечні теги
+  clean = clean.replace(/<script[\s\S]*?<\/script>/gi, '');
+  clean = clean.replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
+  clean = clean.replace(/\son\w+\s*=\s*"[^"]*"/gi, '');
+  clean = clean.replace(/\son\w+\s*=\s*'[^']*'/gi, '');
+  return clean;
+}
+
+function formatChatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+    if (sameDay) {
+      return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleString('uk-UA', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}

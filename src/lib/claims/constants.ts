@@ -61,3 +61,36 @@ export const PRODUCTS = {
 } as const;
 
 export type ProductCode = keyof typeof PRODUCTS;
+
+/**
+ * Маппінг Bitrix stage_id → людиночитабельний статус.
+ *
+ * Перенесено 1-в-1 з reclamation-app/api/index.py:24-41 (STATUS_GROUPS +
+ * get_status_text). 1С маркує stage_id довільно (NEW, BEGIN, FAIL, REJECT,
+ * SUCCESS, DONE тощо) — це normalization layer.
+ */
+export const STATUS_GROUPS = {
+  SUCCESS: ['WON', 'SUCCESS', 'ВИКОНАНО', 'УСПІХ', 'DONE', 'FINAL', 'CLIENT', 'ВЫПОЛНЕНО', 'ГОТОВО'],
+  FAIL: ['FAIL', 'LOSE', 'ВІДМОВА', 'ОТКАЗ', 'REJECT'],
+  NEW: ['NEW', 'НОВА', 'BEGIN'],
+} as const;
+
+export type ClaimStatus = 'new' | 'in_progress' | 'resolved' | 'rejected';
+
+/** Маппінг ClaimStatus → display label для UI. */
+export const STATUS_LABELS: Record<ClaimStatus, string> = {
+  new: 'Нова',
+  in_progress: 'В обробці',
+  resolved: 'Вирішено',
+  rejected: 'Відмовлено',
+};
+
+/** Normalize Bitrix stage_id → ClaimStatus enum. */
+export function normalizeBitrixStage(stageId: string | null | undefined): ClaimStatus {
+  if (!stageId) return 'in_progress';
+  const up = stageId.toUpperCase();
+  if (STATUS_GROUPS.SUCCESS.some(c => up.includes(c))) return 'resolved';
+  if (STATUS_GROUPS.FAIL.some(c => up.includes(c))) return 'rejected';
+  if (STATUS_GROUPS.NEW.some(c => up.includes(c))) return 'new';
+  return 'in_progress';
+}

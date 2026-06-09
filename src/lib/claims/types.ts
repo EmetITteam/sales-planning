@@ -1,0 +1,51 @@
+/**
+ * Доменні типи модуля Рекламацій (Sprint B).
+ *
+ * Bitrix24 повертає поля з префіксами ufCrm4_* — адаптуємо їх у camelCase
+ * через `adaptClaim`/`adaptComment` у bitrix-client.ts.
+ */
+
+import type { ClaimStatus, ClaimType, ProductCode } from './constants';
+
+/** Коротка картка для списку `/claims`. */
+export interface ClaimSummary {
+  id: number;
+  title: string;
+  /** Витягуємо з `title` («Рекламація: X» → «X») для display. */
+  client: string;
+  /** ISO date YYYY-MM-DD з Bitrix `createdTime` (тільки дата, без часу). */
+  date: string;
+  status: ClaimStatus;
+}
+
+/** Повна деталь для `/claims/[id]`. */
+export interface ClaimDetail {
+  id: number;
+  title: string;
+  client: string;
+  date: string;
+  status: ClaimStatus;
+  /** Може бути null для legacy claims без поля. */
+  product: ProductCode | string | null;
+  lot: string | null;
+  invoice: string | null;
+  claimType: ClaimType | string | null;
+  /** Серіалізовано як «label: value\n...» через `serializeClaimDetails`. */
+  details: string | null;
+  managerName: string | null;
+  managerEmail: string | null;
+}
+
+/** Один коментар у timeline (чат менеджер ↔ мед-відділ). */
+export interface ClaimComment {
+  id: string;
+  /** HTML-text як Bitrix віддає. UI рендерить через dangerouslySetInnerHTML. */
+  text: string;
+  /** Display name автора. */
+  author: string;
+  /** 'manager' (з нашого додатку) або 'bitrix' (мед-відділ). Для розпізнавання
+   *  у чат-UI: свої повідомлення зправа, чужі зліва. */
+  authorType: 'manager' | 'bitrix';
+  /** ISO timestamp з Bitrix. */
+  createdAt: string;
+}

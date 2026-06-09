@@ -1,7 +1,8 @@
 /**
  * POST /api/claims — створити нову претензію у Bitrix24 SPA 1038.
+ * GET  /api/claims — список претензій менеджера (з Bitrix фільтр по managerEmail).
  *
- * Приймає multipart/form-data (бо файли):
+ * POST (multipart/form-data):
  *   - client, clientId1c, meetingId
  *   - claimType, product, lot, invoice
  *   - otherProductName (якщо product='OTHER')
@@ -9,12 +10,7 @@
  *   - anketa (JSON-string з полями для медичних типів)
  *   - files: File[] (фото/відео, до ~4MB сумарно)
  *
- * Flow:
- *  1. Валідуємо JWT-сесію менеджера.
- *  2. Серіалізуємо deтails через `serializeClaimDetails`.
- *  3. Файли → base64 → масив [filename, content] для Bitrix `disk`-поля.
- *  4. Викликаємо `bitrixCreateClaim` → отримуємо новий ID.
- *  5. `im.notify` мед-відділу (non-blocking).
+ * GET — pull з Bitrix `crm.item.list`, нормалізуємо в ClaimSummary[].
  */
 
 import { NextRequest } from 'next/server';
@@ -24,13 +20,59 @@ import {
   CLAIMS_SPA_ID,
   CLAIM_FIELDS,
   CLAIM_TYPES,
+  FIELD_MANAGER_EMAIL_IN_CLAIM,
   MED_DEPT_USER_IDS,
   PRODUCTS,
+  normalizeBitrixStage,
   type ClaimType,
   type ProductCode,
 } from '@/lib/claims/constants';
 import { serializeClaimDetails, MEDICAL_CLAIM_TYPES } from '@/lib/claims/anketa-schema';
-import { bitrixCreateClaim, bitrixNotifyUser, BitrixError_ } from '@/lib/claims/bitrix-client';
+import {
+  bitrixCreateClaim,
+  bitrixListClaims,
+  bitrixNotifyUser,
+  BitrixError_,
+} from '@/lib/claims/bitrix-client';
+import type { ClaimSummary } from '@/lib/claims/types';
+
+interface BitrixListItem {
+  id: number | string;
+  title: string;
+  stageId?: string;
+  createdTime?: string;
+}
+
+export async function GET(request: NextRequest) {
+  const auth = validateApiRequest(request);
+  if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
+  const session = await getSession();
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Фільтр по managerEmail. Admin/Director можуть бачити чужі claims через
+  // ?managerEmail=... — поки що ні (Sprint B+), завжди тільки свої.
+  const filter = { [FIELD_MANAGER_EMAIL_IN_CLAIM]: session.login };
+
+  let items: BitrixListItem[];
+  try {
+    items = await bitrixListClaims<BitrixListItem>(CLAIMS_SPA_ID, filter);
+  } catch (e) {
+    if (e instanceof BitrixError_) {
+      return Response.json({ error: `Bitrix: ${e.description}` }, { status: 502 });
+    }
+    throw e;
+  }
+
+  const claims: ClaimSummary[] = items.map(item => ({
+    id: Number(item.id),
+    title: item.title ?? '',
+    client: (item.title ?? '').replace(/^Рекламація:\s*/, '').trim() || '—',
+    date: (item.createdTime ?? '').slice(0, 10),
+    status: normalizeBitrixStage(item.stageId),
+  }));
+
+  return Response.json({ claims });
+}
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);

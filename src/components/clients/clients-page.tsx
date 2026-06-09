@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
@@ -822,6 +823,18 @@ function PageTitle({
         <h1 className="text-[18px] font-bold tracking-tight">Клієнти</h1>
         <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">{subtitle}</div>
       </div>
+      {/* Рекламації — посилання на /claims (модуль Sprint 2B). Тут на сторінці
+          «Мої клієнти» бо за рішенням 2026-06-10 у глобальному AppHeader
+          залишаються тільки основні розділи (Планування / Клієнти / Зустрічі
+          + Замовлення коли буде). Рекламації — secondary action на цій вкладці. */}
+      <Link
+        href="/claims"
+        className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[13px] font-bold hover:bg-rose-100 active:translate-y-px transition-all shrink-0"
+        aria-label="Рекламації"
+      >
+        <AlertCircle className="w-4 h-4" />
+        <span className="max-sm:hidden">Рекламації</span>
+      </Link>
       {onGlobalSearch && (
         <button
           type="button"

@@ -126,17 +126,112 @@ export async function bitrixNotifyUser(
 /**
  * Додати коментар у timeline претензії.
  * `entityTypeId` — обов'язково префікс `dynamic_` для SPA.
+ * Повертає id створеного коментаря.
  */
 export async function bitrixAddComment(
   entityId: number,
   entityTypeId: number,
   commentHTML: string,
-): Promise<void> {
-  await bitrixCall<unknown>('crm.timeline.comment.add', {
+): Promise<number> {
+  const id = await bitrixCall<number>('crm.timeline.comment.add', {
     fields: {
       ENTITY_ID: entityId,
       ENTITY_TYPE: `dynamic_${entityTypeId}`,
       COMMENT: commentHTML,
     },
   });
+  return id;
+}
+
+/**
+ * Список претензій з SPA по фільтру. Використовується для `/claims` сторінки —
+ * filter `{managerEmail}` повертає тільки claims цього менеджера.
+ *
+ * Bitrix віддає масив items з повним набором полів — ми selectом обмежуємось
+ * до необхідних для list-card.
+ */
+export async function bitrixListClaims<T = Record<string, unknown>>(
+  entityTypeId: number,
+  filter: Record<string, string | number>,
+  select: string[] = ['id', 'title', 'stageId', 'createdTime'],
+): Promise<T[]> {
+  type ListResult = { items?: T[] };
+  const result = await bitrixCall<ListResult>('crm.item.list', {
+    entityTypeId,
+    filter,
+    select,
+    order: { id: 'DESC' },
+  });
+  return result.items ?? [];
+}
+
+/**
+ * Деталь одного claim (всі поля). Викликається на `/claims/[id]`.
+ * Доступ-контроль (тільки свій claim) caller робить через перевірку
+ * managerEmail у поверненому об'єкті.
+ */
+export async function bitrixGetClaim<T = Record<string, unknown>>(
+  entityTypeId: number,
+  id: number,
+): Promise<T | null> {
+  type GetResult = { item?: T };
+  const result = await bitrixCall<GetResult>('crm.item.get', { entityTypeId, id });
+  return result.item ?? null;
+}
+
+/**
+ * Коментарі (timeline) для claim. Для нашого SPA entityType будується як
+ * `dynamic_<id>` — це Bitrix-конвенція для custom-entities.
+ *
+ * Order DESC — новіші зверху (хоча у чат-UI ми їх перевертаємо).
+ */
+export interface BitrixComment {
+  ID: string;
+  COMMENT: string;
+  AUTHOR_ID: string | number | null;
+  CREATED: string;
+}
+
+export async function bitrixListComments(
+  entityId: number,
+  entityTypeId: number,
+): Promise<BitrixComment[]> {
+  const result = await bitrixCall<BitrixComment[]>('crm.timeline.comment.list', {
+    filter: {
+      ENTITY_ID: entityId,
+      ENTITY_TYPE: `dynamic_${entityTypeId}`,
+      TYPE_ID: 'COMMENT',
+    },
+    order: { ID: 'DESC' },
+  });
+  return Array.isArray(result) ? result : [];
+}
+
+/**
+ * Отримати display name Bitrix-користувача (для відображення автора коментаря
+ * у чаті). Кешуємо у пам'яті процесу (на serverless invocations не зберігається,
+ * але у межах одного render-у економить запити).
+ */
+const USER_NAME_CACHE = new Map<string, string>();
+
+export async function bitrixGetUserName(userId: string | number): Promise<string> {
+  const key = String(userId);
+  const cached = USER_NAME_CACHE.get(key);
+  if (cached) return cached;
+
+  try {
+    type UserGetResult = Array<{ NAME?: string; LAST_NAME?: string }>;
+    const result = await bitrixCall<UserGetResult>('user.get', { ID: key });
+    if (Array.isArray(result) && result.length > 0) {
+      const u = result[0];
+      const name = `${u.NAME ?? ''} ${u.LAST_NAME ?? ''}`.trim();
+      if (name) {
+        USER_NAME_CACHE.set(key, name);
+        return name;
+      }
+    }
+  } catch {
+    // Тихо ігноруємо — fallback нижче.
+  }
+  return `Користувач ${key}`;
 }

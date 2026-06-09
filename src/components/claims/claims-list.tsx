@@ -1,0 +1,263 @@
+'use client';
+
+/**
+ * ClaimsList — головний компонент сторінки `/claims`.
+ *
+ * Pull з Bitrix через SWR (revalidate-on-focus + dedupe). Filter по статусу +
+ * пошук по client/title. Кнопка «Нова рекламація» відкриває ClaimFormDialog.
+ *
+ * Карточки клікабельні → /claims/[id] (Sprint B.5).
+ */
+
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import useSWR from 'swr';
+import {
+  AlertCircle,
+  Plus,
+  Search,
+  Loader2,
+  Inbox,
+} from 'lucide-react';
+import { ClaimFormDialog } from './claim-form-dialog';
+import { STATUS_LABELS, type ClaimStatus } from '@/lib/claims/constants';
+import type { ClaimSummary } from '@/lib/claims/types';
+
+const HEADERS_JSON = { 'Content-Type': 'application/json' };
+
+/** Кольорова палітра статусів для бейджів. */
+const STATUS_COLORS: Record<ClaimStatus, string> = {
+  new: 'bg-blue-50 text-blue-700 border-blue-200',
+  in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
+  resolved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+};
+
+const STATUS_DOTS: Record<ClaimStatus, string> = {
+  new: 'bg-blue-500',
+  in_progress: 'bg-amber-500',
+  resolved: 'bg-emerald-500',
+  rejected: 'bg-rose-500',
+};
+
+type StatusFilter = 'all' | ClaimStatus;
+
+export function ClaimsList() {
+  const { data, error, isLoading, mutate } = useSWR<{ claims: ClaimSummary[] }>(
+    'claims-list',
+    async () => {
+      const r = await fetch('/api/claims', {
+        credentials: 'same-origin',
+        headers: HEADERS_JSON,
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${r.status}`);
+      }
+      return r.json();
+    },
+    { revalidateOnFocus: true, dedupingInterval: 15_000 },
+  );
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [search, setSearch] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+
+  const claims = data?.claims ?? [];
+  const counts = useMemo(() => {
+    const c = { all: claims.length, new: 0, in_progress: 0, resolved: 0, rejected: 0 };
+    for (const cl of claims) c[cl.status]++;
+    return c;
+  }, [claims]);
+
+  const filtered = useMemo(() => {
+    let list = claims;
+    if (statusFilter !== 'all') list = list.filter(c => c.status === statusFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        c => c.client.toLowerCase().includes(q) || String(c.id).includes(q),
+      );
+    }
+    return list;
+  }, [claims, statusFilter, search]);
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-sm">
+          <AlertCircle className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-[20px] font-bold tracking-tight text-emet-ink">Рекламації</h1>
+          <p className="text-[12px] text-muted-foreground">
+            {counts.all === 0
+              ? 'У вас ще немає створених претензій'
+              : `${counts.all} ${pluralUA(counts.all, 'претензія', 'претензії', 'претензій')}`}
+            {counts.new > 0 && (
+              <>
+                {' · '}
+                <span className="font-semibold text-blue-700">{counts.new} нових</span>
+              </>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="inline-flex items-center gap-1.5 h-10 px-3 md:px-4 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] md:text-[14px] font-bold shadow-md hover:shadow-lg transition-shadow"
+        >
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">Нова рекламація</span>
+          <span className="sm:hidden">Нова</span>
+        </button>
+      </div>
+
+      {/* Filters + search */}
+      <div className="bg-white border border-[#e2e7ef] rounded-xl p-3 md:p-4 space-y-3 shadow-sm">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Пошук за клієнтом або #номером…"
+            className="w-full h-10 pl-9 pr-3 rounded-[10px] border border-slate-200 bg-white/85 text-[13px] outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          <FilterPill
+            active={statusFilter === 'all'}
+            onClick={() => setStatusFilter('all')}
+            count={counts.all}
+          >
+            Усі
+          </FilterPill>
+          {(['new', 'in_progress', 'resolved', 'rejected'] as ClaimStatus[]).map(s =>
+            counts[s] > 0 ? (
+              <FilterPill
+                key={s}
+                active={statusFilter === s}
+                onClick={() => setStatusFilter(s)}
+                count={counts[s]}
+              >
+                {STATUS_LABELS[s]}
+              </FilterPill>
+            ) : null,
+          )}
+        </div>
+      </div>
+
+      {/* List */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12 text-muted-foreground">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+          Завантажую…
+        </div>
+      ) : error ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-[13px] text-rose-700">
+          <div className="font-semibold mb-1">Не вдалось завантажити рекламації</div>
+          <div className="text-[12px]">{(error as Error).message}</div>
+          <button
+            onClick={() => mutate()}
+            className="mt-2 text-[12px] underline text-rose-700"
+          >
+            Спробувати знову
+          </button>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-[#e2e7ef] rounded-xl p-8 text-center space-y-2">
+          <Inbox className="w-10 h-10 mx-auto text-muted-foreground/40" />
+          <p className="text-[13px] text-muted-foreground">
+            {claims.length === 0
+              ? 'Поки що немає створених претензій. Натисніть «Нова рекламація» щоб подати першу.'
+              : 'Нічого не знайдено за обраним фільтром'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(claim => (
+            <Link
+              key={claim.id}
+              href={`/claims/${claim.id}`}
+              className="block bg-white border border-[#e2e7ef] rounded-xl p-3.5 md:p-4 hover:border-emet-blue hover:shadow-md transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${STATUS_DOTS[claim.status]}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[11px] font-mono font-bold text-muted-foreground">
+                      #{claim.id}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full border ${STATUS_COLORS[claim.status]}`}
+                    >
+                      {STATUS_LABELS[claim.status]}
+                    </span>
+                  </div>
+                  <div className="text-[14px] font-semibold text-emet-ink truncate">
+                    {claim.client}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">{claim.date}</div>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <ClaimFormDialog
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onCreated={() => {
+          // Через 2.5с модалка сама закриється — тоді оновлюємо список.
+          setTimeout(() => mutate(), 2600);
+        }}
+      />
+    </div>
+  );
+}
+
+function FilterPill({
+  active,
+  onClick,
+  count,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  count: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-semibold transition-all border ${
+        active
+          ? 'bg-emet-blue text-white border-emet-blue shadow-sm'
+          : 'bg-white text-slate-700 border-slate-200 hover:border-emet-blue hover:text-emet-blue'
+      }`}
+    >
+      <span>{children}</span>
+      <span
+        className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full tabular-nums ${
+          active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
+        }`}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
+/** Українські plural-форми (n форм 1/2-4/5+) */
+function pluralUA(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
