@@ -165,12 +165,11 @@ export function ClaimFormDialog({
         },
       });
       if (body.id && body.link) onCreated?.(body.id, body.link);
-      // Auto-close через 1.5с — юзер встигає прочитати «Рекламацію №X створено».
-      // Без цього (а) форма залишається відкрита, (б) кнопка «Готово» дзвонить
-      // handleSubmit вдруге → дубль у Bitrix. Користувач словив це 2026-06-10.
+      // Auto-close через 2.5с — юзер встигає прочитати success-banner у top
+      // модалки. Раніше було 1.5с і banner у body, юзер не помічав. 2026-06-10.
       setTimeout(() => {
         onClose();
-      }, 1500);
+      }, 2500);
     } catch (e) {
       setSubmit({
         loading: false,
@@ -222,6 +221,19 @@ export function ClaimFormDialog({
                 <XIcon className="w-[18px] h-[18px]" />
               </DialogPrimitive.Close>
             </div>
+
+            {/* Success banner — НАГОРІ модалки. Раніше був у body внизу разом
+                з кнопкою «Готово» — юзер не бачив повідомлення, форма просто
+                «зникала». Тепер видно одразу при success. */}
+            {submit.result?.ok && (
+              <div
+                className="px-5 md:px-6 py-3 bg-emerald-50 border-b border-emerald-200 text-emerald-800 text-[14px] font-semibold flex items-center gap-2 shrink-0"
+                role="status"
+              >
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <span>{submit.result.message}</span>
+              </div>
+            )}
 
             {/* Body — scrollable. ⚠️ min-h-0 ОБОВ'ЯЗКОВО на flex-1 child
                 всередині flex-col, інакше overflow-y-auto не працює і весь
@@ -495,21 +507,13 @@ export function ClaimFormDialog({
                 )}
               </div>
 
-              {/* Result banner */}
-              {submit.result && (
+              {/* Error banner (success — у sticky top, бачимо вище) */}
+              {submit.result && !submit.result.ok && (
                 <div
-                  className={`px-4 py-3 rounded-xl text-[13px] flex items-start gap-2 ${
-                    submit.result.ok
-                      ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                      : 'bg-rose-50 border border-rose-200 text-rose-700'
-                  }`}
+                  className="px-4 py-3 rounded-xl text-[13px] flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-700"
                   role="status"
                 >
-                  {submit.result.ok ? (
-                    <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  )}
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <div className="font-semibold">{submit.result.message}</div>
                   </div>
