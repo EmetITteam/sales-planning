@@ -244,50 +244,95 @@ export function bitrixHost(): string {
   return new URL(baseUrl).host;
 }
 
-interface DiskFileGetResult {
+interface DiskMetaResult {
   DOWNLOAD_URL?: string;
   NAME?: string;
+  OBJECT_ID?: string | number;
+  ID?: string | number;
   SIZE?: number | string;
-  CODE?: string;
-  /** MIME type (FILE/SIZE/тощо різні Bitrix-версії). */
-  TYPE?: string;
+}
+
+function inferContentType(name: string): string {
+  const lower = name.toLowerCase();
+  return /\.(jpg|jpeg)$/i.test(lower) ? 'image/jpeg'
+    : /\.png$/i.test(lower) ? 'image/png'
+    : /\.gif$/i.test(lower) ? 'image/gif'
+    : /\.webp$/i.test(lower) ? 'image/webp'
+    : /\.heic$/i.test(lower) ? 'image/heic'
+    : /\.mp4$/i.test(lower) ? 'video/mp4'
+    : /\.mov$/i.test(lower) ? 'video/quicktime'
+    : /\.webm$/i.test(lower) ? 'video/webm'
+    : /\.pdf$/i.test(lower) ? 'application/pdf'
+    : 'application/octet-stream';
 }
 
 /**
  * Отримати tokenized download URL диск-файла з Bitrix.
  *
  * Bitrix Disk файли не публічні: пряме відкриття URL з браузера без сесії
- * дає 401/403 (`allowed_only_intranet_user`). Через `disk.file.get` ми
- * отримуємо `DOWNLOAD_URL` з тимчасовим токеном — цей URL валідний для
- * прямого fetch і не вимагає cookie/sessions.
+ * дає 401/403 (`allowed_only_intranet_user`).
+ *
+ * ID у Bitrix FILES може бути двох типів:
+ *  - **AttachedObject ID** — для timeline-коментарів (Bitrix обертає файли
+ *    у AttachedObject коли вони прикріплюються до сутностей). Використовуємо
+ *    `disk.attachedObject.get` → отримуємо DOWNLOAD_URL.
+ *  - **Disk File ID** — для disk-fields (наприклад `ufCrm4_FILES`).
+ *    Використовуємо `disk.file.get` напряму.
+ *
+ * Стратегія: спочатку attachedObject (timeline use-case частіше), якщо fail
+ * — fallback на disk.file.get. У обох випадках повертаємо повний https URL
+ * з токеном для прямого fetch.
  */
 export async function bitrixGetDiskDownloadUrl(
   fileId: string | number,
 ): Promise<{ url: string; name: string; contentType: string } | null> {
-  try {
-    const result = await bitrixCall<DiskFileGetResult>('disk.file.get', { id: fileId });
-    if (!result) return null;
-    let url = result.DOWNLOAD_URL ?? '';
+  const host = bitrixHost();
+  const buildResult = (raw: DiskMetaResult): { url: string; name: string; contentType: string } | null => {
+    let url = raw.DOWNLOAD_URL ?? '';
     if (!url) return null;
-    if (url.startsWith('/')) {
-      url = `https://${bitrixHost()}${url}`;
+    if (url.startsWith('/')) url = `https://${host}${url}`;
+    const name = String(raw.NAME ?? `file-${fileId}`);
+    return { url, name, contentType: inferContentType(name) };
+  };
+
+  // 1) Attached Object (typical для timeline FILES + disk-field у SPA)
+  try {
+    const result = await bitrixCall<DiskMetaResult>('disk.attachedObject.get', { id: fileId });
+    if (result) {
+      const out = buildResult(result);
+      if (out) return out;
+      // Якщо у attachedObject нема DOWNLOAD_URL, але є OBJECT_ID → fetch file by OBJECT_ID
+      const objectId = result.OBJECT_ID;
+      if (objectId) {
+        try {
+          const fileResult = await bitrixCall<DiskMetaResult>('disk.file.get', { id: objectId });
+          if (fileResult) {
+            const out2 = buildResult(fileResult);
+            if (out2) return out2;
+          }
+        } catch (e) {
+          console.warn(`[bitrixGetDiskDownloadUrl] disk.file.get(${objectId}) failed:`, e);
+        }
+      }
     }
-    const name = result.NAME ?? `file-${fileId}`;
-    const lower = name.toLowerCase();
-    const contentType =
-      /\.(jpg|jpeg)$/i.test(lower) ? 'image/jpeg'
-      : /\.png$/i.test(lower) ? 'image/png'
-      : /\.gif$/i.test(lower) ? 'image/gif'
-      : /\.webp$/i.test(lower) ? 'image/webp'
-      : /\.heic$/i.test(lower) ? 'image/heic'
-      : /\.mp4$/i.test(lower) ? 'video/mp4'
-      : /\.mov$/i.test(lower) ? 'video/quicktime'
-      : /\.webm$/i.test(lower) ? 'video/webm'
-      : 'application/octet-stream';
-    return { url, name, contentType };
-  } catch {
-    return null;
+  } catch (e) {
+    // attachedObject не знайдено — пробуємо як disk.file нижче
+    if (!(e instanceof BitrixError_)) {
+      console.warn(`[bitrixGetDiskDownloadUrl] disk.attachedObject.get(${fileId}) failed:`, e);
+    }
   }
+
+  // 2) Fallback: пряме звернення як до Disk File
+  try {
+    const result = await bitrixCall<DiskMetaResult>('disk.file.get', { id: fileId });
+    if (result) return buildResult(result);
+  } catch (e) {
+    if (!(e instanceof BitrixError_)) {
+      console.warn(`[bitrixGetDiskDownloadUrl] disk.file.get(${fileId}) failed:`, e);
+    }
+  }
+
+  return null;
 }
 
 /**

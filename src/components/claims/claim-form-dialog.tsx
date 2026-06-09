@@ -30,6 +30,8 @@ import {
   type ProductCode,
 } from '@/lib/claims/constants';
 import { getAnketaForProduct, MEDICAL_CLAIM_TYPES } from '@/lib/claims/anketa-schema';
+import { AttachmentLightbox } from './attachment-lightbox';
+import type { ClaimAttachment } from '@/lib/claims/types';
 
 interface Props {
   open: boolean;
@@ -71,6 +73,24 @@ export function ClaimFormDialog({
   const [files, setFiles] = useState<File[]>([]);
   const [submit, setSubmit] = useState<SubmitState>({ loading: false, result: null });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox для прев'ю локальних файлів (до відправки). ObjectURL revoke
+  // при закритті щоб не текли memory.
+  const [openedPreview, setOpenedPreview] = useState<ClaimAttachment | null>(null);
+  const closePreview = () => {
+    if (openedPreview?.url.startsWith('blob:')) {
+      URL.revokeObjectURL(openedPreview.url);
+    }
+    setOpenedPreview(null);
+  };
+  const previewFile = (f: File) => {
+    const kind: ClaimAttachment['kind'] = f.type.startsWith('image/')
+      ? 'image'
+      : f.type.startsWith('video/')
+        ? 'video'
+        : 'other';
+    setOpenedPreview({ url: URL.createObjectURL(f), name: f.name, kind });
+  };
 
   // Reset на відкриття.
   useEffect(() => {
@@ -468,7 +488,12 @@ export function ClaimFormDialog({
                         key={idx}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200"
                       >
-                        <div className="w-8 h-8 rounded bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => previewFile(f)}
+                          title="Подивитись прев'ю"
+                          className="w-8 h-8 rounded bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden hover:border-emet-blue transition-colors"
+                        >
                           {f.type.startsWith('image/') ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -479,13 +504,17 @@ export function ClaimFormDialog({
                           ) : (
                             <span className="text-[10px] font-bold text-slate-500">VID</span>
                           )}
-                        </div>
-                        <div className="flex-1 min-w-0">
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => previewFile(f)}
+                          className="flex-1 min-w-0 text-left hover:text-emet-blue transition-colors"
+                        >
                           <div className="text-[12px] font-medium truncate">{f.name}</div>
                           <div className="text-[10px] text-muted-foreground">
                             {(f.size / 1024).toFixed(0)} KB
                           </div>
-                        </div>
+                        </button>
                         <button
                           type="button"
                           onClick={() => removeFile(idx)}
@@ -560,6 +589,9 @@ export function ClaimFormDialog({
         }}
         selectedClientId={client?.clientId1c}
       />
+
+      {/* Lightbox для прев'ю обраних, ще не відправлених файлів */}
+      <AttachmentLightbox attachment={openedPreview} onClose={closePreview} />
     </>
   );
 }

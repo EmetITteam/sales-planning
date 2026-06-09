@@ -215,8 +215,11 @@ export function ClaimsList() {
                 <div className="flex items-start gap-3">
                   <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${STATUS_DOTS[claim.status]}`} />
                   <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
-                    {/* Зліва — клієнт + meta */}
+                    {/* Зліва — eyebrow «Рекламація #N» + клієнт + meta */}
                     <div className="flex-1 min-w-0">
+                      <div className="text-[10.5px] font-bold uppercase tracking-[0.7px] text-muted-foreground mb-0.5">
+                        Рекламація <span className="font-mono tabular-nums">#{claim.id}</span>
+                      </div>
                       <div className="text-[14px] font-semibold text-emet-ink truncate">
                         {claim.client}
                       </div>
@@ -224,11 +227,8 @@ export function ClaimsList() {
                         {meta || claim.date}
                       </div>
                     </div>
-                    {/* Справа — чипи */}
+                    {/* Справа — статусні чипи */}
                     <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end max-w-[55%]">
-                      <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums">
-                        #{claim.id}
-                      </span>
                       <span
                         className={`text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full border ${STATUS_COLORS[claim.status]}`}
                       >

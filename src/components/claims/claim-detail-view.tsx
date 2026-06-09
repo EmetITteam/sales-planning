@@ -30,7 +30,8 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { STATUS_LABELS, type ClaimStatus, CLAIM_TYPES, PRODUCTS } from '@/lib/claims/constants';
-import type { ClaimDetail, ClaimComment } from '@/lib/claims/types';
+import type { ClaimDetail, ClaimComment, ClaimAttachment } from '@/lib/claims/types';
+import { AttachmentLightbox } from './attachment-lightbox';
 
 const MAX_TOTAL_SIZE_MB = 4; // Vercel body-limit safe
 const MAX_FILES = 5;
@@ -49,6 +50,10 @@ interface Props {
 }
 
 export function ClaimDetailView({ claimId }: Props) {
+  // Спільний state для lightbox-перегляду фото/відео — і початкові файли
+  // рекламації, і прикріплення у чаті відкриваються через цю одну модалку.
+  const [openedAttachment, setOpenedAttachment] = useState<ClaimAttachment | null>(null);
+
   // === Detail ===
   const {
     data: detailData,
@@ -188,11 +193,10 @@ export function ClaimDetailView({ claimId }: Props) {
           </h3>
           <div className="flex flex-wrap gap-2">
             {claim.attachments.map((att, i) => (
-              <a
+              <button
                 key={i}
-                href={att.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                type="button"
+                onClick={() => setOpenedAttachment(att)}
                 title={att.name}
                 className="block group"
               >
@@ -214,7 +218,7 @@ export function ClaimDetailView({ claimId }: Props) {
                     <span className="font-medium truncate max-w-[160px]">{att.name}</span>
                   </div>
                 )}
-              </a>
+              </button>
             ))}
           </div>
         </div>
@@ -225,6 +229,13 @@ export function ClaimDetailView({ claimId }: Props) {
         claimId={claimId}
         comments={comments}
         onSent={() => mutateComments()}
+        onOpenAttachment={setOpenedAttachment}
+      />
+
+      {/* Lightbox для перегляду прикріплень (image/video/file) */}
+      <AttachmentLightbox
+        attachment={openedAttachment}
+        onClose={() => setOpenedAttachment(null)}
       />
     </div>
   );
@@ -247,9 +258,10 @@ interface ChatProps {
   claimId: number;
   comments: ClaimComment[];
   onSent: () => void;
+  onOpenAttachment: (att: ClaimAttachment) => void;
 }
 
-function ClaimChat({ claimId, comments, onSent }: ChatProps) {
+function ClaimChat({ claimId, comments, onSent, onOpenAttachment }: ChatProps) {
   const user = useAppStore(s => s.user);
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -401,11 +413,10 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
                   {c.attachments && c.attachments.length > 0 && (
                     <div className={`mt-1.5 flex flex-wrap gap-1.5 ${isMine ? 'justify-end' : ''}`}>
                       {c.attachments.map((att, i) => (
-                        <a
+                        <button
                           key={i}
-                          href={att.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          type="button"
+                          onClick={() => onOpenAttachment(att)}
                           title={att.name}
                           className="block group"
                         >
@@ -417,6 +428,10 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
                               loading="lazy"
                               className="w-20 h-20 rounded-lg border border-slate-200 object-cover group-hover:opacity-80 transition-opacity"
                             />
+                          ) : att.kind === 'video' ? (
+                            <div className="w-20 h-20 rounded-lg border border-slate-200 bg-slate-900 text-white flex items-center justify-center group-hover:border-emet-blue transition-all">
+                              <span className="text-[10px] font-bold">VIDEO</span>
+                            </div>
                           ) : (
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11.5px] text-slate-700 hover:border-emet-blue hover:text-emet-blue transition-colors">
                               <Paperclip className="w-3 h-3" />
@@ -425,7 +440,7 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
                               </span>
                             </div>
                           )}
-                        </a>
+                        </button>
                       ))}
                     </div>
                   )}
