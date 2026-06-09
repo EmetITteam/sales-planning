@@ -27,8 +27,33 @@ import {
   bitrixNotifyUser,
   BitrixError_,
   type BitrixComment,
+  type BitrixCommentFile,
 } from '@/lib/claims/bitrix-client';
-import type { ClaimComment } from '@/lib/claims/types';
+import type { ClaimAttachment, ClaimComment } from '@/lib/claims/types';
+
+/** Нормалізуємо FILES з Bitrix (масив або об'єкт-мапа) у ClaimAttachment[]. */
+function normalizeAttachments(files?: BitrixCommentFile[] | Record<string, BitrixCommentFile>): ClaimAttachment[] {
+  if (!files) return [];
+  const arr = Array.isArray(files) ? files : Object.values(files);
+  return arr
+    .filter(f => f && typeof f === 'object' && (f.url || f.id))
+    .map(f => {
+      const name = String(f.name ?? 'файл');
+      const lower = name.toLowerCase();
+      const kind: ClaimAttachment['kind'] =
+        /\.(jpe?g|png|gif|webp|bmp|svg|heic)$/i.test(lower)
+          ? 'image'
+          : /\.(mp4|webm|mov|avi|mkv|3gp)$/i.test(lower)
+            ? 'video'
+            : 'other';
+      return {
+        url: String(f.url ?? ''),
+        name,
+        kind,
+      };
+    })
+    .filter(a => a.url);
+}
 
 interface OwnerClaimItem {
   [key: string]: unknown;
@@ -113,6 +138,7 @@ export async function GET(
       author,
       authorType,
       createdAt: c.CREATED,
+      attachments: normalizeAttachments(c.FILES),
     });
   }
 
@@ -120,10 +146,6 @@ export async function GET(
   comments.reverse();
 
   return Response.json({ comments });
-}
-
-interface PostBody {
-  text: string;
 }
 
 export async function POST(
@@ -141,15 +163,20 @@ export async function POST(
     return Response.json({ error: 'invalid id' }, { status: 400 });
   }
 
-  let body: PostBody;
+  // Multipart/form-data — бо у чаті можна прикріпити файли.
+  // Поля: text (string) + files (File[]).
+  let form: FormData;
   try {
-    body = (await request.json()) as PostBody;
+    form = await request.formData();
   } catch {
-    return Response.json({ error: 'invalid JSON body' }, { status: 400 });
+    return Response.json({ error: 'invalid form-data body' }, { status: 400 });
   }
-  const text = String(body.text ?? '').trim();
-  if (!text) {
-    return Response.json({ error: 'text required' }, { status: 400 });
+  const text = String(form.get('text') ?? '').trim();
+  const fileEntries = form.getAll('files').filter((v): v is File => v instanceof File);
+
+  // Дозволяємо текст-без-файлів, файли-без-тексту, обидва. НЕ пусто.
+  if (!text && fileEntries.length === 0) {
+    return Response.json({ error: 'text or files required' }, { status: 400 });
   }
   if (text.length > 5000) {
     return Response.json({ error: 'text too long (>5000 chars)' }, { status: 400 });
@@ -166,13 +193,27 @@ export async function POST(
     throw e;
   }
 
-  // Формат як у reclamation-app/api/index.py:314 — щоб get_comments міг
-  // парсити ім'я менеджера з <b>...</b>.
-  const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Файли → base64 для Bitrix `crm.timeline.comment.add` поле FILES.
+  const filesB64: Array<[string, string]> = [];
+  for (const f of fileEntries) {
+    const bytes = await f.arrayBuffer();
+    const b64 = Buffer.from(bytes).toString('base64');
+    filesB64.push([f.name, b64]);
+  }
+
+  // Формат тексту — той самий що у reclamation-app/api/index.py:314 — щоб
+  // get_comments міг парсити ім'я менеджера з <b>...</b>.
+  // Якщо менеджер тільки прикріпив файли (без тексту) — пишемо placeholder
+  // «Прикріплено файли» щоб коментар не був порожнім (Bitrix не приймає).
+  const visibleText = text || `Прикріплено ${filesB64.length} ${filesB64.length === 1 ? 'файл' : 'файлів'}`;
+  const escapedText = visibleText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
   const formatted = `<b>${session.fullName}</b> (Менеджер):<br>${escapedText.replace(/\n/g, '<br>')}`;
 
   try {
-    await bitrixAddComment(id, CLAIMS_SPA_ID, formatted);
+    await bitrixAddComment(id, CLAIMS_SPA_ID, formatted, filesB64.length > 0 ? filesB64 : undefined);
   } catch (e) {
     if (e instanceof BitrixError_) {
       return Response.json({ error: `Bitrix: ${e.description}` }, { status: 502 });

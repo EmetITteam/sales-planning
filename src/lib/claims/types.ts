@@ -36,6 +36,16 @@ export interface ClaimDetail {
   managerEmail: string | null;
 }
 
+/** Прикріплений файл до коментаря (Sprint 2B.B+). */
+export interface ClaimAttachment {
+  /** Stable URL з Bitrix (Disk). Якщо null — файл недоступний. */
+  url: string;
+  /** Original filename. */
+  name: string;
+  /** MIME префікс для рендерингу (image/video/other). */
+  kind: 'image' | 'video' | 'other';
+}
+
 /** Один коментар у timeline (чат менеджер ↔ мед-відділ). */
 export interface ClaimComment {
   id: string;
@@ -48,4 +58,6 @@ export interface ClaimComment {
   authorType: 'manager' | 'bitrix';
   /** ISO timestamp з Bitrix. */
   createdAt: string;
+  /** Прикріплені файли (фото/відео від менеджера чи мед-відділу). */
+  attachments?: ClaimAttachment[];
 }

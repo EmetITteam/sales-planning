@@ -15,20 +15,25 @@
  *  - Чат (timeline-коментарі у месенджер-стилі)
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import {
   AlertCircle,
   ChevronLeft,
   Loader2,
+  Paperclip,
   Send,
-  User,
   Stethoscope,
+  User,
+  X,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { STATUS_LABELS, type ClaimStatus, CLAIM_TYPES, PRODUCTS } from '@/lib/claims/constants';
 import type { ClaimDetail, ClaimComment } from '@/lib/claims/types';
+
+const MAX_TOTAL_SIZE_MB = 4; // Vercel body-limit safe
+const MAX_FILES = 5;
 
 const HEADERS_JSON = { 'Content-Type': 'application/json' };
 
@@ -207,9 +212,24 @@ interface ChatProps {
 function ClaimChat({ claimId, comments, onSent }: ChatProps) {
   const user = useAppStore(s => s.user);
   const [text, setText] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const totalFileSize = useMemo(() => files.reduce((s, f) => s + f.size, 0), [files]);
+  const filesOverLimit = totalFileSize > MAX_TOTAL_SIZE_MB * 1024 * 1024;
+
+  const handleFiles = (newFiles: FileList | null) => {
+    if (!newFiles) return;
+    const incoming = Array.from(newFiles);
+    setFiles(prev => [...prev, ...incoming].slice(0, MAX_FILES));
+  };
+
+  const removeFile = (idx: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
+  };
 
   // Auto-scroll до низу при появі нових коментарів.
   useEffect(() => {
@@ -220,15 +240,21 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
 
   const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
+    // Можна надсилати або з текстом, або тільки з файлами, або обидва.
+    // Заборонено лиш порожнє повідомлення без файлів.
+    if (!trimmed && files.length === 0) return;
+    if (sending || filesOverLimit) return;
     setSending(true);
     setError(null);
     try {
+      const fd = new FormData();
+      fd.append('text', trimmed);
+      for (const f of files) fd.append('files', f, f.name);
+
       const r = await fetch(`/api/claims/${claimId}/comments`, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: HEADERS_JSON,
-        body: JSON.stringify({ text: trimmed }),
+        body: fd,
       });
       const body = (await r.json().catch(() => ({}))) as { error?: string };
       if (!r.ok || body.error) {
@@ -236,6 +262,7 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
         return;
       }
       setText('');
+      setFiles([]);
       onSent();
     } catch (e) {
       setError((e as Error).message);
@@ -329,6 +356,39 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
                     }`}
                     dangerouslySetInnerHTML={{ __html: sanitizeCommentHtml(c.text, isManager) }}
                   />
+                  {/* Прикріплені файли — Sprint 2B.B+. Грід картинок + посилання
+                      на інші типи. Клік → відкриває у новій вкладці Bitrix. */}
+                  {c.attachments && c.attachments.length > 0 && (
+                    <div className={`mt-1.5 flex flex-wrap gap-1.5 ${isMine ? 'justify-end' : ''}`}>
+                      {c.attachments.map((att, i) => (
+                        <a
+                          key={i}
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={att.name}
+                          className="block group"
+                        >
+                          {att.kind === 'image' ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={att.url}
+                              alt={att.name}
+                              loading="lazy"
+                              className="w-20 h-20 rounded-lg border border-slate-200 object-cover group-hover:opacity-80 transition-opacity"
+                            />
+                          ) : (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11.5px] text-slate-700 hover:border-emet-blue hover:text-emet-blue transition-colors">
+                              <Paperclip className="w-3 h-3" />
+                              <span className="font-medium truncate max-w-[140px]">
+                                {att.name}
+                              </span>
+                            </div>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -337,24 +397,100 @@ function ClaimChat({ claimId, comments, onSent }: ChatProps) {
       </div>
 
       {/* Input */}
-      <div className="border-t border-slate-100 px-3 py-2.5 bg-white">
+      <div className="border-t border-slate-100 px-3 py-2.5 bg-white space-y-2">
         {error && (
-          <div className="text-[12px] text-rose-700 mb-2 px-1">{error}</div>
+          <div className="text-[12px] text-rose-700 px-1">{error}</div>
         )}
+
+        {/* Preview прикріплених файлів — до 5 шт, до 4MB сумарно */}
+        {files.length > 0 && (
+          <div className="space-y-1">
+            {files.map((f, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200"
+              >
+                <div className="w-7 h-7 rounded bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+                  {f.type.startsWith('image/') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={URL.createObjectURL(f)}
+                      alt={f.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[9px] font-bold text-slate-500">
+                      {f.type.startsWith('video/') ? 'VID' : 'FILE'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11.5px] font-medium truncate">{f.name}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {(f.size / 1024).toFixed(0)} KB
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(idx)}
+                  className="w-6 h-6 rounded-md hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center transition-colors shrink-0"
+                  aria-label="Видалити"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+            {filesOverLimit && (
+              <div className="text-[11px] text-rose-700 px-1">
+                Сумарно {(totalFileSize / 1024 / 1024).toFixed(1)}MB &gt; ліміт {MAX_TOTAL_SIZE_MB}MB
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-2 items-end">
+          {/* Attach button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || files.length >= MAX_FILES}
+            title="Прикріпити фото / відео"
+            aria-label="Прикріпити файл"
+            className="h-11 w-11 rounded-[10px] border border-slate-200 bg-white text-slate-600 hover:border-emet-blue hover:text-emet-blue flex items-center justify-center shrink-0 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Paperclip className="w-4 h-4" />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,video/*"
+            className="hidden"
+            onChange={e => {
+              handleFiles(e.target.files);
+              // reset так щоб повторне обрання того ж файла теж тригерило change
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            }}
+          />
+
           <textarea
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Напишіть повідомлення… (Enter — надіслати, Shift+Enter — новий рядок)"
+            placeholder={
+              files.length > 0
+                ? 'Додайте коментар або просто надішліть файли…'
+                : 'Напишіть повідомлення… (Enter — надіслати, Shift+Enter — новий рядок)'
+            }
             rows={2}
             disabled={sending}
             className="flex-1 px-3 py-2 rounded-[10px] border border-slate-200 bg-white/85 text-[13px] outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all resize-none min-h-[44px] max-h-[140px] disabled:opacity-50"
           />
+
           <button
             type="button"
             onClick={handleSend}
-            disabled={!text.trim() || sending}
+            disabled={(!text.trim() && files.length === 0) || sending || filesOverLimit}
             className="h-11 w-11 rounded-[10px] bg-emet-blue text-white flex items-center justify-center hover:bg-emet-blue-light active:translate-y-px transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             aria-label="Надіслати"
           >

@@ -127,19 +127,27 @@ export async function bitrixNotifyUser(
  * Додати коментар у timeline претензії.
  * `entityTypeId` — обов'язково префікс `dynamic_` для SPA.
  * Повертає id створеного коментаря.
+ *
+ * Опціональні файли (Sprint 2B.B+): передаються Bitrix як масив
+ * `[[filename, base64-content], ...]` у поле `FILES`. Bitrix зберігає їх
+ * як вкладення у timeline-comment — мед-відділ бачить thumbnails прямо у
+ * timeline UI.
  */
 export async function bitrixAddComment(
   entityId: number,
   entityTypeId: number,
   commentHTML: string,
+  files?: Array<[string, string]>,
 ): Promise<number> {
-  const id = await bitrixCall<number>('crm.timeline.comment.add', {
-    fields: {
-      ENTITY_ID: entityId,
-      ENTITY_TYPE: `dynamic_${entityTypeId}`,
-      COMMENT: commentHTML,
-    },
-  });
+  const fields: Record<string, unknown> = {
+    ENTITY_ID: entityId,
+    ENTITY_TYPE: `dynamic_${entityTypeId}`,
+    COMMENT: commentHTML,
+  };
+  if (files && files.length > 0) {
+    fields.FILES = files;
+  }
+  const id = await bitrixCall<number>('crm.timeline.comment.add', { fields });
   return id;
 }
 
@@ -185,11 +193,25 @@ export async function bitrixGetClaim<T = Record<string, unknown>>(
  *
  * Order DESC — новіші зверху (хоча у чат-UI ми їх перевертаємо).
  */
+export interface BitrixCommentFile {
+  /** Bitrix Disk file ID. */
+  id?: string | number;
+  /** Original filename. */
+  name?: string;
+  /** Public URL для перегляду. */
+  url?: string;
+  /** Розмір у байтах. */
+  size?: number | string;
+}
+
 export interface BitrixComment {
   ID: string;
   COMMENT: string;
   AUTHOR_ID: string | number | null;
   CREATED: string;
+  /** Прикріплені файли (Sprint 2B.B+). Bitrix повертає масив об'єктів
+   *  з id/name/url. У старих коментарях поля може не бути. */
+  FILES?: BitrixCommentFile[] | Record<string, BitrixCommentFile>;
 }
 
 export async function bitrixListComments(
