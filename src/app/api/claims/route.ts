@@ -1,17 +1,20 @@
 /**
  * POST /api/claims — створити нову претензію у Bitrix24 SPA 1038.
  *
- * Flow (Sprint A — без файлів):
- *  1. Валідовуємо JWT-сесію менеджера (його login = email).
- *  2. Серіалізуємо анкету через `serializeAnketa` → текст для поля `details`.
- *  3. Викликаємо `bitrixCreateClaim` → отримуємо новий ID.
- *  4. Шлемо `im.notify` мед-відділу (5 user-ID з constants).
- *  5. Повертаємо `{ id, link }` клієнту.
+ * Приймає multipart/form-data (бо файли):
+ *   - client, clientId1c, meetingId
+ *   - claimType, product, lot, invoice
+ *   - otherProductName (якщо product='OTHER')
+ *   - simpleDesc (якщо тип НЕ медичний)
+ *   - anketa (JSON-string з полями для медичних типів)
+ *   - files: File[] (фото/відео, до ~4MB сумарно)
  *
- * Файли (Sprint A.4): браузер шле напряму у Bitrix через `disk.folder.uploadfile`
- * (треба перевірити CORS). Тут поки що ігноруємо.
- *
- * Чат у Bitrix timeline (Sprint B) — окремий PATCH endpoint.
+ * Flow:
+ *  1. Валідуємо JWT-сесію менеджера.
+ *  2. Серіалізуємо deтails через `serializeClaimDetails`.
+ *  3. Файли → base64 → масив [filename, content] для Bitrix `disk`-поля.
+ *  4. Викликаємо `bitrixCreateClaim` → отримуємо новий ID.
+ *  5. `im.notify` мед-відділу (non-blocking).
  */
 
 import { NextRequest } from 'next/server';
@@ -26,27 +29,8 @@ import {
   type ClaimType,
   type ProductCode,
 } from '@/lib/claims/constants';
-import { serializeAnketa } from '@/lib/claims/anketa-schema';
+import { serializeClaimDetails, MEDICAL_CLAIM_TYPES } from '@/lib/claims/anketa-schema';
 import { bitrixCreateClaim, bitrixNotifyUser, BitrixError_ } from '@/lib/claims/bitrix-client';
-
-interface CreateClaimBody {
-  /** Клієнт (з ClientPicker — переважно ID + display name з 1С). */
-  client: string;
-  /** ClientID з 1С — для майбутньої прив'язки claim ↔ client (Sprint C). */
-  clientId1c?: string | null;
-  /** ID нашої зустрічі — якщо створено з картки зустрічі (Sprint C). */
-  meetingId?: string | null;
-  /** Тип скарги. */
-  claimType: ClaimType;
-  /** Препарат (key з PRODUCTS). */
-  product: ProductCode;
-  /** LOT номер партії препарату. */
-  lot: string;
-  /** № реалізації (необов'язково). */
-  invoice?: string | null;
-  /** Значення полів анкети (id → string). */
-  anketa: Record<string, string>;
-}
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -54,41 +38,82 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  let body: CreateClaimBody;
+  let form: FormData;
   try {
-    body = (await request.json()) as CreateClaimBody;
+    form = await request.formData();
   } catch {
-    return Response.json({ error: 'invalid JSON body' }, { status: 400 });
+    return Response.json({ error: 'invalid form-data body' }, { status: 400 });
   }
 
-  // Валідація обов'язкових полів — типи перевіряємо через TS на компайл-таймі,
-  // але у runtime треба перевірити що значення передані.
+  // Витягуємо текстові поля
+  const client = String(form.get('client') ?? '').trim();
+  const clientId1c = String(form.get('clientId1c') ?? '').trim() || null;
+  const meetingId = String(form.get('meetingId') ?? '').trim() || null;
+  const claimType = String(form.get('claimType') ?? '') as ClaimType;
+  const product = String(form.get('product') ?? '') as ProductCode;
+  const lot = String(form.get('lot') ?? '').trim();
+  const invoice = String(form.get('invoice') ?? '').trim();
+  const otherProductName = String(form.get('otherProductName') ?? '').trim();
+  const simpleDesc = String(form.get('simpleDesc') ?? '').trim();
+  let anketa: Record<string, string> = {};
+  try {
+    const raw = String(form.get('anketa') ?? '{}');
+    anketa = JSON.parse(raw);
+  } catch {
+    return Response.json({ error: 'invalid anketa JSON' }, { status: 400 });
+  }
+
+  // Validation
   const errors: string[] = [];
-  if (!body.client?.trim()) errors.push('client required');
-  if (!body.claimType || !(body.claimType in CLAIM_TYPES)) errors.push('claimType invalid');
-  if (!body.product || !(body.product in PRODUCTS)) errors.push('product invalid');
-  if (!body.lot?.trim()) errors.push('lot required');
-  if (!body.anketa || typeof body.anketa !== 'object') errors.push('anketa required');
+  if (!client) errors.push('client required');
+  if (!claimType || !(claimType in CLAIM_TYPES)) errors.push('claimType invalid');
+  if (!product || !(product in PRODUCTS)) errors.push('product invalid');
+  if (!lot) errors.push('lot required');
+  if (product === 'OTHER' && !otherProductName) errors.push('otherProductName required for OTHER product');
+  const isMedical = (MEDICAL_CLAIM_TYPES as readonly string[]).includes(claimType);
+  if (!isMedical && !simpleDesc) errors.push('simpleDesc required for non-medical types');
   if (errors.length > 0) {
     return Response.json({ error: `Validation: ${errors.join(', ')}` }, { status: 400 });
   }
 
-  // Серіалізуємо анкету у текст для Bitrix `details`.
-  const detailsText = serializeAnketa(body.product, body.anketa);
-  const claimTypeReadable = CLAIM_TYPES[body.claimType];
+  // Об'єднуємо всі поля для serializeClaimDetails (anketa + simple_desc + other_product_name).
+  const allValues = {
+    ...anketa,
+    simple_desc: simpleDesc,
+    other_product_name: otherProductName,
+  };
+  let detailsText = serializeClaimDetails(product, claimType, allValues);
 
-  // Готуємо Bitrix-поля (з префіксами ufCrm4_*).
+  // Додаємо meetingId у details якщо є — для майбутнього посилання назад.
+  if (meetingId) {
+    detailsText = `[Sales-Planning meeting: ${meetingId}]\n${detailsText}`;
+  }
+
+  // Файли — Bitrix чекає масив [filename, base64-content] у поле disk.
+  // Ліміт Vercel body — 4.5MB, файли мають бути обмежені на UI.
+  const filesList: Array<[string, string]> = [];
+  const fileEntries = form.getAll('files').filter((v): v is File => v instanceof File);
+  for (const f of fileEntries) {
+    const bytes = await f.arrayBuffer();
+    const b64 = Buffer.from(bytes).toString('base64');
+    filesList.push([f.name, b64]);
+  }
+
+  // Готуємо Bitrix-поля.
   const bxFields: Record<string, unknown> = {
-    [CLAIM_FIELDS.title]: `Рекламація: ${body.client}`,
-    [CLAIM_FIELDS.product]: body.product,
-    [CLAIM_FIELDS.claim_type]: claimTypeReadable,
-    [CLAIM_FIELDS.lot]: body.lot,
-    [CLAIM_FIELDS.invoice]: body.invoice?.trim() || '-',
+    [CLAIM_FIELDS.title]: `Рекламація: ${client}`,
+    [CLAIM_FIELDS.product]: product,
+    [CLAIM_FIELDS.claim_type]: CLAIM_TYPES[claimType],
+    [CLAIM_FIELDS.lot]: lot,
+    [CLAIM_FIELDS.invoice]: invoice || '-',
     [CLAIM_FIELDS.details]: detailsText,
     [CLAIM_FIELDS.manager]: session.fullName,
     [CLAIM_FIELDS.manager_email]: session.login,
     OPENED: 'Y',
   };
+  if (filesList.length > 0) {
+    bxFields[CLAIM_FIELDS.files] = filesList;
+  }
 
   let newClaim: { id: number };
   try {
@@ -99,22 +124,20 @@ export async function POST(request: NextRequest) {
         code: e.code,
         description: e.description,
         manager: session.login,
-        client: body.client,
+        client,
       });
-      return Response.json(
-        { error: `Bitrix: ${e.description}` },
-        { status: 502 },
-      );
+      return Response.json({ error: `Bitrix: ${e.description}` }, { status: 502 });
     }
     throw e;
   }
 
+  // Зменшуємо unused-var warning
+  void clientId1c;
+
   const link = `https://bitrix.emet.in.ua/crm/type/${CLAIMS_SPA_ID}/details/${newClaim.id}/`;
 
-  // Notify мед-відділу — НЕ блокуємо відповідь клієнту. Помилка нотіфу
-  // не критична: claim вже створений у Bitrix, мед-відділ побачить його у
-  // своєму UI або через email-нотіф Bitrix-workflow.
-  const notifyMsg = `[URL=${link}]Нова рекламація #${newClaim.id}[/URL]\nКлієнт: ${body.client}\nМенеджер: ${session.fullName}`;
+  // Notify мед-відділу — non-blocking.
+  const notifyMsg = `[URL=${link}]Нова рекламація #${newClaim.id}[/URL]\nКлієнт: ${client}\nМенеджер: ${session.fullName}`;
   Promise.all(
     MED_DEPT_USER_IDS.map(uid =>
       bitrixNotifyUser(uid, notifyMsg).catch(err => {

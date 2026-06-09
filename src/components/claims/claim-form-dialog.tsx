@@ -3,24 +3,24 @@
 /**
  * ClaimFormDialog — модальне вікно створення нової претензії.
  *
- * UX 1-в-1 з MeetingForm (bottom-sheet на mobile, центрована modal на desktop).
- * Викликається з:
- *  - тулбара /claims (кнопка «Нова рекламація»)
- *  - картки клієнта /clients (з prefilled клієнтом)  — Sprint C
- *  - картки зустрічі /meetings (з prefilled клієнтом + meetingId) — Sprint C
+ * Bottom-sheet на mobile, центрована modal на desktop. UX 1-в-1 з MeetingForm.
  *
- * Flow:
- *  1. Менеджер обирає клієнта через `ClientPickerDialog`.
- *  2. Тип скарги + препарат + LOT + invoice.
- *  3. При зміні препарату або типу — показується/ховається мед. анкета
- *     (тільки для side_effect / complication / effectiveness — як в reclamation-app).
- *  4. Submit → POST /api/claims → Bitrix24 SPA 1038.
- *  5. onCreated(id, link) — caller може показати toast / редірект.
+ * Структура (переноситься 1-в-1 з reclamation-app/public/index.html renderDynamicForm):
+ *  - Клієнт (через ClientPickerDialog)
+ *  - Тип скарги + Препарат
+ *  - LOT + Invoice
+ *  - [якщо product=OTHER] поле «Вкажіть назву продукту»
+ *  - [якщо тип медичний] повна анкета по бренду (13-14 полів)
+ *  - [якщо тип НЕ медичний] textarea «Опишіть суть невідповідності якості»
+ *    (або «Опишіть суть проблеми / браку»)
+ *  - Медіа-докази (фото/відео) — multipart upload через наш API → Bitrix
+ *
+ * Submit → POST /api/claims (multipart/form-data) → Bitrix24 SPA 1038.
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import { XIcon, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { XIcon, AlertCircle, CheckCircle2, Loader2, Upload, X } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { ClientPickerDialog, type PickedClient } from '@/components/meetings/client-picker-dialog';
 import {
@@ -29,23 +29,16 @@ import {
   type ClaimType,
   type ProductCode,
 } from '@/lib/claims/constants';
-import { getAnketaForProduct } from '@/lib/claims/anketa-schema';
-
-/**
- * Типи скарг, для яких показуємо медичну анкету.
- * Список з reclamation-app/public/index.html:907 — НЕ змінювати без узгодження
- * з мед-відділом.
- */
-const MEDICAL_CLAIM_TYPES: ClaimType[] = ['side_effect', 'complication', 'effectiveness'];
+import { getAnketaForProduct, MEDICAL_CLAIM_TYPES } from '@/lib/claims/anketa-schema';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Викликається після успішного створення claim. caller показує toast/refresh. */
+  /** Викликається після успішного створення claim. Caller показує toast/refresh. */
   onCreated?: (claimId: number, link: string) => void;
   /** Якщо відкрито з картки клієнта/зустрічі — prefill. */
   prefilledClient?: PickedClient | null;
-  /** ID нашої зустрічі (для майбутнього поля у Bitrix або у нашій БД). */
+  /** ID нашої зустрічі (передається у Bitrix у details як reference). */
   prefilledMeetingId?: string | null;
 }
 
@@ -53,6 +46,9 @@ interface SubmitState {
   loading: boolean;
   result: { ok: boolean; message: string; claimId?: number; link?: string } | null;
 }
+
+const MAX_TOTAL_SIZE_MB = 4; // Vercel body-limit safe: 4.5MB - overhead
+const MAX_FILES = 8;
 
 export function ClaimFormDialog({
   open,
@@ -70,9 +66,13 @@ export function ClaimFormDialog({
   const [lot, setLot] = useState('');
   const [invoice, setInvoice] = useState('');
   const [anketa, setAnketa] = useState<Record<string, string>>({});
+  const [otherProductName, setOtherProductName] = useState('');
+  const [simpleDesc, setSimpleDesc] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [submit, setSubmit] = useState<SubmitState>({ loading: false, result: null });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset на відкриття. Якщо prefilledClient — підставляємо.
+  // Reset на відкриття.
   useEffect(() => {
     if (open) {
       setClient(prefilledClient ?? null);
@@ -81,37 +81,67 @@ export function ClaimFormDialog({
       setLot('');
       setInvoice('');
       setAnketa({});
+      setOtherProductName('');
+      setSimpleDesc('');
+      setFiles([]);
       setSubmit({ loading: false, result: null });
     }
   }, [open, prefilledClient]);
 
-  // Анкета показується тільки для медичних типів + обраного препарату.
-  const isMedicalClaim = !!(claimType && MEDICAL_CLAIM_TYPES.includes(claimType as ClaimType));
+  const isMedicalClaim = !!(claimType && (MEDICAL_CLAIM_TYPES as readonly string[]).includes(claimType));
   const anketaFields = useMemo(() => {
     if (!product || !isMedicalClaim) return [];
     return getAnketaForProduct(product as ProductCode);
   }, [product, isMedicalClaim]);
 
-  const canSubmit = !!(client && claimType && product && lot.trim() && !submit.loading);
+  // Validation
+  const totalFileSize = useMemo(() => files.reduce((s, f) => s + f.size, 0), [files]);
+  const filesOverLimit = totalFileSize > MAX_TOTAL_SIZE_MB * 1024 * 1024;
+
+  const canSubmit = !!(
+    client &&
+    claimType &&
+    product &&
+    lot.trim() &&
+    (product !== 'OTHER' || otherProductName.trim()) &&
+    (isMedicalClaim || simpleDesc.trim()) &&
+    !filesOverLimit &&
+    !submit.loading
+  );
+
+  const handleFiles = (newFiles: FileList | null) => {
+    if (!newFiles) return;
+    const incoming = Array.from(newFiles);
+    setFiles(prev => [...prev, ...incoming].slice(0, MAX_FILES));
+  };
+
+  const removeFile = (idx: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit || !client || !claimType || !product) return;
     setSubmit({ loading: true, result: null });
     try {
+      // Multipart FormData — щоб файли йшли як бінарні, не base64.
+      // Сервер їх читає → base64-encode → відправляє у Bitrix `crm.item.add`.
+      const fd = new FormData();
+      fd.append('client', client.clientName);
+      fd.append('clientId1c', client.clientId1c || '');
+      fd.append('meetingId', prefilledMeetingId || '');
+      fd.append('claimType', claimType);
+      fd.append('product', product);
+      fd.append('lot', lot.trim());
+      fd.append('invoice', invoice.trim());
+      fd.append('otherProductName', otherProductName.trim());
+      fd.append('simpleDesc', simpleDesc.trim());
+      fd.append('anketa', JSON.stringify(anketa));
+      for (const f of files) fd.append('files', f, f.name);
+
       const r = await fetch('/api/claims', {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client: client.clientName,
-          clientId1c: client.clientId1c,
-          meetingId: prefilledMeetingId ?? null,
-          claimType,
-          product,
-          lot: lot.trim(),
-          invoice: invoice.trim() || null,
-          anketa,
-        }),
+        body: fd,
       });
       const body = (await r.json().catch(() => ({}))) as {
         id?: number;
@@ -145,6 +175,12 @@ export function ClaimFormDialog({
 
   if (!user) return null;
 
+  // Лейбл textarea для не-медичних типів (з оригіналу).
+  const simpleDescLabel =
+    claimType === 'quality'
+      ? 'Опишіть суть невідповідності якості'
+      : 'Опишіть суть проблеми / браку';
+
   return (
     <>
       <DialogPrimitive.Root open={open} onOpenChange={v => !v && onClose()}>
@@ -160,12 +196,10 @@ export function ClaimFormDialog({
               transition-all duration-200
             "
           >
-            {/* Mobile grabber */}
             <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
               <div className="w-10 h-1 bg-slate-300 rounded-full" />
             </div>
 
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 md:py-4 md:px-6 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
@@ -183,8 +217,10 @@ export function ClaimFormDialog({
               </DialogPrimitive.Close>
             </div>
 
-            {/* Body — scrollable */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 md:px-6 md:py-6 flex flex-col gap-4">
+            {/* Body — scrollable. ⚠️ min-h-0 ОБОВ'ЯЗКОВО на flex-1 child
+                всередині flex-col, інакше overflow-y-auto не працює і весь
+                контент розпихає dialog за межі viewport. */}
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-5 py-5 md:px-6 md:py-6 flex flex-col gap-4">
               <p className="text-[12px] text-muted-foreground -mt-1">
                 Скарга йде у Bitrix мед-відділу для опрацювання. Менеджер:{' '}
                 <strong className="text-emet-ink">{user.fullName}</strong>
@@ -247,6 +283,7 @@ export function ClaimFormDialog({
                     onChange={e => {
                       setProduct(e.target.value as ProductCode);
                       setAnketa({});
+                      setOtherProductName('');
                     }}
                     className="w-full h-11 px-3 rounded-[10px] border border-slate-200 bg-white/85 text-[14px] outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all"
                   >
@@ -289,15 +326,23 @@ export function ClaimFormDialog({
                 </div>
               </div>
 
-              {/* Підказка: для нем-медичних типів пояснюємо чому нема анкети */}
-              {claimType && !isMedicalClaim && (
-                <div className="text-[12px] text-muted-foreground bg-slate-50 rounded-xl px-3.5 py-2.5 border border-slate-100">
-                  Для типу «{CLAIM_TYPES[claimType as ClaimType]}» медична анкета не потрібна.
-                  Деталі скарги уточнить мед-відділ у Bitrix через чат.
+              {/* Якщо product=OTHER — обов'язкова назва продукту */}
+              {product === 'OTHER' && (
+                <div className="space-y-1.5 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <label className="text-[11px] font-bold uppercase tracking-[0.7px] text-amber-900">
+                    Вкажіть назву продукту <span className="text-emet-blue">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={otherProductName}
+                    onChange={e => setOtherProductName(e.target.value)}
+                    placeholder="Наприклад: Крем під очі..."
+                    className="w-full h-10 px-3.5 rounded-[8px] border border-amber-200 bg-white text-[13px] outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all"
+                  />
                 </div>
               )}
 
-              {/* Динамічна анкета */}
+              {/* Динамічна анкета для медичних типів */}
               {anketaFields.length > 0 && (
                 <div className="space-y-3.5 pt-2 border-t border-[#e2e7ef]">
                   <div className="flex items-center gap-2">
@@ -349,6 +394,101 @@ export function ClaimFormDialog({
                 </div>
               )}
 
+              {/* Простий опис для не-медичних типів */}
+              {claimType && !isMedicalClaim && (
+                <div className="space-y-3.5 pt-2 border-t border-[#e2e7ef]">
+                  <h3 className="text-[13px] font-bold text-emet-ink">Деталі інциденту</h3>
+                  <div className="space-y-1">
+                    <label className="text-[12px] font-medium text-slate-700">
+                      {simpleDescLabel} <span className="text-emet-blue">*</span>
+                    </label>
+                    <textarea
+                      value={simpleDesc}
+                      onChange={e => setSimpleDesc(e.target.value)}
+                      rows={4}
+                      className="w-full px-3.5 py-2.5 rounded-[10px] border border-slate-200 bg-white/85 text-[13px] outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all resize-y min-h-[100px]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Файли (Sprint A.4) */}
+              <div className="space-y-2 pt-2 border-t border-[#e2e7ef]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[13px] font-bold text-emet-ink">Медіа-докази</h3>
+                  <span className="text-[10px] text-muted-foreground">
+                    Макс {MAX_FILES} файлів, до {MAX_TOTAL_SIZE_MB}MB сумарно
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex flex-col items-center justify-center gap-1.5 py-5 rounded-[10px] border-2 border-dashed border-slate-300 bg-slate-50 hover:border-emet-blue hover:bg-emet-blue/5 transition-colors"
+                >
+                  <Upload className="w-5 h-5 text-emet-blue" />
+                  <span className="text-[13px] font-semibold text-emet-ink">
+                    Додати фото / відео
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Клацніть або перетягніть файли сюди
+                  </span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={e => handleFiles(e.target.files)}
+                />
+
+                {files.length > 0 && (
+                  <div className="space-y-1.5">
+                    {files.map((f, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200"
+                      >
+                        <div className="w-8 h-8 rounded bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+                          {f.type.startsWith('image/') ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={URL.createObjectURL(f)}
+                              alt={f.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-500">VID</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-medium truncate">{f.name}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {(f.size / 1024).toFixed(0)} KB
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(idx)}
+                          className="w-7 h-7 rounded-md hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center transition-colors shrink-0"
+                          aria-label="Видалити"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {filesOverLimit && (
+                      <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                        Сумарний розмір файлів {(totalFileSize / 1024 / 1024).toFixed(1)}MB
+                        перевищує ліміт {MAX_TOTAL_SIZE_MB}MB. Видаліть кілька або стисніть.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Result banner */}
               {submit.result && (
                 <div
@@ -381,7 +521,6 @@ export function ClaimFormDialog({
               )}
             </div>
 
-            {/* Footer */}
             <div className="flex gap-2.5 px-5 py-3.5 md:px-6 md:py-4 border-t border-slate-100 shrink-0 bg-white">
               <button
                 type="button"

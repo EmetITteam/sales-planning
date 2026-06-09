@@ -171,3 +171,46 @@ export function serializeAnketa(
     .map(f => `${f.label}: ${values[f.id] || '-'}`)
     .join('\n');
 }
+
+/**
+ * Типи скарг, для яких показуємо медичну анкету.
+ * Список з reclamation-app/public/index.html:907 — НЕ змінювати без узгодження
+ * з мед-відділом.
+ */
+export const MEDICAL_CLAIM_TYPES = ['side_effect', 'complication', 'effectiveness'] as const;
+
+/**
+ * Серіалізувати повний claim у текст для Bitrix details, з урахуванням 3 кейсів:
+ *  1. Медична скарга → повна анкета по бренду
+ *  2. Не-медична → одне поле «Опис проблеми» (з відповідним лейблом)
+ *  3. product='OTHER' → додає на початку «Назва продукту: ...»
+ *
+ * Перенесено з reclamation-app/public/index.html:893-946 (renderDynamicForm).
+ */
+export function serializeClaimDetails(
+  product: ProductCode,
+  claimType: string,
+  values: Record<string, string>,
+): string {
+  const parts: string[] = [];
+
+  // 1. Якщо product='OTHER' — додаємо назву продукту зверху
+  if (product === 'OTHER' && values.other_product_name) {
+    parts.push(`Назва продукту: ${values.other_product_name}`);
+  }
+
+  // 2. Медична / не-медична логіка
+  const isMedical = (MEDICAL_CLAIM_TYPES as readonly string[]).includes(claimType);
+  if (isMedical) {
+    parts.push(serializeAnketa(product, values));
+  } else {
+    // Простий опис: лейбл відрізняється для «quality» vs решта
+    const label =
+      claimType === 'quality'
+        ? 'Опис невідповідності якості'
+        : 'Опис проблеми / браку';
+    parts.push(`${label}: ${values.simple_desc || '-'}`);
+  }
+
+  return parts.join('\n');
+}
