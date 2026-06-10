@@ -83,8 +83,10 @@ export function AttachmentLightbox({ attachment, onClose }: Props) {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 min-h-0 overflow-auto bg-slate-50 flex items-center justify-center p-2 relative">
+        {/* Body. min-h-[60vh] щоб модалка тримала розмір під час loading
+            (інакше img з opacity-0 дає height=0 і модалка «сплющується»
+            навколо spinner-а). */}
+        <div className="flex-1 min-h-[60vh] overflow-auto bg-slate-50 flex items-center justify-center p-2 relative">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
