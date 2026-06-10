@@ -7,7 +7,11 @@
 
 import * as Sentry from '@sentry/nextjs';
 
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+// Sanitize: видаляємо BOM (﻿) і whitespace — Vercel env може містити
+// невидимий BOM-маркер на початку якщо значення скопійоване з документа
+// з encoding UTF-8-BOM. Sentry парсер на такому ламається з помилкою
+// «Invalid Sentry Dsn».
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN?.replace(/^﻿/, '').trim() || undefined;
 
 if (dsn) {
   Sentry.init({

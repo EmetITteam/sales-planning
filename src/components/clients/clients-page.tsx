@@ -2591,10 +2591,14 @@ function BirthdayBanner({
                 type="button"
                 onClick={() => onClientClick(c.ClientID)}
                 className="inline-flex items-center gap-1 text-emet-blue hover:text-emet-blue-light font-semibold underline decoration-emet-blue/30 hover:decoration-emet-blue transition-colors"
-                title={`Перейти до картки${age != null ? ` · ${age} р.` : ''}`}
+                title={`Перейти до картки${age != null ? ` · ${age} ${pluralUaYears(age)}` : ''}`}
               >
                 {getClientName(c)}
-                {age != null && <span className="text-slate-500 font-normal">({age})</span>}
+                {age != null && (
+                  <span className="text-slate-500 font-normal">
+                    ({age} {pluralUaYears(age)})
+                  </span>
+                )}
                 {i < birthdayClients.length - 1 && <span className="text-slate-400">,</span>}
               </button>
             );
@@ -2612,5 +2616,14 @@ function pluralUaClient(n: number): string {
   if (mod10 === 1 && mod100 !== 11) return 'клієнта';
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'клієнтів';
   return 'клієнтів';
+}
+
+/** Український plural для «років / рік / роки» по правильним правилам. */
+function pluralUaYears(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'рік';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'роки';
+  return 'років';
 }
 
