@@ -31,7 +31,6 @@ import { ClientPickerDialog } from './client-picker-dialog';
 import { useMyClients } from '@/lib/use-my-clients';
 import { getClientName } from '@/lib/mityng-types';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { TimePicker } from './time-picker';
 
 export type MeetingFormMode = 'create' | 'edit';
 
@@ -259,9 +258,11 @@ export function MeetingForm({ open, mode, initialMeeting, prefilledClientId, pre
                 />
               </FormGroup>
               <FormGroup label="Час" required>
-                <TimePicker
+                <input
+                  type="time"
+                  className={`${INPUT_CLS} font-mono font-semibold tracking-tight`}
                   value={form.time}
-                  onChange={t => setForm(f => ({ ...f, time: t }))}
+                  onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
                 />
               </FormGroup>
             </div>
