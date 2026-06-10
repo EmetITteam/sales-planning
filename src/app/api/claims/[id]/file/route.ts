@@ -139,46 +139,78 @@ export async function GET(
   }
 
   // Bitrix REST endpoint `crm.controller.item.getFile` через webhook повертає
-  // JSON-wrapper: `{ result: { file: 'base64...' } }` або `{ result: 'base64...' }`.
-  // Якщо так — декодуємо base64 і віддаємо бінарні байти. Інакше — streaming
-  // оригіналу (Disk API повертає бінарний контент напряму).
+  // JSON-wrapper. Якщо приходить JSON — декодуємо base64 з `result.file/data`
+  // або робимо second-fetch на `result.url/downloadUrl`. Інакше — стрімінг
+  // upstream (Disk API). У будь-якому випадку дістаємо справжнє ім'я з
+  // Content-Disposition / JSON шобшобшоб у lightbox показати «photo.jpg»
+  // замість «файл-313002» і MIME правильно визначив kind.
   const respContentType = upstream.headers.get('content-type') ?? '';
+
+  // Helper: справжнє ім'я з Content-Disposition («attachment; filename="..."»).
+  const filenameFromCD = (cd: string | null): string => {
+    if (!cd) return '';
+    // Спочатку шукаємо UTF-8 версію (`filename*=UTF-8''...`)
+    const utf8 = cd.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8) return decodeURIComponent(utf8[1]);
+    const std = cd.match(/filename="?([^";]+)"?/i);
+    return std ? std[1] : '';
+  };
+
+  // Content-Type → правильна підказка
+  const contentTypeFromExt = (n: string): string => {
+    const ext = n.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+    if (!ext) return 'application/octet-stream';
+    const map: Record<string, string> = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+      webp: 'image/webp', heic: 'image/heic', svg: 'image/svg+xml', bmp: 'image/bmp',
+      mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+      pdf: 'application/pdf',
+    };
+    return map[ext] ?? 'application/octet-stream';
+  };
+
   if (respContentType.includes('application/json')) {
     const json = (await upstream.json()) as {
-      result?: string | { file?: string; data?: string; downloadUrl?: string; url?: string };
+      result?: string | {
+        file?: string; data?: string; downloadUrl?: string; url?: string;
+        name?: string; NAME?: string; fileName?: string;
+      };
       error?: string;
       error_description?: string;
     };
-    console.log(`[claims/${claimId}/file] Bitrix JSON keys:`, JSON.stringify(json).slice(0, 200));
+    console.log(`[claims/${claimId}/file] Bitrix JSON keys:`, JSON.stringify(json).slice(0, 300));
 
-    // Bitrix error?
     if (json.error) {
       return Response.json(
         { error: `Bitrix: ${json.error_description ?? json.error}` },
         { status: 502 },
       );
     }
-    // Витягуємо base64 або вторинний URL
+
     const r = json.result;
     let base64 = '';
     let secondaryUrl = '';
+    let realName = '';
     if (typeof r === 'string') {
       base64 = r;
     } else if (r && typeof r === 'object') {
       base64 = r.file ?? r.data ?? '';
       secondaryUrl = r.downloadUrl ?? r.url ?? '';
+      realName = String(r.name ?? r.NAME ?? r.fileName ?? '');
     }
 
+    const finalName = realName || nameHint;
+    const finalCT = realName ? contentTypeFromExt(realName) : contentTypeHint;
+
     if (base64) {
-      // Bitrix іноді віддає base64 з префіксом `data:image/jpeg;base64,...`
       const cleaned = base64.replace(/^data:[^;]+;base64,/, '');
       const buffer = Buffer.from(cleaned, 'base64');
       return new Response(buffer, {
         status: 200,
         headers: {
-          'Content-Type': contentTypeHint,
+          'Content-Type': finalCT,
           'Cache-Control': 'private, max-age=3600',
-          'Content-Disposition': `inline; filename="${encodeURIComponent(nameHint)}"`,
+          'Content-Disposition': `inline; filename="${encodeURIComponent(finalName)}"`,
           'Content-Length': String(buffer.length),
         },
       });
@@ -188,24 +220,32 @@ export async function GET(
       if (!second.ok || !second.body) {
         return Response.json({ error: `secondary fetch HTTP ${second.status}` }, { status: 502 });
       }
+      const secCD = filenameFromCD(second.headers.get('content-disposition'));
+      const useName = realName || secCD || nameHint;
+      const useCT =
+        second.headers.get('content-type') ??
+        (useName !== nameHint ? contentTypeFromExt(useName) : contentTypeHint);
       return new Response(second.body, {
         status: 200,
         headers: {
-          'Content-Type': second.headers.get('content-type') ?? contentTypeHint,
+          'Content-Type': useCT,
           'Cache-Control': 'private, max-age=3600',
-          'Content-Disposition': `inline; filename="${encodeURIComponent(nameHint)}"`,
+          'Content-Disposition': `inline; filename="${encodeURIComponent(useName)}"`,
         },
       });
     }
     return Response.json({ error: 'unexpected Bitrix JSON shape' }, { status: 502 });
   }
 
-  // Streaming оригіналу (binary content)
+  // Binary streaming — дістаємо реальне ім'я і MIME з upstream headers
+  const upstreamCD = filenameFromCD(upstream.headers.get('content-disposition'));
+  const finalName = upstreamCD || nameHint;
+  const finalCT = respContentType || (upstreamCD ? contentTypeFromExt(upstreamCD) : contentTypeHint);
   const contentLength = upstream.headers.get('content-length');
   const headers: Record<string, string> = {
-    'Content-Type': respContentType || contentTypeHint,
+    'Content-Type': finalCT,
     'Cache-Control': 'private, max-age=3600',
-    'Content-Disposition': `inline; filename="${encodeURIComponent(nameHint)}"`,
+    'Content-Disposition': `inline; filename="${encodeURIComponent(finalName)}"`,
   };
   if (contentLength) headers['Content-Length'] = contentLength;
 
