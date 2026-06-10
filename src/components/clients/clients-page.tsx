@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw } from 'lucide-react';
+import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw, Cake } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
@@ -1563,29 +1563,31 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 Виконав
               </span>
             )}
-            {/* День народження сьогодні — яскрава rose-pulse pill. */}
+            {/* День народження сьогодні — glass-style emet-blue tint
+                (як інші chips), без яскравого fill. */}
             {isBirthday && (
               <span
-                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-rose-500 text-white shadow-sm animate-pulse"
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-emet-blue/10 text-emet-blue border border-emet-blue/30 backdrop-blur-sm"
                 title={`Сьогодні день народження${age != null ? ` · ${age} р.` : ''}`}
               >
-                🎂 Сьогодні ДН
+                <Cake className="w-2.5 h-2.5" />
+                Сьогодні ДН
+              </span>
+            )}
+            {/* Звичайний бейдж дати народження (slate) — коли ДН не сьогодні. */}
+            {!isBirthday && birthDisplay && (
+              <span
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-400/10 text-slate-600 border border-slate-300/50 backdrop-blur-sm tabular-nums"
+                title="Дата народження"
+              >
+                <Cake className="w-2.5 h-2.5" />
+                {birthDisplay}
               </span>
             )}
           </div>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0">
             {address && <span className="truncate">{address}</span>}
-            {/* Дата народження inline (тільки коли НЕ сьогодні — сьогодні
-                підсвічуємо chip-ом вище щоб не задвоювати). */}
-            {birthDisplay && !isBirthday && (
-              <>
-                {address && <span className="text-muted-foreground/40 shrink-0">·</span>}
-                <span className="inline-flex items-center gap-1 shrink-0 tabular-nums" title="Дата народження">
-                  🎂 {birthDisplay}
-                </span>
-              </>
-            )}
             {/* Desktop: текстовий номер як link (старий вигляд) */}
             {client.Phone && (
               <>
@@ -2571,13 +2573,15 @@ function BirthdayBanner({
   if (birthdayClients.length === 0) return null;
 
   return (
-    <div className="rounded-2xl bg-gradient-to-r from-rose-500/95 to-pink-500/95 text-white px-4 py-3 shadow-md flex items-start gap-3">
-      <div className="text-[24px] leading-none shrink-0 mt-0.5">🎂</div>
+    <div className="rounded-2xl bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-emet-blue/20 px-4 py-3 shadow-[0_4px_14px_rgba(6,42,61,0.04)] flex items-start gap-3">
+      <div className="w-9 h-9 rounded-xl bg-emet-blue/10 text-emet-blue flex items-center justify-center shrink-0">
+        <Cake className="w-4 h-4" />
+      </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-bold tracking-tight">
+        <div className="text-[13px] font-bold tracking-tight text-emet-ink">
           Сьогодні день народження у {birthdayClients.length} {pluralUaClient(birthdayClients.length)}
         </div>
-        <div className="text-[12px] text-white/90 mt-1 flex flex-wrap gap-x-1.5 gap-y-0.5">
+        <div className="text-[12px] text-slate-600 mt-1 flex flex-wrap gap-x-1.5 gap-y-0.5">
           {birthdayClients.map((c, i) => {
             const iso = getClientBirthDate(c);
             const age = getAge(iso, today);
@@ -2586,12 +2590,12 @@ function BirthdayBanner({
                 key={c.ClientID}
                 type="button"
                 onClick={() => onClientClick(c.ClientID)}
-                className="inline-flex items-center gap-1 underline decoration-white/40 hover:decoration-white transition-colors font-semibold"
+                className="inline-flex items-center gap-1 text-emet-blue hover:text-emet-blue-light font-semibold underline decoration-emet-blue/30 hover:decoration-emet-blue transition-colors"
                 title={`Перейти до картки${age != null ? ` · ${age} р.` : ''}`}
               >
                 {getClientName(c)}
-                {age != null && <span className="text-white/70 font-normal">({age})</span>}
-                {i < birthdayClients.length - 1 && <span className="text-white/40">,</span>}
+                {age != null && <span className="text-slate-500 font-normal">({age})</span>}
+                {i < birthdayClients.length - 1 && <span className="text-slate-400">,</span>}
               </button>
             );
           })}
