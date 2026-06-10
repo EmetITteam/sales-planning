@@ -73,14 +73,10 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
         <Drawer.Overlay className="fixed inset-0 z-[60] bg-emet-ink/40 backdrop-blur-[2px]" />
         <Drawer.Content
           aria-describedby={undefined}
-          className="
-            fixed bottom-0 left-0 right-0 z-[60] bg-white flex flex-col outline-none
-            max-md:h-[96dvh] max-md:rounded-t-3xl max-md:shadow-[0_-8px_40px_rgba(6,42,61,0.20)]
-            md:left-1/2 md:right-auto md:bottom-auto md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[560px] md:max-w-[calc(100vw-32px)] md:h-[640px] md:max-h-[calc(100vh-64px)] md:rounded-3xl md:shadow-[0_24px_60px_rgba(6,42,61,0.25)]
-          "
+          className="fixed bottom-0 left-0 right-0 z-[60] bg-white flex flex-col outline-none h-[96dvh] rounded-t-3xl shadow-[0_-8px_40px_rgba(6,42,61,0.20)]"
         >
-          {/* Drag handle on mobile only */}
-          <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+          {/* Drag handle — для drag-to-dismiss жесту */}
+          <div className="flex justify-center pt-2.5 pb-1 shrink-0">
             <div className="w-10 h-1 bg-slate-300 rounded-full" />
           </div>
 
