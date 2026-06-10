@@ -42,6 +42,10 @@ import type { ClaimAttachment, ClaimDetail } from '@/lib/claims/types';
  */
 async function normalizeClaimFiles(claimId: number, raw: unknown): Promise<ClaimAttachment[]> {
   if (!raw) return [];
+  // DEBUG: який саме формат Bitrix віддає у ufCrm4_FILES для цього claim.
+  // Потрібно щоб дізнатись чи приходять об'єкти з url/urlMachine, чи тільки
+  // id як число. Видалити після фіксу.
+  console.log(`[claims/${claimId}] ufCrm4_FILES raw:`, JSON.stringify(raw).slice(0, 800));
   const arr = Array.isArray(raw) ? raw : typeof raw === 'object' ? Object.values(raw) : [];
 
   type Pending = { fileId: string; name: string; bxUrl: string };

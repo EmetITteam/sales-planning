@@ -113,8 +113,12 @@ export async function GET(
   }
 
   if (!urlToFetch) {
+    console.warn(
+      `[claims/${claimId}/file] fileId=${fileId} resolve failed: disk-meta=${!!meta}, bitrixUrl=${request.nextUrl.searchParams.get('bitrixUrl') ?? 'NONE'}`,
+    );
     return Response.json({ error: 'file not found in Bitrix Disk' }, { status: 404 });
   }
+  console.log(`[claims/${claimId}/file] fileId=${fileId} → fetching: ${urlToFetch.slice(0, 120)}...`);
 
   // Fetch і стрімимо
   let upstream: Response;
