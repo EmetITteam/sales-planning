@@ -40,6 +40,19 @@ interface Props {
   client?: ClientFromOneC;
   /** Клік на ім'я клієнта → відкрити досьє. */
   onClientClick?: (clientId: string, fallbackName: string, fallbackPhone: string) => void;
+  /**
+   * Режим read-only (вкладка «Зустрічі команди» для РМ/директора). Ховає
+   * всі дії — Старт/Фініш/Скасувати/Перенести/Правка/Підсумки. Картка
+   * тільки для перегляду. Phone-кнопка лишається бо це інформаційна
+   * швидко-дія, не модифікує зустріч.
+   */
+  readOnly?: boolean;
+  /**
+   * Display-name менеджера зустрічі (тільки для readOnly-режиму, щоб у
+   * вкладці команди було видно чия це зустріч). Якщо передано — рендериться
+   * пілюлька у шапці картки.
+   */
+  managerLabel?: string;
 }
 
 export function MeetingCard({
@@ -51,6 +64,8 @@ export function MeetingCard({
   onOutcome,
   client,
   onClientClick,
+  readOnly,
+  managerLabel,
 }: Props) {
   // Fallback ланцюг для імені/телефону (P1 з аудиту 2026-06-04):
   //  1. client з getManagerClients (real-time) — найсвіжіше
@@ -118,7 +133,30 @@ export function MeetingCard({
             </span>
           )}
         </div>
-        <StatusBadge kind="meeting" status={meeting.status} />
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          {readOnly && managerLabel && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200"
+              title={`Менеджер: ${managerLabel}`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="w-2.5 h-2.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              {managerLabel}
+            </span>
+          )}
+          <StatusBadge kind="meeting" status={meeting.status} />
+        </div>
       </div>
 
       {/* BODY: client + purpose + address */}
@@ -204,7 +242,7 @@ export function MeetingCard({
         )}
       </div>
 
-      {(() => {
+      {!readOnly && (() => {
         const { primary, secondary } = splitActions(meeting, {
           onEdit, onStart, onFinish, onReschedule, onOutcome,
         });
