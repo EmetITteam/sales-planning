@@ -72,17 +72,13 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
         <DialogPrimitive.Popup
           className="
             fixed z-[60] bg-white overflow-hidden flex flex-col
-            max-md:inset-x-0 max-md:bottom-0 max-md:rounded-t-3xl max-md:h-[88vh] max-md:shadow-[0_-8px_40px_rgba(6,42,61,0.20)]
+            max-md:inset-0 max-md:rounded-none max-md:shadow-none
             md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[560px] md:max-w-[calc(100vw-32px)] md:max-h-[calc(100vh-64px)] md:h-[640px] md:rounded-3xl md:shadow-[0_24px_60px_rgba(6,42,61,0.25)]
-            data-ending-style:opacity-0 max-md:data-ending-style:translate-y-full md:data-ending-style:scale-95
-            data-starting-style:opacity-0 max-md:data-starting-style:translate-y-full md:data-starting-style:scale-95
+            data-ending-style:opacity-0 max-md:data-ending-style:opacity-0 md:data-ending-style:scale-95
+            data-starting-style:opacity-0 max-md:data-starting-style:opacity-0 md:data-starting-style:scale-95
             transition-all duration-200
           "
         >
-          <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
-            <div className="w-10 h-1 bg-slate-300 rounded-full" />
-          </div>
-
           <div className="flex items-center justify-between px-5 py-3 md:py-4 md:px-6 border-b border-slate-100 shrink-0">
             <DialogPrimitive.Title className="text-[17px] md:text-[19px] font-bold text-emet-ink tracking-tight inline-flex items-center gap-2">
               <UsersIcon className="w-4 h-4 text-emet-blue" />
@@ -115,8 +111,10 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
             </p>
           </div>
 
-          {/* Results */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          {/* Results — flex-1 + min-h-0 щоб overflow-y-auto спрацював у
+              flex-col контейнері. На mobile (full-screen) це гарантовано
+              працює бо Popup має inset-0 (фіксовану висоту = viewport). */}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
             {debouncedQuery.length < 2 && (
               <div className="px-5 py-10 text-center text-[13px] text-slate-500">
                 Введіть мінімум 2 символи для пошуку.
