@@ -222,9 +222,52 @@
   .three-blocks-split {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
   }
+  .modules-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
   @media (max-width: 900px) {
     .two-blocks-split { grid-template-columns: 1fr; }
     .three-blocks-split { grid-template-columns: 1fr; }
+    .modules-grid { grid-template-columns: 1fr; }
+  }
+  .module-card {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line-2);
+    border-radius: 14px;
+    padding: 22px 20px;
+    backdrop-filter: blur(8px);
+    transition: transform .2s, border-color .2s;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .module-card:hover { transform: translateY(-2px); border-color: rgba(91,213,188,.5); }
+  .module-card.new { border-color: rgba(91,213,188,.32); background: rgba(91,213,188,.05); }
+  .module-card .mod-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 700;
+    color: var(--text-faint);
+    letter-spacing: 2px;
+  }
+  .module-card .mod-name {
+    font-size: 20px; font-weight: 700;
+    letter-spacing: -.4px;
+    color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .module-card.new .mod-name { color: var(--teal); }
+  .module-card .new-tag {
+    font-size: 9px; font-weight: 700;
+    background: var(--teal); color: #042128;
+    padding: 2px 7px; border-radius: 999px;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  .module-card .mod-tagline {
+    font-size: 12px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 1px;
+    font-weight: 600; margin-bottom: 4px;
+  }
+  .module-card .mod-desc {
+    font-size: 13.5px; line-height: 1.5;
+    color: var(--text-muted);
   }
   .block-card {
     background: rgba(255,255,255,.04);
@@ -486,37 +529,46 @@
   <div class="slide-label"><span class="num">01</span> Структура системи</div>
   <div class="container">
     <div class="slide-head">
-      <h2>Два основні блоки.<br><span class="b accent">Дашборд</span> і <span class="b accent">Планування</span>.</h2>
-      <p class="slide-lead">Уся система побудована навколо двох сценаріїв роботи. Один — щоб одразу бачити стан, другий — щоб працювати з клієнтами на місяць наперед. Все що ви робите — у одному з цих двох блоків.</p>
+      <h2>Шість модулів<br>в одній <span class="b accent">робочій системі</span>.</h2>
+      <p class="slide-lead">Раз на місяць — планування і дашборд. Щодня — клієнти, зустрічі, рекламації. Постійно — колокольчик зі сповіщеннями. Усе у одному вікні, доступно з ноутбука і телефону.</p>
     </div>
 
-    <div class="two-blocks-split">
-      <div class="block-card">
-        <div class="block-num">01</div>
-        <div class="block-name">Дашборд</div>
-        <div class="block-tagline">Стан за один погляд</div>
-        <ul class="block-feat">
-          <li>Місячні метрики: план, факт, виконання</li>
-          <li>9 торгових марок з прогресом і статусом</li>
-          <li>Картка «Клієнти — факт купівель»</li>
-          <li>Порівняння з минулим місяцем</li>
-          <li>Норма виконання на сьогоднішній день</li>
-        </ul>
-        <div class="block-when">Коли відкриваєте систему — дашборд перший</div>
+    <div class="modules-grid">
+      <div class="module-card">
+        <div class="mod-num">01</div>
+        <div class="mod-name">Планування</div>
+        <div class="mod-tagline">Раз на місяць</div>
+        <div class="mod-desc">Прогноз по активних клієнтах + закриття розриву по сплячих. Система сама збирає список і рахує суму.</div>
       </div>
-
-      <div class="block-card accent">
-        <div class="block-num">02</div>
-        <div class="block-name">Планування</div>
-        <div class="block-tagline">Робота з клієнтами на місяць</div>
-        <ul class="block-feat">
-          <li>Активні клієнти бренда — авто-список</li>
-          <li>Прогноз очікуваних продажів по кожному</li>
-          <li>Закриття розриву — сплячі/втрачені</li>
-          <li>Етапи: дзвінок · зустріч · семінар</li>
-          <li>Прив'язка семінару зі списку заходів</li>
-        </ul>
-        <div class="block-when">З дашборду провалюєтесь у планування конкретного бренда</div>
+      <div class="module-card">
+        <div class="mod-num">02</div>
+        <div class="mod-name">Дашборд</div>
+        <div class="mod-tagline">Стан за один погляд</div>
+        <div class="mod-desc">План / факт / норма / темп — 9 брендів з підсвіткою. Порівняння з минулим місяцем. Карта бази клієнтів.</div>
+      </div>
+      <div class="module-card">
+        <div class="mod-num">03</div>
+        <div class="mod-name">Мої клієнти</div>
+        <div class="mod-tagline">Щоденна робота</div>
+        <div class="mod-desc">Уся база по категоріях, картка перед дзвінком — план, факт, 6-міс історія, фокуси, ДН клієнта.</div>
+      </div>
+      <div class="module-card">
+        <div class="mod-num">04</div>
+        <div class="mod-name">Зустрічі</div>
+        <div class="mod-tagline">Замість «СРМ Зустрічі»</div>
+        <div class="mod-desc">Створити, перенести, провести з геолокацією, заповнити анкету. РМ має окрему вкладку «Команди» (read-only).</div>
+      </div>
+      <div class="module-card new">
+        <div class="mod-num">05</div>
+        <div class="mod-name">Рекламації <span class="new-tag">Нове</span></div>
+        <div class="mod-tagline">Замість листів та дзвінків</div>
+        <div class="mod-desc">Подати з телефону за хвилину — форма + фото/відео. Мед-відділ відповідає у чаті всередині системи.</div>
+      </div>
+      <div class="module-card new">
+        <div class="mod-num">06</div>
+        <div class="mod-name">Сповіщення <span class="new-tag">Нове</span></div>
+        <div class="mod-tagline">Колокольчик у шапці</div>
+        <div class="mod-desc">Лічильник непрочитаних, dropdown зі списком. Зараз — нові коментарі мед-відділу. Далі — нагадування зустрічей, ДН клієнтів.</div>
       </div>
     </div>
   </div>
@@ -997,34 +1049,39 @@
   <div class="container">
     <div class="slide-head">
       <h2>Що <span class="b accent">конкретно</span> змінюється у роботі.</h2>
-      <p class="slide-lead">Не «новий звіт». Конкретні економії часу і нові можливості, які зараз ви робите вручну або не робите взагалі.</p>
+      <p class="slide-lead">Не «новий звіт». Конкретні економії часу і нові можливості, які зараз ви робите вручну, в Excel, у різних застосунках — або не робите взагалі.</p>
     </div>
 
     <div class="value-grid">
       <div class="value-item">
         <div class="num">01.</div>
         <h5>Готовий список клієнтів місяця</h5>
-        <p>Не треба вручну шукати кожного клієнта у 1С і додавати у таблицю. Система сама показує по кожному бренду — хто купував останні 3 місяці і хто давно не купував. Список редагований: можна видалити зайвих або додати ще через пошук по всій базі 1С.</p>
+        <p>Не треба вручну шукати у 1С. Система сама показує по кожному бренду хто купував останні 3 місяці і хто давно не купував. Список редагований — додати ще через пошук по всій базі.</p>
       </div>
       <div class="value-item">
         <div class="num">02.</div>
-        <h5>Видно сплячих з потенціалом</h5>
-        <p>Колись клієнт купував — може купити знову. Система виводить його у «Закриття розриву» з сумою останньої покупки. Замість «здається треба комусь подзвонити» — конкретний список з цифрами.</p>
+        <h5>Розрив рахується сам</h5>
+        <p>Не вираховуєте «план $54k, факт $12k, що залишилось». Система показує суму розриву і одразу пропонує клієнтів зі сплячих які можуть його закрити з цифрами.</p>
       </div>
       <div class="value-item">
         <div class="num">03.</div>
-        <h5>Розрив рахується сам</h5>
-        <p>Менеджер не рахує: «у мене план $54k, факт $12k, прогноз $20k, що залишилось». Система показує суму розриву і одразу пропонує клієнтів які можуть його закрити.</p>
+        <h5>Зустрічі без окремого застосунку</h5>
+        <p>Не треба перемикатись у «СРМ Зустрічі» і назад. Створити, перенести, провести з геолокацією, заповнити анкету — все в тому ж вікні де планування і клієнти.</p>
       </div>
       <div class="value-item">
         <div class="num">04.</div>
-        <h5>Чернетка і фіналізація</h5>
-        <p>Планувати можна спокійно: натиснули «Зберегти чернетку» — повернетесь і поправите. Готовий план — натискаєте «Фіналізувати», тоді суми і список клієнтів закріплюються. Коментарі по дзвінках і зустрічах далі можна додавати.</p>
+        <h5>Рекламації — за хвилину з телефону</h5>
+        <p>Не треба писати лист мед-відділу або шукати кого набрати. Форма + фото препарату → відправили → мед-відділ відповідає у чаті всередині системи. Не пропустите відповідь.</p>
       </div>
       <div class="value-item">
         <div class="num">05.</div>
-        <h5>Один інструмент замість таблиць</h5>
-        <p>Не дублюєте інформацію у різних таблицях + у голові. Усе планування на місяць — у одному вікні, з 1С-даними поряд, доступно з будь-якого пристрою. Планування відкрите перші днів місяця — далі система фіксує плани і веде по факту.</p>
+        <h5>День народження клієнта — нагадування</h5>
+        <p>Зранку відкрили «Мої клієнти» — банер показує у кого сьогодні ДН. 2 хвилини на привітання — і клієнт пам'ятає вас весь рік. Без таблиць у Excel і нагадувань у голові.</p>
+      </div>
+      <div class="value-item">
+        <div class="num">06.</div>
+        <h5>РМ бачить команду одним поглядом</h5>
+        <p>Окрема вкладка «Зустрічі команди» — усі зустрічі підлеглих за обраний період, з фільтром по конкретному менеджеру. Read-only — нічого випадково не зміните.</p>
       </div>
     </div>
   </div>
