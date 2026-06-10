@@ -25,6 +25,8 @@ interface Props {
   clientsByID?: Map<string, ClientFromOneC>;
   /** Клік на ім'я клієнта у картці → відкрити досьє у dashboard. */
   onClientClick?: (clientId: string, fallbackName: string, fallbackPhone: string) => void;
+  /** Sprint 2B.C: «Подати претензію» по клієнту цієї зустрічі. */
+  onCreateClaim?: (m: MeetingWithSync) => void;
 }
 
 export function DayGroup({
@@ -38,6 +40,7 @@ export function DayGroup({
   onOutcomeMeeting,
   clientsByID,
   onClientClick,
+  onCreateClaim,
 }: Props) {
   const { label, isToday } = formatDayLabel(date, today);
 
@@ -104,6 +107,7 @@ export function DayGroup({
             onOutcome={onOutcomeMeeting}
             client={clientsByID?.get(m.clientId1c)}
             onClientClick={onClientClick}
+            onCreateClaim={onCreateClaim}
           />
         ))}
       </div>

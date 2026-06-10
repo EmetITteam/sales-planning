@@ -14,7 +14,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Phone as PhoneLucide } from 'lucide-react';
+import { Phone as PhoneLucide, AlertCircle } from 'lucide-react';
 import type { MeetingWithSync } from '@/lib/meetings/mock-data';
 import { MOCK_CLIENT_NAMES } from '@/lib/meetings/mock-data';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -40,6 +40,9 @@ interface Props {
   client?: ClientFromOneC;
   /** Клік на ім'я клієнта → відкрити досьє. */
   onClientClick?: (clientId: string, fallbackName: string, fallbackPhone: string) => void;
+  /** Sprint 2B.C: «Подати претензію» по клієнту зустрічі. Відкриває
+   *  ClaimFormDialog з prefilled clientId1c. */
+  onCreateClaim?: (meeting: MeetingWithSync) => void;
   /**
    * Режим read-only (вкладка «Зустрічі команди» для РМ/директора). Ховає
    * всі дії — Старт/Фініш/Скасувати/Перенести/Правка/Підсумки. Картка
@@ -64,6 +67,7 @@ export function MeetingCard({
   onOutcome,
   client,
   onClientClick,
+  onCreateClaim,
   readOnly,
   managerLabel,
 }: Props) {
@@ -264,24 +268,39 @@ export function MeetingCard({
             <PhoneLucide className="w-4 h-4" />
           </a>
         ) : null;
+        // Sprint 2B.C: «Подати претензію» — icon-button на mobile, кнопка
+        // з текстом на desktop. Доступна на всіх станах зустрічі (planned/
+        // in_progress/done/cancelled/postponed) — претензія може виникнути
+        // навіть після того як менеджер завершив зустріч.
+        const claimBtn = onCreateClaim ? (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onCreateClaim(meeting);
+            }}
+            aria-label={`Подати рекламацію по ${clientName}`}
+            title="Подати рекламацію"
+            className="inline-flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-rose-300/40 text-rose-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 shadow-sm active:scale-95 transition-all shrink-0"
+          >
+            <AlertCircle className="w-4 h-4" />
+          </button>
+        ) : null;
         return (
           <>
-            {/* MOBILE: всі картки = ОДИН рядок: primary + secondary + phone.
-                Консистентно по статусам — не плутає різними layout-ами.
-                `mt-auto` притискає actions до низу — інакше короткі картки
-                (без адреси) піднімають кнопки вище ніж у сусідів у grid-row. */}
+            {/* MOBILE: primary + secondary + claim + phone. */}
             <div className="md:hidden mt-auto flex items-stretch gap-2 pt-2.5 border-t border-emet-ink/[0.06]">
               {primary && <div className="flex-1 min-w-0 flex">{primary}</div>}
               {secondary && <div className="flex-1 min-w-0 flex">{secondary}</div>}
+              {claimBtn}
               {phoneBtn}
             </div>
 
-            {/* DESKTOP: actions row внизу картки. mt-auto + grid stretch
-                (default для day-group `grid lg:grid-cols-2`) → у парних
-                картках кнопки вирівняні. */}
-            <div className="hidden md:flex flex-wrap gap-2 pt-2.5 mt-auto border-t border-emet-ink/[0.06]">
+            {/* DESKTOP: actions row + claim icon-button праворуч. */}
+            <div className="hidden md:flex flex-wrap items-center gap-2 pt-2.5 mt-auto border-t border-emet-ink/[0.06]">
               {primary}
               {secondary}
+              {claimBtn && <div className="ml-auto">{claimBtn}</div>}
             </div>
           </>
         );

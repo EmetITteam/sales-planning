@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar } from 'lucide-react';
+import { NotificationsBell } from '@/components/notifications/notifications-bell';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -205,6 +206,9 @@ export function AppHeader() {
         )}
 
         <div className="flex-1" />
+
+        {/* Notifications bell + counter — Bitrix-style centralized dropdown */}
+        <NotificationsBell />
 
         {/* User */}
         <DropdownMenu>

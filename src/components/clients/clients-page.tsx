@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw, Cake } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
@@ -25,6 +26,8 @@ import { GlobalClientSearchDialog } from './global-client-search-dialog';
 import { CustomMonthPicker } from '@/components/ui/custom-month-picker';
 import { UserPlus } from 'lucide-react';
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
+import { ClaimFormDialog } from '@/components/claims/claim-form-dialog';
+import { ClientClaimsSection } from '@/components/claims/client-claims-section';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -154,6 +157,8 @@ export function ClientsPage() {
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [meetingForClient, setMeetingForClient] = useState<ClientFromOneC | null>(null);
+  // Sprint 2B.C: prefill ClaimFormDialog клієнтом з картки. Аналог meetingForClient.
+  const [claimForClient, setClaimForClient] = useState<ClientFromOneC | null>(null);
 
   // Локальний month-фільтр (поточний / попередні 3 / свій). Default — поточний
   // місяць. Незалежний від глобального currentPeriod (planning-режим).
@@ -571,6 +576,7 @@ export function ClientsPage() {
               expanded={expandedId === focusClient.ClientID}
               onToggle={() => setExpandedId(expandedId === focusClient.ClientID ? null : focusClient.ClientID)}
               onCreateMeeting={(c) => setMeetingForClient(c)}
+              onCreateClaim={(c) => setClaimForClient(c)}
             />
           ) : (
             <div className="glass-card-flat px-4 py-6 text-center text-[13px] text-slate-500">
@@ -723,6 +729,7 @@ export function ClientsPage() {
                   expandedId={expandedId}
                   onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
                   onCreateMeeting={(c) => setMeetingForClient(c)}
+                  onCreateClaim={(c) => setClaimForClient(c)}
                 />
               );
             })}
@@ -737,6 +744,7 @@ export function ClientsPage() {
                 expandedId={expandedId}
                 onToggleExpand={(id) => setExpandedId(prev => prev === id ? null : id)}
                 onCreateMeeting={(c) => setMeetingForClient(c)}
+                onCreateClaim={(c) => setClaimForClient(c)}
               />
             )}
           </>
@@ -808,6 +816,26 @@ export function ClientsPage() {
         }}
       />
 
+      {/* Sprint 2B.C: ClaimFormDialog з prefilled клієнтом. */}
+      <ClaimFormDialog
+        open={claimForClient !== null}
+        onClose={() => setClaimForClient(null)}
+        prefilledClient={
+          claimForClient
+            ? {
+                clientId1c: claimForClient.ClientID,
+                clientName: getClientName(claimForClient),
+                phone: claimForClient.Phone ?? '',
+                address: getClientAddress(claimForClient) ?? '',
+              }
+            : null
+        }
+        onCreated={id => {
+          setToastMsg(`Рекламацію №${id} створено.`);
+          setTimeout(() => setToastMsg(null), 4000);
+        }}
+      />
+
       {toastMsg && (
         <div className="fixed z-[60] bottom-4 right-4 left-4 sm:left-auto sm:max-w-[360px] pointer-events-none">
           <div className="pointer-events-auto rounded-xl px-4 py-3 text-[13px] font-semibold bg-teal-600 text-white shadow-[0_12px_28px_rgba(6,42,61,0.25)]">
@@ -838,6 +866,18 @@ function PageTitle({
         <h1 className="text-[18px] font-bold tracking-tight">Клієнти</h1>
         <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">{subtitle}</div>
       </div>
+      {/* Рекламації — посилання на /claims (модуль Sprint 2B). Тут на сторінці
+          «Мої клієнти» бо за рішенням 2026-06-10 у глобальному AppHeader
+          залишаються тільки основні розділи (Планування / Клієнти / Зустрічі
+          + Замовлення коли буде). Рекламації — secondary action на цій вкладці. */}
+      <Link
+        href="/claims"
+        className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[13px] font-bold hover:bg-rose-100 active:translate-y-px transition-all shrink-0"
+        aria-label="Рекламації"
+      >
+        <AlertCircle className="w-4 h-4" />
+        <span className="max-sm:hidden">Рекламації</span>
+      </Link>
       {onGlobalSearch && (
         <button
           type="button"
@@ -1268,7 +1308,7 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting,
+  cat, clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
@@ -1278,6 +1318,7 @@ function CategorySection({
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
   onCreateMeeting?: (client: ClientFromOneC) => void;
+  onCreateClaim?: (client: ClientFromOneC) => void;
 }) {
   // 4-bucket sort:
   //   0 — у роботі (план>0, факт<план): TOP
@@ -1364,6 +1405,7 @@ function CategorySection({
               expanded={expandedId === c.ClientID}
               onToggle={() => onToggleExpand(c.ClientID)}
               onCreateMeeting={onCreateMeeting}
+              onCreateClaim={onCreateClaim}
             />
           );
         })}
@@ -1377,7 +1419,7 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
@@ -1386,6 +1428,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, m
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
   onCreateMeeting?: (client: ClientFromOneC) => void;
+  onCreateClaim?: (client: ClientFromOneC) => void;
 }) {
   const [sectionOpen, setSectionOpen] = useState(false);
 
@@ -1434,6 +1477,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, m
                 expanded={expandedId === c.ClientID}
                 onToggle={() => onToggleExpand(c.ClientID)}
                 onCreateMeeting={onCreateMeeting}
+                onCreateClaim={onCreateClaim}
               />
             );
           })}
@@ -1444,7 +1488,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, m
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting, onCreateClaim }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
@@ -1457,6 +1501,8 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
   expanded: boolean;
   onToggle: () => void;
   onCreateMeeting?: (client: ClientFromOneC) => void;
+  /** Sprint 2B.C: відкрити форму нової рекламації з prefilled клієнтом. */
+  onCreateClaim?: (client: ClientFromOneC) => void;
 }) {
   const cat = toUICategory(client.ClientCategory);
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
@@ -1617,6 +1663,27 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
               </>
             )}
           </div>
+
+          {/* Sprint 2B.C: «Подати рекламацію» — окремим рядком ПІД телефоном
+              і зустріччю, щоб візуально не зливалось з ними (це інша за
+              характером дія — не CTA в один клік, а більш рідкісна).
+              Рожевий цвет — наратує що це окрема функція. */}
+          {onCreateClaim && (
+            <div className="hidden md:flex items-center gap-1 mt-1.5">
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  onCreateClaim(client);
+                }}
+                className="inline-flex items-center gap-1.5 text-[11px] text-rose-700 hover:text-rose-800 font-semibold transition-colors"
+              >
+                <AlertCircle className="h-3 w-3" />
+                Подати рекламацію
+              </button>
+            </div>
+          )}
+
           {/* Дата народження окремим рядком під address/phone (тільки коли
               ДН НЕ сьогодні — сьогодні підсвічуємо chip-ом у header). */}
           {birthDisplay && !isBirthday && (
@@ -1656,6 +1723,20 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
               <Calendar className="w-[15px] h-[15px]" />
             </button>
           )}
+          {onCreateClaim && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                onCreateClaim(client);
+              }}
+              aria-label={`Подати рекламацію по ${name}`}
+              title="Подати рекламацію"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-rose-300/40 text-rose-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 shadow-sm active:scale-95 transition-all"
+            >
+              <AlertCircle className="w-[15px] h-[15px]" />
+            </button>
+          )}
         </div>
 
         {/* План / Факт / % — desktop only. */}
@@ -1669,6 +1750,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
       {expanded && (
         <ClientExpand
           clientID={client.ClientID}
+          clientName={name}
           planBrands={planBrands}
           factBrands={factBrands}
           focuses={focuses}
@@ -1727,8 +1809,11 @@ function PctCol({ pct, loading, disabled }: { pct: number | null; loading: boole
 }
 
 // === Accordion-розгортання з детальним звітом ===
-function ClientExpand({ clientID, planBrands, factBrands, focuses }: {
+function ClientExpand({ clientID, clientName, planBrands, factBrands, focuses }: {
   clientID: string;
+  /** Display name — потрібен для секції «Рекламації клієнта» (filter
+   *  по claim.client == name). */
+  clientName: string;
   planBrands: Record<string, number>;
   factBrands: Record<string, number>;
   focuses: ClientFocusItem[];
@@ -1799,6 +1884,10 @@ function ClientExpand({ clientID, planBrands, factBrands, focuses }: {
         seminars={seminars}
         totalCount={eventCount}
       />
+
+      {/* Sprint 2B.C.3: Рекламації цього клієнта — pull з Bitrix через
+          /api/claims (SWR shared cache з ClaimsList). */}
+      <ClientClaimsSection clientName={clientName} />
     </div>
   );
 }

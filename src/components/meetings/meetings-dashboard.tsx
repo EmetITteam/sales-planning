@@ -20,6 +20,7 @@ import { DayGroup } from './day-group';
 import { MeetingForm, type MeetingFormMode, type MeetingFormData } from './meeting-form';
 import { StartMeetingDialog, FinishMeetingDialog } from './location-capture-dialog';
 import { ClientDossierDialog } from './client-dossier-dialog';
+import { ClaimFormDialog } from '@/components/claims/claim-form-dialog';
 import { MeetingOutcomeDialog } from './meeting-outcome-dialog';
 import { RescheduleDialog, type ReschedulePayload } from './reschedule-dialog';
 import {
@@ -64,6 +65,9 @@ export function MeetingsDashboard() {
 
   // Dossier dialog state (Sprint 1.5+).
   const [dossierClient, setDossierClient] = useState<{ id: string; name: string; phone: string } | null>(null);
+
+  // Sprint 2B.C: ClaimFormDialog з prefilled клієнтом + meetingId.
+  const [claimForMeeting, setClaimForMeeting] = useState<MeetingWithSync | null>(null);
 
   // Outcome dialog (survey + summary) — для «Коментар» на done та після finish.
   const [outcomeOpen, setOutcomeOpen] = useState(false);
@@ -387,6 +391,7 @@ export function MeetingsDashboard() {
               onOutcomeMeeting={handleOutcome}
               clientsByID={clientsByID}
               onClientClick={handleClientClick}
+              onCreateClaim={m => setClaimForMeeting(m)}
             />
           ))}
         </div>
@@ -437,6 +442,35 @@ export function MeetingsDashboard() {
         meeting={reschedulingMeeting}
         onClose={() => setRescheduleOpen(false)}
         onConfirm={handleConfirmReschedule}
+      />
+
+      {/* Sprint 2B.C: Подати претензію з картки зустрічі. Prefilled клієнт +
+          ID зустрічі (зараз у details як `[Sales-Planning meeting: ${id}]`). */}
+      <ClaimFormDialog
+        open={claimForMeeting !== null}
+        onClose={() => setClaimForMeeting(null)}
+        prefilledClient={
+          claimForMeeting
+            ? (() => {
+                const c = clientsByID.get(claimForMeeting.clientId1c);
+                const name = c
+                  ? getClientName(c)
+                  : claimForMeeting.clientNameFromOneC
+                    || claimForMeeting.clientId1c;
+                const phone = c?.Phone ?? claimForMeeting.clientPhoneFromOneC ?? '';
+                return {
+                  clientId1c: claimForMeeting.clientId1c,
+                  clientName: name,
+                  phone,
+                  address: claimForMeeting.plannedAddress ?? '',
+                };
+              })()
+            : null
+        }
+        prefilledMeetingId={claimForMeeting?.id ?? null}
+        onCreated={id => {
+          pushToast('success', `Рекламацію №${id} створено`);
+        }}
       />
 
       <ToastHost toasts={toasts} onDismiss={id => setToasts(t => t.filter(x => x.id !== id))} />
