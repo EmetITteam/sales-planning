@@ -25,6 +25,7 @@ import { CLAIMS_SPA_ID, FIELD_MANAGER_EMAIL_IN_CLAIM } from '@/lib/claims/consta
 import {
   bitrixGetClaim,
   bitrixGetDiskDownloadUrl,
+  bitrixHost,
   BitrixError_,
 } from '@/lib/claims/bitrix-client';
 
@@ -78,16 +79,47 @@ export async function GET(
     throw e;
   }
 
-  // Тягнемо metadata + tokenized URL
+  // Спочатку пробуємо Disk API (працює для AttachedObject / Disk File ID
+  // з timeline-коментарів). Якщо null — є fallback на bitrixUrl з
+  // самого ufCrm4_FILES (там Bitrix віддає tokenized URL прямо у відповіді).
+  let urlToFetch = '';
+  let contentTypeHint = 'application/octet-stream';
+  let nameHint = `file-${fileId}`;
+
   const meta = await bitrixGetDiskDownloadUrl(fileId);
-  if (!meta) {
+  if (meta) {
+    urlToFetch = meta.url;
+    contentTypeHint = meta.contentType;
+    nameHint = meta.name;
+  } else {
+    // Fallback на bitrixUrl з query (для smart-process FILES що b_file legacy)
+    const fallback = request.nextUrl.searchParams.get('bitrixUrl');
+    if (fallback) {
+      try {
+        const host = bitrixHost();
+        // Bitrix URL може приходити як relative path → побудуємо абсолютний.
+        const absolute = fallback.startsWith('/')
+          ? `https://${host}${fallback}`
+          : fallback;
+        const parsed = new URL(absolute);
+        if (parsed.host !== host) {
+          return Response.json({ error: 'forbidden host in bitrixUrl' }, { status: 403 });
+        }
+        urlToFetch = absolute;
+      } catch {
+        return Response.json({ error: 'invalid bitrixUrl' }, { status: 400 });
+      }
+    }
+  }
+
+  if (!urlToFetch) {
     return Response.json({ error: 'file not found in Bitrix Disk' }, { status: 404 });
   }
 
   // Fetch і стрімимо
   let upstream: Response;
   try {
-    upstream = await fetch(meta.url, {
+    upstream = await fetch(urlToFetch, {
       // Bitrix-token у URL — auth уже зашитий.
       headers: { Accept: '*/*' },
     });
@@ -103,12 +135,12 @@ export async function GET(
     );
   }
 
-  const contentType = upstream.headers.get('content-type') ?? meta.contentType;
+  const contentType = upstream.headers.get('content-type') ?? contentTypeHint;
   const contentLength = upstream.headers.get('content-length');
   const headers: Record<string, string> = {
     'Content-Type': contentType,
     'Cache-Control': 'private, max-age=3600',
-    'Content-Disposition': `inline; filename="${encodeURIComponent(meta.name)}"`,
+    'Content-Disposition': `inline; filename="${encodeURIComponent(nameHint)}"`,
   };
   if (contentLength) headers['Content-Length'] = contentLength;
 

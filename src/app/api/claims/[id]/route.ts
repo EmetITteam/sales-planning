@@ -29,35 +29,55 @@ import type { ClaimAttachment, ClaimDetail } from '@/lib/claims/types';
  * може повертати інший формат (downloadUrl/urlMachine), але цей URL вимагає
  * Bitrix-сесії та не працює для менеджерів — використовуємо id + proxy.
  */
+/**
+ * Нормалізує `ufCrm4_FILES` (Bitrix smart-process file-field) у ClaimAttachment[].
+ *
+ * Bitrix у цьому полі повертає масив об'єктів типу:
+ *   `{ id: 313002, url: '/bitrix/.../file.php?fileId=313002&signature=...', urlMachine: '...' }`
+ *
+ * Це **b_file legacy IDs** — не з Disk API. `disk.file.get` і
+ * `disk.attachedObject.get` для них fail-ять. АЛЕ у `url` уже є tokenized
+ * посилання що валідне для прямого fetch. Беремо його як fallback і
+ * передаємо у наш proxy через `?bitrixUrl=...` (з SSRF guard).
+ */
 async function normalizeClaimFiles(claimId: number, raw: unknown): Promise<ClaimAttachment[]> {
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw : typeof raw === 'object' ? Object.values(raw) : [];
 
-  type Pending = { fileId: string; name: string };
+  type Pending = { fileId: string; name: string; bxUrl: string };
   const pending: Pending[] = [];
   for (const item of arr) {
     if (!item) continue;
     let fileId = '';
     let name = '';
+    let bxUrl = '';
     if (typeof item === 'string' || typeof item === 'number') {
       fileId = String(item);
     } else if (typeof item === 'object') {
       const obj = item as Record<string, unknown>;
       fileId = String(obj.id ?? obj.ID ?? obj.fileId ?? obj.fileID ?? '');
       name = String(obj.name ?? obj.NAME ?? obj.fileName ?? '');
+      bxUrl = String(
+        obj.downloadUrl ?? obj.urlMachine ?? obj.url ?? obj.showUrl ?? '',
+      );
     }
     if (!fileId || !/^\d+$/.test(fileId)) continue;
-    pending.push({ fileId, name });
+    pending.push({ fileId, name, bxUrl });
   }
 
-  // Bitrix `ufCrm4_FILES` повертає id без NAME → паралельно резолвимо
-  // справжні імена щоб фронт коректно визначив kind (image/video) і не
-  // показував generic «Прев'ю недоступне».
+  // Якщо name нема — спробуємо resolve через Disk API (працює рідко
+  // для b_file, але якщо файл був прив'язаний як AttachedObject — спрацює).
   return Promise.all(
-    pending.map(async ({ fileId, name: rawName }) => {
+    pending.map(async ({ fileId, name: rawName, bxUrl }) => {
       let name = rawName;
       if (!name) {
         name = (await bitrixResolveAttachmentName(fileId)) ?? `файл-${fileId}`;
+      }
+      // Витягуємо розширення з URL якщо name ще placeholder (наприклад
+      // url містить `&fileName=photo.jpg`).
+      if (name.startsWith('файл-') && bxUrl) {
+        const m = bxUrl.match(/[?&](?:fileName|name)=([^&]+)/i);
+        if (m) name = decodeURIComponent(m[1]);
       }
       const lower = name.toLowerCase();
       const kind: ClaimAttachment['kind'] =
@@ -66,8 +86,12 @@ async function normalizeClaimFiles(claimId: number, raw: unknown): Promise<Claim
           : /\.(mp4|webm|mov|avi|mkv|3gp)$/i.test(lower)
             ? 'video'
             : 'other';
+      // Proxy URL: fileId завжди передаємо, bxUrl як fallback якщо є.
+      const proxyQs = bxUrl
+        ? `?fileId=${encodeURIComponent(fileId)}&bitrixUrl=${encodeURIComponent(bxUrl)}`
+        : `?fileId=${encodeURIComponent(fileId)}`;
       return {
-        url: `/api/claims/${claimId}/file?fileId=${encodeURIComponent(fileId)}`,
+        url: `/api/claims/${claimId}/file${proxyQs}`,
         name,
         kind,
       };
