@@ -90,7 +90,12 @@ function toMeetingWithSync(
   return { ...m, syncStatus, syncFailureReason: null };
 }
 
-export function useMeetings(range?: DateRange): UseMeetingsApi {
+/**
+ * `scope='own'` (default) — повертає тільки зустрічі поточного login.
+ * `scope='managed'` — тільки зустрічі підлеглих (без своїх). Доступно
+ * для admin/director/rm. Інакше API повертає 403.
+ */
+export function useMeetings(range?: DateRange, scope: 'own' | 'managed' = 'own'): UseMeetingsApi {
   const sessionUser = useAppStore(s => s.user);
   // Default — Сьогодні (як у meeting-app), якщо caller не передав range.
   const effectiveRange = useMemo<DateRange>(
@@ -100,12 +105,13 @@ export function useMeetings(range?: DateRange): UseMeetingsApi {
 
   // === READ через наш endpoint (БД як кеш + bulk-import з 1С background) ===
   const swrKey = sessionUser
-    ? `our-meetings|${sessionUser.login}|${effectiveRange.startDateString}|${effectiveRange.endDateString}`
+    ? `our-meetings|${sessionUser.login}|${scope}|${effectiveRange.startDateString}|${effectiveRange.endDateString}`
     : null;
   const { data: meetingsResp, error: fetchError, isLoading: fetchLoading, mutate: swrMutate } = useSWR(
     swrKey,
     async () => {
-      const url = `/api/meetings?from=${effectiveRange.startDateString}&to=${effectiveRange.endDateString}`;
+      const scopeQs = scope === 'managed' ? '&scope=managed' : '';
+      const url = `/api/meetings?from=${effectiveRange.startDateString}&to=${effectiveRange.endDateString}${scopeQs}`;
       const r = await fetch(url, { credentials: 'same-origin' });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
