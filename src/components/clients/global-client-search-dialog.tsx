@@ -1,6 +1,12 @@
 /**
  * GlobalClientSearchDialog — пошук клієнта по ВСІЙ базі компанії.
  *
+ * На mobile використовуємо vaul Drawer (з власним обробником iOS-клавіатури
+ * через `repositionInputs`) — це нарешті вирішило проблему скролу при
+ * відкритій клавіатурі (3 попередні спроби з base-ui Dialog не вдались).
+ *
+ * На desktop — той самий vaul, тільки з оверайдом до центрованого вікна.
+ *
  * Use case:
  *  - Дзвонить клієнт → менеджер не знаходить у своєму списку → відкриває
  *    глобальний пошук → знаходить → бачить ім'я менеджера за яким клієнт
@@ -9,17 +15,12 @@
  *
  * Запит: 1С `findClient` action з `searchTerm` + `managerLogin` (override
  * з сесії на бекенді). Шукає по name + phone у всій базі компанії.
- *
- * Debounced: запит відправляється через 350ms після останнього натискання
- * клавіші, мінімум 2 символи. UI показує ім'я + телефон + менеджер за
- * яким закріплений. Якщо це клієнт менеджера що шукає — підсвічуємо
- * «Це ваш клієнт».
  */
 
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
+import { Drawer } from 'vaul';
 import { XIcon, SearchIcon, Loader2Icon, PhoneIcon, UsersIcon } from 'lucide-react';
 import { useOneCData } from '@/lib/use-onec-data';
 import { useAppStore } from '@/lib/store';
@@ -28,11 +29,6 @@ import { getClientName, getClientAddress, type ClientFromOneC } from '@/lib/mity
 interface Props {
   open: boolean;
   onClose: () => void;
-  /**
-   * Викликається коли менеджер тицяє по СВОЄМУ клієнту (isMine=true) у списку
-   * результатів. Батьківська сторінка має сфокусувати картку у «Мої клієнти».
-   * Для чужих клієнтів клік не робить нічого — їх контакти захищені.
-   */
   onSelectMine?: (clientId: string) => void;
 }
 
@@ -56,94 +52,51 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
     return () => clearTimeout(t);
   }, [query]);
 
-  // iOS PWA fix (2026-06-10, спроба 4). Поєднує full-screen overlay
-  // з визначенням реальної видимої зони + body scroll lock.
-  //
-  // - CSS `vh` рахується від layout viewport (з клавіатурою). Модалка
-  //   `inset-0` опиняється фізично на повний layout-екран, її низ під
-  //   клавіатурою. Body під модалкою не заблокована — touch у списку
-  //   після досягнення дна перетікає у body, користувач бачить як
-  //   фон скролиться.
-  // - Через `visualViewport.resize/scroll` оновлюємо CSS-змінну
-  //   `--gcs-vh` = реальна видима висота. Модалка `h-[var(--gcs-vh,100dvh)]`
-  //   стискається до видимої зони над клавіатурою.
-  // - Окремий body scroll lock через `position:fixed` гарантує що body
-  //   фізично не може скролитися, навіть якщо touch проходить крізь.
-  useEffect(() => {
-    if (!open) return;
-
-    // 1) Body scroll lock
-    const scrollY = window.scrollY;
-    const body = document.body;
-    const prev = {
-      position: body.style.position,
-      top: body.style.top,
-      width: body.style.width,
-      overflow: body.style.overflow,
-    };
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.width = '100%';
-    body.style.overflow = 'hidden';
-
-    // 2) visualViewport height → CSS variable
-    const vv = window.visualViewport;
-    const root = document.documentElement;
-    const updateVH = () => {
-      if (vv) {
-        root.style.setProperty('--gcs-vh', `${Math.round(vv.height)}px`);
-      }
-    };
-    updateVH();
-    vv?.addEventListener('resize', updateVH);
-    vv?.addEventListener('scroll', updateVH);
-
-    return () => {
-      body.style.position = prev.position;
-      body.style.top = prev.top;
-      body.style.width = prev.width;
-      body.style.overflow = prev.overflow;
-      window.scrollTo(0, scrollY);
-      vv?.removeEventListener('resize', updateVH);
-      vv?.removeEventListener('scroll', updateVH);
-      root.style.removeProperty('--gcs-vh');
-    };
-  }, [open]);
-
   const shouldFetch = debouncedQuery.length >= 2;
   const { data, loading } = useOneCData(
     'findClient',
     shouldFetch && sessionUser
-      ? { searchTerm: debouncedQuery, managerLogin: '' } // managerLogin override з сесії
+      ? { searchTerm: debouncedQuery, managerLogin: '' }
       : null,
   );
   const results: ClientFromOneC[] = useMemo(() => data?.clients ?? [], [data]);
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={v => !v && onClose()}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-[60] bg-emet-ink/30 backdrop-blur-[2px] data-ending-style:opacity-0 data-starting-style:opacity-0 transition-opacity duration-200" />
-        <DialogPrimitive.Popup
+    <Drawer.Root
+      open={open}
+      onOpenChange={v => !v && onClose()}
+      repositionInputs={true}
+      dismissible={true}
+      modal={true}
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[60] bg-emet-ink/40 backdrop-blur-[2px]" />
+        <Drawer.Content
+          aria-describedby={undefined}
           className="
-            fixed z-[60] bg-white overflow-hidden flex flex-col
-            max-md:inset-x-0 max-md:top-0 max-md:h-[var(--gcs-vh,100dvh)] max-md:rounded-none max-md:shadow-none
-            md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[560px] md:max-w-[calc(100vw-32px)] md:max-h-[calc(100vh-64px)] md:h-[640px] md:rounded-3xl md:shadow-[0_24px_60px_rgba(6,42,61,0.25)]
-            data-ending-style:opacity-0 max-md:data-ending-style:opacity-0 md:data-ending-style:scale-95
-            data-starting-style:opacity-0 max-md:data-starting-style:opacity-0 md:data-starting-style:scale-95
-            transition-all duration-200
+            fixed z-[60] bg-white flex flex-col outline-none
+            max-md:inset-x-0 max-md:bottom-0 max-md:rounded-t-3xl max-md:h-[96dvh] max-md:shadow-[0_-8px_40px_rgba(6,42,61,0.20)]
+            md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[560px] md:max-w-[calc(100vw-32px)] md:h-[640px] md:max-h-[calc(100vh-64px)] md:rounded-3xl md:shadow-[0_24px_60px_rgba(6,42,61,0.25)] md:bottom-auto
           "
         >
+          {/* Drag handle on mobile only */}
+          <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+            <div className="w-10 h-1 bg-slate-300 rounded-full" />
+          </div>
+
           <div className="flex items-center justify-between px-5 py-3 md:py-4 md:px-6 border-b border-slate-100 shrink-0">
-            <DialogPrimitive.Title className="text-[17px] md:text-[19px] font-bold text-emet-ink tracking-tight inline-flex items-center gap-2">
+            <Drawer.Title className="text-[17px] md:text-[19px] font-bold text-emet-ink tracking-tight inline-flex items-center gap-2">
               <UsersIcon className="w-4 h-4 text-emet-blue" />
               Пошук по всій базі
-            </DialogPrimitive.Title>
-            <DialogPrimitive.Close
+            </Drawer.Title>
+            <button
+              type="button"
+              onClick={onClose}
               className="w-11 h-11 rounded-[10px] bg-slate-100 text-slate-600 hover:bg-slate-200 inline-flex items-center justify-center transition-colors"
               aria-label="Закрити"
             >
               <XIcon className="w-[18px] h-[18px]" />
-            </DialogPrimitive.Close>
+            </button>
           </div>
 
           {/* Search */}
@@ -165,10 +118,8 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
             </p>
           </div>
 
-          {/* Results — flex-1 + min-h-0 щоб overflow-y-auto спрацював у
-              flex-col контейнері. На mobile (full-screen) це гарантовано
-              працює бо Popup має inset-0 (фіксовану висоту = viewport). */}
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+          {/* Results */}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
             {debouncedQuery.length < 2 && (
               <div className="px-5 py-10 text-center text-[13px] text-slate-500">
                 Введіть мінімум 2 символи для пошуку.
@@ -201,9 +152,9 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
               </div>
             )}
           </div>
-        </DialogPrimitive.Popup>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }
 
@@ -224,8 +175,6 @@ function ClientRow({
     client.isMine === true ||
     (!!managerName && managerName.toLowerCase() === myLogin);
 
-  // Свого клієнта робимо клікабельним — переходимо у його картку в «Мої клієнти».
-  // Чужий — статичний div, бо нема куди переходити (контактів все одно нема).
   const handleClick = () => {
     if (isMine && onSelectMine) onSelectMine(client.ClientID);
   };
@@ -245,8 +194,6 @@ function ClientRow({
         )}
       </div>
 
-      {/* Контакти + адреса — тільки для своїх клієнтів. Чужих захищаємо щоб
-          менеджер не міг звертатись напряму, обходячи відповідального колегу. */}
       {isMine ? (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
           {client.Phone && (
