@@ -26,6 +26,7 @@ import { MeetingsFilters, type StatusFilter } from './meetings-filters';
 import { ClientDossierDialog } from './client-dossier-dialog';
 import { useMeetings } from '@/lib/meetings/use-meetings';
 import { useMyClients } from '@/lib/use-my-clients';
+import { useOneCData } from '@/lib/use-onec-data';
 import {
   calcDateRange,
   DEFAULT_PRESET,
@@ -55,6 +56,7 @@ function loginToDisplay(login: string): string {
 export function TeamMeetingsView() {
   const sessionUser = useAppStore(s => s.user);
   const managedUsers = sessionUser?.managedUsers ?? [];
+  const namesByLogin = useManagedUserNames();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [datePreset, setDatePreset] = useState<DatePreset>(DEFAULT_PRESET);
@@ -172,7 +174,7 @@ export function TeamMeetingsView() {
             <ManagerPill
               key={login}
               active={managerFilter === login}
-              label={loginToDisplay(login)}
+              label={namesByLogin.get(login.toLowerCase().trim()) ?? loginToDisplay(login)}
               count={countsByManager.get(login) ?? 0}
               onClick={() => setManagerFilter(login)}
             />
@@ -212,7 +214,10 @@ export function TeamMeetingsView() {
                     client={clientsByID.get(m.clientId1c)}
                     onClientClick={handleClientClick}
                     readOnly
-                    managerLabel={resolveManagerLabel(m, managedUsers)}
+                    managerLabel={
+                      namesByLogin.get(m.managerLogin.toLowerCase().trim())
+                        ?? loginToDisplay(m.managerLogin)
+                    }
                   />
                 ))}
               </div>
@@ -266,10 +271,38 @@ function ManagerPill({
   );
 }
 
-/** Display label для манагера у пілюльці на картці. Намагаємось зі список
- *  managedUsers (там логіни), потім fallback на login без домена. */
-function resolveManagerLabel(meeting: MeetingWithSync, _managed: string[]): string {
-  // У майбутньому тут буде map login → fullName з 1С/Supabase. Поки що
-  // показуємо короткий логін без домена.
-  return loginToDisplay(meeting.managerLogin);
+/**
+ * Hook: повертає Map<login → fullName> для всіх менеджерів регіону через
+ * 1С `getRegionData` (Action 5). Викликається з login РМ за поточний місяць —
+ * у відповіді приходять regions[].managers[] з полями managerLogin/managerName.
+ *
+ * Кешується SWR-ом між рендерами. Якщо запит ще не виконаний — fallback
+ * на короткий логін без домена.
+ */
+function useManagedUserNames(): Map<string, string> {
+  const user = useAppStore(s => s.user);
+  const period = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+  const { data } = useOneCData(
+    'getRegionData',
+    user ? { login: user.login, period } : null,
+  );
+  return useMemo(() => {
+    const map = new Map<string, string>();
+    const regions = (data as {
+      regions?: Array<{
+        managers?: Array<{ managerLogin?: string; managerName?: string }>;
+      }>;
+    })?.regions ?? [];
+    for (const r of regions) {
+      for (const m of r.managers ?? []) {
+        if (m.managerLogin && m.managerName) {
+          map.set(m.managerLogin.toLowerCase().trim(), m.managerName);
+        }
+      }
+    }
+    return map;
+  }, [data]);
 }
