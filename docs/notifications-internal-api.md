@@ -121,14 +121,15 @@ except Exception as e:
 
 ## Vercel env
 
-Додати у Vercel project settings (Production scope):
+Той самий 32-байтний secret треба додати у **обох** Vercel-проектах
+з однаковою назвою `SP_NOTIFICATIONS_SECRET`:
 
-```
-NOTIFICATIONS_INTERNAL_SECRET=<random-32-byte-hex>
-```
+| Проект | Змінна | Роль |
+|--------|--------|------|
+| sales-planning | `SP_NOTIFICATIONS_SECRET` | API перевіряє X-Internal-Secret header |
+| reclamation-app | `SP_NOTIFICATIONS_SECRET` | Python webhook шле X-Internal-Secret header |
 
-У Python webhook environment (на нашому сервері) додати ту саму змінну:
+Production scope обов'язково. Після додавання — redeploy обох проектів.
 
-```bash
-export SP_NOTIFICATIONS_SECRET=<random-32-byte-hex>
-```
+Backward-compat: sales-planning також приймає стару назву
+`NOTIFICATIONS_INTERNAL_SECRET` (якщо вже додана).

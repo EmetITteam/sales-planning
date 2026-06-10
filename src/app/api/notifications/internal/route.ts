@@ -41,10 +41,14 @@ interface InternalPayload {
 }
 
 export async function POST(request: NextRequest) {
-  const secret = process.env.NOTIFICATIONS_INTERNAL_SECRET;
+  // Підтримуємо обидві назви для backward-compat (NOTIFICATIONS_INTERNAL_SECRET
+  // було у початковій версії, тепер канонічна — SP_NOTIFICATIONS_SECRET щоб
+  // співпадало з reclamation-app webhook env).
+  const secret =
+    process.env.SP_NOTIFICATIONS_SECRET ?? process.env.NOTIFICATIONS_INTERNAL_SECRET;
   if (!secret) {
     return Response.json(
-      { error: 'NOTIFICATIONS_INTERNAL_SECRET not configured' },
+      { error: 'SP_NOTIFICATIONS_SECRET not configured' },
       { status: 500 },
     );
   }
