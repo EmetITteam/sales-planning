@@ -872,20 +872,20 @@ function PageTitle({
           + Замовлення коли буде). Рекламації — secondary action на цій вкладці. */}
       <Link
         href="/claims"
-        className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[13px] font-bold hover:bg-rose-100 active:translate-y-px transition-all shrink-0"
+        className="inline-flex items-center gap-1.5 min-h-[44px] md:min-h-[34px] px-4 md:px-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[13px] md:text-[12px] font-bold hover:bg-rose-100 active:translate-y-px transition-all shrink-0"
         aria-label="Рекламації"
       >
-        <AlertCircle className="w-4 h-4" />
+        <AlertCircle className="w-4 h-4 md:w-3.5 md:h-3.5" />
         <span className="max-sm:hidden">Рекламації</span>
       </Link>
       {onGlobalSearch && (
         <button
           type="button"
           onClick={onGlobalSearch}
-          className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-white/70 border border-emet-blue/25 text-emet-blue text-[13px] font-bold hover:bg-emet-blue hover:text-white hover:border-emet-blue active:translate-y-px transition-all shrink-0"
+          className="inline-flex items-center gap-1.5 min-h-[44px] md:min-h-[34px] px-4 md:px-3 rounded-xl bg-white/70 border border-emet-blue/25 text-emet-blue text-[13px] md:text-[12px] font-bold hover:bg-emet-blue hover:text-white hover:border-emet-blue active:translate-y-px transition-all shrink-0"
           aria-label="Пошук по всій базі"
         >
-          <Search className="w-4 h-4" />
+          <Search className="w-4 h-4 md:w-3.5 md:h-3.5" />
           <span className="max-sm:hidden">По всій базі</span>
         </button>
       )}
@@ -893,10 +893,10 @@ function PageTitle({
         <button
           type="button"
           onClick={onNewClient}
-          className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] font-bold shadow-[0_4px_14px_rgba(6,106,171,0.3)] hover:shadow-[0_6px_20px_rgba(6,106,171,0.4)] active:translate-y-px transition-all shrink-0"
+          className="inline-flex items-center gap-1.5 min-h-[44px] md:min-h-[34px] px-4 md:px-3 rounded-xl bg-gradient-to-r from-emet-blue to-emet-blue-light text-white text-[13px] md:text-[12px] font-bold shadow-[0_4px_14px_rgba(6,106,171,0.3)] hover:shadow-[0_6px_20px_rgba(6,106,171,0.4)] active:translate-y-px transition-all shrink-0"
           aria-label="Новий клієнт"
         >
-          <UserPlus className="w-4 h-4" />
+          <UserPlus className="w-4 h-4 md:w-3.5 md:h-3.5" />
           <span className="max-sm:hidden">Новий клієнт</span>
         </button>
       )}
