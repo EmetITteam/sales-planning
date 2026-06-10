@@ -124,7 +124,6 @@ export async function GET(
   let upstream: Response;
   try {
     upstream = await fetch(urlToFetch, {
-      // Bitrix-token у URL — auth уже зашитий.
       headers: { Accept: '*/*' },
     });
   } catch (e) {
@@ -139,10 +138,72 @@ export async function GET(
     );
   }
 
-  const contentType = upstream.headers.get('content-type') ?? contentTypeHint;
+  // Bitrix REST endpoint `crm.controller.item.getFile` через webhook повертає
+  // JSON-wrapper: `{ result: { file: 'base64...' } }` або `{ result: 'base64...' }`.
+  // Якщо так — декодуємо base64 і віддаємо бінарні байти. Інакше — streaming
+  // оригіналу (Disk API повертає бінарний контент напряму).
+  const respContentType = upstream.headers.get('content-type') ?? '';
+  if (respContentType.includes('application/json')) {
+    const json = (await upstream.json()) as {
+      result?: string | { file?: string; data?: string; downloadUrl?: string; url?: string };
+      error?: string;
+      error_description?: string;
+    };
+    console.log(`[claims/${claimId}/file] Bitrix JSON keys:`, JSON.stringify(json).slice(0, 200));
+
+    // Bitrix error?
+    if (json.error) {
+      return Response.json(
+        { error: `Bitrix: ${json.error_description ?? json.error}` },
+        { status: 502 },
+      );
+    }
+    // Витягуємо base64 або вторинний URL
+    const r = json.result;
+    let base64 = '';
+    let secondaryUrl = '';
+    if (typeof r === 'string') {
+      base64 = r;
+    } else if (r && typeof r === 'object') {
+      base64 = r.file ?? r.data ?? '';
+      secondaryUrl = r.downloadUrl ?? r.url ?? '';
+    }
+
+    if (base64) {
+      // Bitrix іноді віддає base64 з префіксом `data:image/jpeg;base64,...`
+      const cleaned = base64.replace(/^data:[^;]+;base64,/, '');
+      const buffer = Buffer.from(cleaned, 'base64');
+      return new Response(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentTypeHint,
+          'Cache-Control': 'private, max-age=3600',
+          'Content-Disposition': `inline; filename="${encodeURIComponent(nameHint)}"`,
+          'Content-Length': String(buffer.length),
+        },
+      });
+    }
+    if (secondaryUrl) {
+      const second = await fetch(secondaryUrl, { headers: { Accept: '*/*' } });
+      if (!second.ok || !second.body) {
+        return Response.json({ error: `secondary fetch HTTP ${second.status}` }, { status: 502 });
+      }
+      return new Response(second.body, {
+        status: 200,
+        headers: {
+          'Content-Type': second.headers.get('content-type') ?? contentTypeHint,
+          'Cache-Control': 'private, max-age=3600',
+          'Content-Disposition': `inline; filename="${encodeURIComponent(nameHint)}"`,
+        },
+      });
+    }
+    return Response.json({ error: 'unexpected Bitrix JSON shape' }, { status: 502 });
+  }
+
+  // Streaming оригіналу (binary content)
   const contentLength = upstream.headers.get('content-length');
   const headers: Record<string, string> = {
-    'Content-Type': contentType,
+    'Content-Type': respContentType || contentTypeHint,
     'Cache-Control': 'private, max-age=3600',
     'Content-Disposition': `inline; filename="${encodeURIComponent(nameHint)}"`,
   };
