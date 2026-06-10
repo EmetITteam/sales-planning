@@ -112,7 +112,14 @@ export function MeetingCard({
           <span className="text-[11px] text-slate-500 font-medium">
             {formatDuration(meeting.durationMin, meeting.status)}
           </span>
-          {isInProgress && <LiveTimer meetingId={meeting.id} startedAt={meeting.startedAt} fallbackISO={meeting.updatedAt} />}
+          {isInProgress && (
+            <LiveTimer
+              meetingId={meeting.id}
+              startedAt={meeting.startedAt}
+              plannedISO={`${meeting.date}T${meeting.time.slice(0, 8)}`}
+              fallbackISO={meeting.updatedAt}
+            />
+          )}
           {isFailedSync && (
             <span className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700">
               <svg
@@ -487,10 +494,18 @@ function CalendarIcon() {
 function LiveTimer({
   meetingId: _meetingId,
   startedAt: startedAtFromDb,
+  plannedISO,
   fallbackISO,
 }: {
   meetingId: string;
+  /** started_at з БД — заповнюється коли менеджер натискає «Розпочати» у НАШОМУ
+   *  додатку. Для зустрічей з 1С (Митинг / 1С UI) це поле залишається null. */
   startedAt?: string | null;
+  /** Плановий час зустрічі (`date + time`). Використовується як база коли
+   *  `startedAt` нема — найближче до реального старту. */
+  plannedISO?: string;
+  /** Останній fallback — `updated_at`. Це час останнього sync, не реальний
+   *  старт; використовуємо тільки якщо нічого кращого нема. */
   fallbackISO: string;
 }) {
   const [now, setNow] = useState(() => Date.now());
@@ -500,7 +515,8 @@ function LiveTimer({
     return () => window.clearInterval(id);
   }, []);
 
-  const startedISO = startedAtFromDb || fallbackISO;
+  // Chain: реальний started_at з БД > плановий час > updated_at.
+  const startedISO = startedAtFromDb || plannedISO || fallbackISO;
   const startedAt = new Date(startedISO).getTime();
   const elapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000));
   const mm = Math.floor(elapsedSec / 60);
