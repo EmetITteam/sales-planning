@@ -4,6 +4,80 @@
 
 ---
 
+## [2026-06-11] · Sprint 2B Рекламації + Notification Center + ДН клієнтів + Team meetings
+
+### 🆕 Рекламації (модуль)
+
+Інтеграція з Bitrix24 Smart Process 1038 — менеджер подає претензії клієнтів напряму з sales-planning, не покидаючи систему.
+
+- **Форма створення** з 3-х точок входу: кнопка «Нова рекламація» на сторінці, рядок у картці клієнта, іконка «!» на картці зустрічі
+- Розумна анкета: для медичних типів (Якість/Ефективність/Побічна/Ускладнення) — повна 13-14-полева анкета по обраному препарату; для решти — simpleDesc
+- Multipart upload файлів — до 5 шт сумарно 4 MB (Vercel body-limit safe)
+- Окремий перегляд list (`/claims`) з glass-cards, eyebrow «Рекламація #N», meta-рядок (дата · тип · препарат)
+- Filter pills + сервер-сайд detect непрочитаних коментарів через regex `<b>X</b> (Менеджер)` → badge «Нове», filter-pill «Непрочитані»
+- Деталь (`/claims/[id]`) з info-card, details, чат з мед-відділом (polling 15с)
+- Файли: server-proxy через webhook (обхід `invalid_authentication`), JSON-aware unwrap для b_file legacy IDs з Content-Disposition extraction, lightbox з progressive image→video→download fallback
+- Notify мед-відділу через `im.notify` Bitrix
+- Терміналогія «рекламація» (не «претензія»)
+
+### 🔔 Notification Center
+
+Колокольчик у шапці з лічильником непрочитаних — централізована точка для всіх системних повідомлень. Розширюваний на майбутні типи.
+
+- **Supabase migration `021_notifications`** — таблиця з UNIQUE INDEX на `dedup_key` (idempotent retry-safe)
+- **4 API endpoints**: `GET /api/notifications`, `POST /[id]/read`, `POST mark-all-read`, `POST internal`
+- **`NotificationsBell`** компонент у AppHeader з SWR badge polling 30с, optimistic updates, color-coded dots по типу
+- **Інтеграція з `reclamation-app`** Python webhook через `X-Internal-Secret` header (shared secret з env `NOTIFICATIONS_INTERNAL_SECRET`)
+- **Echo-filter** ловить менеджерські коментарі (`(Менеджер)`) щоб не задвоювати самі собі notifications
+
+### 🎂 День народження клієнтів
+
+Інструмент щоб не пропустити нагоду для дзвінка-привітання — простий привід для лояльності.
+
+- `BirthDate` поле у `ClientFromOneC` + helpers: `getClientBirthDate` (normalize → ISO), `getAge` (NaN-safe), `isBirthdayToday` (day+month match)
+- **Банер вгорі `/clients`** з gradient-blue, Cake-іконкою, переліком імен + клік фокусує картку
+- **Chip «Сьогодні ДН»** на картці клієнта (синій glass-tint)
+- **Інлайн-рядок «14.06 · 40 років»** під телефоном з правильним UA-plural (`pluralUaYears`)
+
+### 👥 Зустрічі команди (РМ)
+
+Read-only вкладка для регіональних керівників на сторінці `/meetings`.
+
+- `GET /api/meetings?scope=managed` — повертає тільки `[...managedUsers]` без своїх. Доступ admin/director/rm. 403 для звичайного менеджера
+- **`TeamMeetingsView`** компонент з власним filter-row «Менеджер» (всі / конкретний з managedUsers) + лічильниками
+- `MeetingCard` отримав props `readOnly` (ховає Розпочати/Завершити/Скасувати/Перенести/Правка/Підсумки) і `managerLabel` (фіолетова pill з іменем)
+- `useManagedUserNames` hook — резолвить login→fullName через `getRegionData` (Action 5)
+
+### 🛠 Дрібні UI fix-и
+
+- LiveTimer fallback chain: реальний `startedAt` з БД → плановий час зустрічі → updated_at
+- Native `<input type="time">` назад у meeting-form (iPhone показує нативний Будильник picker)
+- vaul Drawer для пошуку клієнтів на mobile (вирішує iOS PWA keyboard scroll) + base-ui Dialog на desktop
+- Sentry BOM-DSN sanitize (Vercel env міг мати UTF-8-BOM маркер)
+- Меньші action-кнопки у шапці «Клієнти» на desktop (34px замість 44px — пропорційно до h1)
+- Initials у аватарі скіпають дужки (`Андрущук (Недолуга) К.` → `АН`, не `А(`)
+- Skeleton screens для `/clients`, `/meetings`, `/claims` замість центрального spinner
+
+### 🔐 Security + env
+
+- `NOTIFICATIONS_INTERNAL_SECRET` — shared secret між sales-planning і reclamation-app для server-to-server auth
+- `BITRIX_WEBHOOK_URL` у reclamation-app тепер з env (раніше hardcoded токен `24pv36uotghswqwa` став INVALID_CREDENTIALS)
+- `TG_NOTIFICATIONS_DISABLED=true` у reclamation-app env — kill-switch для TG-бота щоб не задвоювати notifications (функціональність ціла, прибрати змінну → знов вмикається)
+- Vercel Deployment Protection — Standard Protection для preview, Production публічна (з обов'язковим secret-auth на `/api/notifications/internal`)
+
+### 📝 Docs
+
+- `public/manual.html` — нові розділи «Сповіщення», «Рекламації», «День народження клієнтів», «Зустрічі команди» + FAQ доповнено питаннями по новій функціональності
+- `public/presentation.html` — 3 нові слайди (08 Рекламації, 09 Сповіщення, 10 ДН клієнтів) перед value-slide
+- `docs/notifications-internal-api.md` — спеціфікація payload + secret для майбутніх інтеграцій з notification center
+
+### 🏷 Etalon
+
+- `etalon-reclamations-2026-06-11` (merge commit `c0e8e0d`) — дефолт при відкоті після цієї дати
+- Backup tag `backup-before-merge-2026-06-11` (`042b31a` на feature/reclamations) — точка до merge master
+
+---
+
 ## [2026-05-14] · Автоматичні бекапи БД + повний technical README
 
 ### 📖 Документація проекту
