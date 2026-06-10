@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw } from 'lucide-react';
+import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw, Cake } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
@@ -72,7 +72,15 @@ function canonicalSegmentCode(raw: string): string {
   return cleaned.toUpperCase();
 }
 import { mapClientCategory } from '@/lib/onec-adapters';
-import { getClientName, getClientAddress, isClientReserved, type ClientFromOneC } from '@/lib/mityng-types';
+import {
+  getClientName,
+  getClientAddress,
+  isClientReserved,
+  getClientBirthDate,
+  getAge,
+  isBirthdayToday,
+  type ClientFromOneC,
+} from '@/lib/mityng-types';
 
 // === Категорійні групи ===
 // 5 реальних категорій 1С + окремий error-bucket «Без категорії в 1С»
@@ -127,8 +135,15 @@ const CAT_ORDER: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'none', 'm
 function initials(name: string | null | undefined): string {
   const safe = (name ?? '').trim();
   if (!safe) return '?';
+  // Беремо першу буквено-цифрову букву з кожного слова — пропускаючи дужки,
+  // лапки тощо. «Андрущук (Недолуга) Катерина» → «АН» (Андрущук + Недолуга),
+  // а не «А(» як було.
+  const firstLetterOf = (s: string): string => {
+    const m = s.match(/[\p{L}\p{N}]/u);
+    return m ? m[0].toUpperCase() : '';
+  };
   const parts = safe.split(/\s+/).slice(0, 2);
-  return parts.map(p => p[0]?.toUpperCase() || '').join('') || '?';
+  return parts.map(firstLetterOf).join('') || '?';
 }
 
 export function ClientsPage() {
@@ -580,6 +595,7 @@ export function ClientsPage() {
         onNewClient={() => setNewClientOpen(true)}
         onGlobalSearch={() => setGlobalSearchOpen(true)}
       />
+      <BirthdayBanner clients={baseClients} onClientClick={setFocusOverride} />
       <ClientsMonthFilter selectedMonth={selectedMonth} onChange={setSelectedMonth} />
 
       {/* === HERO BAND — 4 картки за домовленістю 2026-05-27 === */}
@@ -1492,6 +1508,18 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
   const name = getClientName(client);
   const address = getClientAddress(client);
+  // Дата народження + вік + чи сьогодні ДН (для chip-rose та inline-display).
+  const birthISO = getClientBirthDate(client);
+  const age = getAge(birthISO);
+  const isBirthday = isBirthdayToday(birthISO);
+  // Display: «14.06 · 40 років» (з повним UA-plural-словом).
+  const birthDisplay = birthISO
+    ? (() => {
+        const [, mo, d] = birthISO.split('-');
+        const base = `${d}.${mo}`;
+        return age != null ? `${base} · ${age} ${pluralUaYears(age)}` : base;
+      })()
+    : '';
   // Стани плану/факту:
   //   totalsLoading=true → ще тягнемо → '—'
   //   plan>0 → реальна сума (з planом)
@@ -1586,6 +1614,17 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 Виконав
               </span>
             )}
+            {/* День народження сьогодні — лишається chip-pill (тут це
+                подієвий тригер для менеджера, потрібен акцент). */}
+            {isBirthday && (
+              <span
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-emet-blue/10 text-emet-blue border border-emet-blue/30 backdrop-blur-sm"
+                title={`Сьогодні день народження${age != null ? ` · ${age} ${pluralUaYears(age)}` : ''}`}
+              >
+                <Cake className="w-2.5 h-2.5" />
+                Сьогодні ДН
+              </span>
+            )}
           </div>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0">
@@ -1642,6 +1681,15 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 <AlertCircle className="h-3 w-3" />
                 Подати рекламацію
               </button>
+            </div>
+          )}
+
+          {/* Дата народження окремим рядком під address/phone (тільки коли
+              ДН НЕ сьогодні — сьогодні підсвічуємо chip-ом у header). */}
+          {birthDisplay && !isBirthday && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1 min-w-0">
+              <Cake className="h-3 w-3 shrink-0" />
+              <span className="tabular-nums">{birthDisplay}</span>
             </div>
           )}
         </div>
@@ -2590,5 +2638,84 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
       </div>
     </div>
   );
+}
+
+/**
+ * BirthdayBanner — повідомлення вгорі /clients про клієнтів, у кого
+ * сьогодні день народження. Клік по клієнту → focus на його картку
+ * (через setFocusOverride).
+ */
+function BirthdayBanner({
+  clients,
+  onClientClick,
+}: {
+  clients: ClientFromOneC[];
+  onClientClick: (clientId: string) => void;
+}) {
+  const today = useMemo(() => new Date(), []);
+  const birthdayClients = useMemo(
+    () =>
+      clients.filter(c => {
+        const iso = getClientBirthDate(c);
+        return iso && isBirthdayToday(iso, today);
+      }),
+    [clients, today],
+  );
+
+  if (birthdayClients.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-emet-blue/20 px-4 py-3 shadow-[0_4px_14px_rgba(6,42,61,0.04)] flex items-start gap-3">
+      <div className="w-9 h-9 rounded-xl bg-emet-blue/10 text-emet-blue flex items-center justify-center shrink-0">
+        <Cake className="w-4 h-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-bold tracking-tight text-emet-ink">
+          Сьогодні день народження у {birthdayClients.length} {pluralUaClient(birthdayClients.length)}
+        </div>
+        <div className="text-[12px] text-slate-600 mt-1 flex flex-wrap gap-x-1.5 gap-y-0.5">
+          {birthdayClients.map((c, i) => {
+            const iso = getClientBirthDate(c);
+            const age = getAge(iso, today);
+            return (
+              <button
+                key={c.ClientID}
+                type="button"
+                onClick={() => onClientClick(c.ClientID)}
+                className="inline-flex items-center gap-1 text-emet-blue hover:text-emet-blue-light font-semibold underline decoration-emet-blue/30 hover:decoration-emet-blue transition-colors"
+                title={`Перейти до картки${age != null ? ` · ${age} ${pluralUaYears(age)}` : ''}`}
+              >
+                {getClientName(c)}
+                {age != null && (
+                  <span className="text-slate-500 font-normal">
+                    ({age} {pluralUaYears(age)})
+                  </span>
+                )}
+                {i < birthdayClients.length - 1 && <span className="text-slate-400">,</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Український plural для слова «клієнт» — без зовнішнього helper-a. */
+function pluralUaClient(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'клієнта';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'клієнтів';
+  return 'клієнтів';
+}
+
+/** Український plural для «років / рік / роки» по правильним правилам. */
+function pluralUaYears(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'рік';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'роки';
+  return 'років';
 }
 

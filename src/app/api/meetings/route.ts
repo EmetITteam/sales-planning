@@ -127,12 +127,17 @@ async function syncFromOneC(
         clientPhoneFromOneC: adapted.clientPhoneFromOneC,
         clientCategoryFromOneC: adapted.clientCategoryFromOneC,
         anketaDataJson: adapted.anketaDataJson,
+        startedAt: adapted.startedAt,
       });
 
       if (existingRow) {
         // UPDATE: оновлюємо тільки safe snapshot fields (manager_login + name/
-        // phone/category + anketa_data_json + legacy_1c_id). Local статус/
-        // коментар/start_*/end_* не торкаємо — це local user state.
+        // phone/category + anketa_data_json + legacy_1c_id + started_at).
+        // started_at оновлюємо щоб LiveTimer показував реальний час старту
+        // з Митингу — це чисто read-only поле, не конфліктує з нашим start
+        // через додаток (там пишемо власне started_at у repo.startMeeting
+        // і 1С потім повертає те ж саме значення).
+        // Local статус/коментар/end_* не торкаємо — це local user state.
         toUpdate.push({
           id: existingRow.id,
           legacy_1c_id: legacyId,
@@ -142,6 +147,7 @@ async function syncFromOneC(
             client_phone: dbRow.client_phone,
             client_category: dbRow.client_category,
             anketa_data_json: dbRow.anketa_data_json,
+            started_at: dbRow.started_at,
             legacy_1c_id: legacyId,
           },
         });
@@ -192,7 +198,28 @@ export async function GET(request: NextRequest) {
   const dateTo = searchParams.get('to') ?? undefined;
   const limit = Number(searchParams.get('limit') ?? '500');
 
-  // bulk-import з 1С. Дві стратегії за діапазоном:
+  // ── Scope: 'own' (default) — тільки свої зустрічі. 'managed' — тільки
+  // підлеглих (без своїх), доступний admin/director/rm. Це розділяє UX:
+  // на основному борді — свої, на окремій вкладці «Зустрічі команди» —
+  // підлеглі (read-only).
+  const scope = (searchParams.get('scope') ?? 'own') as 'own' | 'managed';
+  const isPrivileged =
+    session.role === 'admin' || session.role === 'director' || session.role === 'rm';
+  if (scope === 'managed' && !isPrivileged) {
+    return Response.json({ error: 'scope=managed requires admin/director/rm' }, { status: 403 });
+  }
+
+  // targetLogins визначається ВИКЛЮЧНО зі scope. РМ за замовчуванням бачить
+  // тільки свої зустрічі — раніше тут було автоматичне розширення на
+  // managedUsers, що показувало РМ-у чужі зустрічі без позначки і ламало
+  // refresh клієнтів (getManagerClients тягне тільки свої).
+  const targetLogins = scope === 'managed' ? session.managedUsers : [session.login];
+
+  if (targetLogins.length === 0) {
+    return Response.json({ meetings: [] });
+  }
+
+  // bulk-import з 1С — для КОЖНОГО login у scope. Дві стратегії за діапазоном:
   //
   // 1. ВУЗЬКИЙ діапазон (≤2 дні: today/tomorrow) → background через `after()`.
   //    БД одразу повертає кеш, нові зустрічі через 60с polling. UX: миттєвий
@@ -204,39 +231,29 @@ export async function GET(request: NextRequest) {
   //    дописуємо у БД, тоді робимо SELECT з оновленої БД. Це повторює UX
   //    meeting-app (там завжди sync read).
   if (dateFrom && dateTo) {
-    const login = session.login;
     const from = dateFrom;
     const to = dateTo;
     const daysSpan = Math.abs(
       (new Date(to).getTime() - new Date(from).getTime()) / (24 * 60 * 60 * 1000),
     );
-    if (daysSpan > 2) {
-      // Синхронний sync — користувач очікує побачити всі зустрічі за період.
-      // Errors silenced — нехай БД-кеш покаже хоч щось замість 500.
-      try {
-        await syncFromOneC(login, from, to);
-      } catch (e) {
-        console.warn('[/api/meetings] sync bulk-import failed:', (e as Error).message);
-      }
-    } else {
-      // Background через after() для today/tomorrow — миттєвий рендер.
-      after(async () => {
+    const syncAll = async () => {
+      // Послідовний sync (не Promise.all) — щоб не DDOS-нути 1С при ширших
+      // діапазонах + у РМ з 5+ підлеглими.
+      for (const login of targetLogins) {
         try {
           await syncFromOneC(login, from, to);
         } catch (e) {
-          console.warn('[/api/meetings] background sync failed:', (e as Error).message);
+          console.warn(`[/api/meetings] sync for ${login} failed:`, (e as Error).message);
         }
-      });
+      }
+    };
+    if (daysSpan > 2) {
+      // Errors silenced — нехай БД-кеш покаже хоч щось замість 500.
+      await syncAll();
+    } else {
+      after(syncAll);
     }
   }
-
-  // P1 #12: admin/director бачать СВОЇ + managedUsers. РМ — те саме.
-  // Менеджер — тільки свої.
-  const targetLogins = session.role === 'admin' || session.role === 'director'
-    ? [session.login, ...session.managedUsers]
-    : session.role === 'rm'
-      ? [session.login, ...session.managedUsers]
-      : [session.login];
 
   const { data, error } = await listMeetings(session.login, {
     dateFrom,

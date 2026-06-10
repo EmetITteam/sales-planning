@@ -43,6 +43,19 @@ interface Props {
   /** Sprint 2B.C: «Подати претензію» по клієнту зустрічі. Відкриває
    *  ClaimFormDialog з prefilled clientId1c. */
   onCreateClaim?: (meeting: MeetingWithSync) => void;
+  /**
+   * Режим read-only (вкладка «Зустрічі команди» для РМ/директора). Ховає
+   * всі дії — Старт/Фініш/Скасувати/Перенести/Правка/Підсумки. Картка
+   * тільки для перегляду. Phone-кнопка лишається бо це інформаційна
+   * швидко-дія, не модифікує зустріч.
+   */
+  readOnly?: boolean;
+  /**
+   * Display-name менеджера зустрічі (тільки для readOnly-режиму, щоб у
+   * вкладці команди було видно чия це зустріч). Якщо передано — рендериться
+   * пілюлька у шапці картки.
+   */
+  managerLabel?: string;
 }
 
 export function MeetingCard({
@@ -55,6 +68,8 @@ export function MeetingCard({
   client,
   onClientClick,
   onCreateClaim,
+  readOnly,
+  managerLabel,
 }: Props) {
   // Fallback ланцюг для імені/телефону (P1 з аудиту 2026-06-04):
   //  1. client з getManagerClients (real-time) — найсвіжіше
@@ -101,7 +116,14 @@ export function MeetingCard({
           <span className="text-[11px] text-slate-500 font-medium">
             {formatDuration(meeting.durationMin, meeting.status)}
           </span>
-          {isInProgress && <LiveTimer meetingId={meeting.id} startedAt={meeting.startedAt} fallbackISO={meeting.updatedAt} />}
+          {isInProgress && (
+            <LiveTimer
+              meetingId={meeting.id}
+              startedAt={meeting.startedAt}
+              plannedISO={`${meeting.date}T${meeting.time.slice(0, 8)}`}
+              fallbackISO={meeting.updatedAt}
+            />
+          )}
           {isFailedSync && (
             <span className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700">
               <svg
@@ -122,7 +144,30 @@ export function MeetingCard({
             </span>
           )}
         </div>
-        <StatusBadge kind="meeting" status={meeting.status} />
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          {readOnly && managerLabel && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.6px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200"
+              title={`Менеджер: ${managerLabel}`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="w-2.5 h-2.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              {managerLabel}
+            </span>
+          )}
+          <StatusBadge kind="meeting" status={meeting.status} />
+        </div>
       </div>
 
       {/* BODY: client + purpose + address */}
@@ -208,7 +253,7 @@ export function MeetingCard({
         )}
       </div>
 
-      {(() => {
+      {!readOnly && (() => {
         const { primary, secondary } = splitActions(meeting, {
           onEdit, onStart, onFinish, onReschedule, onOutcome,
         });
@@ -468,10 +513,18 @@ function CalendarIcon() {
 function LiveTimer({
   meetingId: _meetingId,
   startedAt: startedAtFromDb,
+  plannedISO,
   fallbackISO,
 }: {
   meetingId: string;
+  /** started_at з БД — заповнюється коли менеджер натискає «Розпочати» у НАШОМУ
+   *  додатку. Для зустрічей з 1С (Митинг / 1С UI) це поле залишається null. */
   startedAt?: string | null;
+  /** Плановий час зустрічі (`date + time`). Використовується як база коли
+   *  `startedAt` нема — найближче до реального старту. */
+  plannedISO?: string;
+  /** Останній fallback — `updated_at`. Це час останнього sync, не реальний
+   *  старт; використовуємо тільки якщо нічого кращого нема. */
   fallbackISO: string;
 }) {
   const [now, setNow] = useState(() => Date.now());
@@ -481,7 +534,8 @@ function LiveTimer({
     return () => window.clearInterval(id);
   }, []);
 
-  const startedISO = startedAtFromDb || fallbackISO;
+  // Chain: реальний started_at з БД > плановий час > updated_at.
+  const startedISO = startedAtFromDb || plannedISO || fallbackISO;
   const startedAt = new Date(startedISO).getTime();
   const elapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000));
   const mm = Math.floor(elapsedSec / 60);

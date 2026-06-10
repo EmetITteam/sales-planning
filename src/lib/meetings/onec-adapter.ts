@@ -39,6 +39,13 @@ export interface OneCMeetingRow {
   EndLongitude?: number | string | null;
   GeoManual?: boolean;
   calendarEventId?: string;
+  /**
+   * 🆕 Час коли менеджер натиснув «Розпочати». ISO 8601
+   * ('2026-06-10T12:39:00+03:00') або 'DD.MM.YYYY HH:MM:SS'.
+   * Заповнено для зустрічей зі статусом В работе / Завершено. Для
+   * planned/cancelled — null/відсутнє.
+   */
+  StartedAt?: string;
   /** JSON-stringify survey-форми (assess клієнта). Зберігається у самому
    *  meeting обєкті — 1С продовжує meeting-app legacy. */
   AnketaDataJSON?: string;
@@ -120,9 +127,33 @@ export function adaptOneCMeeting(row: OneCMeetingRow): Meeting {
     clientNameFromOneC: row.Client?.trim() || null,
     clientPhoneFromOneC: row.Phone?.trim() || null,
     clientCategoryFromOneC: row.ClientCategory?.trim() || null,
+    // 🆕 StartedAt з 1С (момент натискання «Розпочати»). Нормалізуємо
+    // у ISO 8601. LiveTimer показуватиме реальний elapsed з цього моменту.
+    startedAt: normalizeStartedAt(row.StartedAt),
     createdAt: now,
     updatedAt: now,
   };
+}
+
+/**
+ * Нормалізує StartedAt з 1С в ISO 8601 string.
+ * 1С може повернути:
+ *  - 'YYYY-MM-DD HH:MM:SS' / 'YYYY-MM-DDTHH:MM:SS' — ISO without TZ
+ *  - 'DD.MM.YYYY HH:MM:SS' — ukrainian format
+ *  - '' / null / undefined → null
+ */
+function normalizeStartedAt(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (!s) return null;
+  // Already ISO-like
+  if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(s)) {
+    return s.replace(' ', 'T');
+  }
+  // 'DD.MM.YYYY HH:MM:SS'
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})[\sT](\d{2}:\d{2}(?::\d{2})?)$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}T${m[4]}`;
+  return null;
 }
 
 /** Конвертер OneCMeetingRow → MeetingWithSync. Sync-status defaults `synced`

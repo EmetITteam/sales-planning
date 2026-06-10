@@ -58,6 +58,17 @@ export interface ClientFromOneC {
   lastMeetingDate?: string;
   LastCallDate?: string;
   lastCallDate?: string;
+  /**
+   * 🆕 Дата народження клієнта з 1С (formats: 'DD.MM.YYYY' / 'YYYY-MM-DD').
+   * Підтримуємо обидва case-варіанти (PascalCase з getManagerClients,
+   * camelCase з findClient).
+   *
+   * Використання:
+   *  - У картці клієнта показуємо «🎂 14.06.1985 · 40 р.»
+   *  - На вкладці «Мої клієнти» — банер «Сьогодні ДН у N клієнтів»
+   */
+  BirthDate?: string;
+  birthDate?: string;
 }
 
 /** Helper: останні дата зустрічі/дзвінка незалежно від casing. */
@@ -66,6 +77,35 @@ export function getLastMeetingDate(c: { LastMeetingDate?: string; lastMeetingDat
 }
 export function getLastCallDate(c: { LastCallDate?: string; lastCallDate?: string }): string {
   return c.LastCallDate ?? c.lastCallDate ?? '';
+}
+
+/** Helper: дістати ISO YYYY-MM-DD дату народження. Підтримує обидва casing + формати:
+ *  '14.06.1985' → '1985-06-14', '1985-06-14' → as-is. Повертає '' якщо нема. */
+export function getClientBirthDate(c: { BirthDate?: string; birthDate?: string }): string {
+  const raw = (c.BirthDate ?? c.birthDate ?? '').trim();
+  if (!raw) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const m = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return '';
+}
+
+/** Helper: вік у роках за датою народження. NaN-safe, повертає null коли невалідно. */
+export function getAge(isoBirthDate: string, today: Date = new Date()): number | null {
+  if (!isoBirthDate) return null;
+  const [y, mo, d] = isoBirthDate.split('-').map(Number);
+  if (!y || !mo || !d) return null;
+  let age = today.getFullYear() - y;
+  const m = today.getMonth() + 1 - mo;
+  if (m < 0 || (m === 0 && today.getDate() < d)) age--;
+  return age >= 0 && age < 150 ? age : null;
+}
+
+/** Helper: чи сьогодні день народження клієнта (за day+month, без року). */
+export function isBirthdayToday(isoBirthDate: string, today: Date = new Date()): boolean {
+  if (!isoBirthDate) return false;
+  const [, mo, d] = isoBirthDate.split('-').map(Number);
+  return mo === today.getMonth() + 1 && d === today.getDate();
 }
 
 /** Helper — узяти isReserved незалежно від casing/типу даних з 1С.

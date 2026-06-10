@@ -9,7 +9,9 @@
 
 import * as Sentry from '@sentry/nextjs';
 
-const dsn = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
+// Sanitize: BOM + whitespace (див. sentry.client.config.ts для деталей).
+const rawDsn = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
+const dsn = rawDsn?.replace(/^﻿/, '').trim() || undefined;
 
 export async function register() {
   if (!dsn) return;
