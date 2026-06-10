@@ -69,7 +69,15 @@ function canonicalSegmentCode(raw: string): string {
   return cleaned.toUpperCase();
 }
 import { mapClientCategory } from '@/lib/onec-adapters';
-import { getClientName, getClientAddress, isClientReserved, type ClientFromOneC } from '@/lib/mityng-types';
+import {
+  getClientName,
+  getClientAddress,
+  isClientReserved,
+  getClientBirthDate,
+  getAge,
+  isBirthdayToday,
+  type ClientFromOneC,
+} from '@/lib/mityng-types';
 
 // === Категорійні групи ===
 // 5 реальних категорій 1С + окремий error-bucket «Без категорії в 1С»
@@ -574,6 +582,7 @@ export function ClientsPage() {
         onNewClient={() => setNewClientOpen(true)}
         onGlobalSearch={() => setGlobalSearchOpen(true)}
       />
+      <BirthdayBanner clients={baseClients} onClientClick={setFocusOverride} />
       <ClientsMonthFilter selectedMonth={selectedMonth} onChange={setSelectedMonth} />
 
       {/* === HERO BAND — 4 картки за домовленістю 2026-05-27 === */}
@@ -1446,6 +1455,20 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
   const phoneClean = (client.Phone || '').replace(/[^+\d]/g, '');
   const name = getClientName(client);
   const address = getClientAddress(client);
+  // Дата народження + вік + чи сьогодні ДН (для chip-rose та inline-display).
+  const birthISO = getClientBirthDate(client);
+  const age = getAge(birthISO);
+  const isBirthday = isBirthdayToday(birthISO);
+  // Display formats:
+  //  - ddmm = «14.06» (для inline без року, лаконічно)
+  //  - inline = «14.06 · 40 р.» (з віком якщо вік відомий)
+  const birthDisplay = birthISO
+    ? (() => {
+        const [, mo, d] = birthISO.split('-');
+        const base = `${d}.${mo}`;
+        return age != null ? `${base} · ${age} р.` : base;
+      })()
+    : '';
   // Стани плану/факту:
   //   totalsLoading=true → ще тягнемо → '—'
   //   plan>0 → реальна сума (з planом)
@@ -1540,10 +1563,29 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 Виконав
               </span>
             )}
+            {/* День народження сьогодні — яскрава rose-pulse pill. */}
+            {isBirthday && (
+              <span
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-rose-500 text-white shadow-sm animate-pulse"
+                title={`Сьогодні день народження${age != null ? ` · ${age} р.` : ''}`}
+              >
+                🎂 Сьогодні ДН
+              </span>
+            )}
           </div>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0">
             {address && <span className="truncate">{address}</span>}
+            {/* Дата народження inline (тільки коли НЕ сьогодні — сьогодні
+                підсвічуємо chip-ом вище щоб не задвоювати). */}
+            {birthDisplay && !isBirthday && (
+              <>
+                {address && <span className="text-muted-foreground/40 shrink-0">·</span>}
+                <span className="inline-flex items-center gap-1 shrink-0 tabular-nums" title="Дата народження">
+                  🎂 {birthDisplay}
+                </span>
+              </>
+            )}
             {/* Desktop: текстовий номер як link (старий вигляд) */}
             {client.Phone && (
               <>
@@ -2502,5 +2544,69 @@ function PlanFactBrandRow({ row }: { row: BrandRowData }) {
       </div>
     </div>
   );
+}
+
+/**
+ * BirthdayBanner — повідомлення вгорі /clients про клієнтів, у кого
+ * сьогодні день народження. Клік по клієнту → focus на його картку
+ * (через setFocusOverride).
+ */
+function BirthdayBanner({
+  clients,
+  onClientClick,
+}: {
+  clients: ClientFromOneC[];
+  onClientClick: (clientId: string) => void;
+}) {
+  const today = useMemo(() => new Date(), []);
+  const birthdayClients = useMemo(
+    () =>
+      clients.filter(c => {
+        const iso = getClientBirthDate(c);
+        return iso && isBirthdayToday(iso, today);
+      }),
+    [clients, today],
+  );
+
+  if (birthdayClients.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl bg-gradient-to-r from-rose-500/95 to-pink-500/95 text-white px-4 py-3 shadow-md flex items-start gap-3">
+      <div className="text-[24px] leading-none shrink-0 mt-0.5">🎂</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-bold tracking-tight">
+          Сьогодні день народження у {birthdayClients.length} {pluralUaClient(birthdayClients.length)}
+        </div>
+        <div className="text-[12px] text-white/90 mt-1 flex flex-wrap gap-x-1.5 gap-y-0.5">
+          {birthdayClients.map((c, i) => {
+            const iso = getClientBirthDate(c);
+            const age = getAge(iso, today);
+            return (
+              <button
+                key={c.ClientID}
+                type="button"
+                onClick={() => onClientClick(c.ClientID)}
+                className="inline-flex items-center gap-1 underline decoration-white/40 hover:decoration-white transition-colors font-semibold"
+                title={`Перейти до картки${age != null ? ` · ${age} р.` : ''}`}
+              >
+                {getClientName(c)}
+                {age != null && <span className="text-white/70 font-normal">({age})</span>}
+                {i < birthdayClients.length - 1 && <span className="text-white/40">,</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Український plural для слова «клієнт» — без зовнішнього helper-a. */
+function pluralUaClient(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'клієнта';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'клієнтів';
+  return 'клієнтів';
 }
 

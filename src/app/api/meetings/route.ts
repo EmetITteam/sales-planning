@@ -127,12 +127,17 @@ async function syncFromOneC(
         clientPhoneFromOneC: adapted.clientPhoneFromOneC,
         clientCategoryFromOneC: adapted.clientCategoryFromOneC,
         anketaDataJson: adapted.anketaDataJson,
+        startedAt: adapted.startedAt,
       });
 
       if (existingRow) {
         // UPDATE: оновлюємо тільки safe snapshot fields (manager_login + name/
-        // phone/category + anketa_data_json + legacy_1c_id). Local статус/
-        // коментар/start_*/end_* не торкаємо — це local user state.
+        // phone/category + anketa_data_json + legacy_1c_id + started_at).
+        // started_at оновлюємо щоб LiveTimer показував реальний час старту
+        // з Митингу — це чисто read-only поле, не конфліктує з нашим start
+        // через додаток (там пишемо власне started_at у repo.startMeeting
+        // і 1С потім повертає те ж саме значення).
+        // Local статус/коментар/end_* не торкаємо — це local user state.
         toUpdate.push({
           id: existingRow.id,
           legacy_1c_id: legacyId,
@@ -142,6 +147,7 @@ async function syncFromOneC(
             client_phone: dbRow.client_phone,
             client_category: dbRow.client_category,
             anketa_data_json: dbRow.anketa_data_json,
+            started_at: dbRow.started_at,
             legacy_1c_id: legacyId,
           },
         });
