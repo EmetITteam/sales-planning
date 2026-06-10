@@ -50,7 +50,7 @@ const STATUS_CARD_BG: Record<ClaimStatus, string> = {
   rejected: 'bg-gradient-to-br from-rose-100/35 to-white/60 border-rose-200/60',
 };
 
-type StatusFilter = 'all' | ClaimStatus;
+type StatusFilter = 'all' | 'unread' | ClaimStatus;
 
 export function ClaimsList() {
   const { data, error, isLoading, mutate } = useSWR<{ claims: ClaimSummary[] }>(
@@ -86,7 +86,11 @@ export function ClaimsList() {
 
   const filtered = useMemo(() => {
     let list = claims;
-    if (statusFilter !== 'all') list = list.filter(c => c.status === statusFilter);
+    if (statusFilter === 'unread') {
+      list = list.filter(c => c.hasUnread);
+    } else if (statusFilter !== 'all') {
+      list = list.filter(c => c.status === statusFilter);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -118,10 +122,15 @@ export function ClaimsList() {
             {unreadCount > 0 && (
               <>
                 {' · '}
-                <span className="inline-flex items-center gap-1 font-semibold text-rose-700">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('unread')}
+                  className="inline-flex items-center gap-1 font-semibold text-rose-700 hover:text-rose-800 underline decoration-rose-300 hover:decoration-rose-600 transition-colors"
+                  title="Показати тільки рекламації з непрочитаними"
+                >
                   <MessageCircle className="w-3 h-3" />
                   {unreadCount} {pluralUA(unreadCount, 'нове повідомлення', 'нові повідомлення', 'нових повідомлень')}
-                </span>
+                </button>
               </>
             )}
           </p>
@@ -158,6 +167,16 @@ export function ClaimsList() {
           >
             Усі
           </FilterPill>
+          {unreadCount > 0 && (
+            <FilterPill
+              active={statusFilter === 'unread'}
+              onClick={() => setStatusFilter('unread')}
+              count={unreadCount}
+              tone="rose"
+            >
+              Непрочитані
+            </FilterPill>
+          )}
           {(['new', 'in_progress', 'resolved', 'rejected'] as ClaimStatus[]).map(s =>
             counts[s] > 0 ? (
               <FilterPill
@@ -266,20 +285,28 @@ function FilterPill({
   onClick,
   count,
   children,
+  tone = 'blue',
 }: {
   active: boolean;
   onClick: () => void;
   count: number;
   children: React.ReactNode;
+  tone?: 'blue' | 'rose';
 }) {
+  const activeClass =
+    tone === 'rose'
+      ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+      : 'bg-emet-blue text-white border-emet-blue shadow-sm';
+  const hoverClass =
+    tone === 'rose'
+      ? 'bg-white text-rose-700 border-rose-200 hover:border-rose-400 hover:text-rose-700'
+      : 'bg-white text-slate-700 border-slate-200 hover:border-emet-blue hover:text-emet-blue';
   return (
     <button
       type="button"
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-semibold transition-all border ${
-        active
-          ? 'bg-emet-blue text-white border-emet-blue shadow-sm'
-          : 'bg-white text-slate-700 border-slate-200 hover:border-emet-blue hover:text-emet-blue'
+        active ? activeClass : hoverClass
       }`}
     >
       <span>{children}</span>

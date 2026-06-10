@@ -16,7 +16,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar } from 'lucide-react';
+import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar, AlertCircle } from 'lucide-react';
+import useSWR from 'swr';
+import type { ClaimSummary } from '@/lib/claims/types';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -53,7 +55,8 @@ export function AppHeader() {
   const pathname = usePathname();
   const isOnClientsPage = pathname?.startsWith('/clients') ?? false;
   const isOnMeetingsPage = pathname?.startsWith('/meetings') ?? false;
-  const isOnPlanningPage = !isOnClientsPage && !isOnMeetingsPage;
+  const isOnClaimsPage = pathname?.startsWith('/claims') ?? false;
+  const isOnPlanningPage = !isOnClientsPage && !isOnMeetingsPage && !isOnClaimsPage;
   // Cursor-following gradient на всіх glass-card. Один document listener.
   useGlassHover();
   const handleLogout = async () => {
@@ -166,6 +169,7 @@ export function AppHeader() {
               <Calendar className="h-3 w-3" />
               Зустрічі
             </button>
+            <ClaimsTabButton active={isOnClaimsPage} onClick={() => router.push('/claims')} />
           </div>
         )}
 
@@ -372,5 +376,56 @@ export function AppHeader() {
       document.body
     )}
     </>
+  );
+}
+
+/**
+ * ClaimsTabButton — tab «Рекламації» з SWR-бейджем непрочитаних коментарів.
+ *
+ * Polls /api/claims кожні 60с — отримує список рекламацій з полем `hasUnread`
+ * (server detect-ить через regex на тексті останнього коментаря). Якщо хоч
+ * один → червоний badge з кількістю.
+ *
+ * Той самий SWR key 'claims-list' що у ClaimsList → cache share, оновлення
+ * в одному місці видно в усіх.
+ */
+function ClaimsTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+  const { data } = useSWR<{ claims: ClaimSummary[] }>(
+    'claims-list',
+    async () => {
+      const r = await fetch('/api/claims', { credentials: 'same-origin' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    },
+    {
+      revalidateOnFocus: true,
+      refreshInterval: 60_000,
+      dedupingInterval: 30_000,
+    },
+  );
+  const unread = (data?.claims ?? []).filter(c => c.hasUnread).length;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`relative inline-flex items-center gap-1.5 h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+        active
+          ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+          : 'text-muted-foreground hover:text-foreground'
+      }`}
+    >
+      <AlertCircle className="h-3 w-3" />
+      Рекламації
+      {unread > 0 && (
+        <span
+          className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold tabular-nums ${
+            active ? 'bg-white text-emet-blue' : 'bg-rose-500 text-white shadow-sm'
+          }`}
+          title={`${unread} непрочитаних коментарів`}
+        >
+          {unread}
+        </span>
+      )}
+    </button>
   );
 }
