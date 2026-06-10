@@ -132,8 +132,15 @@ const CAT_ORDER: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'none', 'm
 function initials(name: string | null | undefined): string {
   const safe = (name ?? '').trim();
   if (!safe) return '?';
+  // Беремо першу буквено-цифрову букву з кожного слова — пропускаючи дужки,
+  // лапки тощо. «Андрущук (Недолуга) Катерина» → «АН» (Андрущук + Недолуга),
+  // а не «А(» як було.
+  const firstLetterOf = (s: string): string => {
+    const m = s.match(/[\p{L}\p{N}]/u);
+    return m ? m[0].toUpperCase() : '';
+  };
   const parts = safe.split(/\s+/).slice(0, 2);
-  return parts.map(p => p[0]?.toUpperCase() || '').join('') || '?';
+  return parts.map(firstLetterOf).join('') || '?';
 }
 
 export function ClientsPage() {
@@ -1459,14 +1466,12 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
   const birthISO = getClientBirthDate(client);
   const age = getAge(birthISO);
   const isBirthday = isBirthdayToday(birthISO);
-  // Display formats:
-  //  - ddmm = «14.06» (для inline без року, лаконічно)
-  //  - inline = «14.06 · 40 р.» (з віком якщо вік відомий)
+  // Display: «14.06 · 40 років» (з повним UA-plural-словом).
   const birthDisplay = birthISO
     ? (() => {
         const [, mo, d] = birthISO.split('-');
         const base = `${d}.${mo}`;
-        return age != null ? `${base} · ${age} р.` : base;
+        return age != null ? `${base} · ${age} ${pluralUaYears(age)}` : base;
       })()
     : '';
   // Стани плану/факту:
@@ -1563,25 +1568,15 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
                 Виконав
               </span>
             )}
-            {/* День народження сьогодні — glass-style emet-blue tint
-                (як інші chips), без яскравого fill. */}
+            {/* День народження сьогодні — лишається chip-pill (тут це
+                подієвий тригер для менеджера, потрібен акцент). */}
             {isBirthday && (
               <span
                 className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-emet-blue/10 text-emet-blue border border-emet-blue/30 backdrop-blur-sm"
-                title={`Сьогодні день народження${age != null ? ` · ${age} р.` : ''}`}
+                title={`Сьогодні день народження${age != null ? ` · ${age} ${pluralUaYears(age)}` : ''}`}
               >
                 <Cake className="w-2.5 h-2.5" />
                 Сьогодні ДН
-              </span>
-            )}
-            {/* Звичайний бейдж дати народження (slate) — коли ДН не сьогодні. */}
-            {!isBirthday && birthDisplay && (
-              <span
-                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-400/10 text-slate-600 border border-slate-300/50 backdrop-blur-sm tabular-nums"
-                title="Дата народження"
-              >
-                <Cake className="w-2.5 h-2.5" />
-                {birthDisplay}
               </span>
             )}
           </div>
@@ -1622,6 +1617,14 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
               </>
             )}
           </div>
+          {/* Дата народження окремим рядком під address/phone (тільки коли
+              ДН НЕ сьогодні — сьогодні підсвічуємо chip-ом у header). */}
+          {birthDisplay && !isBirthday && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1 min-w-0">
+              <Cake className="h-3 w-3 shrink-0" />
+              <span className="tabular-nums">{birthDisplay}</span>
+            </div>
+          )}
         </div>
 
         {/* Mobile-only icon-кнопки: phone + create meeting у одному контейнері.
