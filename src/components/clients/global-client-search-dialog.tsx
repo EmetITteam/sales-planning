@@ -19,7 +19,7 @@
 
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'vaul';
 import { XIcon, SearchIcon, Loader2Icon, PhoneIcon, UsersIcon } from 'lucide-react';
 import { useOneCData } from '@/lib/use-onec-data';
@@ -39,12 +39,25 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const sessionUser = useAppStore(s => s.user);
   const myLogin = (sessionUser?.login ?? '').toLowerCase().trim();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setQuery('');
       setDebouncedQuery('');
     }
+  }, [open]);
+
+  // Делейне фокусування. autoFocus вистрілює клавіатуру одночасно з
+  // анімацією vaul → drawer не встигає правильно позиціонуватись і на
+  // першому відкритті користувач бачить «білий екран». 400мс достатньо
+  // щоб vaul завершив transform-анімацію.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 400);
+    return () => clearTimeout(t);
   }, [open]);
 
   useEffect(() => {
@@ -100,8 +113,8 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
             <div className="relative">
               <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
+                ref={inputRef}
                 type="text"
-                autoFocus
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Назва, телефон…"
