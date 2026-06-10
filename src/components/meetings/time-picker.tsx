@@ -134,14 +134,23 @@ export function TimePicker({
     }
   };
 
-  // Auto-маска при наборі: дозволяємо тільки цифри + двокрапку, авто-додаємо ':'
-  // після другої цифри, обмежуємо довжину 5.
+  // Auto-маска при наборі: дозволяємо тільки цифри + двокрапку. Якщо
+  // користувач увів 5 чистих цифр («1230» / «12305») — автоматично
+  // форматуємо як HH:MM. Обмежуємо результат 5 символами (HH:MM).
   const handleInputChange = (raw: string) => {
+    // Стрипимо все крім цифр і двокрапок
     let v = raw.replace(/[^\d:]/g, '');
-    if (v.length > 5) v = v.slice(0, 5);
-    if (v.length === 2 && !v.includes(':') && draft.length < 2) {
+    // Якщо нема двокрапки і вже 3+ цифр — вставляємо : після 2-ої
+    if (!v.includes(':') && v.length >= 3) {
+      v = `${v.slice(0, 2)}:${v.slice(2)}`;
+    }
+    // Якщо нема двокрапки і рівно 2 цифри — додаємо : (зручно для друку HH:MM
+    // підряд: тапнув цифру → тапнув цифру → автодвокрапка → тапнув хвилину)
+    else if (!v.includes(':') && v.length === 2 && draft.length < 2) {
       v = `${v}:`;
     }
+    // Лімітуємо HH:MM (5 символів)
+    if (v.length > 5) v = v.slice(0, 5);
     setDraft(v);
   };
 
@@ -152,7 +161,6 @@ export function TimePicker({
         <input
           type="text"
           inputMode="numeric"
-          pattern="[0-9:]*"
           value={draft}
           onChange={e => handleInputChange(e.target.value)}
           onBlur={commitInput}
@@ -164,7 +172,6 @@ export function TimePicker({
             }
           }}
           placeholder="HH:MM"
-          maxLength={5}
           className="flex-1 min-w-0 h-11 px-3 rounded-[10px] border border-slate-200 bg-white text-[14px] font-mono font-semibold tabular-nums tracking-tight text-emet-ink outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/30 transition-all"
         />
         <button
