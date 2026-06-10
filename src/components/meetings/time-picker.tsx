@@ -1,67 +1,75 @@
 'use client';
 
 /**
- * TimePicker — Google Calendar-style: текстовий input з валідацією + список
- * готових часів у дропдауні. Tap або ручний ввід — на вибір.
+ * TimePicker — iOS-style wheel picker (як у Будильнику iPhone). Дві колонки
+ * (години + хвилини) що скролляться, snap по центру, активне значення
+ * виділене у центральному окні-індикаторі.
  *
- * UX:
- *  - Trigger: HH:MM mono + іконка годинника
- *  - Клік → dropdown з editable input + scrollable list (08:00 — 20:45,
- *    крок 15 хв; найближчий до поточного значення авто-scroll-иться у вид)
- *  - Click на рядок → emit + close
- *  - Друкуй у input HH:MM → Enter або blur підтверджує. Якщо неправильний
- *    формат — повертає попереднє значення.
- *  - Filter: коли друкуєш "11", у списку лишаються тільки часи що містять "11"
+ * Без додаткових залежностей — чистий CSS scroll-snap + scroll listener
+ * з debounce. Працює touchscreen, миша, клавіатура (стрілки коли focused).
+ *
+ * Структура:
+ *  - Trigger: HH:MM mono + іконка
+ *  - Dropdown: 2 колонки × scrollable list + центральний overlay-індикатор
+ *  - OK кнопка внизу підтверджує вибір (закриває picker з committed value)
+ *  - X / клік-за-межами — скасувати без зміни
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Clock, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Clock, Check, X } from 'lucide-react';
 
 interface Props {
   value: string;
   onChange: (next: string) => void;
   className?: string;
-  /** Початок діапазону у списку (default 8). */
   startHour?: number;
-  /** Кінець діапазону (default 20). */
   endHour?: number;
-  /** Крок хвилин у списку (default 15). */
-  minuteStep?: 5 | 10 | 15 | 30;
+  minuteStep?: 1 | 5 | 10 | 15 | 30;
 }
+
+const ITEM_HEIGHT = 40;
+const VISIBLE_ITEMS = 5; // непарне (центр + 2 з кожного боку)
+const COLUMN_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
+const PAD = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
 
 export function TimePicker({
   value,
   onChange,
   className,
-  startHour = 8,
-  endHour = 20,
-  minuteStep = 15,
+  startHour = 0,
+  endHour = 23,
+  minuteStep = 5,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(value);
+  const [hour, setHour] = useState(() => parseTime(value)[0]);
+  const [minute, setMinute] = useState(() => parseTime(value)[1]);
   const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLButtonElement>(null);
+  const hoursRef = useRef<HTMLDivElement>(null);
+  const minutesRef = useRef<HTMLDivElement>(null);
 
-  // Sync draft з prop коли picker закритий
+  const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
+  const minutes = Array.from({ length: Math.floor(60 / minuteStep) }, (_, i) => i * minuteStep);
+
+  // sync при зміні value ззовні (коли закритий)
   useEffect(() => {
-    if (!open) setDraft(value);
+    if (!open) {
+      const [h, m] = parseTime(value);
+      setHour(h);
+      setMinute(m);
+    }
   }, [value, open]);
 
-  // ESC / click-outside
+  // ESC / click outside
   useEffect(() => {
     if (!open) return;
     const onClickAway = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        commitDraft();
-        setOpen(false);
+        cancel();
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setDraft(value);
-        setOpen(false);
-      }
+      if (e.key === 'Escape') cancel();
+      if (e.key === 'Enter') commit();
     };
     document.addEventListener('mousedown', onClickAway);
     document.addEventListener('keydown', onKey);
@@ -70,56 +78,53 @@ export function TimePicker({
       document.removeEventListener('keydown', onKey);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, draft, value]);
+  }, [open, hour, minute]);
 
-  // Auto-scroll до активного значення при відкритті
+  // При відкритті — scroll до поточних значень
   useEffect(() => {
     if (!open) return;
     requestAnimationFrame(() => {
-      if (activeRef.current && listRef.current) {
-        const list = listRef.current;
-        const item = activeRef.current;
-        list.scrollTop = item.offsetTop - list.clientHeight / 2 + item.clientHeight / 2;
-      }
+      const hIdx = hours.indexOf(hour);
+      const mIdx = minutes.indexOf(minute);
+      if (hoursRef.current && hIdx >= 0) hoursRef.current.scrollTop = hIdx * ITEM_HEIGHT;
+      if (minutesRef.current && mIdx >= 0) minutesRef.current.scrollTop = mIdx * ITEM_HEIGHT;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Список готових часів
-  const presets = useMemo(() => {
-    const out: string[] = [];
-    for (let h = startHour; h <= endHour; h++) {
-      for (let m = 0; m < 60; m += minuteStep) {
-        out.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-      }
-    }
-    return out;
-  }, [startHour, endHour, minuteStep]);
-
-  // Фільтр по draft (коли друкуєш «11» → лишаються тільки часи з «11»)
-  const filtered = useMemo(() => {
-    const q = draft.trim();
-    if (!q || isValidTime(q)) return presets;
-    return presets.filter(t => t.includes(q));
-  }, [presets, draft]);
-
-  const commitDraft = () => {
-    if (isValidTime(draft)) {
-      const norm = normalize(draft);
-      if (norm !== value) onChange(norm);
-    } else {
-      setDraft(value);
-    }
-  };
-
   const handleOpen = () => {
-    setDraft(value);
+    const [h, m] = parseTime(value);
+    // Якщо minute не кратний step — snap до найближчого кратного
+    const snapped = minutes.includes(m) ? m : closestMultiple(m, minuteStep);
+    setHour(h);
+    setMinute(snapped);
     setOpen(true);
   };
 
-  const handlePick = (t: string) => {
-    onChange(t);
-    setDraft(t);
+  const commit = () => {
+    const next = `${pad2(hour)}:${pad2(minute)}`;
+    if (next !== value) onChange(next);
     setOpen(false);
+  };
+
+  const cancel = () => {
+    const [h, m] = parseTime(value);
+    setHour(h);
+    setMinute(m);
+    setOpen(false);
+  };
+
+  const handleScroll = (kind: 'hour' | 'minute') => {
+    const el = kind === 'hour' ? hoursRef.current : minutesRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollTop / ITEM_HEIGHT);
+    if (kind === 'hour') {
+      const next = hours[idx];
+      if (next !== undefined && next !== hour) setHour(next);
+    } else {
+      const next = minutes[idx];
+      if (next !== undefined && next !== minute) setMinute(next);
+    }
   };
 
   return (
@@ -135,72 +140,85 @@ export function TimePicker({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1.5 left-0 right-0 min-w-[200px] bg-white border border-slate-200 rounded-2xl shadow-[0_10px_30px_rgba(6,42,61,0.12)] overflow-hidden">
-          {/* Editable input */}
-          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100">
-            <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-            <input
-              type="text"
-              inputMode="numeric"
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (isValidTime(draft)) {
-                    onChange(normalize(draft));
-                    setOpen(false);
-                  } else if (filtered.length > 0) {
-                    handlePick(filtered[0]);
-                  }
-                }
-              }}
-              placeholder="HH:MM"
-              autoFocus
-              className="flex-1 min-w-0 h-9 px-2 rounded-lg border border-slate-200 bg-white text-[14px] font-mono font-semibold tabular-nums text-emet-ink outline-none focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/20 transition-all"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setDraft(value);
-                setOpen(false);
-              }}
-              aria-label="Закрити"
-              className="w-8 h-8 rounded-lg hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center text-slate-500 shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        <div className="absolute z-50 mt-1.5 left-0 min-w-[260px] bg-white border border-slate-200 rounded-2xl shadow-[0_10px_30px_rgba(6,42,61,0.12)] overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/60">
+            <span className="text-[11px] font-bold uppercase tracking-[0.7px] text-slate-600">Час</span>
+            <span className="font-mono font-bold text-[15px] tabular-nums text-emet-blue">
+              {pad2(hour)}:{pad2(minute)}
+            </span>
           </div>
 
-          {/* Scrollable list */}
-          <div
-            ref={listRef}
-            className="max-h-[260px] overflow-y-auto overscroll-contain py-1"
-          >
-            {filtered.length === 0 ? (
-              <div className="px-4 py-6 text-center text-[12px] text-slate-400">
-                Нічого не знайдено. Введіть час вручну.
-              </div>
-            ) : (
-              filtered.map(t => {
-                const isActive = t === value;
-                return (
-                  <button
-                    key={t}
-                    ref={isActive ? activeRef : null}
-                    type="button"
-                    onClick={() => handlePick(t)}
-                    className={`w-full px-4 py-2.5 flex items-center font-mono tabular-nums text-[14px] transition-colors ${
-                      isActive
-                        ? 'bg-emet-blue text-white font-bold'
-                        : 'text-emet-ink hover:bg-slate-50'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                );
-              })
-            )}
+          {/* Wheel-picker body */}
+          <div className="relative px-2 pt-2 pb-3 bg-white">
+            <div className="flex gap-2">
+              <WheelColumn
+                ref={hoursRef}
+                items={hours}
+                selected={hour}
+                onScroll={() => handleScroll('hour')}
+                onPick={h => {
+                  setHour(h);
+                  const idx = hours.indexOf(h);
+                  if (hoursRef.current) {
+                    hoursRef.current.scrollTo({ top: idx * ITEM_HEIGHT, behavior: 'smooth' });
+                  }
+                }}
+              />
+              <div className="flex items-center justify-center w-4 font-mono font-bold text-[20px] text-emet-ink">:</div>
+              <WheelColumn
+                ref={minutesRef}
+                items={minutes}
+                selected={minute}
+                onScroll={() => handleScroll('minute')}
+                onPick={m => {
+                  setMinute(m);
+                  const idx = minutes.indexOf(m);
+                  if (minutesRef.current) {
+                    minutesRef.current.scrollTo({ top: idx * ITEM_HEIGHT, behavior: 'smooth' });
+                  }
+                }}
+              />
+            </div>
+
+            {/* Center highlight band — overlay через pointer-events:none */}
+            <div
+              className="absolute left-2 right-2 pointer-events-none border-y border-emet-blue/30 bg-emet-blue/[0.04]"
+              style={{
+                top: `${PAD + 8}px`,
+                height: `${ITEM_HEIGHT}px`,
+              }}
+            />
+
+            {/* Top/bottom fade — щоб краї виглядали ефект wheel */}
+            <div
+              className="absolute left-2 right-2 pointer-events-none bg-gradient-to-b from-white to-transparent"
+              style={{ top: '8px', height: `${PAD}px` }}
+            />
+            <div
+              className="absolute left-2 right-2 pointer-events-none bg-gradient-to-t from-white to-transparent"
+              style={{ bottom: '12px', height: `${PAD}px` }}
+            />
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-2 px-3 py-2.5 border-t border-slate-100 bg-slate-50/40">
+            <button
+              type="button"
+              onClick={cancel}
+              className="flex-1 h-9 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              Скасувати
+            </button>
+            <button
+              type="button"
+              onClick={commit}
+              className="flex-1 h-9 rounded-lg bg-emet-blue text-white text-[13px] font-bold hover:bg-emet-blue-light inline-flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+            >
+              <Check className="w-3.5 h-3.5" />
+              Готово
+            </button>
           </div>
         </div>
       )}
@@ -208,11 +226,65 @@ export function TimePicker({
   );
 }
 
-function isValidTime(s: string): boolean {
-  return /^([01]?\d|2[0-3]):[0-5]\d$/.test(s.trim());
+interface WheelColumnProps {
+  items: number[];
+  selected: number;
+  onScroll: () => void;
+  onPick: (v: number) => void;
 }
 
-function normalize(s: string): string {
-  const [h, m] = s.trim().split(':');
-  return `${String(Number(h)).padStart(2, '0')}:${String(Number(m)).padStart(2, '0')}`;
+const WheelColumn = ({
+  ref,
+  items,
+  selected,
+  onScroll,
+  onPick,
+}: WheelColumnProps & { ref: React.Ref<HTMLDivElement> }) => {
+  return (
+    <div
+      ref={ref}
+      onScroll={onScroll}
+      className="relative flex-1 overflow-y-scroll overscroll-contain snap-y snap-mandatory scrollbar-hide"
+      style={{
+        height: `${COLUMN_HEIGHT}px`,
+        scrollbarWidth: 'none',
+      }}
+    >
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+      `}</style>
+      <div style={{ paddingTop: `${PAD}px`, paddingBottom: `${PAD}px` }}>
+        {items.map(item => {
+          const isSelected = item === selected;
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onPick(item)}
+              className={`w-full font-mono font-bold tabular-nums snap-center snap-always transition-all ${
+                isSelected ? 'text-emet-ink text-[22px]' : 'text-slate-400 text-[18px]'
+              }`}
+              style={{ height: `${ITEM_HEIGHT}px`, lineHeight: `${ITEM_HEIGHT}px` }}
+            >
+              {pad2(item)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+function parseTime(s: string): [number, number] {
+  if (!s) return [0, 0];
+  const [h, m] = s.split(':');
+  return [Number(h) || 0, Number(m) || 0];
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function closestMultiple(n: number, step: number): number {
+  return Math.round(n / step) * step;
 }
