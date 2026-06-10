@@ -90,6 +90,11 @@ class SupabaseTable {
     return this;
   }
 
+  limit(n: number): this {
+    this.queryParts.push(`limit=${Math.max(0, Math.floor(n))}`);
+    return this;
+  }
+
   single(): Promise<SupabaseResponse<Record<string, unknown>>> {
     this.headers['Accept'] = 'application/vnd.pgrst.object+json';
     return this._execute() as Promise<SupabaseResponse<Record<string, unknown>>>;
