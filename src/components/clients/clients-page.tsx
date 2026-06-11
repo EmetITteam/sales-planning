@@ -80,6 +80,8 @@ import {
   getClientBirthDate,
   getAge,
   isBirthdayToday,
+  getLastMeetingDate,
+  getLastCallDate,
   type ClientFromOneC,
 } from '@/lib/mityng-types';
 
@@ -1523,15 +1525,18 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
         return age != null ? `${base} · ${age} ${pluralUaYears(age)}` : base;
       })()
     : '';
-  // Остання подія: беремо пізнішу з дзвінка/зустрічі. Формат DD.MM (або DD.MM.YY
-  // якщо рік відмінний від поточного). Якщо обидві дати — пишемо тільки тип
-  // пізнішої події (це і є «останнє»).
+  // Остання подія: bulk-поля з 1С (LastMeetingDate / LastCallDate з
+  // getManagerClients) — це історія загалом, не лише поточний місяць.
+  // Fallback на activityByClient (checkActivities, поточний місяць) якщо
+  // bulk-поля порожні. Беремо пізнішу з двох. Формат: DD.MM (поточний рік)
+  // або DD.MM.YY (минулий).
   const lastEvent = (() => {
-    const call = activity?.lastCallDate || null;
-    const meet = activity?.lastMeetingDate || null;
+    const call = getLastCallDate(client) || activity?.lastCallDate || '';
+    const meet = getLastMeetingDate(client) || activity?.lastMeetingDate || '';
     if (!call && !meet) return null;
     const pickMeeting = !call || (meet && meet >= call);
-    const iso = pickMeeting ? meet! : call!;
+    const iso = pickMeeting ? meet : call;
+    if (!iso) return null;
     const [y, mo, d] = iso.split('-');
     const thisYear = new Date().getFullYear();
     const dateLabel = Number(y) === thisYear ? `${d}.${mo}` : `${d}.${mo}.${y.slice(-2)}`;
@@ -1679,6 +1684,22 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
                 </button>
               </>
             )}
+            {/* Desktop inline — Остання подія (тип + дата). Окремою «гілкою»
+                рядка з телефоном/зустріччю, щоб не плодити рядки. */}
+            {lastEvent && (
+              <>
+                <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>
+                <span className="hidden md:inline-flex items-center gap-1 shrink-0">
+                  {lastEvent.type === 'meeting'
+                    ? <Calendar className="h-3 w-3" />
+                    : <Phone className="h-3 w-3" />}
+                  <span>
+                    Остання подія: {lastEvent.type === 'meeting' ? 'зустріч' : 'дзвінок'}
+                    {' · '}<span className="tabular-nums font-medium text-slate-700">{lastEvent.dateLabel}</span>
+                  </span>
+                </span>
+              </>
+            )}
           </div>
 
           {/* Sprint 2B.C: «Подати рекламацію» — окремим рядком ПІД телефоном
@@ -1701,26 +1722,26 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
             </div>
           )}
 
+          {/* Mobile-only: остання подія ПЕРЕД датою народження. На десктопі
+              ця інформація вже у рядку з телефоном/зустріччю вище. */}
+          {lastEvent && (
+            <div className="md:hidden flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1 min-w-0">
+              {lastEvent.type === 'meeting'
+                ? <Calendar className="h-3 w-3 shrink-0" />
+                : <Phone className="h-3 w-3 shrink-0" />}
+              <span>
+                Остання подія: {lastEvent.type === 'meeting' ? 'зустріч' : 'дзвінок'}
+                {' · '}<span className="tabular-nums font-medium text-slate-700">{lastEvent.dateLabel}</span>
+              </span>
+            </div>
+          )}
+
           {/* Дата народження окремим рядком під address/phone (тільки коли
               ДН НЕ сьогодні — сьогодні підсвічуємо chip-ом у header). */}
           {birthDisplay && !isBirthday && (
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1 min-w-0">
               <Cake className="h-3 w-3 shrink-0" />
               <span className="tabular-nums">{birthDisplay}</span>
-            </div>
-          )}
-
-          {/* Остання подія по клієнту (дзвінок або зустріч) — щоб менеджер
-              одразу бачив, чи давно був контакт, без розгортання картки. */}
-          {lastEvent && (
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1 min-w-0">
-              {lastEvent.type === 'meeting'
-                ? <Calendar className="h-3 w-3 shrink-0" />
-                : <Phone className="h-3 w-3 shrink-0" />}
-              <span>
-                Останнє: <span className="tabular-nums font-medium text-slate-700">{lastEvent.dateLabel}</span>
-                {' · '}{lastEvent.type === 'meeting' ? 'зустріч' : 'дзвінок'}
-              </span>
             </div>
           )}
         </div>
