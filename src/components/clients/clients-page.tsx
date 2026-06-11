@@ -1594,7 +1594,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
           }
         }}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-start md:items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar — 36px mobile / 40px desktop. */}
         <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0 mt-0.5 md:mt-0`}>
@@ -1608,7 +1608,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
           {/* Mobile: ПІБ на 2 рядки + chips новим рядком нижче.
               Desktop: ПІБ + chips inline в одному рядку (з wrap). */}
           <div className="md:flex md:items-center md:gap-2 md:flex-wrap min-w-0">
-          <p className="text-[14px] font-bold md:truncate line-clamp-2 md:line-clamp-none leading-tight min-w-0">{name || '— без назви —'}</p>
+          <p className="text-[14px] font-bold truncate leading-tight min-w-0">{name || '— без назви —'}</p>
           <div className="flex items-center gap-1.5 mt-1 md:mt-0 min-w-0 flex-wrap">
             {/* Chip-категорія українською (Активний/Сплячий/Новий/Втрачений/Без закупок) */}
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-white/40 ${CAT_COLOR[cat].text}`}>
@@ -1766,10 +1766,11 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
           )}
         </div>
 
-        {/* Mobile-only icon-кнопки: phone + create meeting у одному контейнері.
-            Quadratic-style (rounded-[10px]) щоб не конфліктували з round phone-call
-            на /meetings — тут вони у читаючому контексті, не CTA. */}
-        <div className="md:hidden inline-flex items-center gap-1.5 shrink-0">
+        {/* Mobile-only icon-кнопки: вертикальний стовпчик справа щоб ім'я
+            клієнта влізало в один рядок (картка тепер ширша, але ім'я
+            та-ке-ж довге). Quadratic-style (rounded-[10px]) щоб не
+            конфліктували з round phone-call на /meetings. */}
+        <div className="md:hidden flex flex-col items-center gap-1.5 shrink-0">
           {client.Phone && (
             <a
               href={`tel:${phoneClean}`}
