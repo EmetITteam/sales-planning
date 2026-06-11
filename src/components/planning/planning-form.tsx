@@ -1448,7 +1448,7 @@ export function PlanningForm({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Завантажуємо клієнтів з 1С…
+              Завантажуємо клієнтів…
             </span>
           )}
           {clientsError && <span className="text-[11px] text-rose-600" title={clientsError}>1С недоступний — показуємо порожньо</span>}
@@ -1629,7 +1629,7 @@ export function PlanningForm({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p className="text-[12px] font-medium">Завантажуємо клієнтів з 1С…</p>
+            <p className="text-[12px] font-medium">Завантажуємо клієнтів…</p>
           </div>
         )}
         <div className="space-y-2">
@@ -1959,7 +1959,7 @@ export function PlanningForm({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p className="text-[12px] font-medium">Завантажуємо клієнтів з 1С…</p>
+            <p className="text-[12px] font-medium">Завантажуємо клієнтів…</p>
           </div>
         )}
         {/* Bulk action bar для gap-closures — fixed над save bar */}

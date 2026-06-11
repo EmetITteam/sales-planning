@@ -20,9 +20,9 @@ interface SkeletonProps {
 
 export function DashboardSkeleton({ role }: SkeletonProps) {
   const label =
-    role === 'director' ? 'Завантажуємо дані компанії з 1С…' :
-    role === 'rm'       ? 'Завантажуємо дані регіону з 1С…' :
-                          'Завантажуємо ваші дані з 1С…';
+    role === 'director' ? 'Завантажуємо дані компанії…' :
+    role === 'rm'       ? 'Завантажуємо дані регіону…' :
+                          'Завантажуємо ваші дані…';
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-muted-foreground">

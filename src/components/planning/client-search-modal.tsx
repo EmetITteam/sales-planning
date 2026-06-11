@@ -56,7 +56,7 @@ export function ClientSearchModal({ open, onClose, onSelect, excludeIds, clients
         <div className="max-h-[400px] overflow-y-auto">
           {loading && available.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground animate-pulse">
-              Завантажуємо клієнтів з 1С...
+              Завантажуємо клієнтів…
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">

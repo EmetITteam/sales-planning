@@ -518,7 +518,7 @@ export function ClientsPage() {
 
   // === Loading / Error states ===
   if (loading && clients.length === 0) {
-    return <LoadingScreen title="Завантажуємо клієнтів" subtitle="Тягнемо дані з 1С — категорії, історію покупок, контактну активність. Зазвичай це займає 2–5 секунд." />;
+    return <LoadingScreen label="Завантажуємо клієнтів…" />;
   }
 
   if (error) {
