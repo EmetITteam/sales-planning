@@ -14,6 +14,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MeetingsWidgets } from './meetings-widgets';
 import { MeetingsFilters, type StatusFilter } from './meetings-filters';
 import { DayGroup } from './day-group';
@@ -524,52 +525,7 @@ function EmptyState({ filter }: { filter: StatusFilter }) {
 }
 
 function LoadingState() {
-  // Skeleton-структура: 4 KPI-картки + filter pills + 3 meeting cards.
-  // Імітує реальний layout щоб не «стрибало» при появі контенту.
-  return (
-    <div className="space-y-4">
-      {/* KPI band skeleton */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[0, 1, 2, 3].map(i => (
-          <div key={i} className="bg-white/55 backdrop-blur-xl border border-white/55 rounded-2xl p-3.5 space-y-2.5">
-            <div className="h-2.5 w-16 rounded bg-slate-200/70 animate-pulse" />
-            <div className="h-7 w-20 rounded bg-slate-200/70 animate-pulse" />
-            <div className="h-2 w-full rounded bg-slate-200/50 animate-pulse" />
-          </div>
-        ))}
-      </div>
-      {/* Filter pills + search skeleton */}
-      <div className="bg-white/60 backdrop-blur-xl border border-white/55 rounded-2xl p-3 flex items-center gap-2 flex-wrap">
-        <div className="h-8 w-16 rounded-full bg-slate-200/70 animate-pulse" />
-        <div className="h-8 w-20 rounded-full bg-slate-200/60 animate-pulse" />
-        <div className="h-8 w-24 rounded-full bg-slate-200/60 animate-pulse" />
-        <div className="h-8 w-20 rounded-full bg-slate-200/60 animate-pulse" />
-      </div>
-      {/* Meeting cards skeleton */}
-      <div className="space-y-2.5">
-        <div className="h-3 w-32 rounded bg-slate-200/60 animate-pulse" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-          {[0, 1, 2, 3].map(i => (
-            <div key={i} className="bg-white/60 backdrop-blur-xl border border-white/55 rounded-2xl p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="h-5 w-14 rounded bg-slate-200/70 animate-pulse" />
-                <div className="h-5 w-20 rounded-full bg-slate-200/60 animate-pulse" />
-              </div>
-              <div className="space-y-1.5">
-                <div className="h-4 w-3/4 rounded bg-slate-200/70 animate-pulse" />
-                <div className="h-3 w-1/2 rounded bg-slate-200/50 animate-pulse" />
-              </div>
-              <div className="flex gap-2 pt-1.5 border-t border-slate-200/40">
-                <div className="h-8 flex-1 rounded-lg bg-slate-200/50 animate-pulse" />
-                <div className="h-8 flex-1 rounded-lg bg-slate-200/50 animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <p className="text-[11px] text-muted-foreground text-center">Завантажую зустрічі…</p>
-    </div>
-  );
+  return <LoadingScreen label="Завантажуємо зустрічі…" />;
 }
 
 function ErrorState({ message }: { message: string }) {

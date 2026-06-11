@@ -12,11 +12,11 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import {
   AlertCircle,
   Plus,
   Search,
-  Loader2,
   Inbox,
   MessageCircle,
 } from 'lucide-react';
@@ -194,30 +194,7 @@ export function ClaimsList() {
 
       {/* List */}
       {isLoading ? (
-        <div className="space-y-2.5">
-          {/* Skeleton-картки рекламацій — імітують реальний layout
-              (status dot + eyebrow + client name + meta + status badges) */}
-          {[0, 1, 2, 3, 4].map(i => (
-            <div
-              key={i}
-              className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-3.5 md:p-4 shadow-[0_4px_14px_rgba(6,42,61,0.04)]"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full mt-2 shrink-0 bg-slate-300 animate-pulse" />
-                <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="h-2.5 w-32 rounded bg-slate-200/70 animate-pulse" />
-                    <div className="h-4 w-48 rounded bg-slate-200/80 animate-pulse" />
-                    <div className="h-3 w-64 rounded bg-slate-200/50 animate-pulse" />
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <div className="h-5 w-16 rounded-full bg-slate-200/60 animate-pulse" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <LoadingScreen label="Завантажуємо рекламації…" />
       ) : error ? (
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-[13px] text-rose-700">
           <div className="font-semibold mb-1">Не вдалось завантажити рекламації</div>
