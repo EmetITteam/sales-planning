@@ -21,7 +21,7 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
+import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES, VIRTUAL_DIRECTOR_LOGINS } from '@/lib/feature-flags';
 
 /**
  * Actions де admin прокситься через DIRECTOR_PROXY_LOGIN бо admin не
@@ -156,11 +156,14 @@ export async function POST(request: NextRequest) {
     const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
     const sessionLoginLower = session.login.toLowerCase().trim();
     const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLoginLower];
-    const adminNeedsProxy =
-      session.role === 'admin'
+    // Virtual-director (Власник, CEO) не закріплений у 1С за регіонами/менеджерами
+    // — так само як admin, проксимо company-wide actions через sdu@.
+    const isVirtualDirector = VIRTUAL_DIRECTOR_LOGINS.includes(sessionLoginLower);
+    const needsProxy =
+      (session.role === 'admin' || isVirtualDirector)
       && ADMIN_PROXY_ACTIONS.has(action)
       && (!requestedLogin || requestedLogin === session.login);
-    if (adminNeedsProxy) {
+    if (needsProxy) {
       safePayload = { ...safePayload, login: DIRECTOR_PROXY_LOGIN };
     } else if (!requestedLogin) {
       safePayload = { ...safePayload, login: session.login };

@@ -44,6 +44,25 @@ export const FEATURES = {
 export const ADMIN_LOGINS: readonly string[] = ['itd@emet.in.ua'];
 
 /**
+ * Whitelist логінів які отримують role='director' через adaptLogin override
+ * незалежно від того що повертає 1С. Це для топ-менеджменту (Власник, CEO),
+ * які не закріплені за регіонами у 1С (значить roleCode може бути не
+ * 'director'), але мають мати повний доступ як директор з продажу.
+ *
+ * Не плутати з ADMIN_LOGINS — admin обходить window-lock і maintenance
+ * kill-switch (це техдоступ). Virtual-director = просто повноваження
+ * Director з продажу: бачить всі регіони, drill-down у будь-якого менеджера,
+ * редагує чужі плани в межах звичайних правил.
+ *
+ * Підпис посади у хедері задається окремо у LOGIN_LABEL_OVERRIDES
+ * (app-header.tsx).
+ */
+export const VIRTUAL_DIRECTOR_LOGINS: readonly string[] = [
+  'owner@emet.in.ua',
+  'ceo@emet.in.ua',
+];
+
+/**
  * Логін з якого admin читає company-wide дані з 1С коли явно не вказано
  * чий план дивиться. 1С для itd@emet.in.ua не повертає регіони/менеджерів
  * (бо він не Director у 1С), тому для getRegionData без login підставляємо
