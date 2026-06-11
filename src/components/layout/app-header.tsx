@@ -171,12 +171,11 @@ export function AppHeader() {
           </div>
         )}
 
-        {/* View toggle — для admin/director завжди (повна company-wide роль),
-            для manager/rm — лише якщо admin явно дав canViewCompanyOverview.
+        {/* View toggle — для admin завжди, для решти — за canViewCompanyOverview.
             Якщо ми НЕ на головній (/clients, /meetings, /admin/...) — клік
             переводить на головну з відповідним activeView. Інакше — звичайний
             in-place toggle (state-only). */}
-        {(user.role === 'admin' || user.role === 'director' || user.canViewCompanyOverview === true) && (
+        {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
           <div className="hidden md:inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2 shrink-0">
             <button
               onClick={() => {
