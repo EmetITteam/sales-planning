@@ -18,7 +18,7 @@ import type {
   OneCTraining,
   OneCManagerClientStats,
 } from './onec-types';
-import { ADMIN_LOGINS, MULTI_REGION_RM_HOME, VIRTUAL_DIRECTOR_LOGINS } from './feature-flags';
+import { ADMIN_LOGINS, MULTI_REGION_RM_HOME } from './feature-flags';
 import type {
   UserSession,
   Client1C,
@@ -105,15 +105,10 @@ export function adaptLogin(r: LoginResponse): UserSession {
   // Override на нашому боці — список технічних адмінів у feature-flags.ts.
   // Тимчасово до моменту коли 1С підтримає роль adminа у своєму довіднику.
   const isAdmin = ADMIN_LOGINS.includes(login);
-  // Virtual-director: топ-менеджмент (Власник, CEO) не закріплений за
-  // регіонами у 1С, тому roleCode може приходити не 'director'. Форсимо
-  // на нашій стороні щоб вони мали повний доступ як директор з продажу.
-  const isVirtualDirector = VIRTUAL_DIRECTOR_LOGINS.includes(login);
-  const role = isAdmin ? 'admin' : isVirtualDirector ? 'director' : r.roleCode;
   return {
     login,
     fullName: r.fullName,
-    role,
+    role: isAdmin ? 'admin' : r.roleCode,
     region: r.region,
     regionCode: r.regionCode,
     managedUsers: (r.managedUsers ?? []).map(l => (l || '').toLowerCase().trim()),
