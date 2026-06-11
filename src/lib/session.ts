@@ -18,10 +18,17 @@
 
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { randomBytes } from 'node:crypto';
 import type { UserSession, UserRole } from './types';
 
 const COOKIE_NAME = 'sp_session';
 const TTL_SECONDS = 60 * 60 * 24; // 24h
+
+// Dev-only ephemeral secret: генерується ОДИН раз на процес. Без хардкоду
+// (раніше було `'dev-only-secret-change-in-production-32b'` — дозволяло
+// підробляти JWT на будь-якому деплої з цим fallback). JWT-сесії не
+// валідні між рестартами dev-сервера — це бажана поведінка локально.
+let DEV_EPHEMERAL_SECRET: string | null = null;
 
 function getSecret(): Uint8Array {
   const raw = process.env.SESSION_SECRET;
@@ -31,19 +38,29 @@ function getSecret(): Uint8Array {
     if (!raw) {
       throw new Error(
         'SESSION_SECRET env variable is required in production. ' +
-        'Generate one: `openssl rand -hex 32`. Set in Vercel → Environment Variables.'
+        'Generate one: `node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"`. ' +
+        'Set in Vercel → Environment Variables.'
       );
     }
     // HS256 рекомендує ключ ≥ 32 байти (256 біт). Менший — brute-force-able.
-    // Захист від випадкового короткого secret який пройшов би все інше.
     if (raw.length < 32) {
       throw new Error(
-        `SESSION_SECRET too short (${raw.length} chars). Must be ≥ 32 chars for HS256 security. ` +
-        'Generate proper one: `openssl rand -hex 32`'
+        `SESSION_SECRET too short (${raw.length} chars). Must be ≥ 32 chars for HS256 security.`
       );
     }
+    return new TextEncoder().encode(raw);
   }
-  return new TextEncoder().encode(raw || 'dev-only-secret-change-in-production-32b');
+  // Dev: якщо env задано — використовуємо його (sticky JWT між рестартами).
+  // Якщо ні — генеруємо random per-process, попереджаємо у консолі.
+  if (raw && raw.length >= 32) return new TextEncoder().encode(raw);
+  if (!DEV_EPHEMERAL_SECRET) {
+    DEV_EPHEMERAL_SECRET = randomBytes(32).toString('hex');
+    console.warn(
+      '[session] SESSION_SECRET not set or too short — using random per-process secret. ' +
+      'JWT-сесії не виживуть рестарт. Для sticky-dev додай SESSION_SECRET у .env.'
+    );
+  }
+  return new TextEncoder().encode(DEV_EPHEMERAL_SECRET);
 }
 
 export interface SessionPayload {

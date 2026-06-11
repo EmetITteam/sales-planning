@@ -215,9 +215,12 @@ export async function POST(request: NextRequest) {
     headers['Authorization'] = 'Basic ' + Buffer.from(`${login}:${password}`).toString('base64');
   }
 
-  // Console-лог для debug у Vercel logs (формат meeting-app).
-  // Показує що саме відправили в 1С — payload з усіма security-override-ами.
-  console.log(`[ШАГ 1] Відправка в 1С для дії "${action}":`, JSON.stringify({ action, payload: safePayload }, null, 2));
+  // Лог без payload — раніше тут було JSON.stringify(safePayload) що
+  // витікало PII (нові клієнти, телефони, ПІБ) у Vercel logs.
+  // 2026-06-11 (audit Sprint 2C): прибрано вміст, лишилась лише
+  // мітка дії + хто шле. Якщо треба debug payload — увімкнути локально
+  // вручну (не комітити).
+  console.log(`[ШАГ 1] Відправка в 1С: action="${action}" user="${session.login}"`);
 
   const callStarted = Date.now();
   try {
@@ -249,13 +252,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Console-лог відповіді — обмежуємо до 1000 знаків бо bulk endpoints
-    // (getInitialData, getManagerClients) можуть бути 50KB+ JSON.
-    const jsonStr = JSON.stringify(json);
-    const truncated = jsonStr.length > 1000 ? jsonStr.slice(0, 1000) + `...(+${jsonStr.length - 1000} chars)` : jsonStr;
+    // Success-лог без вмісту відповіді — раніше логували до 1KB JSON
+    // включно з даними клієнтів/телефонів. 2026-06-11 (audit Sprint 2C):
+    // OK-path лише duration+status, error-path першу частину для debug
+    // (помилки 1С зазвичай короткі — message без даних).
     if (upstream.ok && json?.status !== 'error') {
-      console.log(`[ШАГ 2] Відповідь від 1С "${action}" OK (${callDuration}ms):`, truncated);
+      console.log(`[ШАГ 2] Відповідь від 1С "${action}" OK (${callDuration}ms)`);
     } else {
+      const jsonStr = JSON.stringify(json);
+      const truncated = jsonStr.length > 400 ? jsonStr.slice(0, 400) + `...(+${jsonStr.length - 400} chars)` : jsonStr;
       console.error(`[ШАГ 2] Помилка від 1С "${action}" (${callDuration}ms, HTTP ${upstream.status}):`, truncated);
     }
 

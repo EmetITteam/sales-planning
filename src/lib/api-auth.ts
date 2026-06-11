@@ -69,9 +69,16 @@ export function validateApiRequest(request: NextRequest): { valid: boolean; erro
     }
   }
 
-  // 3) dev — без ключа (origin може бути відсутній у тестах curl)
+  // 3) dev bypass — лише для localhost (інакше exposed dev-сервер на
+  // ngrok / 0.0.0.0 / LAN був би відкритий назовні без ключа).
+  // 2026-06-11 (audit Sprint 2C): раніше `NODE_ENV !== 'production'`
+  // давало allow-all незалежно від host. Тепер перевіряємо host header.
   if (process.env.NODE_ENV !== 'production') {
-    return { valid: true };
+    const host = request.headers.get('host') || '';
+    const hostname = host.split(':')[0].toLowerCase();
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') {
+      return { valid: true };
+    }
   }
 
   // 4) Зовнішній запит → потрібен ключ
