@@ -13,7 +13,7 @@
  * Після розгортання — список усіх (включно з показаним останнім — починаючи знов з нього).
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, MessageSquare, X as XIcon, Loader2 } from 'lucide-react';
 import { useClientComments, addClientComment, deleteClientComment } from '@/lib/use-client-comments';
 import type { ClientComment } from '@/lib/client-comments/types';
@@ -30,6 +30,17 @@ export function ClientCommentsSection({ clientId1c }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow textarea під довжину тексту (до ~10 рядків ≈ 220px),
+  // далі — внутрішній скрол. Без цього довгий текст ховається вгору
+  // у малому 2-рядковому полі і початок зникає з очей.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+  }, [draft]);
 
   const latest = comments[0] ?? null;
   const rest = comments.slice(1);
@@ -73,11 +84,13 @@ export function ClientCommentsSection({ clientId1c }: Props) {
       {/* Поле нового коментаря */}
       <div className="flex flex-col gap-2">
         <textarea
+          ref={textareaRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value.slice(0, MAX_LENGTH))}
           placeholder="Додати коментар про клієнта…"
           rows={2}
-          className="w-full px-3 py-2 text-[12px] rounded-xl bg-white/60 border border-slate-200 focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/20 focus:outline-none resize-none placeholder:text-slate-400"
+          className="w-full px-3 py-2 text-[12px] leading-relaxed rounded-xl bg-white/60 border border-slate-200 focus:border-emet-blue focus:ring-2 focus:ring-emet-blue/20 focus:outline-none resize-none placeholder:text-slate-400 overflow-y-auto"
+          style={{ minHeight: 60 }}
         />
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] text-muted-foreground">
