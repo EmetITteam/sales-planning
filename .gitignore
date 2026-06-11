@@ -54,3 +54,4 @@ scripts/qa-output/
 # Claude Code local task state
 .claude/
 .self-eval-scores.jsonl
+docs/~$*
