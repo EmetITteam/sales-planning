@@ -138,7 +138,13 @@ export function MeetingsDashboard() {
         return Number.isFinite(t) && t >= rangeTs.start && t <= rangeTs.end;
       });
     }
-    if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
+    if (statusFilter === 'no-outcome') {
+      // Завершені зустрічі без підсумку — у m.comment (це поле перезаписується
+      // при finish через MeetingOutcomeDialog; пусто = підсумок не записано).
+      result = result.filter(m => m.status === 'done' && !(m.comment ?? '').trim());
+    } else if (statusFilter !== 'all') {
+      result = result.filter(m => m.status === statusFilter);
+    }
     if (q.length > 0) {
       result = result.filter(m => {
         const c = clientsByID.get(m.clientId1c);
@@ -513,10 +519,14 @@ function ToastHost({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: num
 }
 
 function EmptyState({ filter }: { filter: StatusFilter }) {
-  const message =
-    filter === 'all'
-      ? 'У вас поки що нема запланованих зустрічей.'
-      : 'За цим фільтром нічого не знайдено.';
+  let message: string;
+  if (filter === 'all') {
+    message = 'У вас поки що нема запланованих зустрічей.';
+  } else if (filter === 'no-outcome') {
+    message = 'У цьому періоді нема зустрічей без підсумку — усі завершені зустрічі задокументовано.';
+  } else {
+    message = 'За цим фільтром нічого не знайдено.';
+  }
   return (
     <div className="bg-white/55 backdrop-blur-xl border border-white/55 rounded-2xl p-10 text-center text-[13px] text-slate-500">
       {message}

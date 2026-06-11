@@ -167,6 +167,19 @@ export function MeetingCard({
             </span>
           )}
           <StatusBadge kind="meeting" status={meeting.status} />
+          {/* Tag «Без підсумку» — для done-зустрічей з порожнім comment,
+              щоб менеджер швидко помічав де треба дописати підсумок. */}
+          {isDone && !(meeting.comment ?? '').trim() && (
+            <span
+              className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-amber-500/12 text-amber-800 border border-amber-300/60 backdrop-blur-sm"
+              title="Зустріч завершена, але підсумок не записано — відкрийте картку щоб дописати."
+            >
+              <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.4} aria-hidden>
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Без підсумку
+            </span>
+          )}
         </div>
       </div>
 

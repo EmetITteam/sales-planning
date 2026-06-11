@@ -17,7 +17,12 @@ import {
   type DateRange,
 } from '@/lib/meetings/date-presets';
 
-export type StatusFilter = 'all' | 'planned' | 'in_progress' | 'done' | 'postponed';
+/**
+ * StatusFilter — статусні фільтри + спеціальний 'no-outcome' що означає
+ * «status='done' AND comment is empty» (завершені зустрічі без підсумку,
+ * щоб менеджер міг доперевнити те що забув записати).
+ */
+export type StatusFilter = 'all' | 'planned' | 'in_progress' | 'done' | 'postponed' | 'no-outcome';
 
 interface Props {
   value: StatusFilter;
@@ -30,12 +35,13 @@ interface Props {
   onSearchChange: (next: string) => void;
 }
 
-const PILLS: { value: StatusFilter; label: string }[] = [
+const PILLS: { value: StatusFilter; label: string; tone?: 'warning' }[] = [
   { value: 'all', label: 'Усі' },
   { value: 'planned', label: 'Заплановані' },
   { value: 'in_progress', label: 'У роботі' },
   { value: 'done', label: 'Завершені' },
   { value: 'postponed', label: 'Відкладені' },
+  { value: 'no-outcome', label: 'Без підсумку', tone: 'warning' },
 ];
 
 export function MeetingsFilters({
@@ -203,7 +209,7 @@ export function MeetingsFilters({
       </div>
 
       {PILLS.map(p => (
-        <Pill key={p.value} active={p.value === value} onClick={() => onChange(p.value)}>
+        <Pill key={p.value} active={p.value === value} tone={p.tone} onClick={() => onChange(p.value)}>
           {p.label}
         </Pill>
       ))}
@@ -217,14 +223,23 @@ function Pill({
   active,
   onClick,
   children,
+  tone,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  tone?: 'warning';
 }) {
-  const cls = active
-    ? 'bg-emet-blue text-white border-emet-blue'
-    : 'bg-white/60 backdrop-blur-md text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300';
+  let cls: string;
+  if (active) {
+    cls = tone === 'warning'
+      ? 'bg-amber-500 text-white border-amber-500'
+      : 'bg-emet-blue text-white border-emet-blue';
+  } else {
+    cls = tone === 'warning'
+      ? 'bg-amber-50 backdrop-blur-md text-amber-800 border-amber-300/60 hover:bg-amber-100 hover:border-amber-400'
+      : 'bg-white/60 backdrop-blur-md text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300';
+  }
   return (
     <button
       type="button"
