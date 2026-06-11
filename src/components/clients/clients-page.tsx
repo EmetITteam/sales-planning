@@ -1594,10 +1594,10 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
           }
         }}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-start md:items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar — 36px mobile / 40px desktop. */}
-        <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0 mt-0.5 md:mt-0`}>
+        <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0`}>
           {initials(name)}
         </div>
 
