@@ -4,6 +4,47 @@
 
 ---
 
+## [2026-06-11] · Sprint 2C — Коментарі менеджера + UI polish + аудит
+
+### 🆕 Коментарі менеджера по клієнтах
+
+Менеджер / РМ / director / admin можуть лишати текстові коментарі по клієнту з 1С — з історією по датах. Прив'язано до ClientID, лишається при передачі клієнта між менеджерами.
+
+- **Supabase migration `022_client_comments`** — таблиця з soft-delete, snapshot `author_name`, CHECK length 1-2000, партійні індекси WHERE `deleted_at IS NULL`
+- **3 API endpoints**: `GET/POST /api/clients/comments`, `DELETE /api/clients/comments/[id]`, `POST /api/clients/comments/counts` (bulk для бейджа)
+- **2 хуки**: `useClientComments(clientId1c)` SWR-список, `useClientCommentsCounts(clientIds)` bulk-counts (deduping 30s, hash-ключ кешу)
+- **UI компонент** `ClientCommentsSection` — у розгорнутій картці між інфо та План×Фактом:
+  - Auto-grow textarea (60px → 220px max)
+  - Останній коментар видно одразу, кнопка «Показати всю історію (N)» у стилі EventsTimeline
+  - Свій коментар можна видалити (✕ при hover, soft-delete у БД)
+- **Бейдж «коментарі: N»** у згорнутій картці — desktop інлайн поряд з «Остання подія», mobile окремим рядком
+
+### ✨ UI polish для /clients
+
+- **Єдиний `LoadingScreen`** на /clients, /meetings, /claims — без glass-card, без згадки 1С
+- **«Остання подія» (тип + дата)** на картці клієнта — з bulk-полів `LastMeetingDate`/`LastCallDate` (історія загалом) + fallback на `checkActivities` (поточний місяць). Парсимо обидва формати 1С (DD.MM.YYYY + YYYY-MM-DD). Desktop інлайн з телефоном, mobile перед ДН
+- **Mobile-редизайн картки клієнта** — ПІБ truncate в один рядок; action-кнопки (Дзвонити / Зустріч / Рекламація) винесені у footer з border-top — як на meeting-card
+
+### 🛠 Header
+
+- **ФІО+посада з `xl` → `lg` breakpoint** — видно з 1024px (раніше тільки з 1280px)
+- **Підпис «CEO компанії»** для `ceo@emet.in.ua` через `LOGIN_LABEL_OVERRIDES`
+- CEO додано у Supabase `users` (Кілісь Юлія, role=director, can_view_company_overview=true) — бо просто логін не upsert-ить юзера у БД, лише форма планування
+
+### 📋 Аудит проекту
+
+- Workflow з 12 паралельних audit-агентів по dimensions: auth, authz, injection, 1С boundary, webhooks, secrets, data-integrity, supabase-schema, errors, performance, arch, mobile/a11y
+- **85 raw-знахідок** (без adversarial-verify через помилку схеми StructuredOutput): 21 high, 44 medium, 19 low
+- **Score 5.5/10** — функціонально живий, але є 17 серйозних security-проблем у проді і 0 RLS на core-таблицях
+- Результати: [docs/audit-2026-06-11.md](./docs/audit-2026-06-11.md) (executive UA) + [docs/audit-raw-findings.json](./docs/audit-raw-findings.json) (повний JSON)
+- 4-фазний roadmap: Week 1 (critical security), Week 2-4 (RLS + observability), Month 2-3 (tech-debt), Backlog
+
+### 🏆 ETALON tag
+
+`etalon-clients-mobile-2026-06-11` — фіксація стану перед коментарями. Дефолт при відкоті.
+
+---
+
 ## [2026-06-11] · Sprint 2B Рекламації + Notification Center + ДН клієнтів + Team meetings
 
 ### 🆕 Рекламації (модуль)

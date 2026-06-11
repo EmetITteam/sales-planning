@@ -99,6 +99,37 @@ Sprint 2B додав модуль рекламацій та централізо
 
 Migration 021: notifications table з RLS (service_role bypass) + UNIQUE INDEX на dedup_key.
 
+### Sprint 2B follow-ups (2026-06-11)
+
+Точкові поліпшення вже після релізу Sprint 2B:
+
+| Зміна | Файли | Чому |
+|---|---|---|
+| Єдиний `LoadingScreen` на /clients, /meetings, /claims | `src/components/ui/loading-screen.tsx` | Замість 3 різних skeleton-ів — лаконічний spinner+текст, без glass-card і згадки 1С. |
+| «Остання подія» (тип + дата) на картці клієнта | `src/components/clients/clients-page.tsx` | З bulk-полів `LastMeetingDate`/`LastCallDate` (історія загалом) + fallback на `checkActivities` (поточний місяць). Парсимо обидва формати 1С (DD.MM.YYYY + YYYY-MM-DD). Desktop інлайн у рядку з телефоном, mobile окремим рядком перед ДН. |
+| Mobile-редизайн картки клієнта | `src/components/clients/clients-page.tsx` | ПІБ truncate в один рядок; action-кнопки (Дзвонити / Зустріч / Рекламація) винесені у footer з border-top — як на meeting-card. |
+| ФІО+посада у header з `xl` → `lg` breakpoint | `src/components/layout/app-header.tsx` | Видно з 1024px (раніше тільки з 1280px). |
+| Підпис «CEO компанії» для `ceo@emet.in.ua` | `src/components/layout/app-header.tsx` | Через `LOGIN_LABEL_OVERRIDES` (як для owner@ / assistant.sdu@). |
+| **Коментарі менеджера по клієнтах** (нова фіча) | див. розділ нижче | Власні замітки з історією, прив'язано до ClientID. |
+| Аудит проекту | `docs/audit-2026-06-11.md` + `docs/audit-raw-findings.json` | Workflow з 12 паралельних audit-агентів, 85 знахідок (без adversarial-verify через помилку схеми). Roadmap на 4 фази у `docs/audit-2026-06-11.md`. |
+
+### Sprint 2C — Коментарі менеджера по клієнтах (2026-06-11)
+
+Менеджер / РМ / director / admin можуть лишати текстові коментарі по клієнту з 1С. Прив'язано до ClientID — історія лишається при передачі клієнта між менеджерами.
+
+| Аспект | Рішення | Чому |
+|---|---|---|
+| Сховище | Supabase `client_comments` (не 1С) | Це власні замітки менеджера, не корпоративні дані. Швидке читання + не залежимо від 1С-розробника. |
+| Авторство | `author_login` + snapshot `author_name` | Snapshot ФІО — щоб історія читалась навіть якщо менеджер звільниться. |
+| Видалення | Soft-delete (`deleted_at`) | Видалити можна тільки свій. Admin — будь-який. У БД лишається для аудиту. |
+| Bulk-counts | POST `/api/clients/comments/counts` | PostgREST GROUP BY не вміє → тягнемо `client_id_1c` для всіх id-ів і groupBy на Node. Кеш SWR 30s + hash-ключ від відсортованих id-ів. |
+| Розміщення в UI | Між `ClientInfoBlock` і `PlanFactByBrand` у розгорнутій картці | Менеджер бачить замітки одразу після інфо клієнта, перед роботою з планом. |
+| Бейдж у списку | «коментарі: N» поряд з «Остання подія» | Desktop інлайн, mobile окремим рядком. |
+| Поле вводу | Auto-grow textarea (60px → 220px) | Без auto-grow довгий текст ховався вгору і початок не видно. |
+| Length cap | 1-2000 chars (CHECK у БД + перевірка на API) | Захист від DoS / випадкових величезних paste. |
+
+Migration 022: `client_comments` з частковими індексами WHERE `deleted_at IS NULL` для hot-read і bulk-counts.
+
 ---
 
 ## 2. Tech stack
@@ -320,6 +351,17 @@ meetings                                       ← Sprint 1.5 (2026-06)
   anketa_data_json ← підсумкова анкета клієнта (структура з 1С Survey)
   created_at, updated_at
 
+client_comments                                ← коментарі менеджера (Sprint 2C, 2026-06-11)
+  id (bigserial PK)
+  client_id_1c                ← ClientID з 1С (історія прив'язана до клієнта)
+  author_login                ← хто написав
+  author_name                 ← snapshot ФІО на момент створення
+  comment                     ← текст (CHECK 1-2000 chars)
+  created_at, deleted_at      ← soft-delete (видалити можна тільки свій)
+  -- Партійні індекси WHERE deleted_at IS NULL:
+  --   idx_client_comments_client_active (client_id_1c, created_at DESC) — hot read
+  --   idx_client_comments_client_count (client_id_1c) — для bulk-counts
+
 meeting_syncs                                  ← buffer queue (Sprint 1.5, наразі неактивна)
   id (uuid PK), meeting_id (FK)
   operation ← save/update/start/finish/reschedule/cancel
@@ -377,7 +419,12 @@ src/app/api/
 │   └── sync-meetings/route.ts    GET   → cron-worker (зараз no-op після переходу на sync write)
 ├── geocode/route.ts              POST  → reverse-geocode lat/lon → address (для зустрічей)
 ├── clients/
-│   └── plan-totals/route.ts      POST  → план з Supabase forecasts+gap_closures per-client (/clients)
+│   ├── plan-totals/route.ts      POST  → план з Supabase forecasts+gap_closures per-client (/clients)
+│   └── comments/                  🆕 Sprint 2C (2026-06-11)
+│       ├── route.ts              GET   → список коментарів по clientId1c
+│       │                         POST  → додати коментар (1-2000 chars)
+│       ├── [id]/route.ts         DELETE → soft-delete (свій або admin будь-який)
+│       └── counts/route.ts       POST  → bulk { [clientId]: count } для бейджа у списку
 └── archive/route.ts              POST  → soft-delete forecast/gap (set archived_at)
 ```
 
@@ -423,7 +470,10 @@ src/app/api/
 ### Клієнти-сторінка (CRM-режим менеджера)
 
 - [src/app/clients/page.tsx](./src/app/clients/page.tsx) — entry-point з auth-gate
-- [src/components/clients/clients-page.tsx](./src/components/clients/clients-page.tsx) — основний компонент (~1846 рядків): 4-картковий Hero band, Reserved-секція, expandable client rows, brand plan/fact table, search, focus chips. TD-11: god component — розбити на модулі (див. BACKLOG.md).
+- [src/components/clients/clients-page.tsx](./src/components/clients/clients-page.tsx) — основний компонент (~2900 рядків): 4-картковий Hero band, Reserved-секція, expandable client rows, brand plan/fact table, search, focus chips, «Остання подія» + бейдж коментарів у згорнутій картці, mobile-footer з action-кнопками. TD-11: god component — розбити на модулі (див. `docs/audit-2026-06-11.md` Month 2-3).
+- [src/components/clients/client-comments-section.tsx](./src/components/clients/client-comments-section.tsx) — **Sprint 2C (2026-06-11)**: коментарі менеджера у розгорнутій картці (auto-grow textarea, soft-delete, історія)
+- [src/components/clients/new-client-dialog.tsx](./src/components/clients/new-client-dialog.tsx) — створення клієнта через 1С `registerNewClient`
+- [src/components/clients/global-client-search-dialog.tsx](./src/components/clients/global-client-search-dialog.tsx) — пошук «По всій базі EMET»
 
 ### Admin сторінки
 
@@ -472,6 +522,7 @@ src/app/api/
 | [mityng-types.ts](./src/lib/mityng-types.ts) | Типи Митинг-actions (`ClientFromOneC`, `ClientReport`, `BrandSalesHistory`, `ClientEvent`, `ClientSeminar`) + helpers (`isClientReserved`, `getClientName`, `getClientAddress`, `getLastMeetingDate`, `getLastCallDate`) |
 | [use-onec-data.ts](./src/lib/use-onec-data.ts) | SWR-хук для 1С call'ів |
 | [use-my-clients.ts](./src/lib/use-my-clients.ts) + [client-batching.ts](./src/lib/client-batching.ts) | 6 hooks для CRM-сторінки: `useMyClients` (bulk-список), `useClientReport` (lazy 1-client deep), `useClientsTotals` (план+факт chunked 400), `useClientActivities` + `useClientFocuses` (chunked 200×4 = до 800), `useClientActivationPlan` (Action B). Чисті batching-функції (chunk/merge) винесено у `client-batching.ts` з юніт-тестами |
+| [use-client-comments.ts](./src/lib/use-client-comments.ts) + [client-comments/types.ts](./src/lib/client-comments/types.ts) | **Sprint 2C (2026-06-11)**: `useClientComments(clientId1c)` SWR-список, `useClientCommentsCounts(clientIds)` bulk-counts для бейджа у списку, `addClientComment/deleteClientComment` мутації з revalidate |
 | [use-planning-aggregate.ts](./src/lib/use-planning-aggregate.ts) | SWR-хук для `/api/planning/aggregate` |
 | [use-clients-for-planning.ts](./src/lib/use-clients-for-planning.ts) | SWR Action 2 |
 | [use-registry-plans.ts](./src/lib/use-registry-plans.ts) | SWR Action 4 |
