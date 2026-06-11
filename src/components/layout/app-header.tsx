@@ -218,7 +218,7 @@ export function AppHeader() {
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <div className="hidden xl:flex flex-col items-start">
+            <div className="hidden lg:flex flex-col items-start">
               <span className="text-[13px] font-medium leading-tight whitespace-nowrap">{user.fullName}</span>
               <span className="text-[11px] text-muted-foreground leading-tight whitespace-nowrap">
                 {getRoleLabel(user.login, user.role)}{user.region ? ` · ${user.region}` : ''}
