@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Робота з рекламаціями у Bitrix24 — інструкція мед-відділу</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root { --emet:#066aab; --emet-light:#0880cc; --bg:#f4f7fb; --card:#fff; --border:#e2e7ef; --text:#0f172a; --muted:#64748b; --emerald:#10b981; --rose:#f43f5e; --amber:#f59e0b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  main { max-width: 840px; margin: 0 auto; padding: 48px 32px 80px; }
+
+  /* === HEADER === */
+  .header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .brand img { height: 28px; }
+  .brand-name {
+    font-size: 16px; font-weight: 800;
+    background: linear-gradient(135deg, var(--emet), var(--emet-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  h1 { font-size: 32px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 8px; line-height: 1.2; }
+  .lead { font-size: 15px; color: var(--muted); }
+  .audience-tag {
+    display: inline-block; padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    background: #fce7f3; color: #9d174d;
+    margin-bottom: 16px;
+  }
+
+  /* === TOC === */
+  .toc {
+    background: white; border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px;
+    margin: 24px 0 40px;
+  }
+  .toc-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .toc ol { padding-left: 22px; font-size: 14px; }
+  .toc li { margin-bottom: 4px; }
+  .toc a { color: var(--emet); text-decoration: none; font-weight: 600; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* === SECTIONS === */
+  h2 {
+    font-size: 22px; font-weight: 800; letter-spacing: -.3px;
+    margin: 48px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    scroll-margin-top: 24px;
+  }
+  h2 .num {
+    display: inline-block;
+    background: var(--emet); color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; font-weight: 700;
+    padding: 3px 9px; border-radius: 4px;
+    margin-right: 8px; vertical-align: middle;
+  }
+  h3 { font-size: 16px; font-weight: 700; margin: 24px 0 8px; }
+
+  p { margin-bottom: 12px; font-size: 14.5px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  ol.steps { padding-left: 22px; margin-bottom: 16px; counter-reset: item; list-style: none; }
+  ol.steps > li {
+    font-size: 14px; margin-bottom: 12px;
+    padding-left: 8px; position: relative;
+    counter-increment: item;
+  }
+  ol.steps > li::before {
+    content: counter(item) ".";
+    position: absolute; left: -22px;
+    font-weight: 700; color: var(--emet);
+  }
+  ol.steps strong { color: var(--text); }
+
+  ul.bullets { padding-left: 22px; margin-bottom: 16px; }
+  ul.bullets li { font-size: 14px; margin-bottom: 6px; }
+
+  /* === CALLOUTS === */
+  .callout {
+    border-left: 4px solid var(--emet);
+    background: #f0f7fb;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 13.5px;
+  }
+  .callout.warn { border-left-color: var(--amber); background: #fffbeb; }
+  .callout.tip { border-left-color: var(--emerald); background: #ecfdf5; }
+  .callout strong { display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .callout.warn strong { color: var(--amber); }
+  .callout.tip strong { color: var(--emerald); }
+  .callout strong { color: var(--emet); }
+
+  code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--emet); }
+  kbd {
+    display: inline-block; padding: 2px 7px;
+    background: white; border: 1px solid var(--border); border-bottom-width: 2px;
+    border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 700;
+  }
+
+  /* === TABLES === */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 13.5px; background: white; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+
+  /* === FOOTER === */
+  footer {
+    margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); text-align: center;
+  }
+  footer a { color: var(--emet); text-decoration: none; }
+
+  @media (max-width: 600px) {
+    main { padding: 24px 16px 60px; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <div class="header">
+    <div class="brand">
+      <img src="emet-logo.png" alt="EMET">
+      <span class="brand-name">EMET · Рекламації</span>
+    </div>
+    <span class="audience-tag">Для мед-відділу</span>
+    <h1>Робота з рекламаціями у Bitrix24</h1>
+    <p class="lead">Коротка інструкція: де бачити нові заявки, як відповідати менеджерам, як змінювати статус. Усе робиться у Bitrix24 — нікуди переключатись не потрібно.</p>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">У цій інструкції</div>
+    <ol>
+      <li><a href="#where">Де знайти рекламації</a></li>
+      <li><a href="#notify">Як дізнаватись про нові</a></li>
+      <li><a href="#detail">Що містить картка рекламації</a></li>
+      <li><a href="#answer">Як відповісти менеджеру (чат)</a></li>
+      <li><a href="#files">Як прикріпити файл до відповіді</a></li>
+      <li><a href="#status">Як змінити статус</a></li>
+      <li><a href="#tips">Корисні нюанси</a></li>
+      <li><a href="#contacts">Кому звертатись з питань</a></li>
+    </ol>
+  </div>
+
+  <!-- ─── 1. WHERE ─── -->
+  <h2 id="where"><span class="num">01</span> Де знайти рекламації</h2>
+  <p>Усі рекламації зберігаються в окремому процесі Bitrix24 — <strong>«Рекламації»</strong> (Smart Process). Шлях у Bitrix:</p>
+  <ol class="steps">
+    <li>Відкрити <strong>CRM</strong> у лівому меню Bitrix24</li>
+    <li>У підменю CRM знайти Smart Process <strong>«Рекламації»</strong></li>
+    <li>Або одразу за прямим посиланням: <code>https://bitrix.emet.in.ua/crm/type/1038/</code></li>
+  </ol>
+
+  <p>Зручно додати посилання у закладки браузера — тоді одна кнопка і ви всередині списку.</p>
+
+  <h3>Як виглядає список</h3>
+  <p>Бачите всі рекламації у вигляді <strong>канбан-дошки</strong> зі стовпцями за статусом:</p>
+  <ul class="bullets">
+    <li><strong>«Нова»</strong> — щойно подана менеджером, чекає на вашу реакцію</li>
+    <li><strong>«В обробці»</strong> — ви вже взяли в роботу і ведете переписку</li>
+    <li><strong>«Вирішено»</strong> — підтверджено заводом, відправлено заміну тощо</li>
+    <li><strong>«Відмовлено»</strong> — претензія не обґрунтована</li>
+  </ul>
+
+  <p>Можна перемикнутись на <strong>таблицю</strong> (значок справа вгорі) — у вас з'являться колонки клієнт / тип / препарат / LOT / дата.</p>
+
+  <!-- ─── 2. NOTIFY ─── -->
+  <h2 id="notify"><span class="num">02</span> Як дізнаватись про нові</h2>
+  <p>Ви отримуєте <strong>два сигнали</strong> про кожну нову подію:</p>
+
+  <h3>Дзвіночок Bitrix (в інтерфейсі)</h3>
+  <p>У правому верхньому куті Bitrix24 — іконка дзвоника. Туди приходять короткі повідомлення:</p>
+  <ul class="bullets">
+    <li>🚨 <strong>«Нова рекламація #N!»</strong> — щойно подана. Клік на повідомлення → відкривається картка</li>
+    <li>💬 <strong>«Новий коментар у заявці #N від менеджера»</strong> — менеджер відповів на вашу попередню репліку</li>
+  </ul>
+
+  <h3>Email</h3>
+  <p>Дублюючий канал — листи на <code>reclamation@emet.in.ua</code>. У темі — номер заявки і коротко тип. Зручно якщо ви не у Bitrix.</p>
+
+  <div class="callout tip">
+    <strong>Порада</strong>
+    Не вимикайте дзвіночок у Bitrix — це найшвидший канал. Email може запізнюватись на 1-2 хвилини, а через дзвіночок повідомлення з'являється за секунди.
+  </div>
+
+  <!-- ─── 3. DETAIL ─── -->
+  <h2 id="detail"><span class="num">03</span> Що містить картка рекламації</h2>
+  <p>Клік на повідомлення у дзвіночку (або на карточку у списку) відкриває деталі. Зверху — заголовок «Рекламація: <em>Назва клієнта</em>».</p>
+
+  <p>Ключові поля, які заповнив менеджер:</p>
+  <table>
+    <tr><th>Поле</th><th>Що містить</th></tr>
+    <tr><td>Менеджер</td><td>ПІБ і email менеджера, що подав. Йому йдуть ваші коментарі.</td></tr>
+    <tr><td>Тип скарги</td><td>Неякісна упаковка / Якість препарату / Ефективність / Побічна дія / Ускладнення / Інше</td></tr>
+    <tr><td>Препарат</td><td>VITARAN / NEURONOX / NEURAMIS / ELLANSE / PETARAN / IUSE / OTHER</td></tr>
+    <tr><td>LOT серії</td><td>Номер партії препарату — критично для звʼязку з заводом</td></tr>
+    <tr><td>№ реалізації</td><td>Накладна, якщо відома</td></tr>
+    <tr><td>Деталі</td><td>Для медичних типів (Якість/Ефективність/Побічна/Ускладнення) — повна анкета по пунктах. Для решти — текст менеджера.</td></tr>
+    <tr><td>Файли</td><td>Фото препарату, скриншот рахунку, відео реакції — до 5 файлів, до 4 MB сумарно</td></tr>
+  </table>
+
+  <p>У правій колонці картки — <strong>таймлайн</strong>. Туди записуються всі коментарі (ваші відповіді + відповіді менеджера). Це і є чат із менеджером.</p>
+
+  <!-- ─── 4. ANSWER ─── -->
+  <h2 id="answer"><span class="num">04</span> Як відповісти менеджеру (чат)</h2>
+  <p>Відповідаєте у звичайному полі коментаря Bitrix:</p>
+
+  <ol class="steps">
+    <li>Відкрийте картку рекламації</li>
+    <li>У правій колонці — таймлайн з кнопкою <kbd>+ Коментар</kbd> (або поле «Додати коментар» внизу)</li>
+    <li>Напишіть текст — звичайно, як ви пишете у будь-якому чаті Bitrix</li>
+    <li>Натисніть <kbd>Зберегти</kbd> / <kbd>Надіслати</kbd></li>
+  </ol>
+
+  <p><strong>Що відбувається далі автоматично</strong>:</p>
+  <ul class="bullets">
+    <li>Ваш коментар з'являється у таймлайні рекламації</li>
+    <li>Менеджер бачить його у <strong>чаті</strong> на сторінці рекламації у sales-planning (з вашим іменем та іконкою стетоскопа)</li>
+    <li>У менеджера дзвоник вверху сторінки sales-planning отримує лічильник <strong>«1 нове повідомлення»</strong></li>
+    <li>На картці рекламації у його списку зʼявляється рожевий бейдж <strong>«НОВЕ»</strong></li>
+  </ul>
+
+  <div class="callout">
+    <strong>Як менеджер бачить вас</strong>
+    Ваше імʼя у його чаті бере з вашого профілю Bitrix (NAME + LAST_NAME). Тому переконайтесь що там вказано саме те, як ви хочете щоб вас представляли — «Малькова Євгенія» виглядає краще ніж «emm26» (логін).
+  </div>
+
+  <!-- ─── 5. FILES ─── -->
+  <h2 id="files"><span class="num">05</span> Як прикріпити файл до відповіді</h2>
+  <p>Іноді треба надіслати менеджеру PDF, фото, скан документа. У полі коментаря Bitrix:</p>
+
+  <ol class="steps">
+    <li>Натисніть іконку <strong>скріпки</strong> (📎) або «Прикріпити файл»</li>
+    <li>Оберіть файл з компʼютера або з Bitrix Disk</li>
+    <li>Натисніть <kbd>Зберегти</kbd>/<kbd>Надіслати</kbd> разом з текстом</li>
+  </ol>
+
+  <p>Менеджер побачить ваш файл у чаті як превʼю (для фото) або клікабельне посилання (для PDF/документів). Клік відкриє файл у lightbox-модалці з можливістю скачати.</p>
+
+  <div class="callout warn">
+    <strong>Що враховувати</strong>
+    Великі файли (понад 50 MB) можуть погано відображатись на телефоні менеджера. Якщо PDF на 100+ сторінок — краще обмежити сторінками що стосуються конкретно цієї рекламації.
+  </div>
+
+  <!-- ─── 6. STATUS ─── -->
+  <h2 id="status"><span class="num">06</span> Як змінити статус</h2>
+  <p>Статус рухає рекламацію по канбан-дошці. Менеджер бачить статус на своїй картці одразу як ви його змінюєте.</p>
+
+  <h3>Через канбан (drag and drop)</h3>
+  <p>Перетягніть картку рекламації у потрібний стовпець: <strong>В обробці</strong>, <strong>Вирішено</strong>, <strong>Відмовлено</strong>.</p>
+
+  <h3>Через деталі картки</h3>
+  <p>Зверху картки — стрічка етапів. Клік на наступний етап → Bitrix запитає підтвердження → статус змінюється.</p>
+
+  <p>Рекомендований flow:</p>
+  <ol class="steps">
+    <li><strong>«Нова»</strong> → ви відкрили, прочитали, написали менеджеру перший коментар → переводите у <strong>«В обробці»</strong></li>
+    <li>Ведете переписку (уточнюєте LOT, обʼєм, дату) → коли проблема вирішена → <strong>«Вирішено»</strong></li>
+    <li>Якщо претензія не обґрунтована → <strong>«Відмовлено»</strong> з коментарем причини</li>
+  </ol>
+
+  <!-- ─── 7. TIPS ─── -->
+  <h2 id="tips"><span class="num">07</span> Корисні нюанси</h2>
+
+  <h3>Чому менеджер не отримує мої повідомлення з Telegram?</h3>
+  <p>Telegram-бот для менеджерів тимчасово відключений (червень 2026). Вони отримують ваші повідомлення тільки через <strong>колокольчик у sales-planning</strong>. Це працює навіть якщо менеджер на іншій сторінці.</p>
+
+  <h3>Чому деякі рекламації мають «(Менеджер):» у коментарі?</h3>
+  <p>Коли менеджер пише вам зі сторінки sales-planning — система додає до коментаря префікс <code>&lt;b&gt;ПІБ&lt;/b&gt; (Менеджер):</code> щоб ви розрізняли менеджерські повідомлення від ваших. Це нормально, так і повинно бути.</p>
+
+  <h3>Поле «Анкета» порожнє — це нормально?</h3>
+  <p>Для типів «Неякісна упаковка» і «Інше» система не показує медичну анкету — там тільки коротке текстове поле опису. Це за дизайном (немає сенсу заповнювати 14 полів про побічні ефекти, якщо просто помʼята коробка).</p>
+
+  <h3>Як перевірити що менеджер прочитав мою відповідь?</h3>
+  <p>Поки що — ніяк автоматично. Це у backlog (read receipts). Поки користуйтесь спрощеним правилом: якщо менеджер відповів вам новим коментарем — точно прочитав попереднє.</p>
+
+  <h3>Що робити з рекламаціями зі старого reclamation-app?</h3>
+  <p>Старий веб-застосунок «reclamation-app» поки залишається активним для read-only перегляду історичних заявок. Усі нові події (нові заявки, нові коментарі) йдуть тільки через Bitrix і sales-planning. Окремі дії в старому застосунку робити не треба.</p>
+
+  <!-- ─── 8. CONTACTS ─── -->
+  <h2 id="contacts"><span class="num">08</span> Кому звертатись з питань</h2>
+  <ul class="bullets">
+    <li><strong>З технічних питань</strong> (не приходять дзвіночки, не відкривається картка, помилка) — IT-відділ EMET</li>
+    <li><strong>З методологічних питань</strong> (як класифікувати претензію, який LOT перевіряти) — внутрішні правила мед-відділу</li>
+    <li><strong>З питань про самого менеджера</strong> (хто це, у якому регіоні) — поле «Менеджер» у картці містить ПІБ і email; за email можна знайти у Bitrix довіднику</li>
+  </ul>
+
+  <footer>
+    EMET · Інструкція для мед-відділу · 2026 · <a href="manual.html">Інструкція менеджерів</a> · <a href="https://bitrix.emet.in.ua/crm/type/1038/">Відкрити Рекламації у Bitrix</a>
+  </footer>
+</main>
+
+</body>
+</html>
