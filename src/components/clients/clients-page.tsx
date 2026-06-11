@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw, Cake } from 'lucide-react';
-import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem } from '@/lib/use-my-clients';
+import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem, type ClientActivity } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
@@ -565,6 +565,7 @@ export function ClientsPage() {
               planBrands={planByClient[focusClient.ClientID]?.brands ?? {}}
               factBrands={factByClient[focusClient.ClientID]?.brands ?? {}}
               focuses={focusByClient[focusClient.ClientID] ?? []}
+              activity={activityByClient[focusClient.ClientID] ?? null}
               meetingMissing={meetingMissingClientIds.has(focusClient.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === focusClient.ClientID}
@@ -718,6 +719,7 @@ export function ClientsPage() {
                   planByClient={planByClient}
                   factByClient={factByClient}
                   focusByClient={focusByClient}
+                  activityByClient={activityByClient}
                   meetingMissingClientIds={meetingMissingClientIds}
                   totalsLoading={totalsLoading}
                   expandedId={expandedId}
@@ -733,6 +735,7 @@ export function ClientsPage() {
                 planByClient={planByClient}
                 factByClient={factByClient}
                 focusByClient={focusByClient}
+                activityByClient={activityByClient}
                 meetingMissingClientIds={meetingMissingClientIds}
                 totalsLoading={totalsLoading}
                 expandedId={expandedId}
@@ -1302,12 +1305,13 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
+  cat, clients, planByClient, factByClient, focusByClient, activityByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
+  activityByClient: Record<string, ClientActivity>;
   meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
@@ -1394,6 +1398,7 @@ function CategorySection({
               planBrands={planBrands}
               factBrands={factBrands}
               focuses={focuses}
+              activity={activityByClient[c.ClientID] ?? null}
               meetingMissing={meetingMissingClientIds.has(c.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === c.ClientID}
@@ -1413,11 +1418,12 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, focusByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, activityByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
+  activityByClient: Record<string, ClientActivity>;
   meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
@@ -1466,6 +1472,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, m
                 planBrands={planBrands}
                 factBrands={factBrands}
                 focuses={focuses}
+                activity={activityByClient[c.ClientID] ?? null}
                 meetingMissing={meetingMissingClientIds.has(c.ClientID)}
                 totalsLoading={totalsLoading}
                 expanded={expandedId === c.ClientID}
@@ -1482,13 +1489,15 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, m
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting, onCreateClaim }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activity, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting, onCreateClaim }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
   planBrands: Record<string, number>;
   factBrands: Record<string, number>;
   focuses: ClientFocusItem[];
+  /** Остання подія по клієнту (дзвінок/зустріч) з checkActivities. */
+  activity?: ClientActivity | null;
   /** У плані поточного місяця stage='Зустріч', але реальної події у 1С ще нема. */
   meetingMissing?: boolean;
   totalsLoading: boolean;
@@ -1514,6 +1523,20 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
         return age != null ? `${base} · ${age} ${pluralUaYears(age)}` : base;
       })()
     : '';
+  // Остання подія: беремо пізнішу з дзвінка/зустрічі. Формат DD.MM (або DD.MM.YY
+  // якщо рік відмінний від поточного). Якщо обидві дати — пишемо тільки тип
+  // пізнішої події (це і є «останнє»).
+  const lastEvent = (() => {
+    const call = activity?.lastCallDate || null;
+    const meet = activity?.lastMeetingDate || null;
+    if (!call && !meet) return null;
+    const pickMeeting = !call || (meet && meet >= call);
+    const iso = pickMeeting ? meet! : call!;
+    const [y, mo, d] = iso.split('-');
+    const thisYear = new Date().getFullYear();
+    const dateLabel = Number(y) === thisYear ? `${d}.${mo}` : `${d}.${mo}.${y.slice(-2)}`;
+    return { type: pickMeeting ? 'meeting' as const : 'call' as const, dateLabel };
+  })();
   // Стани плану/факту:
   //   totalsLoading=true → ще тягнемо → '—'
   //   plan>0 → реальна сума (з planом)
@@ -1684,6 +1707,20 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, meetin
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1 min-w-0">
               <Cake className="h-3 w-3 shrink-0" />
               <span className="tabular-nums">{birthDisplay}</span>
+            </div>
+          )}
+
+          {/* Остання подія по клієнту (дзвінок або зустріч) — щоб менеджер
+              одразу бачив, чи давно був контакт, без розгортання картки. */}
+          {lastEvent && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1 min-w-0">
+              {lastEvent.type === 'meeting'
+                ? <Calendar className="h-3 w-3 shrink-0" />
+                : <Phone className="h-3 w-3 shrink-0" />}
+              <span>
+                Останнє: <span className="tabular-nums font-medium text-slate-700">{lastEvent.dateLabel}</span>
+                {' · '}{lastEvent.type === 'meeting' ? 'зустріч' : 'дзвінок'}
+              </span>
             </div>
           )}
         </div>
