@@ -1594,7 +1594,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
           }
         }}
         aria-expanded={expanded}
-        className="w-full grid grid-cols-[36px_minmax(0,1fr)_auto] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
+        className="w-full grid grid-cols-[36px_minmax(0,1fr)] md:grid-cols-[40px_minmax(0,1.6fr)_85px_85px_70px_24px] gap-3.5 md:gap-4 items-center px-3 md:px-4 py-3 hover:bg-white/40 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40"
       >
         {/* Avatar — 36px mobile / 40px desktop. */}
         <div className={`flex w-9 md:w-10 h-9 md:h-10 rounded-xl bg-emet-50 ${CAT_COLOR[cat].text} items-center justify-center text-[11px] md:text-[12px] font-bold shrink-0`}>
@@ -1669,7 +1669,7 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
             )}
           </div>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0">
+          <div className={`${address ? 'flex' : 'hidden md:flex'} items-center gap-2 text-[11px] text-muted-foreground mt-1 min-w-0`}>
             {address && <span className="truncate">{address}</span>}
             {/* Desktop: текстовий номер як link (старий вигляд) */}
             {client.Phone && (
@@ -1766,20 +1766,30 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
           )}
         </div>
 
-        {/* Mobile-only icon-кнопки: вертикальний стовпчик справа щоб ім'я
-            клієнта влізало в один рядок (картка тепер ширша, але ім'я
-            та-ке-ж довге). Quadratic-style (rounded-[10px]) щоб не
-            конфліктували з round phone-call на /meetings. */}
-        <div className="md:hidden flex flex-col items-center gap-1.5 shrink-0">
+        {/* План / Факт / % — desktop only. */}
+        <NumCol label="План" value={plan} loading={totalsLoading} emptyAs={hasFact ? 'zero' : null} />
+        <NumCol label="Факт" value={fact} loading={totalsLoading} emptyAs="zero" />
+        <PctCol pct={pct} loading={totalsLoading} disabled={!hasPlan} />
+
+        {/* Desktop chevron — візуальний натяк що рядок розгортається. */}
+        <ChevronDown className={`hidden md:block h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </div>
+
+      {/* MOBILE action footer — як на картці зустрічі: дві широкі кнопки
+          (Дзвонити + Зустріч) + маленька icon (Рекламація). Кнопки знизу
+          звільняють ширину для ПІБ і прибирають пустоту у клієнтів без
+          адреси/ДН/останньої події. */}
+      {(client.Phone || onCreateMeeting || onCreateClaim) && (
+        <div className="md:hidden flex items-stretch gap-2 px-3 pb-3 pt-2 border-t border-emet-ink/[0.06]">
           {client.Phone && (
             <a
               href={`tel:${phoneClean}`}
               onClick={e => e.stopPropagation()}
               aria-label={`Подзвонити ${name}`}
-              title={client.Phone}
-              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white shadow-sm active:scale-95 transition-all"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue active:bg-emet-blue active:text-white text-[13px] font-semibold shadow-sm active:scale-[0.98] transition-all"
             >
-              <Phone className="w-[15px] h-[15px]" />
+              <Phone className="w-4 h-4" />
+              Дзвонити
             </a>
           )}
           {onCreateMeeting && (
@@ -1790,10 +1800,10 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
                 onCreateMeeting(client);
               }}
               aria-label={`Запланувати зустріч з ${name}`}
-              title="Запланувати зустріч"
-              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue hover:bg-emet-blue hover:text-white shadow-sm active:scale-95 transition-all"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-emet-blue/25 text-emet-blue active:bg-emet-blue active:text-white text-[13px] font-semibold shadow-sm active:scale-[0.98] transition-all"
             >
-              <Calendar className="w-[15px] h-[15px]" />
+              <Calendar className="w-4 h-4" />
+              Зустріч
             </button>
           )}
           {onCreateClaim && (
@@ -1805,21 +1815,14 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
               }}
               aria-label={`Подати рекламацію по ${name}`}
               title="Подати рекламацію"
-              className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/70 backdrop-blur-md border border-rose-300/40 text-rose-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 shadow-sm active:scale-95 transition-all"
+              className="inline-flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/70 backdrop-blur-md border border-rose-300/40 text-rose-700 active:bg-rose-600 active:text-white shadow-sm active:scale-[0.98] transition-all shrink-0"
             >
-              <AlertCircle className="w-[15px] h-[15px]" />
+              <AlertCircle className="w-4 h-4" />
             </button>
           )}
         </div>
+      )}
 
-        {/* План / Факт / % — desktop only. */}
-        <NumCol label="План" value={plan} loading={totalsLoading} emptyAs={hasFact ? 'zero' : null} />
-        <NumCol label="Факт" value={fact} loading={totalsLoading} emptyAs="zero" />
-        <PctCol pct={pct} loading={totalsLoading} disabled={!hasPlan} />
-
-        {/* Desktop chevron — візуальний натяк що рядок розгортається. */}
-        <ChevronDown className={`hidden md:block h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
-      </div>
       {expanded && (
         <ClientExpand
           clientID={client.ClientID}
