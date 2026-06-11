@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw, Cake } from 'lucide-react';
+import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw, Cake, MessageSquare } from 'lucide-react';
 import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem, type ClientActivity } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
 import { SEGMENTS } from '@/lib/mock-data';
@@ -29,6 +29,8 @@ import { UserPlus } from 'lucide-react';
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
 import { ClaimFormDialog } from '@/components/claims/claim-form-dialog';
 import { ClientClaimsSection } from '@/components/claims/client-claims-section';
+import { ClientCommentsSection } from './client-comments-section';
+import { useClientCommentsCounts } from '@/lib/use-client-comments';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -227,6 +229,8 @@ export function ClientsPage() {
     clientIds,
     selectedMonth,
   );
+  // Bulk-counts коментарів менеджера — для badge «коментарі: N» у згорнутій картці.
+  const { counts: commentsByClient } = useClientCommentsCounts(clientIds);
 
   // Клієнти, у яких в плані поточного місяця стоїть етап «Зустріч», але у 1С
   // ще нема жодної зустрічі цього місяця. Менеджер забув запланувати дату/час.
@@ -568,6 +572,7 @@ export function ClientsPage() {
               factBrands={factByClient[focusClient.ClientID]?.brands ?? {}}
               focuses={focusByClient[focusClient.ClientID] ?? []}
               activity={activityByClient[focusClient.ClientID] ?? null}
+              commentsCount={commentsByClient[focusClient.ClientID] ?? 0}
               meetingMissing={meetingMissingClientIds.has(focusClient.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === focusClient.ClientID}
@@ -722,6 +727,7 @@ export function ClientsPage() {
                   factByClient={factByClient}
                   focusByClient={focusByClient}
                   activityByClient={activityByClient}
+                  commentsByClient={commentsByClient}
                   meetingMissingClientIds={meetingMissingClientIds}
                   totalsLoading={totalsLoading}
                   expandedId={expandedId}
@@ -738,6 +744,7 @@ export function ClientsPage() {
                 factByClient={factByClient}
                 focusByClient={focusByClient}
                 activityByClient={activityByClient}
+                commentsByClient={commentsByClient}
                 meetingMissingClientIds={meetingMissingClientIds}
                 totalsLoading={totalsLoading}
                 expandedId={expandedId}
@@ -1307,13 +1314,14 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, focusByClient, activityByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
+  cat, clients, planByClient, factByClient, focusByClient, activityByClient, commentsByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
   activityByClient: Record<string, ClientActivity>;
+  commentsByClient: Record<string, number>;
   meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
@@ -1401,6 +1409,7 @@ function CategorySection({
               factBrands={factBrands}
               focuses={focuses}
               activity={activityByClient[c.ClientID] ?? null}
+              commentsCount={commentsByClient[c.ClientID] ?? 0}
               meetingMissing={meetingMissingClientIds.has(c.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === c.ClientID}
@@ -1420,12 +1429,13 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, focusByClient, activityByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, activityByClient, commentsByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
   activityByClient: Record<string, ClientActivity>;
+  commentsByClient: Record<string, number>;
   meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
@@ -1475,6 +1485,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, a
                 factBrands={factBrands}
                 focuses={focuses}
                 activity={activityByClient[c.ClientID] ?? null}
+                commentsCount={commentsByClient[c.ClientID] ?? 0}
                 meetingMissing={meetingMissingClientIds.has(c.ClientID)}
                 totalsLoading={totalsLoading}
                 expanded={expandedId === c.ClientID}
@@ -1491,7 +1502,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, a
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activity, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting, onCreateClaim }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activity, commentsCount, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting, onCreateClaim }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
@@ -1500,6 +1511,8 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
   focuses: ClientFocusItem[];
   /** Остання подія по клієнту (дзвінок/зустріч) з checkActivities. */
   activity?: ClientActivity | null;
+  /** Кількість коментарів менеджера по клієнту (для badge у згорнутій картці). */
+  commentsCount?: number;
   /** У плані поточного місяця stage='Зустріч', але реальної події у 1С ще нема. */
   meetingMissing?: boolean;
   totalsLoading: boolean;
@@ -1720,6 +1733,16 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
                 </span>
               </>
             )}
+            {/* Desktop inline — коментарі менеджера (badge у рядку з телефоном). */}
+            {commentsCount != null && commentsCount > 0 && (
+              <>
+                <span className="text-muted-foreground/40 shrink-0 hidden md:inline">·</span>
+                <span className="hidden md:inline-flex items-center gap-1 shrink-0">
+                  <MessageSquare className="h-3 w-3" />
+                  <span>коментарі: <span className="tabular-nums font-medium text-slate-700">{commentsCount}</span></span>
+                </span>
+              </>
+            )}
           </div>
 
           {/* Sprint 2B.C: «Подати рекламацію» — окремим рядком ПІД телефоном
@@ -1753,6 +1776,14 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
                 Остання подія: {lastEvent.type === 'meeting' ? 'зустріч' : 'дзвінок'}
                 {' · '}<span className="tabular-nums font-medium text-slate-700">{lastEvent.dateLabel}</span>
               </span>
+            </div>
+          )}
+
+          {/* Mobile-only: коментарі менеджера (badge). */}
+          {commentsCount != null && commentsCount > 0 && (
+            <div className="md:hidden flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1 min-w-0">
+              <MessageSquare className="h-3 w-3 shrink-0" />
+              <span>коментарі: <span className="tabular-nums font-medium text-slate-700">{commentsCount}</span></span>
             </div>
           )}
 
@@ -1938,6 +1969,11 @@ function ClientExpand({ clientID, clientName, planBrands, factBrands, focuses }:
     <div className="border-t border-white/50 px-5 py-4 space-y-4">
       {/* Інформація по клієнту — об'єднує освіту, документи та properties */}
       <ClientInfoBlock clientInfo={clientInfo} />
+
+      {/* Коментарі менеджера — між інформацією про клієнта і План×Фактом.
+          Тут менеджер бачить свої та чужі замітки, додає нові й розгортає
+          історію. Прив'язано до ClientID — лишається при передачі клієнта. */}
+      <ClientCommentsSection clientId1c={clientID} />
 
       {/* Діючі фокуси клієнта — перед План×Факт бо це контекст до планування */}
       {focuses.length > 0 && <ClientFocusBlock focuses={focuses} />}
