@@ -33,7 +33,6 @@ const ROLE_LABELS: Record<string, string> = {
 const LOGIN_LABEL_OVERRIDES: Record<string, string> = {
   'assistant.sdu@emet.in.ua': 'Асистент директора з продажу',
   'owner@emet.in.ua': 'Власник компанії',
-  'ceo@emet.in.ua': 'CEO',
   'headofproduct@emet.in.ua': 'Керівник відділу продукта',
 };
 
