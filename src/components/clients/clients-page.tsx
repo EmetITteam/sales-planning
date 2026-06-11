@@ -1530,16 +1530,36 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
   // Fallback на activityByClient (checkActivities, поточний місяць) якщо
   // bulk-поля порожні. Беремо пізнішу з двох. Формат: DD.MM (поточний рік)
   // або DD.MM.YY (минулий).
+  //
+  // ⚠️ 1С повертає дату у двох форматах залежно від джерела:
+  //   - bulk-поля з getManagerClients: 'DD.MM.YYYY' (напр. '24.12.2025')
+  //   - checkActivities: 'YYYY-MM-DD' (ISO)
+  // Нормалізуємо до { y, mo, d } перш ніж порівнювати/форматувати.
   const lastEvent = (() => {
-    const call = getLastCallDate(client) || activity?.lastCallDate || '';
-    const meet = getLastMeetingDate(client) || activity?.lastMeetingDate || '';
+    function parse(raw: string): { y: string; mo: string; d: string; iso: string } | null {
+      if (!raw) return null;
+      // ISO YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+        const [y, mo, d] = raw.split('-');
+        return { y, mo, d, iso: `${y}-${mo}-${d}` };
+      }
+      // UA DD.MM.YYYY
+      if (/^\d{2}\.\d{2}\.\d{4}/.test(raw)) {
+        const [d, mo, y] = raw.split('.');
+        return { y, mo, d, iso: `${y}-${mo}-${d}` };
+      }
+      return null;
+    }
+    const call = parse(getLastCallDate(client) || activity?.lastCallDate || '');
+    const meet = parse(getLastMeetingDate(client) || activity?.lastMeetingDate || '');
     if (!call && !meet) return null;
-    const pickMeeting = !call || (meet && meet >= call);
-    const iso = pickMeeting ? meet : call;
-    if (!iso) return null;
-    const [y, mo, d] = iso.split('-');
+    const pickMeeting = !call || (meet && meet.iso >= call.iso);
+    const chosen = pickMeeting ? meet : call;
+    if (!chosen) return null;
     const thisYear = new Date().getFullYear();
-    const dateLabel = Number(y) === thisYear ? `${d}.${mo}` : `${d}.${mo}.${y.slice(-2)}`;
+    const dateLabel = Number(chosen.y) === thisYear
+      ? `${chosen.d}.${chosen.mo}`
+      : `${chosen.d}.${chosen.mo}.${chosen.y.slice(-2)}`;
     return { type: pickMeeting ? 'meeting' as const : 'call' as const, dateLabel };
   })();
   // Стани плану/факту:
