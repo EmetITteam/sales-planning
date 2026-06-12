@@ -4,6 +4,52 @@
 
 ---
 
+## [2026-06-12] · Sprint 2D — Верифікація нових клієнтів через КЦ + Bitrix SPA 1048
+
+### 🆕 Bitrix SPA 1048 «Верифікація нового клієнта»
+
+Коли менеджер створює нового клієнта (`registerNewClient` у 1С з резервом) — паралельно створюється картка у Bitrix24 для КЦ. КЦ обробляє → закриває → менеджер отримує колокольчик-сповіщення.
+
+- **Bitrix-сторона:**
+  - SPA `entityTypeId=1048`, категорія `10`, stage entity `DYNAMIC_1048_STAGE_10`
+  - 5 стадій: `NEW` → `PREPARATION` (У роботі КЦ) → `CLIENT` (На уточненні) → `UC_119I4U` (Верифіковано) / `UC_OE18M6` (Відхилено)
+  - 6 custom-полів (`ufCrm_6_*`): ПІБ, телефон, адреса, ID 1С, логін менеджера, документи
+  - Поле документів `multiple=Так` (single не приймає base64 через REST)
+  - Вихідний webhook `ONCRMDYNAMICITEMUPDATE` → той самий endpoint що рекламації
+
+- **Sales-planning сторона:**
+  - **Migration 023** `client_verifications` — local-cache (id, client_id_1c, bitrix_item_id, manager_login, client_name, status, rejection_reason, created/completed_at). UNIQUE на `bitrix_item_id`, partial index на активні статуси
+  - **Helper** `src/lib/bitrix-verification.ts` — `createVerificationRequest` (POST `crm.item.add`), `notifyKcAboutNewVerification` (`im.notify` до 6 КЦ-юзерів), `fetchBitrixItem` для webhook handler
+  - **API:**
+    - `GET /api/clients/verifications` — список для menager-а (для бейджа на картці)
+    - `POST /api/clients/verifications` — створює Bitrix-картку + insert у БД, не блокує flow при помилці Bitrix
+    - `POST /api/clients/verifications/webhook` — приймає від reclamation-app, `timingSafeEqual` для `X-Internal-Secret`, idempotent, оновлює status + створює нотифікацію з `dedup_key`
+  - **3 нові notification types:** `client_verified` (emerald), `client_rejected` (rose), `client_clarification` (amber)
+  - **UI бейдж** «На верифікації КЦ» (amber з spinner) на згорнутій картці клієнта, прокинуто через `CategorySection`/`ReservedSection`/focus-view
+  - **SWR mutate** після створення — бейдж з'являється одразу (без 30с polling)
+  - **new-client-dialog** — після успіху `registerNewClient` паралельно POST у `/api/clients/verifications` з ClientID + ті ж файли що передавали у 1С
+
+- **reclamation-app Python webhook розширено:**
+  - Константи `VERIFICATION_SPA_ID=1048` + `VERIFICATION_FINAL_STAGES` + `VERIFICATION_INTERMEDIATE_STAGES`
+  - Нова функція `send_sp_verification_status(item_id, stage_id, comment)` → POST у `/api/clients/verifications/webhook`
+  - Гілка `ONCRMDYNAMICITEMUPDATE` у `bitrix_event` handler з фільтром по `entityTypeId=1048`
+  - Той самий webhook endpoint що для 1038 (рекламацій) — розгалуження по `entityTypeId`
+
+- **КЦ-юзери:** `KC_USER_IDS = [1519, 2077, 6894, 13408, 2094]` (5 менеджерів з `emet-call-center/config.py` MANAGERS) + 2049 для тестування. Аналог `MED_DEPT_USER_IDS` у рекламацій.
+
+### 📋 Інструкція для КЦ
+
+- **`public/kc-manual.html`** — окрема HTML-інструкція у стилі med-manual: де знайти заявки, 5 стадій воронки, стандартний робочий процес, що робити з уточненням/відхиленням, що руками робити у 1С. Доступна як `https://sales-planning-lyart.vercel.app/kc-manual.html`
+- **`public/manual.html`** — розділ `#m-new-client-verification` для менеджера (як створити, що означає бейдж, що робити коли отримаєш сповіщення). Sidebar nav entry додано
+
+### 🐛 Виявлені й виправлені проблеми
+
+- **Бейдж «На верифікації КЦ» не показувався** — у `CategorySection` забув передати `verification={...}` prop у `<ClientRow>` (тільки `ReservedSection` + focus-view отримували). Знайдено через debug-логи `[VERIFY DEBUG]` + `[ROW DEBUG]`
+- **Файли не записувались у Bitrix** — поле було `multiple=Ні`, REST для single FILE не приймає `[name, base64]`. Створено нове поле з `multiple=Так` (`ufCrm_6_1781265212`), той самий формат що в рекламаціях запрацював
+- **Бейдж з'являвся лише через 30с** — додав `globalMutate('/api/clients/verifications')` після POST у new-client-dialog
+
+---
+
 ## [2026-06-12] · Sprint 2C день 2 — Security + Observability
 
 ### 🛡️ Error Boundary (audit Week 2 знахідка)

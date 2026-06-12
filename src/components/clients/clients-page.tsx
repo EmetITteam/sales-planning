@@ -242,11 +242,6 @@ export function ClientsPage() {
     for (const v of activeVerifications) m[v.clientId1c] = v;
     return m;
   }, [activeVerifications]);
-  const verificationClientIds = useMemo(() => {
-    const s = new Set<string>();
-    for (const v of activeVerifications) s.add(v.clientId1c);
-    return s;
-  }, [activeVerifications]);
 
   // Клієнти, у яких в плані поточного місяця стоїть етап «Зустріч», але у 1С
   // ще нема жодної зустрічі цього місяця. Менеджер забув запланувати дату/час.

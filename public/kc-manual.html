@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Верифікація нових клієнтів у Bitrix24 — інструкція для КЦ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root { --emet:#066aab; --emet-light:#0880cc; --bg:#f4f7fb; --card:#fff; --border:#e2e7ef; --text:#0f172a; --muted:#64748b; --emerald:#10b981; --rose:#f43f5e; --amber:#f59e0b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  main { max-width: 840px; margin: 0 auto; padding: 48px 32px 80px; }
+
+  .header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .brand img { height: 28px; }
+  .brand-name {
+    font-size: 16px; font-weight: 800;
+    background: linear-gradient(135deg, var(--emet), var(--emet-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  h1 { font-size: 32px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 8px; line-height: 1.2; }
+  .lead { font-size: 15px; color: var(--muted); }
+  .audience-tag {
+    display: inline-block; padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    background: #dbeafe; color: #1e3a8a;
+    margin-bottom: 16px;
+  }
+
+  .toc {
+    background: white; border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px;
+    margin: 24px 0 40px;
+  }
+  .toc-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .toc ol { padding-left: 22px; font-size: 14px; }
+  .toc li { margin-bottom: 4px; }
+  .toc a { color: var(--emet); text-decoration: none; font-weight: 600; }
+  .toc a:hover { text-decoration: underline; }
+
+  h2 {
+    font-size: 22px; font-weight: 800; letter-spacing: -.3px;
+    margin: 48px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    scroll-margin-top: 24px;
+  }
+  h2 .num {
+    display: inline-block;
+    background: var(--emet); color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; font-weight: 700;
+    padding: 3px 9px; border-radius: 4px;
+    margin-right: 8px; vertical-align: middle;
+  }
+  h3 { font-size: 16px; font-weight: 700; margin: 24px 0 8px; }
+
+  p { margin-bottom: 12px; font-size: 14.5px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  ol.steps { padding-left: 22px; margin-bottom: 16px; counter-reset: item; list-style: none; }
+  ol.steps > li {
+    font-size: 14px; margin-bottom: 12px;
+    padding-left: 8px; position: relative;
+    counter-increment: item;
+  }
+  ol.steps > li::before {
+    content: counter(item) ".";
+    position: absolute; left: -22px;
+    font-weight: 700; color: var(--emet);
+  }
+  ol.steps strong { color: var(--text); }
+
+  ul.bullets { padding-left: 22px; margin-bottom: 16px; }
+  ul.bullets li { font-size: 14px; margin-bottom: 6px; }
+
+  .callout {
+    border-left: 4px solid var(--emet);
+    background: #f0f7fb;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 13.5px;
+  }
+  .callout.warn { border-left-color: var(--amber); background: #fffbeb; }
+  .callout.tip { border-left-color: var(--emerald); background: #ecfdf5; }
+  .callout strong { display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .callout.warn strong { color: var(--amber); }
+  .callout.tip strong { color: var(--emerald); }
+  .callout strong { color: var(--emet); }
+
+  code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--emet); }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 13.5px; background: white; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+
+  .stage-tag {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    margin-right: 4px;
+  }
+  .stage-new { background: #dbeafe; color: #1e40af; }
+  .stage-progress { background: #fef3c7; color: #92400e; }
+  .stage-clarif { background: #fed7aa; color: #9a3412; }
+  .stage-done { background: #d1fae5; color: #065f46; }
+  .stage-rejected { background: #fecaca; color: #991b1b; }
+
+  footer {
+    margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); text-align: center;
+  }
+  footer a { color: var(--emet); text-decoration: none; }
+
+  @media (max-width: 600px) {
+    main { padding: 24px 16px 60px; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <div class="header">
+    <div class="brand">
+      <img src="emet-logo.png" alt="EMET">
+      <span class="brand-name">EMET · Верифікація клієнтів</span>
+    </div>
+    <span class="audience-tag">Для колл-центру</span>
+    <h1>Верифікація нових клієнтів у Bitrix24</h1>
+    <p class="lead">Коли менеджер відділу продажів реєструє нового клієнта у системі планування — заявка автоматично приходить вам у Bitrix24 для перевірки. Цей документ — як її обробити.</p>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">У цій інструкції</div>
+    <ol>
+      <li><a href="#where">Де знайти заявки на верифікацію</a></li>
+      <li><a href="#notify">Як дізнаватись про нові</a></li>
+      <li><a href="#card">Що містить картка</a></li>
+      <li><a href="#stages">5 стадій воронки — що означає кожна</a></li>
+      <li><a href="#flow">Стандартний робочий процес</a></li>
+      <li><a href="#clarify">Якщо потрібне уточнення</a></li>
+      <li><a href="#reject">Якщо відхиляєте</a></li>
+      <li><a href="#onec">Що робити у 1С</a></li>
+      <li><a href="#tips">Корисні нюанси</a></li>
+    </ol>
+  </div>
+
+  <h2 id="where"><span class="num">01</span> Де знайти заявки на верифікацію</h2>
+  <p>Усе у Bitrix24 — нікуди переключатись не потрібно.</p>
+  <ol class="steps">
+    <li>Зайдіть у <strong>CRM</strong> у лівому меню Bitrix24</li>
+    <li>Оберіть <strong>Смарт-процеси</strong> → <strong>«Верифікація нового клієнта»</strong></li>
+    <li>Побачите канбан з 5 стадіями та усі активні заявки</li>
+  </ol>
+  <p>Якщо ви <strong>керівник КЦ</strong> — бачите все. Якщо <strong>менеджер КЦ</strong> — теж бачите все (розподіл навантаження ви вирішуєте всередині команди).</p>
+
+  <h2 id="notify"><span class="num">02</span> Як дізнаватись про нові</h2>
+  <p>Не треба постійно заглядати у воронку — Bitrix сам повідомить:</p>
+  <ul class="bullets">
+    <li>🔔 <strong>Колокольчик</strong> у верхньому правому куті Bitrix24 — клік відкриє останні сповіщення</li>
+    <li>Текст сповіщення: <em>«🆕 Новий клієнт «...» на верифікацію — створено у 1С, потребує підтвердження»</em></li>
+    <li>Сама назва клієнта — клікабельне посилання, веде прямо на картку</li>
+  </ul>
+  <div class="callout tip">
+    <strong>Підказка</strong>
+    Сповіщення приходять усім 5 менеджерам КЦ одночасно. Хто першим візьме у роботу — тому і дістається. Перевертаєте картку у «У роботі КЦ» = решта розуміють що ви взяли.
+  </div>
+
+  <h2 id="card"><span class="num">03</span> Що містить картка</h2>
+  <p>Менеджер відділу продажів передає вам наступне:</p>
+  <table>
+    <thead><tr><th>Поле</th><th>Значення</th></tr></thead>
+    <tbody>
+      <tr><td><strong>ПІБ клієнта</strong></td><td>як менеджер ввів у формі</td></tr>
+      <tr><td><strong>Телефон</strong></td><td>у форматі +380XXXXXXXXX</td></tr>
+      <tr><td><strong>Адреса / місто</strong></td><td>де знаходиться клієнт</td></tr>
+      <tr><td><strong>ID клієнта у 1С</strong></td><td>код для роботи з картою у 1С (типу <code>000023420</code>)</td></tr>
+      <tr><td><strong>Логін менеджера-ініціатора</strong></td><td>email менеджера хто створив (наприклад <code>itd@emet.in.ua</code>)</td></tr>
+      <tr><td><strong>Прикріплені документи</strong></td><td>паспорт, диплом, сертифікати — те що менеджер прикріпив у формі</td></tr>
+    </tbody>
+  </table>
+  <p>Якщо менеджер не прикріпив документи — поле порожнє. Тоді ставите «На уточненні» з коментарем «надішліть скан паспорту/диплома».</p>
+
+  <h2 id="stages"><span class="num">04</span> 5 стадій воронки — що означає кожна</h2>
+  <table>
+    <thead><tr><th>Стадія</th><th>Хто переводить</th><th>Що означає</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="stage-tag stage-new">Створено</span></td>
+        <td>система автоматично</td>
+        <td>щойно приїхала заявка, ніхто з КЦ ще не взяв</td>
+      </tr>
+      <tr>
+        <td><span class="stage-tag stage-progress">У роботі КЦ</span></td>
+        <td>ви, коли берете у роботу</td>
+        <td>сигнал колегам «я взяв, не дублюйте»</td>
+      </tr>
+      <tr>
+        <td><span class="stage-tag stage-clarif">На уточненні</span></td>
+        <td>ви, коли потрібне уточнення</td>
+        <td>менеджер отримає сповіщення подивитись коментар і додати інформацію</td>
+      </tr>
+      <tr>
+        <td><span class="stage-tag stage-done">Верифіковано</span></td>
+        <td>ви, коли все ок</td>
+        <td>менеджер отримує зелене сповіщення «Клієнт верифіковано»</td>
+      </tr>
+      <tr>
+        <td><span class="stage-tag stage-rejected">Відхилено</span></td>
+        <td>ви, коли треба переробити</td>
+        <td>менеджер отримує червоне сповіщення з причиною</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="flow"><span class="num">05</span> Стандартний робочий процес</h2>
+  <ol class="steps">
+    <li>Приходить сповіщення у колокольчик → клік на нього → відкривається картка зі стадією <strong>«Створено»</strong></li>
+    <li>Перевіряєте поля: ПІБ, телефон, адреса, прикріплені документи</li>
+    <li>Переводьте у <strong>«У роботі КЦ»</strong> (drag-and-drop стадії або вибір зі списку)</li>
+    <li>Звіряєте дані з документами, з 1С, з реєстрами</li>
+    <li>Якщо все коректно → <strong>«Верифіковано»</strong>. Якщо щось не так — див. секції 6 і 7</li>
+    <li><strong>У 1С</strong> прибираєте клієнта з резерву (як зараз робите вручну) — див. секцію 8</li>
+  </ol>
+
+  <h2 id="clarify"><span class="num">06</span> Якщо потрібне уточнення у менеджера</h2>
+  <p>Наприклад, фото паспорту нечітке або менеджер забув прикріпити диплом:</p>
+  <ol class="steps">
+    <li>Перетягніть картку у <strong>«На уточненні»</strong></li>
+    <li>У полі коментаря (або у таймлайні картки) напишіть <strong>чого саме треба</strong>. Приклад: <em>«Фото паспорту нечітке, перешліть нове скан-фото з обох боків»</em></li>
+    <li>Збережіть зміни</li>
+  </ol>
+  <p>Менеджер отримає сповіщення у своєму sales-planning з колокольчиком + посиланням на картку. Коли він пришле уточнення → переводите назад у <strong>«У роботі КЦ»</strong>.</p>
+  <div class="callout warn">
+    <strong>Важливо</strong>
+    Не використовуйте Viber для уточнень — менеджер не побачить. Усе через коментарі у Bitrix-картці.
+  </div>
+
+  <h2 id="reject"><span class="num">07</span> Якщо відхиляєте</h2>
+  <p>Якщо дані некоректні і треба переробити з нуля (а не просто доповнити):</p>
+  <ol class="steps">
+    <li>Перетягніть у <strong>«Відхилено»</strong></li>
+    <li>У коментарі обов'язково вкажіть <strong>причину</strong>: дублікат у 1С / некоректна адреса / неправильний формат документів / ...</li>
+  </ol>
+  <p>Менеджер отримає червоне сповіщення з причиною — переробить заявку і створить нову. Стару не виправляє — створює нову.</p>
+
+  <h2 id="onec"><span class="num">08</span> Що робити у 1С</h2>
+  <p>Sales-planning не змінює 1С автоматично — клієнт у 1С створюється у <strong>резерві</strong>. Коли ви верифікуєте у Bitrix:</p>
+  <ol class="steps">
+    <li>Відкриваєте 1С → шукаєте клієнта за ID (поле «ID клієнта у 1С» у Bitrix-картці)</li>
+    <li>Прибираєте з резерву (як зараз робите вручну)</li>
+    <li>Заносите коректні дані у картку 1С якщо було уточнення</li>
+  </ol>
+  <div class="callout">
+    <strong>Майбутнє</strong>
+    Коли 1С-розробник реалізує API «прибрати з резерву по ID» — sales-planning буде робити це автоматично при переводі у «Верифіковано». Поки що — руками.
+  </div>
+
+  <h2 id="tips"><span class="num">09</span> Корисні нюанси</h2>
+  <ul class="bullets">
+    <li>На картці клієнта у sales-planning у менеджера висить amber-бейдж <strong>«На верифікації КЦ»</strong> поки ви не закриєте картку — менеджер бачить статус без переключення у Bitrix</li>
+    <li>Коли ви переводите стадію — менеджер бачить це майже миттєво (за 1-2 секунди)</li>
+    <li>Якщо менеджер пише вам пряме повідомлення у Bitrix-чаті — це окремо від картки. Уточнення завжди робіть через коментар у самій картці воронки</li>
+    <li>Прикріплені документи можна скачати кліком на файл — Bitrix сам зробить скачування</li>
+    <li>Якщо у вас 5+ заявок одночасно і не встигаєте — стадії «На уточненні» можна використовувати щоб «припаркувати» картку до наступного дня</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Питання чи проблеми</strong>
+    Якщо щось не працює (не приходять сповіщення, не зберігаються коментарі, картка зникла) — пишіть IT-директору. Не намагайтесь обходити через Viber/Telegram — це створює прогалини у обробці.
+  </div>
+
+  <footer>
+    EMET sales-planning · версія 2026-06-12 · Питання → <a href="mailto:itd@emet.in.ua">itd@emet.in.ua</a>
+  </footer>
+</main>
+
+</body>
+</html>

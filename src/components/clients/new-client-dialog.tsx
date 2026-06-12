@@ -166,12 +166,6 @@ export function NewClientDialog({ open, onClose, onCreated, onOpenExistingClient
         managerLogin: '', // override з сесії на бекенді
         files: encoded,
       });
-      // 2026-06-12 DEBUG: 1С може повертати ID під різними іменами
-      // (ClientID / clientID / clientId / ID). Логуємо raw response щоб
-      // у browser console було видно реальну структуру + гнучко pick-имо.
-      // eslint-disable-next-line no-console
-      console.log('[new-client] 1С response:', result);
-
       const r = result as Record<string, unknown> | null | undefined;
       const createdName = (r?.ClientName as string | undefined)
         ?? (r?.clientName as string | undefined)
@@ -188,9 +182,7 @@ export function NewClientDialog({ open, onClose, onCreated, onOpenExistingClient
       // у 1С вже зареєстрований.
       if (createdId) {
         try {
-          // eslint-disable-next-line no-console
-          console.log('[new-client] creating verification request, ID=', createdId);
-          const vr = await fetch('/api/clients/verifications', {
+          await fetch('/api/clients/verifications', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
@@ -204,20 +196,16 @@ export function NewClientDialog({ open, onClose, onCreated, onOpenExistingClient
               files: encoded.map(f => ({ name: f.name, contentBase64: f.contentBase64 })),
             }),
           });
-          // eslint-disable-next-line no-console
-          console.log('[new-client] verification response status=', vr.status, await vr.text().then(t => t.slice(0, 300)));
 
           // Сигналимо SWR-кешу useClientVerificationsForManager() перечитати —
           // інакше бейдж «На верифікації КЦ» з'явиться лише після hard refresh
           // (бо polling 30с і revalidateOnFocus спрацьовують пізніше).
           globalMutate('/api/clients/verifications');
         } catch (e) {
-          // eslint-disable-next-line no-console
           console.warn('[new-client] verification create failed (не блокуємо):', e);
         }
       } else {
-        // eslint-disable-next-line no-console
-        console.warn('[new-client] No client ID у 1С response — verification request skipped. Raw:', result);
+        console.warn('[new-client] No client ID у 1С response — verification request skipped.');
       }
 
       onCreated(createdName);
