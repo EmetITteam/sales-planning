@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionBootstrap } from "@/components/layout/session-bootstrap";
 import { ZoomGuard } from "@/components/layout/zoom-guard";
 import { ScrollTopButton } from "@/components/layout/scroll-top-button";
+import { Analytics } from "@vercel/analytics/react";
 
 // ⚠️ next/font/google вимкнено 2026-05-21: після переходу на Vercel Pro
 // build не завантажував файли шрифтів у `/_next/static/media/`, у UI
@@ -78,6 +79,10 @@ export default function RootLayout({
           <TooltipProvider>{children}</TooltipProvider>
         </SessionBootstrap>
         <ScrollTopButton />
+        {/* Vercel Analytics — page views, geo, devices. Free tier на
+            Vercel Pro: 100k events/міс (вистачає на 21 менеджера). Не
+            трекає PII, лише агрегати. */}
+        <Analytics />
       </body>
     </html>
   );
