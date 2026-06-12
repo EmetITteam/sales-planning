@@ -115,13 +115,21 @@ export async function createVerificationRequest(
 /**
  * KC_USER_IDS — список Bitrix user_id менеджерів колл-центру.
  *
- * Аналог `MED_DEPT_USER_IDS` у reclamation-app для рекламацій. Спочатку
- * порожній — заповнити коли користувач передасть ID-и (або витягти через
- * `user.get?filter[UF_DEPARTMENT]=...`). Поки порожній — нотифікації
- * у Bitrix не шлемо, але колокольчик у sales-planning у менеджера-
- * ініціатора працює як є.
+ * Аналог `MED_DEPT_USER_IDS` у reclamation-app для рекламацій. Список
+ * взято з проєкту `emet-call-center/config.py` (MANAGERS dict) —
+ * Тетяна Пашкевич є керівником КЦ, інші — менеджери КЦ.
+ *
+ * Якщо склад КЦ змінюється — оновити тут, не у двох місцях:
+ *   - emet-call-center/config.py:MANAGERS (для аналітики)
+ *   - sales-planning тут (для notify при створенні клієнта)
  */
-const KC_USER_IDS: number[] = [];
+const KC_USER_IDS: number[] = [
+  1519,  // Яна Наконечна
+  2077,  // Анастасия Другтейн
+  6894,  // Тетяна Пашкевич (керівник КЦ)
+  13408, // Ірина Іщенко
+  2094,  // Оксана Кошова
+];
 
 /**
  * Шле системне сповіщення у Bitrix-колокольчик для кожного КЦ-юзера.
