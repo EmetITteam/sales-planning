@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     clientName?: string;
     clientPhone?: string;
     clientAddress?: string;
+    files?: Array<{ name?: string; contentBase64?: string }>;
   };
   try { body = await request.json(); }
   catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
@@ -81,12 +82,20 @@ export async function POST(request: NextRequest) {
   let bitrixItemId: number | null = null;
   let bitrixError: string | null = null;
   try {
+    // Файли — фільтруємо валідні (name + non-empty base64). Bitrix приймає
+    // масив пар [name, base64] — формат той самий що у reclamation-app.
+    const validFiles = (body.files ?? [])
+      .filter((f): f is { name: string; contentBase64: string } =>
+        !!f && typeof f.name === 'string' && typeof f.contentBase64 === 'string' && f.contentBase64.length > 0
+      );
+
     const result = await createVerificationRequest({
       clientId1c,
       clientName,
       clientPhone,
       clientAddress,
       managerLogin: session.login,
+      files: validFiles,
     });
     bitrixItemId = result.bitrixItemId;
   } catch (e) {

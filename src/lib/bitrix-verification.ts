@@ -16,12 +16,19 @@ import {
   BITRIX_FIELDS,
 } from './client-verifications/types';
 
+export interface VerificationFile {
+  name: string;
+  /** Base64-encoded content (без data:... префіксу). */
+  contentBase64: string;
+}
+
 export interface CreateVerificationParams {
   clientId1c: string;
   clientName: string;
   clientPhone: string;
   clientAddress: string;
   managerLogin: string;
+  files?: VerificationFile[];
 }
 
 export interface CreateVerificationResult {
@@ -58,6 +65,12 @@ export async function createVerificationRequest(
     [BITRIX_FIELDS.CLIENT_ID_1C]: params.clientId1c,
     [BITRIX_FIELDS.MANAGER_LOGIN]: params.managerLogin,
   };
+
+  // Файли — той самий патерн що у reclamation-app/api/index.py для SPA 1038:
+  // масив пар [filename, base64content]. Multiple-поле приймає список таких пар.
+  if (params.files && params.files.length > 0) {
+    fields[BITRIX_FIELDS.DOCUMENTS] = params.files.map(f => [f.name, f.contentBase64]);
+  }
 
   // Bitrix webhook URL без trailing slash → додаємо метод напряму.
   const url = webhookUrl.replace(/\/$/, '') + '/crm.item.add';
