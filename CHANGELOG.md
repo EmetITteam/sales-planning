@@ -4,6 +4,39 @@
 
 ---
 
+## [2026-06-12] · Sprint 2C день 2 — Security + Observability
+
+### 🛡️ Error Boundary (audit Week 2 знахідка)
+
+- **`src/app/error.tsx`** — route-level boundary з glass-card fallback, Sentry capture з tag `boundary='route'`, кнопками «Спробувати знову» / «На головну»
+- **`src/app/global-error.tsx`** — fallback для root layout (inline styles, без імпортів — бо провайдери ще не змонтовано)
+- Використовує Next.js 16 `unstable_retry` API (заміна `reset()` з 15-ки)
+- Стек тепер читабельний у Sentry завдяки source maps upload
+
+### 📊 Observability stack — рішення зафіксовано
+
+Після обговорення вибору між Speed Insights ($10/міс), Vercel Analytics (безкоштовно на Pro), і явним `useReportWebVitals` + Sentry — зупинились на оптимальному поєднанні **без додаткових витрат**:
+
+| Покриття | Інструмент | Sample | Вартість |
+|----------|------------|--------|----------|
+| **ХТО** заходить (page views, geo, devices) | Vercel Analytics | 100% | $0 (Vercel Pro) |
+| **ДЕ ВПАЛО** (errors + stack) | Sentry + source maps + PII scrubber | 100% errors | $0 (already paid) |
+| **ЯК ШВИДКО** (LCP, CLS, INP, FID, TTFB) | Sentry `browserTracingIntegration` (через `tracesSampleRate: 0.1`) | 10% sessions | $0 (тим самим) |
+
+**Що НЕ робимо зараз:**
+- ❌ **Vercel Speed Insights** ($10/міс) — Sentry tracing вже дає Web Vitals безкоштовно. Якщо колись виникне потреба у 100% sample або кращому UI — переглянемо
+- ❌ **Явний `useReportWebVitals` хук** — Sentry уже ловить ті ж самі метрики автоматично. Додамо тільки якщо побачимо що 10% sample недостатньо для статистики (малоймовірно при 21 менеджері × 50 PV/день = ~10k samples/міс)
+
+**Наступний крок:** через 2-3 дні зайти у [Sentry → Performance](https://emet-0c.sentry.io/insights/frontend/) і Vercel Analytics tab, побачити перші реальні цифри. На основі цього вирішити чи потрібен Кластер B (perf optimizations).
+
+### 🆕 Vercel Analytics встановлено
+
+- `npm i @vercel/analytics` (v2.0.1)
+- `<Analytics />` у root layout
+- Privacy: cookie-less, не трекає PII, GDPR-safe
+
+---
+
 ## [2026-06-12] · Sprint 2C день 2 — Security (PII scrubber + RLS + Sentry source maps + IDOR fix)
 
 ### 🔴→✅ IDOR fix coordinated with 1С-розробником
