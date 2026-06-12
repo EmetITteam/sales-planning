@@ -13,6 +13,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { mutate as globalMutate } from 'swr';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { XIcon, CheckIcon, Loader2Icon, UploadIcon, FileTextIcon, Trash2Icon, AlertTriangleIcon, ExternalLinkIcon } from 'lucide-react';
 import { callOneC } from '@/lib/onec-client';
@@ -205,6 +206,11 @@ export function NewClientDialog({ open, onClose, onCreated, onOpenExistingClient
           });
           // eslint-disable-next-line no-console
           console.log('[new-client] verification response status=', vr.status, await vr.text().then(t => t.slice(0, 300)));
+
+          // Сигналимо SWR-кешу useClientVerificationsForManager() перечитати —
+          // інакше бейдж «На верифікації КЦ» з'явиться лише після hard refresh
+          // (бо polling 30с і revalidateOnFocus спрацьовують пізніше).
+          globalMutate('/api/clients/verifications');
         } catch (e) {
           // eslint-disable-next-line no-console
           console.warn('[new-client] verification create failed (не блокуємо):', e);
