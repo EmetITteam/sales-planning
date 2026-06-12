@@ -234,14 +234,18 @@ export function ClientsPage() {
   // Bulk-counts коментарів менеджера — для badge «коментарі: N» у згорнутій картці.
   const { counts: commentsByClient } = useClientCommentsCounts(clientIds);
   // Активні верифікації КЦ через Bitrix SPA 1048 (pending/in_progress/clarification).
-  // Map clientId → verification для UI бейджа «На верифікації».
+  // Зберігаємо як Map для lookup + Set ID для виключення з регулярних категорій
+  // (клієнти на верифікації показуються окремою секцією зверху).
   const { verifications: activeVerifications } = useClientVerificationsForManager();
   const verificationByClient = useMemo(() => {
     const m: Record<string, ClientVerification> = {};
     for (const v of activeVerifications) m[v.clientId1c] = v;
-    // eslint-disable-next-line no-console
-    console.log('[VERIFY DEBUG] activeVerifications:', activeVerifications.length, 'mapKeys:', Object.keys(m), 'raw:', activeVerifications);
     return m;
+  }, [activeVerifications]);
+  const verificationClientIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const v of activeVerifications) s.add(v.clientId1c);
+    return s;
   }, [activeVerifications]);
 
   // Клієнти, у яких в плані поточного місяця стоїть етап «Зустріч», але у 1С
@@ -1426,6 +1430,7 @@ function CategorySection({
               focuses={focuses}
               activity={activityByClient[c.ClientID] ?? null}
               commentsCount={commentsByClient[c.ClientID] ?? 0}
+              verification={verificationByClient[c.ClientID] ?? null}
               meetingMissing={meetingMissingClientIds.has(c.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === c.ClientID}
@@ -1654,11 +1659,6 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
               </span>
             )}
             {/* Verification-tag — поки КЦ не верифікував/відхилив. Amber. */}
-            {(() => {
-              // eslint-disable-next-line no-console
-              if (client.ClientID === '000023418') console.log('[ROW DEBUG] 000023418 verification prop:', verification);
-              return null;
-            })()}
             {verification && (
               <span
                 className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-amber-500/12 text-amber-700 border border-amber-300/50 backdrop-blur-sm"
