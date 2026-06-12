@@ -31,6 +31,8 @@ import { ClaimFormDialog } from '@/components/claims/claim-form-dialog';
 import { ClientClaimsSection } from '@/components/claims/client-claims-section';
 import { ClientCommentsSection } from './client-comments-section';
 import { useClientCommentsCounts } from '@/lib/use-client-comments';
+import { useClientVerificationsForManager } from '@/lib/use-client-verifications';
+import type { ClientVerification } from '@/lib/client-verifications/types';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -231,6 +233,14 @@ export function ClientsPage() {
   );
   // Bulk-counts коментарів менеджера — для badge «коментарі: N» у згорнутій картці.
   const { counts: commentsByClient } = useClientCommentsCounts(clientIds);
+  // Активні верифікації КЦ через Bitrix SPA 1048 (pending/in_progress/clarification).
+  // Map clientId → verification для UI бейджа «На верифікації».
+  const { verifications: activeVerifications } = useClientVerificationsForManager();
+  const verificationByClient = useMemo(() => {
+    const m: Record<string, ClientVerification> = {};
+    for (const v of activeVerifications) m[v.clientId1c] = v;
+    return m;
+  }, [activeVerifications]);
 
   // Клієнти, у яких в плані поточного місяця стоїть етап «Зустріч», але у 1С
   // ще нема жодної зустрічі цього місяця. Менеджер забув запланувати дату/час.
@@ -573,6 +583,7 @@ export function ClientsPage() {
               focuses={focusByClient[focusClient.ClientID] ?? []}
               activity={activityByClient[focusClient.ClientID] ?? null}
               commentsCount={commentsByClient[focusClient.ClientID] ?? 0}
+              verification={verificationByClient[focusClient.ClientID] ?? null}
               meetingMissing={meetingMissingClientIds.has(focusClient.ClientID)}
               totalsLoading={totalsLoading}
               expanded={expandedId === focusClient.ClientID}
@@ -728,6 +739,7 @@ export function ClientsPage() {
                   focusByClient={focusByClient}
                   activityByClient={activityByClient}
                   commentsByClient={commentsByClient}
+                  verificationByClient={verificationByClient}
                   meetingMissingClientIds={meetingMissingClientIds}
                   totalsLoading={totalsLoading}
                   expandedId={expandedId}
@@ -745,6 +757,7 @@ export function ClientsPage() {
                 focusByClient={focusByClient}
                 activityByClient={activityByClient}
                 commentsByClient={commentsByClient}
+                  verificationByClient={verificationByClient}
                 meetingMissingClientIds={meetingMissingClientIds}
                 totalsLoading={totalsLoading}
                 expandedId={expandedId}
@@ -1314,7 +1327,7 @@ function FilterPill({
 
 // === Category section header + list ===
 function CategorySection({
-  cat, clients, planByClient, factByClient, focusByClient, activityByClient, commentsByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
+  cat, clients, planByClient, factByClient, focusByClient, activityByClient, commentsByClient, verificationByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
 }: {
   cat: UICategory; clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
@@ -1322,6 +1335,7 @@ function CategorySection({
   focusByClient: Record<string, ClientFocusItem[]>;
   activityByClient: Record<string, ClientActivity>;
   commentsByClient: Record<string, number>;
+  verificationByClient: Record<string, ClientVerification>;
   meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
@@ -1429,13 +1443,14 @@ function CategorySection({
  * Резерв-клієнти не у плануванні, тому показуємо їх окремо без всіх метрик.
  * Sort — алфавіт.
  */
-function ReservedSection({ clients, planByClient, factByClient, focusByClient, activityByClient, commentsByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim }: {
+function ReservedSection({ clients, planByClient, factByClient, focusByClient, activityByClient, commentsByClient, verificationByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim }: {
   clients: ClientFromOneC[];
   planByClient: Record<string, { planTotal: number; brands: Record<string, number> }>;
   factByClient: Record<string, { factTotal: number; brands: Record<string, number> }>;
   focusByClient: Record<string, ClientFocusItem[]>;
   activityByClient: Record<string, ClientActivity>;
   commentsByClient: Record<string, number>;
+  verificationByClient: Record<string, ClientVerification>;
   meetingMissingClientIds: Set<string>;
   totalsLoading: boolean;
   expandedId: string | null; onToggleExpand: (id: string) => void;
@@ -1486,6 +1501,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, a
                 focuses={focuses}
                 activity={activityByClient[c.ClientID] ?? null}
                 commentsCount={commentsByClient[c.ClientID] ?? 0}
+                verification={verificationByClient[c.ClientID] ?? null}
                 meetingMissing={meetingMissingClientIds.has(c.ClientID)}
                 totalsLoading={totalsLoading}
                 expanded={expandedId === c.ClientID}
@@ -1502,7 +1518,7 @@ function ReservedSection({ clients, planByClient, factByClient, focusByClient, a
 }
 
 // === One client row with accordion-expand ===
-function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activity, commentsCount, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting, onCreateClaim }: {
+function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activity, commentsCount, verification, meetingMissing, totalsLoading, expanded, onToggle, onCreateMeeting, onCreateClaim }: {
   client: ClientFromOneC;
   plan: number | null;
   fact: number | null;
@@ -1513,6 +1529,8 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
   activity?: ClientActivity | null;
   /** Кількість коментарів менеджера по клієнту (для badge у згорнутій картці). */
   commentsCount?: number;
+  /** Активна верифікація КЦ через Bitrix SPA 1048. Null якщо немає. */
+  verification?: ClientVerification | null;
   /** У плані поточного місяця stage='Зустріч', але реальної події у 1С ще нема. */
   meetingMissing?: boolean;
   totalsLoading: boolean;
@@ -1631,6 +1649,22 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
             {isClientReserved(client) && (
               <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-400/12 text-slate-600 border border-slate-300/50 backdrop-blur-sm" title="Клієнт у Резерві — виключений з планування">
                 Резерв
+              </span>
+            )}
+            {/* Verification-tag — поки КЦ не верифікував/відхилив. Amber. */}
+            {verification && (
+              <span
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-amber-500/12 text-amber-700 border border-amber-300/50 backdrop-blur-sm"
+                title={
+                  verification.status === 'clarification'
+                    ? 'КЦ запитує уточнення — подивись у повідомленнях'
+                    : verification.status === 'in_progress'
+                    ? 'КЦ обробляє вашу заявку — як буде готово, прийде сповіщення'
+                    : 'Клієнт на верифікації у КЦ — чекаємо підтвердження'
+                }
+              >
+                <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                {verification.status === 'clarification' ? 'Уточнення КЦ' : 'На верифікації КЦ'}
               </span>
             )}
             {/* Meeting-missing-tag (amber) — у плані Зустріч, але події ще нема.
