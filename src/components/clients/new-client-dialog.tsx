@@ -198,6 +198,9 @@ export function NewClientDialog({ open, onClose, onCreated, onOpenExistingClient
               clientName: createdName,
               clientPhone: normalized,
               clientAddress: address.trim(),
+              // Ті ж файли що передавали у 1С — щоб КЦ бачив документи у Bitrix
+              // і не довелось менеджеру окремо прикріплювати.
+              files: encoded.map(f => ({ name: f.name, contentBase64: f.contentBase64 })),
             }),
           });
           // eslint-disable-next-line no-console
