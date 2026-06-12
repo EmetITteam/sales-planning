@@ -51,7 +51,7 @@
 | Core-таблиці без RLS | ✅ Day 2 | `supabase/migrations/20260612_023_core_rls.sql` |
 
 Залишається з аудиту:
-- 🔴 IDOR у 5 1С actions (потребує 1С-розробника — ТЗ передано)
+- 🔴 IDOR у 4 1С actions (потребує 1С-розробника — ТЗ передано: `getClientReport`, `getAllMeetingsForClient`, `saveClientSurvey`, `getRegistryPlans`. `getTrainings` прибрано — це публічний календар корпоративних семінарів, scope-check не потрібен)
 - 🟡 Решта medium/low — поступово у наступних спринтах
 
 ---
