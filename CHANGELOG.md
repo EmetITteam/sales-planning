@@ -4,7 +4,28 @@
 
 ---
 
-## [2026-06-12] · Sprint 2C день 2 — Security (PII scrubber + RLS + Sentry source maps)
+## [2026-06-12] · Sprint 2C день 2 — Security (PII scrubber + RLS + Sentry source maps + IDOR fix)
+
+### 🔴→✅ IDOR fix coordinated with 1С-розробником
+
+**Аудит-знахідки H-6 + H-7 закриті.** 1С тепер перевіряє scope (`Client outside your scope` → HTTP 403) у 4 actions, наш `/api/onec/route.ts` автоматично передає `login` з сесії через існуючий LOGIN_BOUND_ACTIONS override.
+
+| Action | Що було | Що стало |
+|---|---|---|
+| `getClientReport` | Будь-хто з clientID отримував повний звіт чужого клієнта | 1С перевіряє чи клієнт належить login, повертає 403 інакше. Director/admin — bypass |
+| `getAllMeetingsForClient` | Те саме — усі зустрічі чужого клієнта | Те саме — 403 для чужих, bypass для ролей |
+| `saveClientSurvey` | WRITE: можна переписати анкету чужого клієнта | 1С перевіряє WRITE-scope, відмовляє при не-власнику |
+| `getRegistryPlans` | Менеджер через DevTools бачив плани всіх 21 менеджерів × 9 брендів | 1С повертає тільки плани переданого login. Director/admin бачить усі |
+
+- `src/app/api/onec/route.ts`: 4 actions додані у `LOGIN_BOUND_ACTIONS` → автоматичний override `login = session.login` для menager-frontend. Якщо менеджер у DevTools підставить чужий login → 403 «Forbidden: login outside your scope» (наш guard) ще до того як запит дійде до 1С
+- `src/app/api/admin/company-overview/route.ts`: server-side `callOnec('getRegistryPlans')` обходить `/api/onec`, тому додано `login: DIRECTOR_PROXY_LOGIN` (sdu@) явно — admin сторінка бачить усі плани через director-bypass
+
+**Verified у проді:** menager-DevTools запит з чужим clientID повернув `{code: 403, message: 'Client outside your scope'}`. Нормальний flow (своя картка, manager-dashboard, /admin/company-overview, saveClientSurvey) — без регресії.
+
+**`getTrainings` прибрано з ТЗ** — це публічний календар корпоративних семінарів (regionCode + dateFrom), без PII, scope-check не потрібен.
+
+---
+
 
 ### 🔒 Sentry source maps upload
 
@@ -39,7 +60,7 @@
 - Rollback скрипт є (`...rollback.sql`) — disable RLS + drop policy
 - Безпечно для проду: жодна зміна у поведінці API (service_role завжди мав доступ)
 
-### 📊 Аудит Week 1 — закрито
+### 📊 Аудит Week 1 — **повністю закрите за 2 дні** 🎉
 
 | Знахідка | Статус | Файл |
 |---|---|---|
@@ -49,10 +70,15 @@
 | Sentry source maps не залиті | ✅ Day 2 | `next.config.ts` |
 | Sentry без PII scrubber | ✅ Day 2 | `sentry.client.config.ts`, `src/instrumentation.ts`, `src/lib/sentry-pii-scrubber.ts` |
 | Core-таблиці без RLS | ✅ Day 2 | `supabase/migrations/20260612_023_core_rls.sql` |
+| IDOR у 4 1С actions | ✅ Day 2 | `src/app/api/onec/route.ts` + 1С scope-check verified |
 
-Залишається з аудиту:
-- 🔴 IDOR у 4 1С actions (потребує 1С-розробника — ТЗ передано: `getClientReport`, `getAllMeetingsForClient`, `saveClientSurvey`, `getRegistryPlans`. `getTrainings` прибрано — це публічний календар корпоративних семінарів, scope-check не потрібен)
-- 🟡 Решта medium/low — поступово у наступних спринтах
+**Лишається на Week 2-3 (medium/low):**
+- 🟡 Розбити `clients-page.tsx` (2900 LOC) на 5-7 файлів
+- 🟡 Hardcoded логіни (`sdu@`, `itd@`, `rm.odessa@`) → env-override
+- 🟡 Common date-parser замість 11 дублів split-impl
+- 🟡 CHECK constraint на `users.role`, FK `notifications.user_login`
+- 🟡 Login rate-limit per-login + per-IP (зараз тільки per-IP)
+- 🟢 Lazy-load admin/recharts (bundle size −30%)
 
 ---
 
