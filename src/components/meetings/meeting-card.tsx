@@ -351,6 +351,9 @@ function splitActions(m: MeetingWithSync, h: ActionHandlers): ActionsSplit {
   const isFailedSync = m.syncStatus === 'failed';
 
   if (m.status === 'in_progress') {
+    // 2026-06-12: під час зустрічі менеджеру треба вносити підсумки
+    // прямо в процесі (раніше «Підсумки» з'являлось тільки коли done).
+    // Правка часу/дати на цьому стейті не має сенсу — менеджер на місці.
     return {
       primaryFull: true,
       primary: (
@@ -360,9 +363,9 @@ function splitActions(m: MeetingWithSync, h: ActionHandlers): ActionsSplit {
         </ActionButton>
       ),
       secondary: (
-        <ActionButton onClick={() => h.onEdit?.(m)}>
-          <PencilIcon />
-          Правка
+        <ActionButton onClick={() => h.onOutcome?.(m)}>
+          <MessageIcon />
+          Підсумки
         </ActionButton>
       ),
     };
