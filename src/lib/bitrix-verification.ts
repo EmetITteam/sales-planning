@@ -101,7 +101,51 @@ export async function createVerificationRequest(
     throw new Error(`Bitrix returned no item id: ${JSON.stringify(data).slice(0, 200)}`);
   }
 
+  // Шлемо колокольчик-уведомлення КЦ-менеджерам у Bitrix про нову
+  // заявку. Той самий патерн що для рекламацій (reclamation-app шле
+  // через im.notify для MED_DEPT_USER_IDS). Не блокуємо основний flow
+  // якщо не вийде — fire-and-forget.
+  void notifyKcAboutNewVerification(itemId, params.clientName).catch((e) => {
+    console.error('[bitrix-verification] notifyKc failed:', e instanceof Error ? e.message : e);
+  });
+
   return { bitrixItemId: itemId };
+}
+
+/**
+ * KC_USER_IDS — список Bitrix user_id менеджерів колл-центру.
+ *
+ * Аналог `MED_DEPT_USER_IDS` у reclamation-app для рекламацій. Спочатку
+ * порожній — заповнити коли користувач передасть ID-и (або витягти через
+ * `user.get?filter[UF_DEPARTMENT]=...`). Поки порожній — нотифікації
+ * у Bitrix не шлемо, але колокольчик у sales-planning у менеджера-
+ * ініціатора працює як є.
+ */
+const KC_USER_IDS: number[] = [];
+
+/**
+ * Шле системне сповіщення у Bitrix-колокольчик для кожного КЦ-юзера.
+ * Текст — клікабельне посилання на картку SPA 1048.
+ */
+async function notifyKcAboutNewVerification(itemId: number, clientName: string): Promise<void> {
+  const webhookUrl = process.env.BITRIX_WEBHOOK_URL;
+  if (!webhookUrl || KC_USER_IDS.length === 0) return;
+
+  const url = webhookUrl.replace(/\/$/, '') + '/im.notify';
+  const link = `https://bitrix.emet.in.ua/crm/type/${BITRIX_SPA_ENTITY_TYPE_ID}/details/${itemId}/`;
+  const message = `🆕 [URL=${link}]Новий клієнт «${clientName}» на верифікацію[/URL] — створено у 1С, потребує підтвердження.`;
+
+  // Шлемо паралельно. Збій одного user-а не блокує іншого.
+  await Promise.allSettled(
+    KC_USER_IDS.map((uid) =>
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: uid, message, type: 'SYSTEM' }),
+        signal: AbortSignal.timeout(5_000),
+      }),
+    ),
+  );
 }
 
 /**
