@@ -165,28 +165,50 @@ export function NewClientDialog({ open, onClose, onCreated, onOpenExistingClient
         managerLogin: '', // override з сесії на бекенді
         files: encoded,
       });
-      const createdName = result?.ClientName ?? name.trim();
-      const createdId = result?.ClientID;
+      // 2026-06-12 DEBUG: 1С може повертати ID під різними іменами
+      // (ClientID / clientID / clientId / ID). Логуємо raw response щоб
+      // у browser console було видно реальну структуру + гнучко pick-имо.
+      // eslint-disable-next-line no-console
+      console.log('[new-client] 1С response:', result);
+
+      const r = result as Record<string, unknown> | null | undefined;
+      const createdName = (r?.ClientName as string | undefined)
+        ?? (r?.clientName as string | undefined)
+        ?? name.trim();
+      const createdId = (r?.ClientID as string | undefined)
+        ?? (r?.clientID as string | undefined)
+        ?? (r?.clientId as string | undefined)
+        ?? (r?.ClientId as string | undefined)
+        ?? (r?.ID as string | undefined)
+        ?? (r?.id as string | undefined);
 
       // 2026-06-12: паралельно створюємо запит верифікації КЦ у Bitrix
       // SPA 1048. Якщо Bitrix впав — не блокуємо menager flow, клієнт
-      // у 1С вже зареєстрований. Логи на бекенді покажуть проблему.
+      // у 1С вже зареєстрований.
       if (createdId) {
         try {
-          await fetch('/api/clients/verifications', {
+          // eslint-disable-next-line no-console
+          console.log('[new-client] creating verification request, ID=', createdId);
+          const vr = await fetch('/api/clients/verifications', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              clientId1c: createdId,
+              clientId1c: String(createdId),
               clientName: createdName,
               clientPhone: normalized,
               clientAddress: address.trim(),
             }),
           });
+          // eslint-disable-next-line no-console
+          console.log('[new-client] verification response status=', vr.status, await vr.text().then(t => t.slice(0, 300)));
         } catch (e) {
+          // eslint-disable-next-line no-console
           console.warn('[new-client] verification create failed (не блокуємо):', e);
         }
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('[new-client] No client ID у 1С response — verification request skipped. Raw:', result);
       }
 
       onCreated(createdName);
