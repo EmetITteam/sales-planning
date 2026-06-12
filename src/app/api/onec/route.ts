@@ -80,13 +80,7 @@ const LOGIN_BOUND_ACTIONS = new Set([
   'getClientReport',           // {clientID} → додаємо login для scope-check на 1С
   'getAllMeetingsForClient',   // {clientID} → те саме
   'getRegistryPlans',          // {dateFrom, dateTo} → manager бачить свої, director/admin усі
-  // ⚠️ saveClientSurvey ТИМЧАСОВО ВИКЛЮЧЕНО (2026-06-12 wave 2):
-  //    1С-розробник пропустив це action — наш login параметр викликає
-  //    "Поле объекта не обнаружено (login)" → менеджери не можуть закрити
-  //    зустріч з анкетою. Прибрав з override.
-  //    TODO: повернути у whitelist коли 1С додасть підтримку login (як для
-  //    getClientReport тощо). Sentry-ішью: «Помилка бізнес-логіки 1С для дії
-  //    saveClientSurvey: Поле объекта не обнаружено (login)»
+  'saveClientSurvey',          // WRITE: {clientID, surveyData} → 1С теж приймає login (підтверджено 2026-06-12)
 ]);
 
 // `findClient` — окремий випадок: поле зветься `managerLogin`, не `login`.
