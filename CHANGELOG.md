@@ -4,6 +4,21 @@
 
 ---
 
+## [2026-06-12] · 🏁 Retirement metting-4.0
+
+Старий додаток «Зустрічі» (`metting-4.0.vercel.app`) повністю замінено landing-заглушкою з посиланням на sales-planning. Менеджери більше не використовують старий метінг.
+
+- `index.html` (2783 рядки JS-додаток) → перейменовано у `index-legacy.html` як backup
+- Новий `index.html` — копія `sales-planning/public/metting-retirement-preview.html` (landing з glass-стилем, посиланням на sales-planning, контактом IT)
+- API ендпоінти `metting-4.0/api/*` лишаються живі для зовнішніх викликів (білінг/звіти, якщо є)
+- Rollback за 1 хв: `git revert bc0f424 && git push origin main`
+
+**Контекст рішення:** перевірено через Supabase (`meetings` зі статусом in_progress = 6 зомбі + 3 минулих днів) і через 1С (завислі є, реально активних на 12.06 о 13:00 немає). Зомбі-зустрічі — окрема задача на cleanup.
+
+Sentry-ішью `saveClientSurvey: Поле объекта не обнаружено (login)` приходила саме зі старого метінга (наш sales-planning шле `login` правильно через `LOGIN_BOUND_ACTIONS`). Після retirement цей потік помилок припиниться сам.
+
+---
+
 ## [2026-06-12] · Sprint 2D — Верифікація нових клієнтів через КЦ + Bitrix SPA 1048
 
 ### 🆕 Bitrix SPA 1048 «Верифікація нового клієнта»
