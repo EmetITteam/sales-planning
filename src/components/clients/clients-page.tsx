@@ -239,6 +239,8 @@ export function ClientsPage() {
   const verificationByClient = useMemo(() => {
     const m: Record<string, ClientVerification> = {};
     for (const v of activeVerifications) m[v.clientId1c] = v;
+    // eslint-disable-next-line no-console
+    console.log('[VERIFY DEBUG] activeVerifications:', activeVerifications.length, 'mapKeys:', Object.keys(m), 'raw:', activeVerifications);
     return m;
   }, [activeVerifications]);
 
