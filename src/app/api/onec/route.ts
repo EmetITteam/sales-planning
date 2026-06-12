@@ -73,6 +73,14 @@ const LOGIN_BOUND_ACTIONS = new Set([
   'getClientFocus',  // приймає {login, clientIds} — login ОБОВ'ЯЗКОВО override з сесії
   'getClientActivationPlan',  // приймає {login, period} — login override з сесії
   'getInitialData',  // приймає {login, startDateString, endDateString} — login override
+  // === 2026-06-12: IDOR fix coordinated with 1С-розробником ===
+  // 1С тепер приймає login і повертає 403 якщо clientID не належить
+  // login (для admin/director — bypass). Ми додаємо login з сесії
+  // примусово через override-механізм (нижче).
+  'getClientReport',           // {clientID} → додаємо login для scope-check на 1С
+  'getAllMeetingsForClient',   // {clientID} → те саме
+  'saveClientSurvey',          // WRITE: {clientID, surveyData} → критично, потребує scope
+  'getRegistryPlans',          // {dateFrom, dateTo} → manager бачить свої, director/admin усі
 ]);
 
 // `findClient` — окремий випадок: поле зветься `managerLogin`, не `login`.
@@ -83,10 +91,8 @@ const MANAGER_LOGIN_BOUND_ACTIONS = new Set([
   'registerNewClient',  // {managerLogin, name, phone, address, education, files} → override managerLogin з сесії
 ]);
 
-// `getClientReport` / `getAllMeetingsForClient` приймають `clientID` без login.
-// SECURITY-NOTE: 1С не валідовує що цей clientID належить call manager.
-// Поки що ризик прийнятний — UI показує тільки ID-шки що повернулись з
-// getManagerClients (свої клієнти). Якщо хтось наскрипчить — побачить чужий звіт.
+// (історичний коментар до 2026-06-12 IDOR-fix — лишається для контексту)
+// `getClientReport` / `getAllMeetingsForClient` приймали `clientID` без login.
 // TODO: попросити 1С-розробника додати login у payload і валідувати власника.
 
 export async function POST(request: NextRequest) {

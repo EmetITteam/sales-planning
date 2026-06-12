@@ -187,7 +187,11 @@ export async function GET(request: NextRequest) {
     const currentPayload: Record<string, unknown> = { login: DIRECTOR_PROXY_LOGIN, period, includeAll: true };
     if (asOfDate) currentPayload.asOfDate = asOfDate;
     const [a4, a5, a5prev] = await Promise.all([
-      callOnec('getRegistryPlans', { dateFrom, dateTo }),
+      // 2026-06-12: getRegistryPlans тепер вимагає login для scope-check
+      // (IDOR-fix у 1С). DIRECTOR_PROXY_LOGIN = sdu@ — director з повним
+      // доступом до всіх планів компанії. Цей endpoint є admin-only
+      // (перевірка вище у route), тож sdu@ proxy безпечно.
+      callOnec('getRegistryPlans', { dateFrom, dateTo, login: DIRECTOR_PROXY_LOGIN }),
       callOnec('getRegionData', currentPayload),
       // Попередній місяць — лише для порівняння clientStats. Якщо впаде —
       // продовжуємо без prev (картка просто не покаже delta).
