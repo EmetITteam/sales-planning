@@ -1654,6 +1654,11 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
               </span>
             )}
             {/* Verification-tag — поки КЦ не верифікував/відхилив. Amber. */}
+            {(() => {
+              // eslint-disable-next-line no-console
+              if (client.ClientID === '000023418') console.log('[ROW DEBUG] 000023418 verification prop:', verification);
+              return null;
+            })()}
             {verification && (
               <span
                 className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-amber-500/12 text-amber-700 border border-amber-300/50 backdrop-blur-sm"
