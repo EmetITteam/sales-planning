@@ -26,7 +26,7 @@ export const BITRIX_FIELDS = {
   CLIENT_ADDRESS: 'ufCrm_6_1781254406',  // Адреса/місто
   CLIENT_ID_1C: 'ufCrm_6_1781254420',    // ID клієнта у 1С
   MANAGER_LOGIN: 'ufCrm_6_1781254435',   // Логін менеджера-ініціатора
-  DOCUMENTS: 'ufCrm_6_1781254529',       // Прикріплені документи (files)
+  DOCUMENTS: 'ufCrm_6_1781265212',       // Прикріплені документи (multiple=Так, нове поле 2026-06-12)
 } as const;
 
 /** Stage IDs з Bitrix воронки. */

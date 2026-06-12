@@ -89,6 +89,8 @@ export async function POST(request: NextRequest) {
         !!f && typeof f.name === 'string' && typeof f.contentBase64 === 'string' && f.contentBase64.length > 0
       );
 
+    console.log('[verifications.POST] files received:', validFiles.length, validFiles.map(f => ({ name: f.name, base64Len: f.contentBase64.length })));
+
     const result = await createVerificationRequest({
       clientId1c,
       clientName,
