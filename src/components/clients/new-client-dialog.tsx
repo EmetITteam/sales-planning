@@ -165,7 +165,31 @@ export function NewClientDialog({ open, onClose, onCreated, onOpenExistingClient
         managerLogin: '', // override з сесії на бекенді
         files: encoded,
       });
-      onCreated(result?.ClientName ?? name.trim());
+      const createdName = result?.ClientName ?? name.trim();
+      const createdId = result?.ClientID;
+
+      // 2026-06-12: паралельно створюємо запит верифікації КЦ у Bitrix
+      // SPA 1048. Якщо Bitrix впав — не блокуємо menager flow, клієнт
+      // у 1С вже зареєстрований. Логи на бекенді покажуть проблему.
+      if (createdId) {
+        try {
+          await fetch('/api/clients/verifications', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              clientId1c: createdId,
+              clientName: createdName,
+              clientPhone: normalized,
+              clientAddress: address.trim(),
+            }),
+          });
+        } catch (e) {
+          console.warn('[new-client] verification create failed (не блокуємо):', e);
+        }
+      }
+
+      onCreated(createdName);
       onClose();
     } catch (e) {
       setError((e as Error).message || 'Не вдалось створити клієнта');

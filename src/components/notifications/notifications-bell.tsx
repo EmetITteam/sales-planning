@@ -236,6 +236,9 @@ const TONE_BY_TYPE: Record<string, { dot: string }> = {
   claim_status_changed: { dot: 'bg-emet-blue' },
   meeting_reminder: { dot: 'bg-amber-500' },
   birthday_today: { dot: 'bg-pink-500' },
+  client_verified: { dot: 'bg-emerald-500' },
+  client_rejected: { dot: 'bg-rose-500' },
+  client_clarification: { dot: 'bg-amber-500' },
   system: { dot: 'bg-slate-500' },
 };
 
