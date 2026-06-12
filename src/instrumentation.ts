@@ -8,6 +8,7 @@
  */
 
 import * as Sentry from '@sentry/nextjs';
+import { scrubSentryEvent } from '@/lib/sentry-pii-scrubber';
 
 // Sanitize: BOM + whitespace (див. sentry.client.config.ts для деталей).
 const rawDsn = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
@@ -20,6 +21,9 @@ export async function register() {
       dsn,
       tracesSampleRate: 0.1,
       environment: process.env.VERCEL_ENV ?? 'development',
+      // PII scrubber — обов'язково для server-side бо тут request body
+      // містить логіни/паролі/PII клієнтів з форм планування / комментарів.
+      beforeSend: scrubSentryEvent,
     });
   }
 }

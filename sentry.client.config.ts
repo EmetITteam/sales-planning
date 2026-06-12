@@ -6,6 +6,7 @@
  */
 
 import * as Sentry from '@sentry/nextjs';
+import { scrubSentryEvent } from '@/lib/sentry-pii-scrubber';
 
 // Sanitize: видаляємо BOM (﻿) і whitespace — Vercel env може містити
 // невидимий BOM-маркер на початку якщо значення скопійоване з документа
@@ -25,5 +26,17 @@ if (dsn) {
     // Дебаг тільки локально, у проді мовчимо.
     debug: false,
     environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? 'development',
+    // PII scrubber — чистить email/phone/login з URL, request body,
+    // input values у breadcrumbs, cookies, auth headers перш ніж event
+    // йде у Sentry. Аудит знахідка Sprint 2C (medium).
+    beforeSend: scrubSentryEvent,
+    // Session Replay теж може записати input value — забороняємо.
+    integrations: [
+      Sentry.replayIntegration({
+        maskAllText: true,
+        maskAllInputs: true,
+        blockAllMedia: true,
+      }),
+    ],
   });
 }

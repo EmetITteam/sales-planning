@@ -4,6 +4,58 @@
 
 ---
 
+## [2026-06-12] · Sprint 2C день 2 — Security (PII scrubber + RLS + Sentry source maps)
+
+### 🔒 Sentry source maps upload
+
+Раніше Sentry показував minified stack (`lV`, `sm`, `sh`) — дебажити прод-помилки було неможливо. Тепер на кожному Vercel build `.map` файли заливаються у Sentry.
+
+- `next.config.ts`: `withSentryConfig` з org=emet-0c, project=sales-planning, `widenClientFileUpload: true` (frontend bundles), `sourcemaps.filesToDeleteAfterUpload` (щоб maps не світили публічно у production HTML)
+- Потребує `SENTRY_AUTH_TOKEN` у Vercel env (Production + Preview) — додано
+
+### 🔒 PII scrubber для Sentry (`beforeSend`)
+
+Раніше у Sentry events потрапляло: повне URL з email/phone у query, request body (паролі/коментарі), input values у breadcrumbs (паролі з логін-форми), cookies, auth headers.
+
+- Новий `src/lib/sentry-pii-scrubber.ts` — спільний helper для client+server `beforeSend`
+- Підключений у `sentry.client.config.ts` (browser) і `src/instrumentation.ts` (server/edge)
+- Чистить:
+  - URL query params (email, phone, login, token, password, secret, fullname, birthdate, address)
+  - `request.data` повністю + `query_string` + `cookies`
+  - `request.headers`: видаляє `cookie`, `authorization`, `x-api-key`, `x-internal-secret`
+  - `user`: лишається тільки `id` і `role` (без email/username/ip)
+  - Breadcrumbs `ui.input` / `ui.click`: видаляє `message` і `value` (паролі)
+  - URL у navigation/fetch breadcrumbs — теж scrub query params
+- Session Replay: `maskAllText: true`, `maskAllInputs: true`, `blockAllMedia: true` — щоб replay не запис texts/inputs
+
+### 🔒 RLS на 9 core-таблицях (Migration 023)
+
+Раніше тільки `meetings`/`meeting_syncs`/`notifications`/`client_comments` мали RLS. Решта — без. `service_role` (наш бекенд) обходить RLS у будь-якому випадку, тож фактичної дірки нема, але якщо хтось у майбутньому випадково використає `anon`/`authenticated` client замість `service_role` — повний доступ.
+
+- Migration `20260612_023_core_rls.sql` — ідемпотентний DO-блок, що обходить 9 таблиць:
+  `users`, `periods`, `forecasts`, `gap_closures`, `period_summaries`, `planning_snapshots`, `planning_locks`, `planning_settings`, `actual_activities`
+- На кожній: `enable row level security` + `create policy svc_full_access for all to service_role`
+- Для anon/authenticated політик нема → RLS default-deny
+- Rollback скрипт є (`...rollback.sql`) — disable RLS + drop policy
+- Безпечно для проду: жодна зміна у поведінці API (service_role завжди мав доступ)
+
+### 📊 Аудит Week 1 — закрито
+
+| Знахідка | Статус | Файл |
+|---|---|---|
+| Hardcoded `SESSION_SECRET` fallback | ✅ Day 1 | `src/lib/session.ts` |
+| `validateApiRequest` allow-all у non-prod | ✅ Day 1 | `src/lib/api-auth.ts` |
+| `[ШАГ 1]/[ШАГ 2]` повний payload у Vercel logs | ✅ Day 1 | `src/app/api/onec/route.ts` |
+| Sentry source maps не залиті | ✅ Day 2 | `next.config.ts` |
+| Sentry без PII scrubber | ✅ Day 2 | `sentry.client.config.ts`, `src/instrumentation.ts`, `src/lib/sentry-pii-scrubber.ts` |
+| Core-таблиці без RLS | ✅ Day 2 | `supabase/migrations/20260612_023_core_rls.sql` |
+
+Залишається з аудиту:
+- 🔴 IDOR у 5 1С actions (потребує 1С-розробника — ТЗ передано)
+- 🟡 Решта medium/low — поступово у наступних спринтах
+
+---
+
 ## [2026-06-11] · Sprint 2C — Коментарі менеджера + UI polish + аудит
 
 ### 🆕 Коментарі менеджера по клієнтах
