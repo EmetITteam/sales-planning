@@ -16,8 +16,7 @@ import { MaintenanceBanner } from '@/components/maintenance-banner';
 import { WindowLockBanner } from '@/components/window-lock-banner';
 import { finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
 import { usePlanningLocks } from './hooks/use-planning-locks';
-import { getMonthName } from '@/lib/periods';
-import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { STAGE_OPTIONS, computePeriodStats } from './planning-helpers';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
 import { isActiveForBrand } from '@/lib/three-month-rule';
 import {
@@ -80,14 +79,7 @@ interface PlanningFormProps {
   factResponse?: SalesFactResponse | null;
 }
 
-// Етапи доступні і в "Прогноз по активних", і в "Закриття розриву".
-// Опція "Навчання" розкриває селектор обучень з 1С (плюс поле коментаря).
-const STAGE_OPTIONS = [
-  { value: 'Дзвінок', icon: Phone },
-  { value: 'Мессенджер', icon: MessageCircle },
-  { value: 'Зустріч', icon: Calendar },
-  { value: 'Навчання', icon: GraduationCap },
-];
+// STAGE_OPTIONS винесено у planning-helpers.ts (Day 6)
 
 export function PlanningForm({
   segmentCode, onBack, readOnly: readOnlyProp = false, targetUserLogin, targetUserName,
@@ -449,21 +441,19 @@ export function PlanningForm({
   const planAmount = propPlanAmount;
   const factAmount = propFactAmount;
 
-  // Розрахунок очікуваного по наростаючому періоду — РОБОЧІ ДНІ (не календарні),
-  // як на дашборді. Свята України 2026 враховані у working-days.ts.
-  // ⚠️ Парсимо вручну (не `new Date(string)`) — на UTC-серверах локальний час
-  // може зсунутись на день назад (`new Date('2026-05-01')` → квітень при .getMonth()).
-  const [my, mm, md] = currentPeriod.month.split('-').map(Number);
-  const periodMonth = new Date(my || new Date().getFullYear(), (mm || 1) - 1, md || 1);
-  const [ey, em, ed] = currentPeriod.weekEnd.split('-').map(Number);
-  const periodEndDate = new Date(ey || my || new Date().getFullYear(), (em || mm || 1) - 1, ed || md || 1);
-  const totalWorkingDays = getWorkingDaysInMonth(periodMonth.getFullYear(), periodMonth.getMonth());
-  const passedWorkingDays = getPassedWorkingDays(periodMonth.getFullYear(), periodMonth.getMonth(), periodEndDate);
-  const periodLabel = getMonthName(periodMonth.getFullYear(), periodMonth.getMonth());
-  const expectedAmount = totalWorkingDays > 0 ? (planAmount / totalWorkingDays) * passedWorkingDays : 0;
-  const expectedPct = pctOf(expectedAmount, planAmount);
-  const factPct = pctOf(factAmount, planAmount);
-  const deviation = factPct - expectedPct;
+  // Розрахунок очікуваного / факт / відхилення по поточному періоду —
+  // винесено у planning-helpers.ts (Day 6 рефактору).
+  const {
+    periodMonth,
+    periodEndDate,
+    totalWorkingDays,
+    passedWorkingDays,
+    periodLabel,
+    expectedAmount,
+    expectedPct,
+    factPct,
+    deviation,
+  } = computePeriodStats({ currentPeriod, planAmount, factAmount });
 
   // Сортовані прогнози: активні зверху → passive (amount=0) → completed вниз.
   // У межах кожної групи — алфавіт по clientName.
