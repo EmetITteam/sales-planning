@@ -18,6 +18,7 @@ import { finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
 import { usePlanningLocks } from './hooks/use-planning-locks';
 import { STAGE_OPTIONS, computePeriodStats, formatTrainingOption } from './planning-helpers';
 import { usePlanningSave } from './hooks/use-planning-save';
+import { usePlanningLoad } from './hooks/use-planning-load';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
 import { isActiveForBrand } from '@/lib/three-month-rule';
 import {
@@ -165,6 +166,9 @@ export function PlanningForm({
   // перемикання дати клієнти повертаються знов, бо load повертає [] і
   // auto-populate думає що це 'перше відкриття').
   const [formEverEdited, setFormEverEdited] = useState(false);
+  // manuallyEditedFactRows тримає clientId1c рядків де менеджер сам
+  // редагував поле «Факт» через updateForecast/updateGap. Скидаємо у load hook.
+  const [manuallyEditedFactRows, setManuallyEditedFactRows] = useState<Set<string>>(new Set());
 
   // FEATURE: завантаження збережених даних з Supabase.
   // При відкритті форми (та при зміні бренду чи менеджера) — скролимо нагору.
@@ -174,102 +178,22 @@ export function PlanningForm({
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
   }, [segmentCode, effectiveLogin]);
 
-  // ⚠️ При зміні (effectiveLogin, segmentCode, currentPeriod) ОЧИЩАЄМО stale state
-  // ДО fetch — інакше при логауті/drill-down іншого менеджера у формі лишаються
-  // прогнози попереднього користувача. supabaseLoaded скидаємо щоб handleSave guard
-  // не дав зберегти доки не дочекались відповіді.
-  useEffect(() => {
-    setForecasts([]);
-    setGapClosures([]);
-    setGapActions({ action1: '', action2: '', action3: '' });
-    setSupabaseLoaded(false);
-    setPersistedClientIds(new Set());
-    setSelectedForecasts(new Set());
-    setSelectedGaps(new Set());
-    setFormEverEdited(false);
-    setManuallyEditedFactRows(new Set());
-
-    let cancelled = false;
-    loadPlanning(effectiveLogin, segmentCode, currentPeriod.id).then(data => {
-      if (cancelled) return;
-      setSupabaseLoaded(true);
-      if (!data) return;
-      // У ФОРМІ менеджер має бачити що його draft-клієнти у плані → не дублюємо
-      // у блоці «Незаплановані». persistedClientIds = ВСІ рядки у Supabase
-      // (draft + finalized). На дашборді логіка інша — там через b841c52
-      // forecastClientIds/gapClientIds тільки з finalized, щоб чернетки не
-      // зараховувались у звітність керівника.
-      const persisted = new Set<string>();
-      for (const f of data.forecasts) if (f.client_id_1c) persisted.add(f.client_id_1c);
-      for (const g of data.gapClosures) if (g.client_id_1c) persisted.add(g.client_id_1c);
-      setPersistedClientIds(persisted);
-      // ⚠️ Після migration M3: читаємо дедіковані колонки замість unpack JSON.
-      // Якщо БД ще має старі JSON-row (не мігровані), вони опрацюються через
-      // міграційний UPDATE на стороні Supabase (M3 заповнює нові колонки + чистить
-      // stage_comment до plain text).
-      if (data.forecasts.length > 0) {
-        setForecasts(data.forecasts.map(f => ({
-          clientId1c: f.client_id_1c,
-          clientName: f.client_name,
-          forecastAmount: f.forecast_amount,
-          stage: (f.stage || '') as ForecastRow['stage'],
-          stageComment: f.stage_comment || '',
-          trainingId: f.training_id || undefined,
-          trainingName: f.training_name || undefined,
-          trainingDate: f.training_date || undefined,
-          stageDone: f.stage_done,
-          factAmount: 0,
-          // lastPurchaseDate/Amount довантажуються окремим useEffect-ом нижче
-          // після того як segmentClients (1С Action 2) прийде. Зберігати їх у
-          // forecasts table немає сенсу — це довідкова інфа з 1С яка змінюється.
-          lastPurchaseDate: null,
-          lastPurchaseAmount: 0,
-          completed: f.completed,
-          manuallyAdded: f.manually_added,
-        })));
-      }
-      if (data.gapClosures.length > 0) {
-        setGapClosures(data.gapClosures.map(g => ({
-          clientId1c: g.client_id_1c,
-          clientName: g.client_name,
-          category: g.category || '',
-          potentialAmount: g.potential_amount,
-          stage: (g.stage || '') as GapClosureRow['stage'],
-          stageComment: g.stage_comment || '',
-          stageDone: g.stage_done,
-          completed: g.closure_completed,
-          trainingId: g.training_id || undefined,
-          trainingName: g.training_name || undefined,
-          trainingDate: g.training_date || undefined,
-          deadline: g.deadline || '',
-          factAmount: 0,
-          lastPurchaseDate: null,
-          lastPurchaseAmount: 0,
-          manuallyAdded: g.manually_added,
-        })));
-      }
-      if (data.summary) {
-        setGapActions({
-          action1: data.summary.gap_action_1 || '',
-          action2: data.summary.gap_action_2 || '',
-          action3: data.summary.gap_action_3 || '',
-        });
-        if (data.summary.updated_at) setLastSavedAt(data.summary.updated_at);
-      }
-      // ⚠️ Day 14 fix (2026-05-14): formEverEdited тільки якщо у БД є РЕАЛЬНІ
-      // дані — forecasts/gap_closures або заповнені gap_actions. Раніше
-      // ставили true просто від наявності period_summaries запису, через
-      // що сценарій «finalize порожнім → admin розфіналізував» залишав
-      // менеджера у вічно-пустій формі (auto-populate skip + БД 0 рядків).
-      const hasPlanData = data.forecasts.length > 0
-        || data.gapClosures.length > 0
-        || !!data.summary?.gap_action_1
-        || !!data.summary?.gap_action_2
-        || !!data.summary?.gap_action_3;
-      if (hasPlanData) setFormEverEdited(true);
-    });
-    return () => { cancelled = true; };
-  }, [segmentCode, currentPeriod.id, effectiveLogin]);
+  // Load з Supabase + reset stale state — винесено у usePlanningLoad (Day 7).
+  usePlanningLoad({
+    segmentCode,
+    currentPeriodId: currentPeriod.id,
+    effectiveLogin,
+    setForecasts,
+    setGapClosures,
+    setGapActions,
+    setSupabaseLoaded,
+    setPersistedClientIds,
+    setSelectedForecasts,
+    setSelectedGaps,
+    setFormEverEdited,
+    setManuallyEditedFactRows,
+    setLastSavedAt,
+  });
 
   // handleSave — обгортка над doSave з usePlanningSave (Day 7).
   // Передаємо stateful залежності explicit щоб уникнути stale-closure.
@@ -703,10 +627,6 @@ export function PlanningForm({
   // вручну змінений менеджером. Інакше SWR revalidation (focus/reconnect)
   // перетирала ручний ввод. Менеджер ввів свій факт → focus tab → факт
   // повернувся до 1С-значення.
-  //
-  // manuallyEditedFactRows тримає clientId1c рядків де менеджер сам
-  // редагував поле «Факт» через updateForecast/updateGap.
-  const [manuallyEditedFactRows, setManuallyEditedFactRows] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (factByClientId.size === 0) return;
     setForecasts(prev => {
