@@ -1,7 +1,7 @@
 # Sales-Planning → EMET CRM
 ## Комплексний план доробки проекту
 
-**Версія:** v2 (consolidated) · **Дата:** 2026-06-02 · **Етап:** 0 (Архітектура + Дизайн)
+**Версія:** v3 · **Дата:** 2026-06-17 (додано Stage 2C — Семінари) · **Етап:** 0 (Архітектура + Дизайн)
 **Автор плану:** IT Director EMET (заказчик) + команда фронтенд-розробки
 **Аудиторія цього документа:** заказчик, 1С-розробники, фронтенд, ITD.
 **Для керівництва:** є похідний документ `docs/EXECUTIVE_SUMMARY.md` — менш технічний, для затвердження.
@@ -20,7 +20,7 @@
 
 1. [Vision і стратегічні цілі](#1-vision-і-стратегічні-цілі)
 2. [Поточний стан (baseline)](#2-поточний-стан-baseline)
-3. [Стратегічна карта — 6 етапів](#3-стратегічна-карта--6-етапів)
+3. [Стратегічна карта — 7 етапів](#3-стратегічна-карта--7-етапів)
 4. [Технологічний стек і архітектура](#4-технологічний-стек-і-архітектура)
 5. [Каталог архітектурних рішень (ADR-1..17)](#5-каталог-архітектурних-рішень-adr-117)
 6. [Аудити вихідних систем](#6-аудити-вихідних-систем)
@@ -30,14 +30,15 @@
 10. [Best Manager Analytics (1.5.6)](#10-best-manager-analytics)
 11. [Етап 2A — Дебіторка (Receivables)](#11-етап-2a--дебіторка-receivables)
 12. [Етап 2B — Рекламації (Reclamations)](#12-етап-2b--рекламації-reclamations)
-13. [Етап 3 — Замовлення / Реалізації (Orders)](#13-етап-3--замовлення--реалізації-orders)
-14. [Cross-cutting concerns](#14-cross-cutting-concerns)
-15. [Risk Register (top 15)](#15-risk-register-top-15)
-16. [Timeline і ресурси](#16-timeline-і-ресурси)
-17. [Зовнішні залежності](#17-зовнішні-залежності)
-18. [Витрати (cost implications)](#18-витрати-cost-implications)
-19. [Закриті рішення (Q1-Q7) і відкриті питання](#19-закриті-рішення-q1-q7-і-відкриті-питання)
-20. [Глосарій](#20-глосарій)
+13. [Етап 2C — Семінари (Seminars)](#13-етап-2c--семінари-seminars)
+14. [Етап 3 — Замовлення / Реалізації (Orders)](#14-етап-3--замовлення--реалізації-orders)
+15. [Cross-cutting concerns](#14-cross-cutting-concerns)
+16. [Risk Register (top 15)](#15-risk-register-top-15)
+17. [Timeline і ресурси](#16-timeline-і-ресурси)
+18. [Зовнішні залежності](#17-зовнішні-залежності)
+19. [Витрати (cost implications)](#18-витрати-cost-implications)
+20. [Закриті рішення (Q1-Q7) і відкриті питання](#19-закриті-рішення-q1-q7-і-відкриті-питання)
+21. [Глосарій](#20-глосарій)
 
 ---
 
@@ -83,19 +84,27 @@
 
 ---
 
-# 3. Стратегічна карта — 6 етапів
+# 3. Стратегічна карта — 7 етапів
 
-| Етап | Назва | Скоуп | 1С нові actions | Зовнішні залежності | Frontend (днів) | Ризик |
-|---|---|---|---|---|---|---|
-| **0** | **Architecture + Design Prep** (поточний) | Docs + design exploration (дашборд+форма locked) + спека контрактів | 0 (тільки спека) | — | **3-5** | Low |
-| **1** | **Meetings** | Перенос 8 ключових meeting-функцій + покращення (geo ADR-7, calendar worker, buffer ADR-2) | 0 (тримаємо існуючі 12 actions з meeting-4.0) | Google Calendar API | **15-20** | Medium |
-| **1.5** | **Sales Detail Foundation + Best Manager** (parallel зі Stage 1) | Бекфіл line-item продажів 2025+; nightly+intra-day sync; **Best Manager** widget на Огляді компанії | **2 нових 1С actions** | — | **7-9** | Medium |
-| **2A** | **Receivables (Debtors)** | Дебіторка з 1С: список, aging, widget на client card | **4 нових 1С actions** | Supabase Pro upgrade | **5-7** | Medium |
-| **2B** | **Reclamations** | reclamation-app залишається Python+Bitrix; додаємо `/api/claims_by_client` + counter-widget + deep-link | 0 (зовнішня система) | Bitrix24 + TG bot + Python service | **3-4** | Low |
-| **3** | **Orders / Realizations** | UI lift з meeting-app + повний backend з нуля. Multi-currency, gift logic, status workflow | **9-10 нових 1С actions** | — | **15-20** | High |
+| Етап | Назва | Скоуп | 1С нові actions | Зовнішні залежності | Frontend (днів) | Ризик | Стан 2026-06-17 |
+|---|---|---|---|---|---|---|---|
+| **0** | **Architecture + Design Prep** | Docs + design exploration (дашборд+форма locked) + спека контрактів | 0 (тільки спека) | — | **3-5** | Low | ✅ Готово |
+| **1** | **Meetings** | Перенос 8 ключових meeting-функцій + покращення (geo ADR-7, calendar worker, buffer ADR-2) | 0 (тримаємо існуючі 12 actions з meeting-4.0) | Google Calendar API | **15-20** | Medium | ✅ Готово (Sprint 1.5, 2026-06-08) + retire metting-4.0 2026-06-12 |
+| **1.5** | **Sales Detail Foundation + Best Manager** | Бекфіл line-item продажів 2025+; nightly+intra-day sync; **Best Manager** widget на Огляді компанії | **2 нових 1С actions** | — | **7-9** | Medium | ⏳ Не починали |
+| **2A** | **Receivables (Debtors)** | Дебіторка з 1С: список, aging, widget на client card | **4 нових 1С actions** | Supabase Pro upgrade | **5-7** | Medium | ⏳ Не починали |
+| **2B** | **Reclamations** | reclamation-app залишається Python+Bitrix; widget на client card + colокольчик + Bitrix SPA 1048 для верифікації клієнтів КЦ | 0 (зовнішня система) | Bitrix24 + TG bot + Python service | **3-4** | Low | ✅ Готово (Sprint 2B 2026-06-11 + Sprint 2D верифікація 2026-06-12) |
+| **2C** | **Seminars** (новий, 2026-06-17) | Адміністрація семінарів: каталог по регіонах, запис клієнта, контроль умов закупок з 1С, два рівні підтвердження (pre-registered → confirmed), список моделей, dashboard заповненості для РМ/director | **2 нових 1С actions** (Action 14 + 15) | — | **12-15** (3 фази по 4-5 днів) | Medium | ⏳ Готовий план [SEMINARS_PHASE_1_PLAN.md](./SEMINARS_PHASE_1_PLAN.md), старт ~2026-06-17 на feature/seminars |
+| **3** | **Orders / Realizations** | UI lift з meeting-app + повний backend з нуля. Multi-currency, gift logic, status workflow | **9-10 нових 1С actions** | — | **15-20** | High | ⏳ Не починали |
 
-**Загальна оцінка frontend:** ~10-13 робочих тижнів (~2.5-3 місяці) без 1С-черги (1С розробка йде паралельно).
-**Критична залежність:** черга 1С-розробника на нові actions для етапів 1.5, 2A, 3 — це може зрушити timeline вправо.
+**Загальна оцінка frontend:** ~13-16 робочих тижнів (~3-4 місяці) без 1С-черги (1С розробка йде паралельно).
+
+**Критична залежність:** черга 1С-розробника на нові actions для етапів 1.5, 2A, 2C, 3 — може зрушити timeline вправо.
+
+**Бонус-функціонал поза 7 етапами (зроблено понад план):**
+- Sprint 2C — Коментарі менеджера по клієнтах (2026-06-11)
+- Аудит проекту + Security марафон (Week 1 7/7 закрите, score 5.5→8.5/10)
+- Vercel Analytics + observability stack
+- Retirement metting-4.0 (стара система виведена 2026-06-12)
 
 ---
 
@@ -746,7 +755,81 @@ CREATE TABLE debtors_cache (
 
 ---
 
-# 13. Етап 3 — Замовлення / Реалізації (Orders)
+# 13. Етап 2C — Семінари (Seminars)
+
+**Status:** ⏳ Готовий план, старт ~2026-06-17 на окремій feature/seminars гілці
+**Документи:** [SEMINARS_PHASE_1_PLAN.md](./SEMINARS_PHASE_1_PLAN.md) + [ONEC_ACTIONS_14_15_SPEC.md](./ONEC_ACTIONS_14_15_SPEC.md)
+
+## 13.1 Scope
+
+Замінити Excel-таблицю обліку семінарів повноцінним модулем у sales-planning. 9 функцій:
+
+1. **Каталог семінарів** по регіонах (з 1С `getTrainings` — уже використовуємо у формі планування)
+2. **Запис клієнта на семінар** менеджером
+3. **Контроль умов закупок** з 1С (бренд + сума ≥ + період, фільтр по семінарських реалізаціях)
+4. **Список умов** для участі (вища/середня мед.освіта + сертифікат PLA/PCL/HaCa + закупка)
+5. **Список доступних семінарів по регіонах** з заповненістю
+6. **Формування списків з підтвердженням участі** (2 рівні: `pre_registered` → `confirmed`)
+7. **Інтеграція з заповненістю груп** для РМ/director
+8. **Forecast** «плани на семінари по категоріях на наступні місяці»
+9. **Список моделей** для лікарів-учасників (50% з 1С + 50% сторонні, поле `client_id_1c` опційне)
+
+## 13.2 Архітектура
+
+- **1С** = source of truth для каталогу + умов (вкладка «Условия» довідника «Виды обучения») + реалізацій з тегом мероприятия
+- **Supabase** = 5 нових таблиць: `seminars`, `seminar_conditions`, `seminar_registrations`, `seminar_models`, `seminar_purchases_check_cache`
+- **Підхід до умов: ГІБРИД** — Phase 1 адмінка вручну, Phase 2 sync з 1С коли розробник готовий
+- **Два рівні реєстрації:** `pre_registered` (менеджер) → `confirmed` (черговий менеджер після оплати)
+- **Permissions:** менеджер бачить свій регіон, черговий керує своїми семінарами, РМ — підлеглих, director/admin — все
+
+## 13.3 1С dependencies
+
+**Action 14:** `getSeminarConditions(trainingId)` — простіший витяг вкладки «Условия»
+**Action 15:** `checkClientSeminarPurchases(clientId, trainingId)` — критичний, фільтр по тегу мероприятия (не звичайний `getSalesFact`)
+
+Без Action 15 — лише ручні галочки чергових менеджерів (Phase 1 працює, Phase 2 чекає).
+
+ТЗ повне у `docs/ONEC_ACTIONS_14_15_SPEC.md`.
+
+## 13.4 Sprint decomposition
+
+| # | Спринт (Phase) | Скоуп | Час | Залежність |
+|---|---|---|---|---|
+| 2C.1 | **Phase 1 — MVP** | 5 таблиць + 12 API + 6 сторінок UI (catalog / detail / register / manage / models / admin) + бейдж на картці клієнта + ручні умови у адмінці + ручні галочки виконання | 5-6 днів | — (стартує одразу) |
+| 2C.2 | **Phase 2 — Sync умов** | Інтеграція Action 14 + 15, автоперевірка умов при записі, бейдж auto-checked у списках, notification «клієнт виконав умови» | 3-4 дні | 1С Action 14 + 15 готові |
+| 2C.3 | **Phase 3 — Аналітика** | Dashboard РМ/director з заповненістю груп, forecast по місяцях/сегментах, алерти «менше 50% за 7 днів», Excel-export для логістики | 4-5 днів | Phase 1 готова |
+
+**Total Stage 2C:** 12-15 робочих днів повністю (~3 робочі тижні).
+
+## 13.5 Workflow на feature-гілці
+
+1. ETALON tag поточного master ПЕРЕД стартом (точка відкоту)
+2. `git checkout -b feature/seminars` з master
+3. Vercel Preview Password Protection ON (для feature-branch preview URL)
+4. Усі комміти Phase 1 → feature/seminars
+5. Squash merge у master після завершення кожної phase → 1 чистий commit + ETALON tag
+6. Master лишається стабільним протягом усієї розробки
+
+## 13.6 Open items перед стартом
+
+1. **duty_managers (чергові)** — хто призначає: адмін чи РМ?
+2. **Минулі семінари** (історичні дані) — ігноруємо чи bulk-import з Excel?
+3. **Як 1С тегує реалізації мероприятиями** — конкретний реквізит «Мероприятие = trainingId» чи прапор «семінарська»? (для Action 15)
+
+Підняти на початку першого дня роботи перед написанням першої міграції.
+
+## 13.7 Risk Register (Stage 2C-specific)
+
+| Ризик | Mitigation |
+|---|---|
+| 1С-розробник затримає Action 14+15 | Phase 1 не блокується, працює з ручною адмінкою. Phase 2 чекає |
+| Структура реалізацій з мероприятием складніша ніж думаємо | Перед стартом Phase 2 — швидкий REST-тест на 1-2 клієнтах щоб переконатись що Action 15 повертає очікуване |
+| Зміна довідника «Виды обучения» у 1С (нові поля у вкладці «Условия») | sync робить адмін руками раз/тиждень, не automatic webhook. Можна швидко адаптувати |
+| Конфлікт «1С повертає семінар у getTrainings, але без вкладки умов» | Адмінка дозволяє додати умови вручну (fallback) |
+
+---
+
+# 14. Етап 3 — Замовлення / Реалізації (Orders)
 
 ## 13.1 Scope
 
@@ -815,16 +898,16 @@ CREATE TABLE order_syncs (...);  -- аналогічно meeting_syncs
 
 ---
 
-# 14. Cross-cutting concerns
+# 15. Cross-cutting concerns
 
-## 14.1 Безпека
+## 15.1 Безпека
 
 - **RLS** (ADR-4): спочатку для нових таблиць (`meetings`, `sales_line_items`, `debtors_cache`, `orders`), потім ретроспективно для існуючих (`forecasts`, `gap_closures`, `users`). Shadow-mode → enforce.
 - **JWT-cookie** (вже існує): додаємо `login` + `role` claims як `current_setting('app.login')` / `current_setting('app.role')` для RLS-політик
 - **IDOR closure** на `getClientReport`/`getAllMeetingsForClient`: при кожному виклику перевіряти що `clientId` належить менеджеру (через `getManagerClients` cache)
 - **Secret rotation:** Bitrix webhook URL → env (Sprint 2B.1), TG bot token → env, 1С credentials → ротація раз/квартал
 
-## 14.2 Геолокація (ADR-7)
+## 15.2 Геолокація (ADR-7)
 
 Реалізація у `src/components/crm-shared/address-field.tsx`:
 
@@ -838,7 +921,7 @@ CREATE TABLE order_syncs (...);  -- аналогічно meeting_syncs
 />
 ```
 
-## 14.3 Calendar sync worker (ADR-10)
+## 15.3 Calendar sync worker (ADR-10)
 
 Окремо від основного buffer worker:
 
@@ -847,7 +930,7 @@ CREATE TABLE order_syncs (...);  -- аналогічно meeting_syncs
 - Retry exponential backoff (1m → 5m → 15m → 1h → fail)
 - DLQ rows: окремий UI у адмінці «помилки Calendar», ручний resync
 
-## 14.4 God-component refactor (ADR-3)
+## 15.4 God-component refactor (ADR-3)
 
 Не окремий етап. По мірі торкання:
 
@@ -857,7 +940,7 @@ CREATE TABLE order_syncs (...);  -- аналогічно meeting_syncs
 
 Boundary: новий код у нових файлах ≤500 рядків. Старий — рефакторимо коли торкаємось.
 
-## 14.5 Testing strategy
+## 15.5 Testing strategy
 
 - Поточний baseline: 240 кейсів `tsx --test` + arch-guard. Зберігаємо.
 - Нові таблиці → нові unit-тести бізнес-логіки (наприклад, retry state machine для sync-worker, Best Manager algorithm)
@@ -865,7 +948,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 - Playwright QA → mobile scenario для геолокації (mock + permission denied + timeout)
 - Pre-push hook: `tsx --test && tsc --noEmit && check:arch` лишається
 
-## 14.6 Backup + RLS migration plan
+## 15.6 Backup + RLS migration plan
 
 Перед увімкненням RLS (Stage 1.1):
 
@@ -875,13 +958,13 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 4. Активувати enforce
 5. Smoke-тест у прод
 
-## 14.7 Performance considerations
+## 15.7 Performance considerations
 
 - Sales detail таблиця → 240k+ рядків. **BRIN-індекс** по `doc_date` + B-tree composite по `(segment_code, manager_1c, doc_date)` partial WHERE `doc_seminar IS NULL`. Best Manager query має fitз ~50 мс
 - Cron-batch розмір: 50 рядків за раз для buffer sync, 5000 рядків для bulk sales detail (узгодити з 1С dev)
 - SWR cache TTLs (ADR-8) — мінімізують 1С навантаження
 
-## 14.8 Observability
+## 15.8 Observability
 
 - Поточно: console.error → Vercel logs. Базово.
 - **NTH:** Sentry для error tracking + session replay ($26/міс) — додаємо паралельно з Stage 1 для відстеження buffer/sync помилок
@@ -889,7 +972,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 
 ---
 
-# 15. Risk Register (top 15)
+# 16. Risk Register (top 15)
 
 | # | Ризик | Етап | Probability | Impact | Mitigation |
 |---|---|---|---|---|---|
@@ -911,9 +994,9 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 
 ---
 
-# 16. Timeline і ресурси
+# 17. Timeline і ресурси
 
-## 16.1 Гантт укрупнено
+## 17.1 Гантт укрупнено
 
 ```
 Тиждень    1   2   3   4   5   6   7   8   9   10  11  12  13
@@ -929,7 +1012,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 
 **Приблизний час:** 10-13 робочих тижнів (~2.5-3 місяці) frontend. 1С-черга йде паралельно. Етапи можуть зрушитися залежно від готовності 1С-actions.
 
-## 16.2 Ресурси
+## 17.2 Ресурси
 
 | Роль | Хто | Зайнятість |
 |---|---|---|
@@ -941,7 +1024,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 
 ---
 
-# 17. Зовнішні залежності
+# 18. Зовнішні залежності
 
 | Залежність | Що треба | Коли | Стан |
 |---|---|---|---|
@@ -955,7 +1038,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 
 ---
 
-# 18. Витрати (cost implications)
+# 19. Витрати (cost implications)
 
 | Сервіс | Поточно | Після CRM-розширення | Зміна |
 |---|---|---|---|
@@ -973,9 +1056,9 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 
 ---
 
-# 19. Закриті рішення (Q1-Q7) і відкриті питання
+# 20. Закриті рішення (Q1-Q7) і відкриті питання
 
-## 19.1 Закриті (рішення прийняті 2026-06-02)
+## 20.1 Закриті (рішення прийняті 2026-06-02)
 
 | Q | Питання | Рішення |
 |---|---|---|
@@ -986,7 +1069,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 | Q6 | Supabase Pro upgrade | ✅ Upgrade перед Stage 1.5 (ADR-14) |
 | Q7 | Director Dashboard з meeting-app | ✅ Не переносимо (наш Огляд компанії покриває) (ADR-15) |
 
-## 19.2 Відкриті items (тригерять-блокують 1С-спеку)
+## 20.2 Відкриті items (тригерять-блокують 1С-спеку)
 
 | # | Item | Власник рішення | Коли вирішується |
 |---|---|---|---|
@@ -998,7 +1081,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 | O6 | Best Manager період comparison default — місяць чи квартал? | Заказчик | До Stage 1.5.6 |
 | O7 | Best Manager — зберігати «архів переможців» в історії? | Заказчик | Не зараз; ревью після прода |
 
-## 19.3 Backlog (NTH — не блокує план)
+## 20.3 Backlog (NTH — не блокує план)
 
 - Sentry $26/міс — рекомендую але не блокує
 - Playwright у CI — NTH-3
@@ -1007,7 +1090,7 @@ Boundary: новий код у нових файлах ≤500 рядків. Ст
 
 ---
 
-# 20. Глосарій
+# 21. Глосарій
 
 | Термін | Значення |
 |---|---|
