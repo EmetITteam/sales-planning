@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type MeetingFormData } from '@/components/meetings/meeting-form';
 import { useMeetings } from '@/lib/meetings/use-meetings';
-import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
+import { formatUSD, formatDate, pctOf } from '@/lib/format';
 import { savePlanning, loadPlanning } from '@/lib/api';
 import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
 import { mutate as swrMutate } from 'swr';
@@ -21,6 +21,7 @@ import { PlanningDialogs } from './planning-dialogs';
 import { ClientDataByTmSection } from './sections/client-data-by-tm-section';
 import { ForecastSection } from './sections/forecast-section';
 import { GapClosureSection } from './sections/gap-closure-section';
+import { PlanningMetricsRow } from './sections/planning-metrics-row';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
 import { isActiveForBrand } from '@/lib/three-month-rule';
 import {
@@ -35,9 +36,7 @@ import {
 import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions, SalesFactResponse } from '@/lib/types';
 import {
-  ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
-  ArrowUpRight, ArrowDownRight, Trash2, Check, Phone, Calendar, MessageCircle,
-  AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw, Eye, GraduationCap,
+  ArrowLeft, Save, Check, Lock, Users, RefreshCw, Eye,
   AlertCircle,
 } from 'lucide-react';
 
@@ -1159,54 +1158,21 @@ export function PlanningForm({
         </div>
       )}
 
-      {/* Метрики */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {(() => {
-          const prevFactPct = prevMonthPlanAmount > 0
-            ? (prevMonthFactAmount / prevMonthPlanAmount) * 100
-            : 0;
-          const factSubline = prevMonthFactAmount > 0
-            ? `Мин. міс.: ${formatUSD(prevMonthFactAmount)} · ${prevFactPct.toFixed(1)}%`
-            : null;
-          const plannedAmountForSegment = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0)
-            + gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-          const planSubline = plannedAmountForSegment > 0
-            ? `Заплановано: ${formatUSD(plannedAmountForSegment)}`
-            : null;
-          type Metric = {
-            label: string;
-            value: string;
-            icon: React.ReactNode;
-            grad: string;
-            isAmount: boolean;
-            badge?: { text: string; ok: boolean };
-            subline?: string;
-          };
-          const metrics: Metric[] = [
-            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-emet-blue to-emet-blue-light', isAmount: true, subline: planSubline ?? undefined },
-            { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-emet-blue to-emet-blue-light', isAmount: true },
-            { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true, subline: factSubline ?? undefined },
-            { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
-          ];
-          return metrics.map(m => (
-            <div key={m.label} className="glass-card p-4 relative overflow-hidden">
-              <div className="flex items-center gap-2.5 mb-2">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br ${m.grad} text-white`}>{m.icon}</div>
-                {m.badge && (
-                  <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm border ${m.badge.ok ? 'bg-emerald-500/12 border-emerald-300/40 text-emerald-600' : 'bg-rose-500/12 border-rose-300/40 text-rose-600'}`}>
-                    {m.badge.ok ? <ArrowUpRight className="inline h-2.5 w-2.5" /> : <ArrowDownRight className="inline h-2.5 w-2.5" />} {m.badge.text}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-muted-foreground font-medium">{m.label}</p>
-              <p className={`text-xl font-extrabold tracking-tight ${m.isAmount ? 'amount' : ''}`}>{m.value}</p>
-              {m.subline && (
-                <p className="text-[11px] text-muted-foreground mt-1 truncate" title={m.subline}>{m.subline}</p>
-              )}
-            </div>
-          ));
-        })()}
-      </div>
+      {/* 4-метрики рядок — винесено у sections/planning-metrics-row (Day 8) */}
+      <PlanningMetricsRow
+        planAmount={planAmount}
+        factAmount={factAmount}
+        expectedAmount={expectedAmount}
+        factPct={factPct}
+        expectedPct={expectedPct}
+        deviation={deviation}
+        passedWorkingDays={passedWorkingDays}
+        periodEndDate={currentPeriod.weekEnd}
+        prevMonthFactAmount={prevMonthFactAmount}
+        prevMonthPlanAmount={prevMonthPlanAmount}
+        forecasts={forecasts}
+        gapClosures={gapClosures}
+      />
 
       {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === винесено у sections/client-data-by-tm-section (Day 8) */}
       <ClientDataByTmSection
