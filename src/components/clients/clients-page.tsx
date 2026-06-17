@@ -33,50 +33,24 @@ import { ClientCommentsSection } from './client-comments-section';
 import { useClientCommentsCounts } from '@/lib/use-client-comments';
 import { useClientVerificationsForManager } from '@/lib/use-client-verifications';
 import type { ClientVerification } from '@/lib/client-verifications/types';
-
-const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
-
-/**
- * Аліаси кодів брендів — нормалізують різні написання тієї самої сутності
- * у блоку «План × Факт» (3-міс історія лишається з усіма sub-брендами окремо).
- *
- * Правила за домовленістю 2026-05-27:
- *  - 'Vitaran Cosmetics' / 'Vitaran БАДи' / будь-який 'Vitaran ...' → OTHER (Інші ТМ)
- *  - 'IUSE Collagen' / 'IUSE SkinBooster' / 'IUSE Hair' / 'IUSE ...' → IUSE (головна ТМ)
- *  - 'ДРУГИЕ ТМ' / 'Інші ТМ' / 'OTHER BRANDS' → OTHER
- *
- * Direct match має пріоритет; далі — pattern по prefix.
- */
-const BRAND_CODE_ALIASES: Record<string, string> = {
-  'ДРУГИЕ ТМ': 'OTHER',
-  'другие тм': 'OTHER',
-  'ДРУГИЕТМ': 'OTHER',   // 1С шле без пробілу — основний код Action 3/4
-  'другиетм': 'OTHER',
-  'Інші ТМ': 'OTHER',
-  'інші тм': 'OTHER',
-  'OTHER BRANDS': 'OTHER',
-};
-function canonicalSegmentCode(raw: string): string {
-  const cleaned = (raw ?? '').replace(/^_+/, '').trim();
-  if (!cleaned) return raw;
-
-  // Direct alias match (RU/UA/інші написання)
-  if (BRAND_CODE_ALIASES[cleaned]) return BRAND_CODE_ALIASES[cleaned];
-  const lower = cleaned.toLowerCase();
-  if (BRAND_CODE_ALIASES[lower]) return BRAND_CODE_ALIASES[lower];
-
-  // Pattern: «Vitaran <будь-що>» (Cosmetics, БАДи, тощо) → OTHER
-  // Сам 'Vitaran' / 'VITARAN' (без пробілу після) → нормалізуємо до UPPERCASE
-  if (lower.startsWith('vitaran ')) return 'OTHER';
-  // Pattern: «IUSE <будь-що>» (Collagen, SkinBooster, Hair) → IUSE main
-  if (lower.startsWith('iuse ')) return 'IUSE';
-
-  // Повертаємо UPPERCASE для consistent matching між segment-кодами (VITARAN)
-  // та display-назвами з 1С (Neuramis / Vitaran). Це робить set.has() справжнім
-  // case-insensitive lookup без перевідбудови мапи.
-  return cleaned.toUpperCase();
-}
-import { mapClientCategory } from '@/lib/onec-adapters';
+import {
+  canonicalSegmentCode,
+  cleanBrandName,
+  toUICategory,
+  toUkrainianChip,
+  initials,
+  parseMonthLabelToYM,
+  isHiddenProperty,
+  formatMonthLabel,
+  currentYearMonth,
+  fmtYMShort,
+  lastNMonthsBefore,
+  CAT_LABEL,
+  CAT_COLOR,
+  CAT_ORDER,
+  UA_MONTHS,
+  type UICategory,
+} from './client-helpers';
 import {
   getClientName,
   getClientAddress,
@@ -89,69 +63,7 @@ import {
   type ClientFromOneC,
 } from '@/lib/mityng-types';
 
-// === Категорійні групи ===
-// 5 реальних категорій 1С + окремий error-bucket «Без категорії в 1С»
-// для виявлення проблем у даних 1С (поле порожнє у контрагента).
-type UICategory = 'active' | 'sleeping' | 'new' | 'lost' | 'none' | 'missing';
-
-const CAT_LABEL: Record<UICategory, string> = {
-  active:   'Активні',
-  sleeping: 'Сплячі',
-  new:      'Нові',
-  lost:     'Втрачені',
-  none:     'Без закупок',
-  missing:  'Без категорії в 1С',
-};
-const CAT_COLOR: Record<UICategory, { dot: string; ring: string; text: string }> = {
-  active:   { dot: 'bg-emet-blue shadow-[0_0_6px_#066aab]',  ring: 'text-emet-blue',   text: 'text-emet-blue' },
-  sleeping: { dot: 'bg-amber-500 shadow-[0_0_6px_#d97706]',   ring: 'text-amber-600',   text: 'text-amber-600' },
-  new:      { dot: 'bg-emerald-500 shadow-[0_0_6px_#10b981]', ring: 'text-emerald-500', text: 'text-emerald-600' },
-  lost:     { dot: 'bg-rose-500 shadow-[0_0_6px_#e11d48]',    ring: 'text-rose-500',    text: 'text-rose-600' },
-  none:     { dot: 'bg-slate-400 shadow-[0_0_6px_#94a3b8]',   ring: 'text-slate-500',   text: 'text-slate-500' },
-  // missing = warning: дані з 1С неповні; жовтогарячий щоб впадало в око
-  missing:  { dot: 'bg-orange-500 shadow-[0_0_6px_#f97316]',  ring: 'text-orange-600',  text: 'text-orange-600' },
-};
-
-function toUICategory(raw: string | null | undefined): UICategory {
-  // Реально порожнє поле у 1С → error-bucket (щоб менеджер міг побачити і виправити в 1С)
-  if (!raw || !raw.trim()) return 'missing';
-  // mapClientCategory повертає 'active'|'sleeping'|'lost'|'new'|'none' (none = "Без закупок")
-  return mapClientCategory(raw);
-}
-
-/**
- * Переклад 1С-категорії (russian) → українська для chip у рядку клієнта.
- * Якщо 1С раптом поверне UA-варіант — повертаємо як є.
- */
-function toUkrainianChip(raw: string | null | undefined): string {
-  if (!raw || !raw.trim()) return 'Без категорії в 1С';
-  const cat = toUICategory(raw);
-  switch (cat) {
-    case 'active':   return 'Активний';
-    case 'sleeping': return 'Сплячий';
-    case 'new':      return 'Новий';
-    case 'lost':     return 'Втрачений';
-    case 'none':     return 'Без закупок';
-    case 'missing':  return 'Без категорії в 1С';
-  }
-}
-
-const CAT_ORDER: UICategory[] = ['active', 'sleeping', 'new', 'lost', 'none', 'missing'];
-
-// Initials з назви клієнта (для аватара) — defensive: 1С іноді повертає undefined
-function initials(name: string | null | undefined): string {
-  const safe = (name ?? '').trim();
-  if (!safe) return '?';
-  // Беремо першу буквено-цифрову букву з кожного слова — пропускаючи дужки,
-  // лапки тощо. «Андрущук (Недолуга) Катерина» → «АН» (Андрущук + Недолуга),
-  // а не «А(» як було.
-  const firstLetterOf = (s: string): string => {
-    const m = s.match(/[\p{L}\p{N}]/u);
-    return m ? m[0].toUpperCase() : '';
-  };
-  const parts = safe.split(/\s+/).slice(0, 2);
-  return parts.map(firstLetterOf).join('') || '?';
-}
+const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
 export function ClientsPage() {
   const sessionUser = useAppStore(s => s.user);
@@ -2040,56 +1952,6 @@ function ClientExpand({ clientID, clientName, planBrands, factBrands, focuses }:
   );
 }
 
-/** Helper — прибрати ведучий '_' (у 1С деякі бренди приходять як '_ESSE' / '_Neuronox'). */
-function cleanBrandName(name: string | undefined | null): string {
-  return (name ?? '').replace(/^_+/, '').trim();
-}
-
-/**
- * Парсинг RU/UA month-label ('Май 2026' | 'Травень 2026' | 'АПРЕЛЬ 2026')
- * у формат YYYY-MM. Якщо не вдалося розпарсити — повертає null.
- */
-const MONTH_PREFIXES_LOWER = [
-  ['янв', 'січ'],       // 01
-  ['фев', 'лют'],       // 02
-  ['март', 'берез'],    // 03
-  ['апр', 'квіт'],      // 04
-  ['май', 'трав'],      // 05
-  ['июн', 'черв'],      // 06
-  ['июл', 'лип'],       // 07
-  ['авг', 'серп'],      // 08
-  ['сент', 'верес'],    // 09
-  ['окт', 'жовт'],      // 10
-  ['нояб', 'лист'],     // 11
-  ['дек', 'груд'],      // 12
-];
-function parseMonthLabelToYM(label: string | undefined | null): string | null {
-  if (!label) return null;
-  const low = label.toLowerCase().trim();
-  const yearMatch = low.match(/(\d{4})/);
-  if (!yearMatch) return null;
-  const year = yearMatch[1];
-  for (let i = 0; i < 12; i++) {
-    if (MONTH_PREFIXES_LOWER[i].some(p => low.includes(p))) {
-      return `${year}-${String(i + 1).padStart(2, '0')}`;
-    }
-  }
-  return null;
-}
-
-/**
- * Технічні properties які НЕ показуємо менеджеру — це service-info
- * (типу валідність viber-номера) не потрібна під час дзвінка.
- * Перевіряємо case-insensitive includes — щоб маневрувати між RU/UA варіантами.
- */
-const HIDDEN_PROP_PATTERNS = [
-  'viber',  // «Валидный viber номер»
-];
-function isHiddenProperty(prop: string): boolean {
-  const low = prop.toLowerCase();
-  return HIDDEN_PROP_PATTERNS.some(p => low.includes(p));
-}
-
 /**
  * Об'єднана картка «Інформація по клієнту» — компактна на 1 строчку.
  * Освіта · ✓ Документи · властивості-chips (inline). Технічні properties
@@ -2339,34 +2201,6 @@ function ThreeMonthHistory({ salesReport, yearlySalesReport, planBrands }: {
 type EventType = 'meeting' | 'call' | 'seminar';
 type TimelineEvent = { date: string; comment: string; type: EventType };
 type CallMeetingFilter = 'all' | 'meeting' | 'call';
-
-const UA_MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
-function formatMonthLabel(yyyymm: string): string {
-  const [y, mStr] = yyyymm.split('-');
-  const m = parseInt(mStr, 10);
-  return (UA_MONTHS[m - 1] || mStr) + ' ' + y;
-}
-function currentYearMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-// UA-назва місяця для YYYY-MM (статичні колонки історії покупок).
-const UA_MONTHS_SHORT = ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'];
-function fmtYMShort(ym: string): string {
-  const [y, m] = ym.split('-').map(Number);
-  return `${UA_MONTHS_SHORT[(m - 1) % 12] ?? '?'} ${y}`;
-}
-// Останні N ПОСЛІДОВНИХ місяців ДО currentYM (без нього), у порядку asc.
-function lastNMonthsBefore(currentYM: string, n: number): string[] {
-  const [cy, cm] = currentYM.split('-').map(Number);
-  const out: string[] = [];
-  for (let i = n; i >= 1; i--) {
-    const d = new Date(cy, (cm - 1) - i, 1);
-    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }
-  return out;
-}
 
 function EventsTimeline({ meetings, calls, seminars, totalCount }: {
   meetings: { date: string; comment: string }[];
