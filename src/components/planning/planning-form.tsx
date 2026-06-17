@@ -16,7 +16,8 @@ import { MaintenanceBanner } from '@/components/maintenance-banner';
 import { WindowLockBanner } from '@/components/window-lock-banner';
 import { finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
 import { usePlanningLocks } from './hooks/use-planning-locks';
-import { STAGE_OPTIONS, computePeriodStats } from './planning-helpers';
+import { STAGE_OPTIONS, computePeriodStats, formatTrainingOption } from './planning-helpers';
+import { usePlanningSave } from './hooks/use-planning-save';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
 import { isActiveForBrand } from '@/lib/three-month-rule';
 import {
@@ -121,10 +122,22 @@ export function PlanningForm({
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
   const [gapSearchOpen, setGapSearchOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
-  // Останнє успішне збереження (із summary.updated_at при load + з POST response).
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  // saving / saveResult / lastSavedAt + handleSave винесено у usePlanningSave (Day 7)
+  const {
+    saving,
+    saveResult,
+    lastSavedAt,
+    setSaveResult,
+    setLastSavedAt,
+    handleSave: doSave,
+  } = usePlanningSave({
+    segmentCode,
+    currentPeriod,
+    targetUserLogin,
+    targetUserName,
+    targetUserRegion,
+    targetUserRegionCode,
+  });
   // Підтвердження видалення — заміняє blocking browser `confirm()`. type вказує
   // куди застосовувати: forecast row (по clientId) або gap closure (по index).
   // bulk-варіанти — для multi-select видалення з чекбоксів.
@@ -258,96 +271,18 @@ export function PlanningForm({
     return () => { cancelled = true; };
   }, [segmentCode, currentPeriod.id, effectiveLogin]);
 
-  const handleSave = async () => {
-    // SAFETY: не дозволяємо save доки не дочекались load з Supabase. Інакше
-    // можливий race: натиснули зберегти → POST порожнього стану → у БД
-    // зникають попередньо збережені рядки. На сервері є симетричний захист
-    // (clearAll flag), цей — додатковий.
-    if (!supabaseLoaded) {
-      setSaveResult({ ok: false, msg: 'Зачекайте — дані ще завантажуються' });
-      setTimeout(() => setSaveResult(null), 3000);
-      return;
-    }
-    // Захист від «тихого порожнього save»: коли state ще не догнав load з БД,
-    // forecasts може бути [], persistedClientIds має старі id-и. Backend
-    // skip-ає DELETE+UPSERT у такому стані (clearAll=false safety) → UI показав
-    // би «Збережено!» без реальних змін у БД.
-    // ⚠️ Day 14 fix: блокуємо ТІЛЬКИ якщо menager ще не редагував (formEverEdited=false).
-    // Якщо менеджер усвідомлено видалив усіх клієнтів (formEverEdited=true) — save
-    // має пройти з clearAll=true (бекенд робить DELETE+UPSERT properly).
-    if (!formEverEdited && forecasts.length === 0 && gapClosures.length === 0 && persistedClientIds.size > 0) {
-      setSaveResult({ ok: false, msg: 'Дані ще завантажуються — спробуйте за секунду' });
-      setTimeout(() => setSaveResult(null), 3000);
-      return;
-    }
-    setSaving(true);
-    setSaveResult(null);
-    // ⚠️ clearAll flag — гарантує що backend виконає DELETE notIn() навіть
-    // коли один з блоків (forecast або gap) пустий. Без цього backend
-    // skip-ає DELETE для пустого блоку (safety проти race), і видалені
-    // через bulk-delete клієнти лишаються в БД.
-    //
-    // Передаємо clearAll коли форма реально редагувалась (formEverEdited)
-    // АБО коли є persistedClient (були дані з минулого save). Це означає:
-    //   - User свідомо змінює стан → backend має дослухатись до DELETE.
-    //   - Перший save з пустим станом (formEverEdited=false, persisted=0) →
-    //     clearAll=false → backend безпечно skip-ає DELETE. ✓
-    const isExplicitClearAll = formEverEdited || persistedClientIds.size > 0;
-    const result = await savePlanning({
-      segmentCode,
-      periodId: currentPeriod.id,
-      period: {
-        weekStart: currentPeriod.weekStart,
-        weekEnd: currentPeriod.weekEnd,
-        month: currentPeriod.month,
-      },
-      // Drill-down: РМ зберігає за свого менеджера. Сервер перевірить що цей
-      // логін у session.managedUsers; якщо ні — 403.
-      targetLogin: targetUserLogin || undefined,
-      // Профіль потрібен серверу лише при drill-down (бо у session дані РМ а не
-      // цільового менеджера). Для свого збереження сервер бере з сесії.
-      userMeta: targetUserLogin ? {
-        fullName: targetUserName || targetUserLogin,
-        region: targetUserRegion || undefined,
-        regionCode: targetUserRegionCode || undefined,
-      } : undefined,
-      forecasts,
-      gapClosures,
-      gapActions,
-      clearAll: isExplicitClearAll,
-    });
-    setSaving(false);
-    if (result.success) {
-      // Маркер що форма редагувалась — після цього auto-populate не запуститься
-      // навіть якщо менеджер видалив всіх і тимчасово forecasts/gap пусті.
-      setFormEverEdited(true);
-      // persistedClientIds оновлюємо з поточного state (бо save їх записав у БД)
-      const justSaved = new Set<string>();
-      for (const f of forecasts) if (f.clientId1c) justSaved.add(f.clientId1c);
-      for (const g of gapClosures) if (g.clientId1c) justSaved.add(g.clientId1c);
-      setPersistedClientIds(justSaved);
-      // ⚠️ Invalidate SWR cache для planAgg + regionStats — інакше dashboard
-      // hero/brand-row 60 сек тримають старі цифри (SWR dedupingInterval).
-      // Менеджер save-нув → відкрив дашборд → видно старі % → плутає.
-      // Mutate ВСІХ ключів agg|*|*|* і region-stats|*|*|*|*.
-      swrMutate(
-        (key) => typeof key === 'string' && (key.startsWith('agg|') || key.startsWith('region-stats|')),
-        undefined,
-        { revalidate: true },
-      );
-    }
-    if (result.success) {
-      if (result.savedAt) setLastSavedAt(result.savedAt);
-      const c = result.counts;
-      const msg = c
-        ? `Збережено: прогноз ${c.forecasts}, розрив ${c.gaps}`
-        : 'Збережено';
-      setSaveResult({ ok: true, msg });
-    } else {
-      setSaveResult({ ok: false, msg: result.error || 'Помилка збереження' });
-    }
-    setTimeout(() => setSaveResult(null), 4000);
-  };
+  // handleSave — обгортка над doSave з usePlanningSave (Day 7).
+  // Передаємо stateful залежності explicit щоб уникнути stale-closure.
+  const handleSave = () => doSave({
+    supabaseLoaded,
+    forecasts,
+    gapClosures,
+    gapActions,
+    formEverEdited,
+    persistedClientIds,
+    setFormEverEdited,
+    setPersistedClientIds,
+  });
 
   // ---- Фіналізація плану (Етап 2 Пакету А) ----
   const [finalizing, setFinalizing] = useState(false);
@@ -1204,14 +1139,6 @@ export function PlanningForm({
 
   // Підпис option-а у select навчань: "[Тип] DD.MM — Назва". Тип допомагає
   // менеджеру одразу бачити що це Семінар vs Майстер-клас vs інше.
-  const formatTrainingOption = (t: { date: string; trainingName: string; trainingType?: string }, maxNameLen = 50) => {
-    const name = t.trainingName.length > maxNameLen
-      ? t.trainingName.slice(0, maxNameLen) + '…'
-      : t.trainingName;
-    const typePrefix = t.trainingType ? `[${t.trainingType}] ` : '';
-    return `${typePrefix}${formatDate(t.date)} — ${name}`;
-  };
-
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}

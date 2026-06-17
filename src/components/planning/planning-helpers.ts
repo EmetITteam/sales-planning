@@ -1,7 +1,7 @@
 import { Phone, MessageCircle, Calendar, GraduationCap } from 'lucide-react';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { getMonthName } from '@/lib/periods';
-import { pctOf } from '@/lib/format';
+import { pctOf, formatDate } from '@/lib/format';
 interface PeriodLike {
   month: string;
   weekStart: string;
@@ -62,4 +62,21 @@ export function computePeriodStats({
     factPct,
     deviation,
   };
+}
+
+/**
+ * Форматує опцію тренінгу для селектора: `[тип] DD.MM.YYYY — Назва`.
+ * Обрізає назву якщо вона довша за maxNameLen (default 50).
+ *
+ * Виокремлено з planning-form.tsx (Day 7 рефактору).
+ */
+export function formatTrainingOption(
+  t: { date: string; trainingName: string; trainingType?: string },
+  maxNameLen = 50,
+): string {
+  const name = t.trainingName.length > maxNameLen
+    ? t.trainingName.slice(0, maxNameLen) + '…'
+    : t.trainingName;
+  const typePrefix = t.trainingType ? `[${t.trainingType}] ` : '';
+  return `${typePrefix}${formatDate(t.date)} — ${name}`;
 }
