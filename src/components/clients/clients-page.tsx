@@ -11,44 +11,27 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Phone, Users, CheckCircle2, AlertCircle, ChevronDown, X, Loader2, Calendar, GraduationCap, RefreshCw, Cake, MessageSquare } from 'lucide-react';
-import { useMyClients, useClientReport, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan, type ClientFocusItem, type ClientActivity } from '@/lib/use-my-clients';
+import { Search, X, Cake } from 'lucide-react';
+import { useMyClients, useClientsTotals, useClientActivities, useClientFocuses, useClientActivationPlan } from '@/lib/use-my-clients';
 import { useAppStore } from '@/lib/store';
-import { SEGMENTS } from '@/lib/mock-data';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { useRegistryPlans } from '@/lib/use-registry-plans';
 import { adaptRegistryPlans } from '@/lib/onec-adapters';
 import { isTrialManager } from '@/lib/trial-manager';
 import { NewClientDialog } from './new-client-dialog';
 import { GlobalClientSearchDialog } from './global-client-search-dialog';
-import { CustomMonthPicker } from '@/components/ui/custom-month-picker';
 import { LoadingScreen } from '@/components/ui/loading-screen';
-import { UserPlus } from 'lucide-react';
 import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
 import { ClaimFormDialog } from '@/components/claims/claim-form-dialog';
-import { ClientClaimsSection } from '@/components/claims/client-claims-section';
-import { ClientCommentsSection } from './client-comments-section';
 import { useClientCommentsCounts } from '@/lib/use-client-comments';
 import { useClientVerificationsForManager } from '@/lib/use-client-verifications';
 import type { ClientVerification } from '@/lib/client-verifications/types';
 import {
-  canonicalSegmentCode,
-  cleanBrandName,
   toUICategory,
-  toUkrainianChip,
-  initials,
-  parseMonthLabelToYM,
-  isHiddenProperty,
-  formatMonthLabel,
-  currentYearMonth,
-  fmtYMShort,
-  lastNMonthsBefore,
   CAT_LABEL,
   CAT_COLOR,
   CAT_ORDER,
-  UA_MONTHS,
   type UICategory,
 } from './client-helpers';
 import {
@@ -58,12 +41,8 @@ import {
   getClientBirthDate,
   getAge,
   isBirthdayToday,
-  getLastMeetingDate,
-  getLastCallDate,
   type ClientFromOneC,
 } from '@/lib/mityng-types';
-import { NumCol } from './shared/num-col';
-import { PctCol } from './shared/pct-col';
 import { FilterPill } from './shared/filter-pill';
 import { PageTitle, buildHeaderSubtitle } from './filters/page-title';
 import { ClientsMonthFilter } from './filters/clients-month-filter';

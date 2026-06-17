@@ -4,15 +4,15 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { type MeetingFormData } from '@/components/meetings/meeting-form';
 import { useMeetings } from '@/lib/meetings/use-meetings';
-import { formatUSD, formatDate, pctOf } from '@/lib/format';
-import { savePlanning, loadPlanning } from '@/lib/api';
+import { pctOf } from '@/lib/format';
+import { savePlanning } from '@/lib/api';
 import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
 import { mutate as swrMutate } from 'swr';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
 import { WindowLockBanner } from '@/components/window-lock-banner';
 import { finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
 import { usePlanningLocks } from './hooks/use-planning-locks';
-import { STAGE_OPTIONS, computePeriodStats, formatTrainingOption } from './planning-helpers';
+import { computePeriodStats } from './planning-helpers';
 import { usePlanningSave } from './hooks/use-planning-save';
 import { usePlanningLoad } from './hooks/use-planning-load';
 import { PlanningDialogs } from './planning-dialogs';
@@ -34,10 +34,7 @@ import {
 } from '@/lib/unplanned-buyers';
 import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions, SalesFactResponse } from '@/lib/types';
-import {
-  ArrowLeft, Check, Users, Eye,
-  AlertCircle,
-} from 'lucide-react';
+import { ArrowLeft, Check, Users, Eye } from 'lucide-react';
 
 interface PlanningFormProps {
   segmentCode: string;
@@ -105,7 +102,6 @@ export function PlanningForm({
     isWindowLocked,
     lockEdit,
     lockStage,
-    canEditStagesAfterFinalize,
     stageUnlockedAfterFinalize,
     canUnfinalize,
   } = usePlanningLocks({ segmentCode, targetUserLogin, readOnlyProp });
@@ -303,9 +299,6 @@ export function PlanningForm({
   // Розрахунок очікуваного / факт / відхилення по поточному періоду —
   // винесено у planning-helpers.ts (Day 6 рефактору).
   const {
-    periodMonth,
-    periodEndDate,
-    totalWorkingDays,
     passedWorkingDays,
     periodLabel,
     expectedAmount,
