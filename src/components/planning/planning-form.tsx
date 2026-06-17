@@ -12,12 +12,10 @@ import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
 import { savePlanning, loadPlanning } from '@/lib/api';
 import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
 import { mutate as swrMutate } from 'swr';
-import { useAppStore } from '@/lib/store';
-import { isPlanningWritesAllowed, FEATURES } from '@/lib/feature-flags';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
 import { WindowLockBanner } from '@/components/window-lock-banner';
-import { useFinalizationStatus, finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
-import { useWindowStatus } from '@/lib/use-window-status';
+import { finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
+import { usePlanningLocks } from './hooks/use-planning-locks';
 import { getMonthName } from '@/lib/periods';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
@@ -100,56 +98,23 @@ export function PlanningForm({
   factResponse = null,
 }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
-  const { currentPeriod, user } = useAppStore();
-  // ⚠️ Пакет А Етап 0 (2026-05-13): kill-switch під час оновлення системи.
-  // Адмін (itd@emet.in.ua) обходить. Видаляється після Етапу 3.
-  const isMaintenanceLocked = FEATURES.PLANNING_DISABLED && !isPlanningWritesAllowed(user?.login);
-  const readOnly = readOnlyProp || isMaintenanceLocked;
-  const isAdmin = user?.role === 'admin';
-  // Дані вантажимо/зберігаємо для targetUserLogin (якщо переданий — РМ дивиться чужий план)
-  // або для поточного увійшовшого user.login.
-  const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
-
-  // ⚠️ Пакет А Етап 2 (2026-05-13): finalization status — після фіналізації
-  // менеджер блокується на редагування сум/клієнтів/етапів. Admin обходить.
-  // periodId для finalize endpoint — береться з currentPeriod.id (тижневий).
-  // Backend сам ремапить на monthly через period.month. Передаємо як є.
-  const { finalizedAt, finalizedBy, refetch: refetchFinalize } = useFinalizationStatus(
-    currentPeriod?.id ?? null,
-    segmentCode,
+  const {
+    user,
+    currentPeriod,
     effectiveLogin,
-    currentPeriod?.month ?? null,
-  );
-  const isFinalized = !!finalizedAt;
-
-  // Window-lock (Етап 3): admin завжди allowed; менеджер — за window_days
-  // + per-user / global locks.
-  const { status: windowStatus } = useWindowStatus(
-    currentPeriod?.month ?? null,
-    effectiveLogin && effectiveLogin !== 'anonymous' ? effectiveLogin : null,
-  );
-  const isWindowLocked = !!windowStatus && !windowStatus.allowed;
-
-  // Lock редагування сум, списку клієнтів, етапів, тренінгу, кнопок Add/Remove
-  // коли план фіналізований (не для admin) АБО window-lock заблокував менеджера.
-  // Stage_comment поки теж заблоковано — інлайн-edit коментарів додамо окремим патчем.
-  const lockEdit = readOnly || (isFinalized && !isAdmin) || (isWindowLocked && !isAdmin);
-
-  // 🆕 M9 (2026-05-19): per-manager дозвіл редагувати ETAP після фіналізації.
-  // Якщо admin поставив `users.can_edit_stages_after_finalize=true` цьому
-  // менеджеру — stage select лишається активним навіть коли `lockEdit=true`.
-  // Інші поля (амоунти, клієнти, тренінг) лишаються заблокованими.
-  const canEditStagesAfterFinalize = !!user?.canEditStagesAfterFinalize;
-  const stageUnlockedAfterFinalize = isFinalized && !isAdmin && canEditStagesAfterFinalize;
-  // M10: дозвіл «Розфіналізувати» — admin завжди має, плюс юзери з прапором
-  // can_unfinalize_plans (asistент директора, керівник). Toggle у /admin/unfinalize-permissions.
-  const canUnfinalize = isAdmin || !!user?.canUnfinalizePlans;
-  // Дозвіл редагувати etap після фіналу теж BYPASS window-lock — інакше
-  // після 5-го числа місяця менеджер не зможе нічого поміняти навіть з
-  // дозволом. Use case "поміняти Дзвінок на Зустріч" актуальний весь місяць.
-  const lockStage = stageUnlockedAfterFinalize
-    ? readOnly
-    : lockEdit;
+    readOnly,
+    isAdmin,
+    isFinalized,
+    finalizedAt,
+    finalizedBy,
+    refetchFinalize,
+    isWindowLocked,
+    lockEdit,
+    lockStage,
+    canEditStagesAfterFinalize,
+    stageUnlockedAfterFinalize,
+    canUnfinalize,
+  } = usePlanningLocks({ segmentCode, targetUserLogin, readOnlyProp });
 
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
   // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
