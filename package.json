@@ -11,8 +11,11 @@
     "qa:headless": "cross-env HEADLESS=1 node scripts/qa-review.mjs",
     "check:arch": "node scripts/architecture-check.mjs",
     "test": "tsx --test tests/**/*.test.ts",
+    "test:components": "vitest run",
+    "test:components:watch": "vitest",
+    "test:all": "npm run test && npm run test:components",
     "snapshot:backfill": "node scripts/snapshot-backfill.mjs",
-    "prepush": "tsx --test tests/**/*.test.ts && tsc --noEmit && node scripts/architecture-check.mjs",
+    "prepush": "tsx --test tests/**/*.test.ts && vitest run && tsc --noEmit && node scripts/architecture-check.mjs",
     "prepare": "husky"
   },
   "dependencies": {
@@ -36,17 +39,24 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.2",
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
     "pg": "^8.20.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }
