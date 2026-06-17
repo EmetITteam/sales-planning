@@ -4,9 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClientSearchModal } from './client-search-modal';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
+import { type MeetingFormData } from '@/components/meetings/meeting-form';
 import { useMeetings } from '@/lib/meetings/use-meetings';
 import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
 import { savePlanning, loadPlanning } from '@/lib/api';
@@ -19,6 +17,7 @@ import { usePlanningLocks } from './hooks/use-planning-locks';
 import { STAGE_OPTIONS, computePeriodStats, formatTrainingOption } from './planning-helpers';
 import { usePlanningSave } from './hooks/use-planning-save';
 import { usePlanningLoad } from './hooks/use-planning-load';
+import { PlanningDialogs } from './planning-dialogs';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
 import { isActiveForBrand } from '@/lib/three-month-rule';
 import {
@@ -2118,87 +2117,30 @@ export function PlanningForm({
         </div>
       </div>
 
-      <ConfirmDialog
-        open={showIncompleteConfirm}
-        title={(() => {
-          const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
-          const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-          return fSum + gSum < propPlanAmount
-            ? 'Увага — план неповний'
-            : 'Підтвердження фіналізації';
-        })()}
-        description={(() => {
-          const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
-          const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-          const planned = fSum + gSum;
-          const pct = propPlanAmount > 0 ? (planned / propPlanAmount) * 100 : 0;
-          if (planned < propPlanAmount) {
-            const diff = Math.max(0, propPlanAmount - planned);
-            return `Запланована сума менше за план на ${formatUSD(diff)}, відсоток планування — ${pct.toFixed(1)}%. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми.`;
-          }
-          // План повний або перевищений — теж попереджаємо що це фінальний крок.
-          const overshoot = planned - propPlanAmount;
-          const overMsg = overshoot > 0 ? ` (на ${formatUSD(overshoot)} більше за план)` : '';
-          return `Запланована сума: ${formatUSD(planned)}${overMsg}, відсоток планування — ${pct.toFixed(1)}%. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми (коментарі залишаються редагованими).`;
-        })()}
-        confirmLabel="Так, фіналізувати"
-        cancelLabel="Назад"
-        onConfirm={() => { setShowIncompleteConfirm(false); void doFinalize(); }}
-        onCancel={() => setShowIncompleteConfirm(false)}
-      />
-
-
-      {/* Обидва пошукові модали показують ВСІХ клієнтів менеджера. Перевірка на
-          дубль (forecast ∪ gap) робиться у addClient/addGapClient через alert. */}
-      <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={[]} clients={allManagerClients} loading={clientsLoading} />
-      <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[]} clients={allManagerClients} loading={clientsLoading} />
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        title={
-          pendingDelete?.type === 'forecast-bulk'
-            ? `Видалити ${pendingDelete.ids.length} клієнтів з прогнозу?`
-            : pendingDelete?.type === 'gap-bulk'
-            ? `Видалити ${pendingDelete.indices.length} клієнтів з закриття розриву?`
-            : pendingDelete?.type === 'forecast' || pendingDelete?.type === 'gap'
-            ? `Видалити «${pendingDelete.clientName}»?`
-            : ''
-        }
-        description={
-          pendingDelete?.type === 'forecast' || pendingDelete?.type === 'forecast-bulk'
-            ? 'Зникнуть з блоку «Прогноз по активних». Дія застосується після збереження.'
-            : 'Зникнуть з блоку «Закриття розриву». Дія застосується після збереження.'
-        }
-        confirmLabel="Видалити"
-        variant="danger"
-        onConfirm={confirmDelete}
-        onCancel={() => setPendingDelete(null)}
-      />
-
-      {/* Етап «Зустріч» → пропозиція запланувати точну дату й час. */}
-      <ConfirmDialog
-        open={meetingPrompt !== null}
-        title="Запланувати зустріч?"
-        description={
-          meetingPrompt
-            ? `Хочете одразу запланувати точну дату й час зустрічі з «${meetingPrompt.clientName}»? Подія з'явиться у блоці «Зустрічі».`
-            : ''
-        }
-        confirmLabel="Так, запланувати"
-        cancelLabel="Пізніше"
-        onConfirm={() => {
-          if (meetingPrompt) setMeetingFormState({ clientId: meetingPrompt.clientId });
-          setMeetingPrompt(null);
-        }}
-        onCancel={() => setMeetingPrompt(null)}
-      />
-
-      <MeetingForm
-        open={meetingFormState !== null}
-        mode="create"
-        prefilledClientId={meetingFormState?.clientId}
-        prefilledDate={planDateHint}
-        onClose={() => setMeetingFormState(null)}
-        onSave={handleMeetingSave}
+      <PlanningDialogs
+        showIncompleteConfirm={showIncompleteConfirm}
+        setShowIncompleteConfirm={setShowIncompleteConfirm}
+        forecasts={forecasts}
+        gapClosures={gapClosures}
+        propPlanAmount={propPlanAmount}
+        doFinalize={doFinalize}
+        searchOpen={searchOpen}
+        setSearchOpen={setSearchOpen}
+        gapSearchOpen={gapSearchOpen}
+        setGapSearchOpen={setGapSearchOpen}
+        addClient={addClient}
+        addGapClient={addGapClient}
+        allManagerClients={allManagerClients}
+        clientsLoading={clientsLoading}
+        pendingDelete={pendingDelete}
+        setPendingDelete={setPendingDelete}
+        confirmDelete={confirmDelete}
+        meetingPrompt={meetingPrompt}
+        setMeetingPrompt={setMeetingPrompt}
+        setMeetingFormState={setMeetingFormState}
+        meetingFormState={meetingFormState}
+        planDateHint={planDateHint}
+        handleMeetingSave={handleMeetingSave}
       />
     </div>
   );
