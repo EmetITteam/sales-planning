@@ -201,3 +201,16 @@ export function isHiddenProperty(prop: string): boolean {
   const low = prop.toLowerCase();
   return HIDDEN_PROP_PATTERNS.some(p => low.includes(p));
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Plural UA: рік / роки / років
+// ─────────────────────────────────────────────────────────────────────────
+
+/** UA-plural для слова «рік» (1 рік / 2-4 роки / 5-20 років / 21 рік ...). */
+export function pluralUaYears(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'рік';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'роки';
+  return 'років';
+}
