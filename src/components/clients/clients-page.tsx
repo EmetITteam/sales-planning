@@ -62,6 +62,9 @@ import {
   getLastCallDate,
   type ClientFromOneC,
 } from '@/lib/mityng-types';
+import { NumCol } from './shared/num-col';
+import { PctCol } from './shared/pct-col';
+import { FilterPill } from './shared/filter-pill';
 
 const BRAND_NAMES: Record<string, string> = Object.fromEntries(SEGMENTS.map(s => [s.code, s.name]));
 
@@ -1212,32 +1215,6 @@ function HeroContacts({ index, loading, baseTotal, withCall, withMeeting, covera
 }
 
 // === Filter pill ===
-function FilterPill({
-  active, onClick, count, dotClass, children,
-}: {
-  active: boolean; onClick: () => void; count: number; dotClass?: string; children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-[12px] font-semibold transition-all ${
-        active
-          ? 'bg-emet-blue text-white shadow-[0_4px_12px_rgba(6,106,171,0.25)] border border-emet-blue'
-          : 'bg-white/50 border border-white/60 hover:bg-white/70 hover:-translate-y-px'
-      }`}
-    >
-      {dotClass && <span className={`w-2 h-2 rounded-full ${dotClass}`} />}
-      <span>{children}</span>
-      <span className={`font-mono font-bold text-[11px] px-1.5 py-0.5 rounded-full tabular-nums ${
-        active ? 'bg-white/25 text-white' : 'bg-emet-blue/10 text-emet-blue'
-      }`}>
-        {count}
-      </span>
-    </button>
-  );
-}
-
 // === Category section header + list ===
 function CategorySection({
   cat, clients, planByClient, factByClient, focusByClient, activityByClient, commentsByClient, verificationByClient, meetingMissingClientIds, totalsLoading, expandedId, onToggleExpand, onCreateMeeting, onCreateClaim,
@@ -1823,46 +1800,6 @@ function ClientRow({ client, plan, fact, planBrands, factBrands, focuses, activi
  *    - null → нічого не показуємо (для no-plan клієнтів — план не виставлено)
  *  - value>0 → реальна сума
  */
-function NumCol({ label, value, loading, emptyAs = 'zero' }: {
-  label: string; value: number | null; loading: boolean; emptyAs?: 'zero' | null;
-}) {
-  return (
-    <div className="hidden md:block text-right">
-      <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold leading-none">{label}</p>
-      <p className="text-[13px] font-bold font-mono tabular-nums mt-1 leading-none whitespace-nowrap amount">
-        {loading ? (
-          <span className="text-muted-foreground/40">—</span>
-        ) : value && value > 0 ? (
-          `$${Math.round(value).toLocaleString('en-US')}`
-        ) : emptyAs === 'zero' ? (
-          <span className="text-muted-foreground/60">$0</span>
-        ) : (
-          <span className="text-muted-foreground/30">—</span>
-        )}
-      </p>
-    </div>
-  );
-}
-
-/** % виконання. loading → '—' gray; disabled (no plan) → '—' light; реал → traffic-light. */
-function PctCol({ pct, loading, disabled }: { pct: number | null; loading: boolean; disabled: boolean }) {
-  let cls = 'text-muted-foreground/50';
-  if (!loading && !disabled && pct !== null) {
-    if (pct >= 100) cls = 'text-emerald-700';
-    else if (pct >= 80) cls = 'text-emerald-600';
-    else if (pct >= 50) cls = 'text-amber-600';
-    else cls = 'text-rose-600';
-  }
-  return (
-    <div className="hidden md:block text-right">
-      <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold leading-none">Викон.</p>
-      <p className={`text-[13px] font-bold font-mono tabular-nums mt-1 leading-none ${cls}`}>
-        {loading || disabled || pct === null ? '—' : `${pct.toFixed(0)}%`}
-      </p>
-    </div>
-  );
-}
-
 // === Accordion-розгортання з детальним звітом ===
 function ClientExpand({ clientID, clientName, planBrands, factBrands, focuses }: {
   clientID: string;
