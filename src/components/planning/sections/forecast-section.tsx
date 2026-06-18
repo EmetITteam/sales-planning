@@ -6,7 +6,8 @@ import { formatUSD, formatDate } from '@/lib/format';
 import { isPassiveAmount } from '@/lib/passive-rows';
 import { categoryLabel } from '@/lib/unplanned-buyers';
 import type { ForecastRow, Client1C } from '@/lib/types';
-import { STAGE_OPTIONS, formatTrainingOption } from '../planning-helpers';
+import { STAGE_OPTIONS } from '../planning-helpers';
+import { TrainingSelect } from '../controls/training-select';
 
 type TrainingOption = { trainingId: string; date: string; trainingName: string; trainingType?: string };
 type UnplannedItem = { clientId: string; clientName: string; factAmount: number; category: Client1C['category'] };
@@ -210,31 +211,20 @@ export function ForecastSection({
 
                 {row.stage === 'Навчання' ? (
                   <div className="flex flex-col gap-1">
-                    <Select
-                      value={row.trainingId || undefined}
-                      onValueChange={(trainingId) => {
-                        const t = trainings.find(x => x.trainingId === trainingId);
-                        updateForecast(row.clientId1c, 'trainingId', trainingId);
+                    <TrainingSelect
+                      value={row.trainingId}
+                      trainings={trainings}
+                      disabled={lockEdit}
+                      maxNameLen={50}
+                      size="desktop"
+                      onSelect={(t) => {
+                        updateForecast(row.clientId1c, 'trainingId', t?.trainingId ?? '');
                         if (t) {
                           updateForecast(row.clientId1c, 'trainingName', t.trainingName);
                           updateForecast(row.clientId1c, 'trainingDate', t.date);
                         }
                       }}
-                      disabled={lockEdit}
-                    >
-                      <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
-                        <SelectValue placeholder="Обрати навчання з 1С...">
-                          {row.trainingId ? (row.trainingName || row.trainingId) : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false}>
-                        {trainings.map(t => (
-                          <SelectItem key={t.trainingId} value={t.trainingId}>
-                            <span className="text-[12px]">{formatTrainingOption(t, 50)}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                     <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
                       disabled={readOnly}
                       className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
@@ -342,31 +332,22 @@ export function ForecastSection({
                 <div>
                   <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Коментар</label>
                   {row.stage === 'Навчання' && (
-                    <Select
-                      value={row.trainingId || undefined}
-                      onValueChange={(trainingId) => {
-                        const t = trainings.find(x => x.trainingId === trainingId);
-                        updateForecast(row.clientId1c, 'trainingId', trainingId);
-                        if (t) {
-                          updateForecast(row.clientId1c, 'trainingName', t.trainingName);
-                          updateForecast(row.clientId1c, 'trainingDate', t.date);
-                        }
-                      }}
-                      disabled={lockEdit}
-                    >
-                      <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={lockEdit}>
-                        <SelectValue placeholder="Обрати навчання...">
-                          {row.trainingId ? (row.trainingName || row.trainingId) : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false}>
-                        {trainings.map(t => (
-                          <SelectItem key={t.trainingId} value={t.trainingId}>
-                            <span className="text-[12px]">{formatTrainingOption(t, 40)}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="mt-1">
+                      <TrainingSelect
+                        value={row.trainingId}
+                        trainings={trainings}
+                        disabled={lockEdit}
+                        maxNameLen={40}
+                        size="mobile"
+                        onSelect={(t) => {
+                          updateForecast(row.clientId1c, 'trainingId', t?.trainingId ?? '');
+                          if (t) {
+                            updateForecast(row.clientId1c, 'trainingName', t.trainingName);
+                            updateForecast(row.clientId1c, 'trainingDate', t.date);
+                          }
+                        }}
+                      />
+                    </div>
                   )}
                   <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
                     disabled={readOnly}
