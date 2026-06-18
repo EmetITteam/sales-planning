@@ -1,25 +1,26 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClientSearchModal } from './client-search-modal';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { MeetingForm, type MeetingFormData } from '@/components/meetings/meeting-form';
+import { type MeetingFormData } from '@/components/meetings/meeting-form';
 import { useMeetings } from '@/lib/meetings/use-meetings';
-import { formatUSD, formatDate, formatDateShort, pctOf } from '@/lib/format';
-import { savePlanning, loadPlanning } from '@/lib/api';
+import { pctOf } from '@/lib/format';
+import { savePlanning } from '@/lib/api';
 import { syncIdsAfterRemove, syncIndicesAfterRemove } from '@/lib/selection-sync';
 import { mutate as swrMutate } from 'swr';
-import { useAppStore } from '@/lib/store';
-import { isPlanningWritesAllowed, FEATURES } from '@/lib/feature-flags';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
 import { WindowLockBanner } from '@/components/window-lock-banner';
-import { useFinalizationStatus, finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
-import { useWindowStatus } from '@/lib/use-window-status';
-import { getMonthName } from '@/lib/periods';
-import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { finalizePlan, unfinalizePlan } from '@/lib/use-finalization';
+import { usePlanningLocks } from './hooks/use-planning-locks';
+import { computePeriodStats } from './planning-helpers';
+import { usePlanningSave } from './hooks/use-planning-save';
+import { usePlanningLoad } from './hooks/use-planning-load';
+import { PlanningDialogs } from './planning-dialogs';
+import { ClientDataByTmSection } from './sections/client-data-by-tm-section';
+import { ForecastSection } from './sections/forecast-section';
+import { GapClosureSection } from './sections/gap-closure-section';
+import { PlanningMetricsRow } from './sections/planning-metrics-row';
+import { PlanningSaveBar } from './sections/planning-save-bar';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
 import { isActiveForBrand } from '@/lib/three-month-rule';
 import {
@@ -33,12 +34,7 @@ import {
 } from '@/lib/unplanned-buyers';
 import type { GetClientsForPlanningResponse } from '@/lib/onec-types';
 import type { ForecastRow, GapClosureRow, Client1C, ClientCategorySummary, GapActions, SalesFactResponse } from '@/lib/types';
-import {
-  ArrowLeft, Save, Search, Target, DollarSign, TrendingUp, TrendingDown,
-  ArrowUpRight, ArrowDownRight, Trash2, Check, Phone, Calendar, MessageCircle,
-  AlertTriangle, Clock, Lock, Users, UserPlus, RefreshCw, Eye, GraduationCap,
-  AlertCircle,
-} from 'lucide-react';
+import { ArrowLeft, Check, Users, Eye } from 'lucide-react';
 
 interface PlanningFormProps {
   segmentCode: string;
@@ -82,14 +78,7 @@ interface PlanningFormProps {
   factResponse?: SalesFactResponse | null;
 }
 
-// Етапи доступні і в "Прогноз по активних", і в "Закриття розриву".
-// Опція "Навчання" розкриває селектор обучень з 1С (плюс поле коментаря).
-const STAGE_OPTIONS = [
-  { value: 'Дзвінок', icon: Phone },
-  { value: 'Мессенджер', icon: MessageCircle },
-  { value: 'Зустріч', icon: Calendar },
-  { value: 'Навчання', icon: GraduationCap },
-];
+// STAGE_OPTIONS винесено у planning-helpers.ts (Day 6)
 
 export function PlanningForm({
   segmentCode, onBack, readOnly: readOnlyProp = false, targetUserLogin, targetUserName,
@@ -100,56 +89,22 @@ export function PlanningForm({
   factResponse = null,
 }: PlanningFormProps) {
   const segment = SEGMENTS.find(s => s.code === segmentCode);
-  const { currentPeriod, user } = useAppStore();
-  // ⚠️ Пакет А Етап 0 (2026-05-13): kill-switch під час оновлення системи.
-  // Адмін (itd@emet.in.ua) обходить. Видаляється після Етапу 3.
-  const isMaintenanceLocked = FEATURES.PLANNING_DISABLED && !isPlanningWritesAllowed(user?.login);
-  const readOnly = readOnlyProp || isMaintenanceLocked;
-  const isAdmin = user?.role === 'admin';
-  // Дані вантажимо/зберігаємо для targetUserLogin (якщо переданий — РМ дивиться чужий план)
-  // або для поточного увійшовшого user.login.
-  const effectiveLogin = targetUserLogin || user?.login || 'anonymous';
-
-  // ⚠️ Пакет А Етап 2 (2026-05-13): finalization status — після фіналізації
-  // менеджер блокується на редагування сум/клієнтів/етапів. Admin обходить.
-  // periodId для finalize endpoint — береться з currentPeriod.id (тижневий).
-  // Backend сам ремапить на monthly через period.month. Передаємо як є.
-  const { finalizedAt, finalizedBy, refetch: refetchFinalize } = useFinalizationStatus(
-    currentPeriod?.id ?? null,
-    segmentCode,
+  const {
+    user,
+    currentPeriod,
     effectiveLogin,
-    currentPeriod?.month ?? null,
-  );
-  const isFinalized = !!finalizedAt;
-
-  // Window-lock (Етап 3): admin завжди allowed; менеджер — за window_days
-  // + per-user / global locks.
-  const { status: windowStatus } = useWindowStatus(
-    currentPeriod?.month ?? null,
-    effectiveLogin && effectiveLogin !== 'anonymous' ? effectiveLogin : null,
-  );
-  const isWindowLocked = !!windowStatus && !windowStatus.allowed;
-
-  // Lock редагування сум, списку клієнтів, етапів, тренінгу, кнопок Add/Remove
-  // коли план фіналізований (не для admin) АБО window-lock заблокував менеджера.
-  // Stage_comment поки теж заблоковано — інлайн-edit коментарів додамо окремим патчем.
-  const lockEdit = readOnly || (isFinalized && !isAdmin) || (isWindowLocked && !isAdmin);
-
-  // 🆕 M9 (2026-05-19): per-manager дозвіл редагувати ETAP після фіналізації.
-  // Якщо admin поставив `users.can_edit_stages_after_finalize=true` цьому
-  // менеджеру — stage select лишається активним навіть коли `lockEdit=true`.
-  // Інші поля (амоунти, клієнти, тренінг) лишаються заблокованими.
-  const canEditStagesAfterFinalize = !!user?.canEditStagesAfterFinalize;
-  const stageUnlockedAfterFinalize = isFinalized && !isAdmin && canEditStagesAfterFinalize;
-  // M10: дозвіл «Розфіналізувати» — admin завжди має, плюс юзери з прапором
-  // can_unfinalize_plans (asistент директора, керівник). Toggle у /admin/unfinalize-permissions.
-  const canUnfinalize = isAdmin || !!user?.canUnfinalizePlans;
-  // Дозвіл редагувати etap після фіналу теж BYPASS window-lock — інакше
-  // після 5-го числа місяця менеджер не зможе нічого поміняти навіть з
-  // дозволом. Use case "поміняти Дзвінок на Зустріч" актуальний весь місяць.
-  const lockStage = stageUnlockedAfterFinalize
-    ? readOnly
-    : lockEdit;
+    readOnly,
+    isAdmin,
+    isFinalized,
+    finalizedAt,
+    finalizedBy,
+    refetchFinalize,
+    isWindowLocked,
+    lockEdit,
+    lockStage,
+    stageUnlockedAfterFinalize,
+    canUnfinalize,
+  } = usePlanningLocks({ segmentCode, targetUserLogin, readOnlyProp });
 
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
   // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
@@ -164,10 +119,22 @@ export function PlanningForm({
   const [gapActions, setGapActions] = useState<GapActions>({ action1: '', action2: '', action3: '' });
   const [searchOpen, setSearchOpen] = useState(false);
   const [gapSearchOpen, setGapSearchOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveResult, setSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
-  // Останнє успішне збереження (із summary.updated_at при load + з POST response).
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  // saving / saveResult / lastSavedAt + handleSave винесено у usePlanningSave (Day 7)
+  const {
+    saving,
+    saveResult,
+    lastSavedAt,
+    setSaveResult,
+    setLastSavedAt,
+    handleSave: doSave,
+  } = usePlanningSave({
+    segmentCode,
+    currentPeriod,
+    targetUserLogin,
+    targetUserName,
+    targetUserRegion,
+    targetUserRegionCode,
+  });
   // Підтвердження видалення — заміняє blocking browser `confirm()`. type вказує
   // куди застосовувати: forecast row (по clientId) або gap closure (по index).
   // bulk-варіанти — для multi-select видалення з чекбоксів.
@@ -195,6 +162,9 @@ export function PlanningForm({
   // перемикання дати клієнти повертаються знов, бо load повертає [] і
   // auto-populate думає що це 'перше відкриття').
   const [formEverEdited, setFormEverEdited] = useState(false);
+  // manuallyEditedFactRows тримає clientId1c рядків де менеджер сам
+  // редагував поле «Факт» через updateForecast/updateGap. Скидаємо у load hook.
+  const [manuallyEditedFactRows, setManuallyEditedFactRows] = useState<Set<string>>(new Set());
 
   // FEATURE: завантаження збережених даних з Supabase.
   // При відкритті форми (та при зміні бренду чи менеджера) — скролимо нагору.
@@ -204,193 +174,35 @@ export function PlanningForm({
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
   }, [segmentCode, effectiveLogin]);
 
-  // ⚠️ При зміні (effectiveLogin, segmentCode, currentPeriod) ОЧИЩАЄМО stale state
-  // ДО fetch — інакше при логауті/drill-down іншого менеджера у формі лишаються
-  // прогнози попереднього користувача. supabaseLoaded скидаємо щоб handleSave guard
-  // не дав зберегти доки не дочекались відповіді.
-  useEffect(() => {
-    setForecasts([]);
-    setGapClosures([]);
-    setGapActions({ action1: '', action2: '', action3: '' });
-    setSupabaseLoaded(false);
-    setPersistedClientIds(new Set());
-    setSelectedForecasts(new Set());
-    setSelectedGaps(new Set());
-    setFormEverEdited(false);
-    setManuallyEditedFactRows(new Set());
+  // Load з Supabase + reset stale state — винесено у usePlanningLoad (Day 7).
+  usePlanningLoad({
+    segmentCode,
+    currentPeriodId: currentPeriod.id,
+    effectiveLogin,
+    setForecasts,
+    setGapClosures,
+    setGapActions,
+    setSupabaseLoaded,
+    setPersistedClientIds,
+    setSelectedForecasts,
+    setSelectedGaps,
+    setFormEverEdited,
+    setManuallyEditedFactRows,
+    setLastSavedAt,
+  });
 
-    let cancelled = false;
-    loadPlanning(effectiveLogin, segmentCode, currentPeriod.id).then(data => {
-      if (cancelled) return;
-      setSupabaseLoaded(true);
-      if (!data) return;
-      // У ФОРМІ менеджер має бачити що його draft-клієнти у плані → не дублюємо
-      // у блоці «Незаплановані». persistedClientIds = ВСІ рядки у Supabase
-      // (draft + finalized). На дашборді логіка інша — там через b841c52
-      // forecastClientIds/gapClientIds тільки з finalized, щоб чернетки не
-      // зараховувались у звітність керівника.
-      const persisted = new Set<string>();
-      for (const f of data.forecasts) if (f.client_id_1c) persisted.add(f.client_id_1c);
-      for (const g of data.gapClosures) if (g.client_id_1c) persisted.add(g.client_id_1c);
-      setPersistedClientIds(persisted);
-      // ⚠️ Після migration M3: читаємо дедіковані колонки замість unpack JSON.
-      // Якщо БД ще має старі JSON-row (не мігровані), вони опрацюються через
-      // міграційний UPDATE на стороні Supabase (M3 заповнює нові колонки + чистить
-      // stage_comment до plain text).
-      if (data.forecasts.length > 0) {
-        setForecasts(data.forecasts.map(f => ({
-          clientId1c: f.client_id_1c,
-          clientName: f.client_name,
-          forecastAmount: f.forecast_amount,
-          stage: (f.stage || '') as ForecastRow['stage'],
-          stageComment: f.stage_comment || '',
-          trainingId: f.training_id || undefined,
-          trainingName: f.training_name || undefined,
-          trainingDate: f.training_date || undefined,
-          stageDone: f.stage_done,
-          factAmount: 0,
-          // lastPurchaseDate/Amount довантажуються окремим useEffect-ом нижче
-          // після того як segmentClients (1С Action 2) прийде. Зберігати їх у
-          // forecasts table немає сенсу — це довідкова інфа з 1С яка змінюється.
-          lastPurchaseDate: null,
-          lastPurchaseAmount: 0,
-          completed: f.completed,
-          manuallyAdded: f.manually_added,
-        })));
-      }
-      if (data.gapClosures.length > 0) {
-        setGapClosures(data.gapClosures.map(g => ({
-          clientId1c: g.client_id_1c,
-          clientName: g.client_name,
-          category: g.category || '',
-          potentialAmount: g.potential_amount,
-          stage: (g.stage || '') as GapClosureRow['stage'],
-          stageComment: g.stage_comment || '',
-          stageDone: g.stage_done,
-          completed: g.closure_completed,
-          trainingId: g.training_id || undefined,
-          trainingName: g.training_name || undefined,
-          trainingDate: g.training_date || undefined,
-          deadline: g.deadline || '',
-          factAmount: 0,
-          lastPurchaseDate: null,
-          lastPurchaseAmount: 0,
-          manuallyAdded: g.manually_added,
-        })));
-      }
-      if (data.summary) {
-        setGapActions({
-          action1: data.summary.gap_action_1 || '',
-          action2: data.summary.gap_action_2 || '',
-          action3: data.summary.gap_action_3 || '',
-        });
-        if (data.summary.updated_at) setLastSavedAt(data.summary.updated_at);
-      }
-      // ⚠️ Day 14 fix (2026-05-14): formEverEdited тільки якщо у БД є РЕАЛЬНІ
-      // дані — forecasts/gap_closures або заповнені gap_actions. Раніше
-      // ставили true просто від наявності period_summaries запису, через
-      // що сценарій «finalize порожнім → admin розфіналізував» залишав
-      // менеджера у вічно-пустій формі (auto-populate skip + БД 0 рядків).
-      const hasPlanData = data.forecasts.length > 0
-        || data.gapClosures.length > 0
-        || !!data.summary?.gap_action_1
-        || !!data.summary?.gap_action_2
-        || !!data.summary?.gap_action_3;
-      if (hasPlanData) setFormEverEdited(true);
-    });
-    return () => { cancelled = true; };
-  }, [segmentCode, currentPeriod.id, effectiveLogin]);
-
-  const handleSave = async () => {
-    // SAFETY: не дозволяємо save доки не дочекались load з Supabase. Інакше
-    // можливий race: натиснули зберегти → POST порожнього стану → у БД
-    // зникають попередньо збережені рядки. На сервері є симетричний захист
-    // (clearAll flag), цей — додатковий.
-    if (!supabaseLoaded) {
-      setSaveResult({ ok: false, msg: 'Зачекайте — дані ще завантажуються' });
-      setTimeout(() => setSaveResult(null), 3000);
-      return;
-    }
-    // Захист від «тихого порожнього save»: коли state ще не догнав load з БД,
-    // forecasts може бути [], persistedClientIds має старі id-и. Backend
-    // skip-ає DELETE+UPSERT у такому стані (clearAll=false safety) → UI показав
-    // би «Збережено!» без реальних змін у БД.
-    // ⚠️ Day 14 fix: блокуємо ТІЛЬКИ якщо menager ще не редагував (formEverEdited=false).
-    // Якщо менеджер усвідомлено видалив усіх клієнтів (formEverEdited=true) — save
-    // має пройти з clearAll=true (бекенд робить DELETE+UPSERT properly).
-    if (!formEverEdited && forecasts.length === 0 && gapClosures.length === 0 && persistedClientIds.size > 0) {
-      setSaveResult({ ok: false, msg: 'Дані ще завантажуються — спробуйте за секунду' });
-      setTimeout(() => setSaveResult(null), 3000);
-      return;
-    }
-    setSaving(true);
-    setSaveResult(null);
-    // ⚠️ clearAll flag — гарантує що backend виконає DELETE notIn() навіть
-    // коли один з блоків (forecast або gap) пустий. Без цього backend
-    // skip-ає DELETE для пустого блоку (safety проти race), і видалені
-    // через bulk-delete клієнти лишаються в БД.
-    //
-    // Передаємо clearAll коли форма реально редагувалась (formEverEdited)
-    // АБО коли є persistedClient (були дані з минулого save). Це означає:
-    //   - User свідомо змінює стан → backend має дослухатись до DELETE.
-    //   - Перший save з пустим станом (formEverEdited=false, persisted=0) →
-    //     clearAll=false → backend безпечно skip-ає DELETE. ✓
-    const isExplicitClearAll = formEverEdited || persistedClientIds.size > 0;
-    const result = await savePlanning({
-      segmentCode,
-      periodId: currentPeriod.id,
-      period: {
-        weekStart: currentPeriod.weekStart,
-        weekEnd: currentPeriod.weekEnd,
-        month: currentPeriod.month,
-      },
-      // Drill-down: РМ зберігає за свого менеджера. Сервер перевірить що цей
-      // логін у session.managedUsers; якщо ні — 403.
-      targetLogin: targetUserLogin || undefined,
-      // Профіль потрібен серверу лише при drill-down (бо у session дані РМ а не
-      // цільового менеджера). Для свого збереження сервер бере з сесії.
-      userMeta: targetUserLogin ? {
-        fullName: targetUserName || targetUserLogin,
-        region: targetUserRegion || undefined,
-        regionCode: targetUserRegionCode || undefined,
-      } : undefined,
-      forecasts,
-      gapClosures,
-      gapActions,
-      clearAll: isExplicitClearAll,
-    });
-    setSaving(false);
-    if (result.success) {
-      // Маркер що форма редагувалась — після цього auto-populate не запуститься
-      // навіть якщо менеджер видалив всіх і тимчасово forecasts/gap пусті.
-      setFormEverEdited(true);
-      // persistedClientIds оновлюємо з поточного state (бо save їх записав у БД)
-      const justSaved = new Set<string>();
-      for (const f of forecasts) if (f.clientId1c) justSaved.add(f.clientId1c);
-      for (const g of gapClosures) if (g.clientId1c) justSaved.add(g.clientId1c);
-      setPersistedClientIds(justSaved);
-      // ⚠️ Invalidate SWR cache для planAgg + regionStats — інакше dashboard
-      // hero/brand-row 60 сек тримають старі цифри (SWR dedupingInterval).
-      // Менеджер save-нув → відкрив дашборд → видно старі % → плутає.
-      // Mutate ВСІХ ключів agg|*|*|* і region-stats|*|*|*|*.
-      swrMutate(
-        (key) => typeof key === 'string' && (key.startsWith('agg|') || key.startsWith('region-stats|')),
-        undefined,
-        { revalidate: true },
-      );
-    }
-    if (result.success) {
-      if (result.savedAt) setLastSavedAt(result.savedAt);
-      const c = result.counts;
-      const msg = c
-        ? `Збережено: прогноз ${c.forecasts}, розрив ${c.gaps}`
-        : 'Збережено';
-      setSaveResult({ ok: true, msg });
-    } else {
-      setSaveResult({ ok: false, msg: result.error || 'Помилка збереження' });
-    }
-    setTimeout(() => setSaveResult(null), 4000);
-  };
+  // handleSave — обгортка над doSave з usePlanningSave (Day 7).
+  // Передаємо stateful залежності explicit щоб уникнути stale-closure.
+  const handleSave = () => doSave({
+    supabaseLoaded,
+    forecasts,
+    gapClosures,
+    gapActions,
+    formEverEdited,
+    persistedClientIds,
+    setFormEverEdited,
+    setPersistedClientIds,
+  });
 
   // ---- Фіналізація плану (Етап 2 Пакету А) ----
   const [finalizing, setFinalizing] = useState(false);
@@ -484,21 +296,16 @@ export function PlanningForm({
   const planAmount = propPlanAmount;
   const factAmount = propFactAmount;
 
-  // Розрахунок очікуваного по наростаючому періоду — РОБОЧІ ДНІ (не календарні),
-  // як на дашборді. Свята України 2026 враховані у working-days.ts.
-  // ⚠️ Парсимо вручну (не `new Date(string)`) — на UTC-серверах локальний час
-  // може зсунутись на день назад (`new Date('2026-05-01')` → квітень при .getMonth()).
-  const [my, mm, md] = currentPeriod.month.split('-').map(Number);
-  const periodMonth = new Date(my || new Date().getFullYear(), (mm || 1) - 1, md || 1);
-  const [ey, em, ed] = currentPeriod.weekEnd.split('-').map(Number);
-  const periodEndDate = new Date(ey || my || new Date().getFullYear(), (em || mm || 1) - 1, ed || md || 1);
-  const totalWorkingDays = getWorkingDaysInMonth(periodMonth.getFullYear(), periodMonth.getMonth());
-  const passedWorkingDays = getPassedWorkingDays(periodMonth.getFullYear(), periodMonth.getMonth(), periodEndDate);
-  const periodLabel = getMonthName(periodMonth.getFullYear(), periodMonth.getMonth());
-  const expectedAmount = totalWorkingDays > 0 ? (planAmount / totalWorkingDays) * passedWorkingDays : 0;
-  const expectedPct = pctOf(expectedAmount, planAmount);
-  const factPct = pctOf(factAmount, planAmount);
-  const deviation = factPct - expectedPct;
+  // Розрахунок очікуваного / факт / відхилення по поточному періоду —
+  // винесено у planning-helpers.ts (Day 6 рефактору).
+  const {
+    passedWorkingDays,
+    periodLabel,
+    expectedAmount,
+    expectedPct,
+    factPct,
+    deviation,
+  } = computePeriodStats({ currentPeriod, planAmount, factAmount });
 
   // Сортовані прогнози: активні зверху → passive (amount=0) → completed вниз.
   // У межах кожної групи — алфавіт по clientName.
@@ -813,10 +620,6 @@ export function PlanningForm({
   // вручну змінений менеджером. Інакше SWR revalidation (focus/reconnect)
   // перетирала ручний ввод. Менеджер ввів свій факт → focus tab → факт
   // повернувся до 1С-значення.
-  //
-  // manuallyEditedFactRows тримає clientId1c рядків де менеджер сам
-  // редагував поле «Факт» через updateForecast/updateGap.
-  const [manuallyEditedFactRows, setManuallyEditedFactRows] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (factByClientId.size === 0) return;
     setForecasts(prev => {
@@ -998,11 +801,7 @@ export function PlanningForm({
   // тут не показуємо.
   const totalCatPct = pctOf(totalCatAmount, planAmount);
 
-  const CAT_ICONS: Record<string, React.ReactNode> = {
-    active: <Users className="h-4 w-4 text-emet-blue" />,
-    new: <UserPlus className="h-4 w-4 text-emerald-600" />,
-    sleeping_lost: <RefreshCw className="h-4 w-4 text-amber-600" />,
-  };
+  // CAT_ICONS винесено у sections/client-data-by-tm-section.tsx (Day 8)
 
   // === Етап «Зустріч» → пропозиція запланувати точну дату й час ===
   // Коли менеджер у select Stage обирає «Зустріч», пропонуємо одразу створити
@@ -1216,46 +1015,8 @@ export function PlanningForm({
   const existingIds = forecasts.map(f => f.clientId1c);
   const gapExistingIds = gapClosures.map(g => g.clientId1c).filter(Boolean);
 
-  // Read-only рядок «незапланованого покупця» — спільна розмітка для блоків
-  // «Прогноз» і «Закриття розриву». Тільки перегляд — менеджер планує його
-  // на наступний місяць, у поточному фіксуємо лише факт.
-  const UnplannedRow = ({ clientId, clientName, factAmount, category }: {
-    clientId: string; clientName: string; factAmount: number;
-    category: Client1C['category'];
-  }) => (
-    <div key={`unplanned-${clientId}`}
-         className="bg-white/60 rounded-2xl border border-dashed border-fuchsia-300/60 px-5 py-3 flex items-center gap-3">
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-fuchsia-50 shrink-0">
-        <AlertCircle className="h-4 w-4 text-fuchsia-500" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-[13px] font-semibold truncate">{clientName}</p>
-          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-fuchsia-50 text-fuchsia-700 font-bold whitespace-nowrap">
-            не було в плані
-          </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f4f7fb] text-muted-foreground font-semibold whitespace-nowrap">
-            {categoryLabel(category)}
-          </span>
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-0.5">Запланувати можна на наступний місяць</p>
-      </div>
-      <div className="text-right shrink-0">
-        <p className="text-[10px] text-muted-foreground">Факт</p>
-        <p className="text-[14px] font-bold text-emerald-600 amount">{formatUSD(factAmount)}</p>
-      </div>
-    </div>
-  );
-
-  // Підпис option-а у select навчань: "[Тип] DD.MM — Назва". Тип допомагає
-  // менеджеру одразу бачити що це Семінар vs Майстер-клас vs інше.
-  const formatTrainingOption = (t: { date: string; trainingName: string; trainingType?: string }, maxNameLen = 50) => {
-    const name = t.trainingName.length > maxNameLen
-      ? t.trainingName.slice(0, maxNameLen) + '…'
-      : t.trainingName;
-    const typePrefix = t.trainingType ? `[${t.trainingType}] ` : '';
-    return `${typePrefix}${formatDate(t.date)} — ${name}`;
-  };
+  // UnplannedRow винесено у sections/forecast-section.tsx (Day 8)
+  // (gap-closure section ще використовує inline-варіант — буде винесено далі)
 
   return (
     <div className="space-y-6">
@@ -1321,984 +1082,101 @@ export function PlanningForm({
         </div>
       )}
 
-      {/* Sticky save bar — приліплений під AppHeader (top-[56px]). Раніше було
-          `sticky bottom-0`, але у довгій формі (25+ клієнтів × 3 категорії)
-          адмін мусив скролити аж до низу, щоб натиснути «Фіналізувати» /
-          «Розфіналізувати». Тепер кнопки одразу під breadcrumb-ом і прилипають
-          до верху при скролі — доступні без скролу.
-          Day 14 #2: bar показуємо навіть коли план фіналізований (lockEdit=true для
-          non-admin), щоб менеджер міг зберегти оновлені stage_comment. Backend
-          filtered-mode (Етап 2) пропустить лише ці поля.
-          Save bar ховаємо коли window закритий не-адміну (техноботи /
-          global-block / user-block / поза вікном). Admin завжди бачить
-          кнопки — він має bypass усіх обмежень. */}
-      {!readOnly && (isAdmin || !isWindowLocked) && (
-        <div className="sticky top-[56px] -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-b border-[#e2e7ef] flex flex-wrap items-center justify-end gap-2 md:gap-3 z-30">
-          {lastSavedAt && !saveResult && (
-            <span className="text-[11px] text-muted-foreground mr-auto">
-              Остання чернетка: {new Date(lastSavedAt).toLocaleString('uk-UA', {
-                day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit',
-              })}
-            </span>
-          )}
-          {saveResult && (
-            <span className={`text-[13px] font-medium px-3 py-1.5 rounded-lg backdrop-blur-sm border ${
-              saveResult.ok ? 'bg-emerald-500/12 border-emerald-300/40 text-emerald-700' : 'bg-rose-500/12 border-rose-300/40 text-rose-700'
-            }`} role="status">
-              {saveResult.msg}
-            </span>
-          )}
-          <Button
-            onClick={handleSave}
-            disabled={saving || finalizing}
-            className="flex-1 md:flex-initial gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
-          >
-            {saving ? (
-              <>
-                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-label="Збереження..."><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                Зберігаю...
-              </>
-            ) : (
-              <><Save className="h-4 w-4" /> {isFinalized && !isAdmin ? (stageUnlockedAfterFinalize ? 'Зберегти етапи + коментарі' : 'Зберегти коментарі') : 'Зберегти чернетку'}</>
-            )}
-          </Button>
-          {!isFinalized && (
-            <Button
-              onClick={handleFinalize}
-              disabled={saving || finalizing}
-              className="flex-1 md:flex-initial gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
-              title="Заблокувати план від подальших змін сум і списку клієнтів"
-            >
-              <Lock className="h-4 w-4" />
-              <span className="md:hidden">{finalizing ? 'Зберігаю…' : 'Фіналізувати'}</span>
-              <span className="hidden md:inline">{finalizing ? 'Зберігаю…' : 'Фінальне збереження'}</span>
-            </Button>
-          )}
-          {isFinalized && canUnfinalize && (
-            <Button
-              onClick={handleUnfinalize}
-              disabled={saving || finalizing}
-              className="flex-1 md:flex-initial gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
-              title="Зняти фіналізацію — дозволити менеджеру редагувати"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span className="md:hidden">{finalizing ? 'Розфін…' : 'Розфіналіз.'}</span>
-              <span className="hidden md:inline">{finalizing ? 'Розфіналізую…' : 'Розфіналізувати'}</span>
-            </Button>
-          )}
-        </div>
-      )}
+      {/* Sticky save bar — винесено у sections/planning-save-bar (Day 8) */}
+      <PlanningSaveBar
+        readOnly={readOnly}
+        isAdmin={isAdmin}
+        isWindowLocked={isWindowLocked}
+        isFinalized={isFinalized}
+        stageUnlockedAfterFinalize={stageUnlockedAfterFinalize}
+        canUnfinalize={canUnfinalize}
+        lastSavedAt={lastSavedAt}
+        saveResult={saveResult}
+        saving={saving}
+        finalizing={finalizing}
+        handleSave={handleSave}
+        handleFinalize={handleFinalize}
+        handleUnfinalize={handleUnfinalize}
+      />
 
-      {/* Метрики */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {(() => {
-          const prevFactPct = prevMonthPlanAmount > 0
-            ? (prevMonthFactAmount / prevMonthPlanAmount) * 100
-            : 0;
-          const factSubline = prevMonthFactAmount > 0
-            ? `Мин. міс.: ${formatUSD(prevMonthFactAmount)} · ${prevFactPct.toFixed(1)}%`
-            : null;
-          const plannedAmountForSegment = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0)
-            + gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-          const planSubline = plannedAmountForSegment > 0
-            ? `Заплановано: ${formatUSD(plannedAmountForSegment)}`
-            : null;
-          type Metric = {
-            label: string;
-            value: string;
-            icon: React.ReactNode;
-            grad: string;
-            isAmount: boolean;
-            badge?: { text: string; ok: boolean };
-            subline?: string;
-          };
-          const metrics: Metric[] = [
-            { label: 'План місяця', value: formatUSD(planAmount), icon: <Target className="h-4.5 w-4.5" />, grad: 'from-emet-blue to-emet-blue-light', isAmount: true, subline: planSubline ?? undefined },
-            { label: `Очікуване на ${formatDateShort(currentPeriod.weekEnd)} (${passedWorkingDays} р.д.)`, value: formatUSD(Math.round(expectedAmount)), icon: <Clock className="h-4.5 w-4.5" />, grad: 'from-emet-blue to-emet-blue-light', isAmount: true },
-            { label: 'Факт', value: formatUSD(factAmount), icon: <DollarSign className="h-4.5 w-4.5" />, grad: 'from-emerald-500 to-teal-600', badge: { text: `${factPct.toFixed(1)}%`, ok: factPct >= expectedPct }, isAmount: true, subline: factSubline ?? undefined },
-            { label: 'Відхилення', value: `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}%`, icon: deviation >= 0 ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />, grad: deviation >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600', isAmount: false },
-          ];
-          return metrics.map(m => (
-            <div key={m.label} className="glass-card p-4 relative overflow-hidden">
-              <div className="flex items-center gap-2.5 mb-2">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br ${m.grad} text-white`}>{m.icon}</div>
-                {m.badge && (
-                  <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm border ${m.badge.ok ? 'bg-emerald-500/12 border-emerald-300/40 text-emerald-600' : 'bg-rose-500/12 border-rose-300/40 text-rose-600'}`}>
-                    {m.badge.ok ? <ArrowUpRight className="inline h-2.5 w-2.5" /> : <ArrowDownRight className="inline h-2.5 w-2.5" />} {m.badge.text}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-muted-foreground font-medium">{m.label}</p>
-              <p className={`text-xl font-extrabold tracking-tight ${m.isAmount ? 'amount' : ''}`}>{m.value}</p>
-              {m.subline && (
-                <p className="text-[11px] text-muted-foreground mt-1 truncate" title={m.subline}>{m.subline}</p>
-              )}
-            </div>
-          ));
-        })()}
-      </div>
+      {/* 4-метрики рядок — винесено у sections/planning-metrics-row (Day 8) */}
+      <PlanningMetricsRow
+        planAmount={planAmount}
+        factAmount={factAmount}
+        expectedAmount={expectedAmount}
+        factPct={factPct}
+        expectedPct={expectedPct}
+        deviation={deviation}
+        passedWorkingDays={passedWorkingDays}
+        periodEndDate={currentPeriod.weekEnd}
+        prevMonthFactAmount={prevMonthFactAmount}
+        prevMonthPlanAmount={prevMonthPlanAmount}
+        forecasts={forecasts}
+        gapClosures={gapClosures}
+      />
 
-      {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === */}
-      <div className="glass-card overflow-hidden">
-        <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
-          <h3 className="text-[14px] font-bold">Дані по клієнтах по ТМ</h3>
-          {clientsLoading && (
-            <span className="flex items-center gap-1.5 text-[11px] text-emet-blue font-medium">
-              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Завантажуємо клієнтів…
-            </span>
-          )}
-          {clientsError && <span className="text-[11px] text-rose-600" title={clientsError}>1С недоступний — показуємо порожньо</span>}
-        </div>
-        {clientsLoading && segmentClients.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
-            <p className="text-[12px]">Збираємо активних, сплячих, нових клієнтів…</p>
-          </div>
-        ) : (
-        <div className="divide-y divide-[#f0f2f8]">
-          {categories.map(cat => (
-            <div key={cat.category} className="px-4 md:px-5 py-3">
-              {/* Desktop — grid рядок як було */}
-              <div className="hidden md:grid md:grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb] shrink-0">{CAT_ICONS[cat.category]}</div>
-                <p className="text-[13px] font-medium">{cat.label}</p>
-                <div className="text-right"><p className="text-[10px] text-muted-foreground">Заплан.</p><p className="text-[14px] font-bold">{cat.clientCount}</p></div>
-                <div className="text-right"><p className="text-[10px] text-muted-foreground">Очікувана сума</p><p className="text-[14px] font-bold font-mono amount">{formatUSD(cat.expectedAmount)}</p></div>
-                <div className="text-right"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-emerald-700">{formatUSD(cat.factAmount)}</p></div>
-                <div className="text-right"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-emet-blue">{cat.planCoveragePercent.toFixed(1)}%</p></div>
-              </div>
-              {/* Mobile — header (іконка+назва) + 2×2 grid метрик */}
-              <div className="md:hidden flex flex-col gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#f4f7fb] shrink-0">{CAT_ICONS[cat.category]}</div>
-                  <p className="text-[13px] font-semibold leading-tight">{cat.label}</p>
-                </div>
-                <div className="grid grid-cols-4 gap-x-2 pl-[42px]">
-                  <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Заплан.</p><p className="text-[13px] font-bold tabular-nums">{cat.clientCount}</p></div>
-                  <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Очікув.</p><p className="text-[12px] font-bold font-mono amount tabular-nums">{formatUSD(cat.expectedAmount)}</p></div>
-                  <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Факт</p><p className="text-[12px] font-bold font-mono amount tabular-nums text-emerald-700">{formatUSD(cat.factAmount)}</p></div>
-                  <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">% план</p><p className="text-[13px] font-bold tabular-nums text-emet-blue">{cat.planCoveragePercent.toFixed(1)}%</p></div>
-                </div>
-              </div>
-            </div>
-          ))}
-          {/* Незаплановані — покупці яких немає у плані менеджера, але вони
-              вже купують у поточному місяці. Розбиваємо по 4 категоріях
-              (active/sleeping/lost/new/none). Сума = факт продажів. */}
-          {unplannedAll.length > 0 && (() => {
-            const unplannedTotal = unplannedAll.reduce((s, b) => s + b.factAmount, 0);
-            const unplannedPct = pctOf(unplannedTotal, planAmount);
-            const subRows: Array<[string, typeof unplannedAll]> = [
-              ['Активний', unplannedByCategory.active],
-              ['Сплячий', unplannedByCategory.sleeping],
-              ['Втрачений', unplannedByCategory.lost],
-              ['Новий', unplannedByCategory.new],
-              ['Без закупок', unplannedByCategory.none],
-            ];
-            return (
-              <>
-                <div className="px-4 md:px-5 py-3 bg-fuchsia-50/40">
-                  {/* Desktop */}
-                  <div className="hidden md:grid md:grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fuchsia-100">
-                      <AlertCircle className="h-4 w-4 text-fuchsia-600" />
-                    </div>
-                    <p className="text-[13px] font-semibold">Незаплановані <span className="text-[10px] text-muted-foreground font-normal">(купили без плану)</span></p>
-                    <div className="text-right"><p className="text-[10px] text-muted-foreground">Купили</p><p className="text-[14px] font-bold">{unplannedAll.length}</p></div>
-                    <div className="text-right"><p className="text-[10px] text-muted-foreground">—</p><p className="text-[14px] font-bold text-muted-foreground/40">—</p></div>
-                    <div className="text-right"><p className="text-[10px] text-muted-foreground">Факт</p><p className="text-[14px] font-bold font-mono amount text-fuchsia-700">{formatUSD(unplannedTotal)}</p></div>
-                    <div className="text-right"><p className="text-[10px] text-muted-foreground">% план</p><p className="text-[14px] font-bold text-fuchsia-700">{unplannedPct.toFixed(1)}%</p></div>
-                  </div>
-                  {/* Mobile */}
-                  <div className="md:hidden flex flex-col gap-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fuchsia-100 shrink-0">
-                        <AlertCircle className="h-4 w-4 text-fuchsia-600" />
-                      </div>
-                      <p className="text-[13px] font-semibold leading-tight">Незаплановані <span className="text-[10px] text-muted-foreground font-normal">(без плану)</span></p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-x-2 pl-[42px]">
-                      <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Купили</p><p className="text-[13px] font-bold tabular-nums">{unplannedAll.length}</p></div>
-                      <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Факт</p><p className="text-[12px] font-bold font-mono amount tabular-nums text-fuchsia-700">{formatUSD(unplannedTotal)}</p></div>
-                      <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">% план</p><p className="text-[13px] font-bold tabular-nums text-fuchsia-700">{unplannedPct.toFixed(1)}%</p></div>
-                    </div>
-                  </div>
-                </div>
-                {subRows.filter(([, items]) => items.length > 0).map(([label, items]) => {
-                  const sum = items.reduce((s, b) => s + b.factAmount, 0);
-                  return (
-                    <div key={`unp-${label}`}
-                         className="flex items-center justify-between gap-3 px-5 md:px-5 py-2 md:pl-12 pl-12 bg-fuchsia-50/20">
-                      <p className="text-[12px] text-muted-foreground flex-1 min-w-0 truncate">↳ {label} <span className="text-muted-foreground/70">· {items.length}</span></p>
-                      <p className="text-[12px] font-mono amount text-muted-foreground shrink-0">{formatUSD(sum)}</p>
-                    </div>
-                  );
-                })}
-              </>
-            );
-          })()}
-
-          <div className="px-4 md:px-5 py-3 bg-[#f4f7fb]">
-            {/* Desktop */}
-            <div className="hidden md:grid md:grid-cols-[32px_1fr_70px_100px_90px_60px] gap-3 items-center">
-              <div />
-              <p className="text-[13px] font-bold">Всього</p>
-              <p className="text-[14px] font-bold text-right">{totalCatClients}</p>
-              <p className="text-[14px] font-bold font-mono text-right amount">{formatUSD(totalCatAmount)}</p>
-              <p className="text-[14px] font-bold font-mono text-right amount text-emerald-700">{formatUSD(totalCatFact)}</p>
-              <p className="text-[14px] font-bold text-emet-blue text-right">{totalCatPct.toFixed(1)}%</p>
-            </div>
-            {/* Mobile */}
-            <div className="md:hidden flex flex-col gap-2">
-              <p className="text-[13px] font-bold">Всього</p>
-              <div className="grid grid-cols-4 gap-x-2 pl-2">
-                <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Клієнтів</p><p className="text-[13px] font-bold tabular-nums">{totalCatClients}</p></div>
-                <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Очікув.</p><p className="text-[12px] font-bold font-mono amount tabular-nums">{formatUSD(totalCatAmount)}</p></div>
-                <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">Факт</p><p className="text-[12px] font-bold font-mono amount tabular-nums text-emerald-700">{formatUSD(totalCatFact)}</p></div>
-                <div><p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">% план</p><p className="text-[13px] font-bold tabular-nums text-emet-blue">{totalCatPct.toFixed(1)}%</p></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        )}
-      </div>
-
-      {/* === ПРОГНОЗ ПО АКТИВНИХ КЛІЄНТАХ === */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-[15px] font-bold">Прогноз по активних клієнтах</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Клієнти які купували цей сегмент за останні 3 місяці</p>
-          </div>
-          {!lockEdit && (
-            <Button onClick={() => setSearchOpen(true)}
-              className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-9 px-4 text-[13px]">
-              <Search className="h-3.5 w-3.5" /> Додати клієнта
-            </Button>
-          )}
-        </div>
-
-        {/* Bulk action bar — fixed над save bar щоб не треба було скролити
-            нагору для кнопки видалення при довгих списках. */}
-        {!lockEdit && selectedForecasts.size > 0 && (
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50/85 backdrop-blur-xl border-2 border-rose-300/80 shadow-[0_10px_40px_rgba(159,18,57,0.18)]">
-            <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedForecasts.size}</span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setSelectedForecasts(new Set())}
-                className="text-[12px] font-semibold text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-white/60 transition-colors">
-                Скасувати
-              </button>
-              <button onClick={bulkDeleteForecasts}
-                className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-rose-600 hover:bg-rose-700 px-4 py-1.5 rounded-lg transition-colors">
-                <Trash2 className="h-3.5 w-3.5" /> Видалити обраних
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Заголовок колонок (тільки на md+) */}
-        <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
-          {!lockEdit && sortedForecasts.length > 0 ? (
-            <input
-              type="checkbox"
-              aria-label="Обрати всіх"
-              className="h-4 w-4 cursor-pointer accent-rose-600"
-              checked={selectedForecasts.size === sortedForecasts.filter(r => !r.completed).length && sortedForecasts.filter(r => !r.completed).length > 0}
-              onChange={(e) => {
-                if (e.target.checked) setSelectedForecasts(new Set(sortedForecasts.filter(r => !r.completed).map(r => r.clientId1c)));
-                else setSelectedForecasts(new Set());
-              }}
-            />
-          ) : <div />}
-          <div />
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Прогноз</p>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Етап</p>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Статус</p>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Коментар</p>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Факт</p>
-          <div />
-        </div>
-
-        {clientsLoading && sortedForecasts.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground glass-card border border-[#e8ebf4]/50">
-            <svg className="h-5 w-5 animate-spin text-emet-blue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <p className="text-[12px] font-medium">Завантажуємо клієнтів…</p>
-          </div>
-        )}
-        <div className="space-y-2">
-          {unplannedSplit.forecast.length > 0 && sortedForecasts.length > 0 && (
-            <div className="px-5 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Запланованих: {sortedForecasts.length}
-            </div>
-          )}
-          {sortedForecasts.map((row) => {
-            const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
-            return (
-              <div key={row.clientId1c} className={`glass-card overflow-hidden transition-all duration-200 ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : ''}`}>
-                {/* === DESKTOP (md+) === */}
-                <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
-                  {/* Чекбокс multi-select (тільки для незавершених) */}
-                  {!lockEdit && !(row.completed && !isAdmin) ? (
-                    <input
-                      type="checkbox"
-                      aria-label={`Обрати ${row.clientName}`}
-                      className="h-4 w-4 cursor-pointer accent-rose-600"
-                      checked={selectedForecasts.has(row.clientId1c)}
-                      onChange={() => toggleForecast(row.clientId1c)}
-                    />
-                  ) : <div />}
-                  {/* Іконка статусу */}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${(row.completed && !isAdmin) ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
-                    {(row.completed && !isAdmin) ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
-                  </div>
-
-                  {/* Клієнт */}
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold truncate">
-                      {row.clientName}
-                      {isPassiveAmount(row.forecastAmount) && (
-                        <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-zinc-100 text-zinc-500 align-middle">без плану</span>
-                      )}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span>
-                    </p>
-                  </div>
-
-                  {/* Прогноз */}
-                  {(row.completed && !isAdmin) ? (
-                    <div className="flex items-center justify-end gap-1">
-                      <Lock className="h-3 w-3 text-muted-foreground/40" />
-                      <span className="text-[14px] font-bold text-muted-foreground amount">{formatUSD(row.forecastAmount)}</span>
-                    </div>
-                  ) : (
-                    <Input type="number" value={row.forecastAmount}
-                      onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
-                      disabled={lockEdit}
-                      className="amount h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
-                  )}
-
-                  {/* Етап */}
-                  <Select
-                    value={row.stage || undefined}
-                    onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v)}
-                    disabled={lockStage}
-                  >
-                    <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockStage}>
-                      <SelectValue placeholder="Обрати" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STAGE_OPTIONS.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Статус */}
-                  {row.stage ? (
-                    <div className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold ${
-                      row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
-                    }`}>
-                      <StageIcon className="h-3 w-3" />
-                      {row.stageDone ? 'Виконано' : 'Очікується'}
-                    </div>
-                  ) : (
-                    <div className="h-8 flex items-center justify-center text-[11px] text-muted-foreground/40">—</div>
-                  )}
-
-                  {/* Коментар або Навчання + коментар */}
-                  {row.stage === 'Навчання' ? (
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={row.trainingId || undefined}
-                        onValueChange={(trainingId) => {
-                          const t = trainings.find(x => x.trainingId === trainingId);
-                          updateForecast(row.clientId1c, 'trainingId', trainingId);
-                          if (t) {
-                            updateForecast(row.clientId1c, 'trainingName', t.trainingName);
-                            updateForecast(row.clientId1c, 'trainingDate', t.date);
-                          }
-                        }}
-                        disabled={lockEdit}
-                      >
-                        <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
-                          {/* Якщо тренінг не у поточному списку 1С (наприклад минулий) —
-                              Radix Select показав би raw ID. Override через children:
-                              беремо збережене row.trainingName з БД. */}
-                          <SelectValue placeholder="Обрати навчання з 1С...">
-                            {row.trainingId ? (row.trainingName || row.trainingId) : null}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {trainings.map(t => (
-                            <SelectItem key={t.trainingId} value={t.trainingId}>
-                              <span className="text-[12px]">
-                                {formatTrainingOption(t, 50)}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                        disabled={readOnly}
-                        className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
-                    </div>
-                  ) : (
-                    <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                      disabled={readOnly}
-                      className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Ціль..." />
-                  )}
-
-                  {/* Факт */}
-                  <p className={`text-[14px] font-bold text-right ${row.factAmount > 0 ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
-                    {row.factAmount > 0 ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
-                  </p>
-
-                  {/* Видалити */}
-                  {!lockEdit && !(row.completed && !isAdmin) ? (
-                    <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
-                      className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  ) : <div />}
-                </div>
-
-                {/* === MOBILE (<md): vertical-stack картка === */}
-                <div className="md:hidden p-4 space-y-3">
-                  {/* Шапка: чекбокс + іконка + ім'я + delete */}
-                  <div className="flex items-start gap-3">
-                    {!lockEdit && !(row.completed && !isAdmin) && (
-                      <input
-                        type="checkbox"
-                        aria-label={`Обрати ${row.clientName}`}
-                        className="h-5 w-5 mt-2 cursor-pointer accent-rose-600 shrink-0"
-                        checked={selectedForecasts.has(row.clientId1c)}
-                        onChange={() => toggleForecast(row.clientId1c)}
-                      />
-                    )}
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${(row.completed && !isAdmin) ? 'bg-emerald-100' : 'bg-[#f4f7fb]'}`}>
-                      {(row.completed && !isAdmin) ? <Check className="h-4 w-4 text-emerald-600" /> : <DollarSign className="h-4 w-4 text-muted-foreground" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-semibold leading-tight">
-                        {row.clientName}
-                        {isPassiveAmount(row.forecastAmount) && (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-zinc-100 text-zinc-500 align-middle">без плану</span>
-                        )}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Ост: {row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span>
-                      </p>
-                    </div>
-                    {!lockEdit && !(row.completed && !isAdmin) && (
-                      <button onClick={() => removeForecast(row.clientId1c)} aria-label="Видалити клієнта"
-                        className="p-2.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Прогноз + Факт у двох колонках */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Прогноз</label>
-                      {(row.completed && !isAdmin) ? (
-                        <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.forecastAmount)}</p>
-                      ) : (
-                        <Input type="number" value={row.forecastAmount}
-                          onChange={(e) => updateForecast(row.clientId1c, 'forecastAmount', parseFloat(e.target.value) || 0)}
-                          disabled={lockEdit}
-                          className="amount h-9 w-full text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1" />
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Факт</label>
-                      <p className={`text-[14px] font-bold mt-1.5 ${row.factAmount > 0 ? 'text-emerald-600' : 'text-muted-foreground/40'}`}>
-                        {row.factAmount > 0 ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Етап + статус */}
-                  <div>
-                    <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Етап</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Select
-                        value={row.stage || undefined}
-                        onValueChange={(v) => updateForecast(row.clientId1c, 'stage', v)}
-                        disabled={lockStage}
-                      >
-                        <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockStage}>
-                          <SelectValue placeholder="Обрати" />
-                        </SelectTrigger>
-                        <SelectContent>
-                              {STAGE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {row.stage && (
-                        <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${
-                          row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
-                        }`}>
-                          <StageIcon className="h-3 w-3" />
-                          {row.stageDone ? 'Викон.' : 'Очік.'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Коментар (+ Навчання якщо stage='Навчання') */}
-                  <div>
-                    <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Коментар</label>
-                    {row.stage === 'Навчання' && (
-                      <Select
-                        value={row.trainingId || undefined}
-                        onValueChange={(trainingId) => {
-                          const t = trainings.find(x => x.trainingId === trainingId);
-                          updateForecast(row.clientId1c, 'trainingId', trainingId);
-                          if (t) {
-                            updateForecast(row.clientId1c, 'trainingName', t.trainingName);
-                            updateForecast(row.clientId1c, 'trainingDate', t.date);
-                          }
-                        }}
-                        disabled={lockEdit}
-                      >
-                        <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={lockEdit}>
-                          <SelectValue placeholder="Обрати навчання...">
-                            {row.trainingId ? (row.trainingName || row.trainingId) : null}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {trainings.map(t => (
-                            <SelectItem key={t.trainingId} value={t.trainingId}>
-                              <span className="text-[12px]">{formatTrainingOption(t, 40)}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <Input value={row.stageComment} onChange={(e) => updateForecast(row.clientId1c, 'stageComment', e.target.value)}
-                      disabled={readOnly}
-                      className="h-9 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1"
-                      placeholder={row.stage === 'Навчання' ? 'Коментар (необов\'язково)...' : 'Ціль...'} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Незаплановані покупці (категорія `active`) — read-only внизу.
-              Купив без плану цього місяця, але активний — закладемо на наступний. */}
-          {unplannedSplit.forecast.length > 0 && (
-            <>
-              <div className="px-5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-fuchsia-700">
-                Незапланованих: {unplannedSplit.forecast.length}
-              </div>
-              {unplannedSplit.forecast.map(b => (
-                <UnplannedRow key={`fc-unp-${b.clientId}`}
-                  clientId={b.clientId} clientName={b.clientName}
-                  factAmount={b.factAmount} category={b.category} />
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* Підсумок прогнозу */}
-        {forecasts.length > 0 && (
-          <div className="mt-3 bg-[#f4f7fb] rounded-2xl p-4 flex items-center gap-6 flex-wrap">
-            <div><span className="text-[11px] text-muted-foreground">Прогноз</span><p className="text-lg font-extrabold amount">{formatUSD(forecastTotal)}</p></div>
-            <div className="w-px h-8 bg-[#e2e7ef]" />
-            <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600 amount">{formatUSD(forecastFactTotal)}</p></div>
-            <div className="w-px h-8 bg-[#e2e7ef]" />
-            <div><span className="text-[11px] text-muted-foreground">Незавершено</span><p className="text-lg font-extrabold amount">{formatUSD(pendingForecastTotal)}</p></div>
-            <div className="w-px h-8 bg-[#e2e7ef]" />
-            <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{activeForecastCount} <span className="text-emerald-600 text-sm">({forecasts.filter(f => f.completed && !isPassiveAmount(f.forecastAmount)).length} ✓)</span></p></div>
-          </div>
-        )}
-      </div>
-
-      {/* === ЗАКРИТТЯ РОЗРИВУ === */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h3 className="text-[15px] font-bold">Закриття розриву</h3>
-              {gapAfterForecast > 0 ? (
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/12 border border-rose-300/40 text-rose-600 backdrop-blur-sm">
-                  <AlertTriangle className="h-3 w-3" /> <span className="amount">{formatUSD(Math.round(gapAfterForecast))}</span>
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/12 border border-emerald-300/40 text-emerald-600 backdrop-blur-sm">Покрито</span>
-              )}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Очікуване <span className="amount">{formatUSD(Math.round(expectedAmount))}</span> − факт <span className="amount">{formatUSD(factAmount)}</span> − прогноз <span className="amount">{formatUSD(pendingForecastTotal)}</span> = розрив <span className="amount">{formatUSD(Math.round(gapAfterForecast))}</span>
-            </p>
-          </div>
-          {!lockEdit && (
-            <Button onClick={() => setGapSearchOpen(true)}
-              className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-9 px-4 text-[13px]">
-              <Search className="h-3.5 w-3.5" /> Додати клієнта
-            </Button>
-          )}
-        </div>
-
-        {clientsLoading && gapClosures.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground glass-card border border-[#e8ebf4]/50">
-            <svg className="h-5 w-5 animate-spin text-emet-blue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <p className="text-[12px] font-medium">Завантажуємо клієнтів…</p>
-          </div>
-        )}
-        {/* Bulk action bar для gap-closures — fixed над save bar */}
-        {!lockEdit && selectedGaps.size > 0 && (
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-[80px] z-30 max-w-3xl w-[calc(100%-32px)] flex items-center justify-between px-5 py-2.5 rounded-xl bg-rose-50/85 backdrop-blur-xl border-2 border-rose-300/80 shadow-[0_10px_40px_rgba(159,18,57,0.18)]">
-            <span className="text-[13px] font-semibold text-rose-700">Обрано: {selectedGaps.size}</span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setSelectedGaps(new Set())}
-                className="text-[12px] font-semibold text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-white/60 transition-colors">
-                Скасувати
-              </button>
-              <button onClick={bulkDeleteGaps}
-                className="flex items-center gap-1.5 text-[12px] font-semibold text-white bg-rose-600 hover:bg-rose-700 px-4 py-1.5 rounded-lg transition-colors">
-                <Trash2 className="h-3.5 w-3.5" /> Видалити обраних
-              </button>
-            </div>
-          </div>
-        )}
-        {(gapClosures.length > 0 || unplannedSplit.gap.length > 0) && (
-          <div>
-            {/* Заголовки колонок (тільки md+) */}
-            {gapClosures.length > 0 && (
-              <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 px-5 mb-1">
-                {!lockEdit ? (
-                  <input
-                    type="checkbox"
-                    aria-label="Обрати всіх"
-                    className="h-4 w-4 cursor-pointer accent-rose-600"
-                    checked={selectedGaps.size === gapClosures.filter(r => !r.completed).length && gapClosures.filter(r => !r.completed).length > 0}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        const next = new Set<number>();
-                        gapClosures.forEach((r, i) => { if (!r.completed) next.add(i); });
-                        setSelectedGaps(next);
-                      } else setSelectedGaps(new Set());
-                    }}
-                  />
-                ) : <div />}
-                <div />
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Клієнт</p>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Потенціал</p>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Етап</p>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Статус</p>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Дія / Навчання</p>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Факт</p>
-                <div />
-              </div>
-            )}
-
-            <div className="space-y-2">
-            {sortedGapClosures.map(({ row, originalIndex: i }) => {
-              const hasFact = row.factAmount > 0;
-              const StageIcon = row.stage === 'Зустріч' ? Calendar : row.stage === 'Навчання' ? GraduationCap : row.stage === 'Мессенджер' ? MessageCircle : Phone;
-              return (
-                <div key={row.clientId1c || `idx-${i}`} className={`glass-card overflow-hidden ${(row.completed && !isAdmin) ? 'ring-1 ring-emerald-200 opacity-60' : hasFact ? 'ring-1 ring-emerald-200' : ''}`}>
-                  {/* === DESKTOP (md+) === */}
-                  <div className="hidden md:grid md:grid-cols-[24px_36px_minmax(160px,1fr)_80px_120px_90px_minmax(140px,1fr)_70px_32px] gap-2 items-center px-5 py-3">
-                    {/* Чекбокс multi-select */}
-                    {!lockEdit && !(row.completed && !isAdmin) ? (
-                      <input
-                        type="checkbox"
-                        aria-label={`Обрати ${row.clientName}`}
-                        className="h-4 w-4 cursor-pointer accent-rose-600"
-                        checked={selectedGaps.has(i)}
-                        onChange={() => toggleGap(i)}
-                      />
-                    ) : <div />}
-                    {/* Іконка */}
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${(row.completed && !isAdmin) || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
-                      {(row.completed && !isAdmin) || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                    </div>
-
-                    {/* Клієнт */}
-                    <div className="min-w-0">
-                      {row.manuallyAdded ? (
-                        <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)}
-                          disabled={lockEdit}
-                          className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
-                      ) : (
-                        <p className="text-[13px] font-semibold truncate">
-                          {row.clientName}
-                          {isPassiveAmount(row.potentialAmount) && (
-                            <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-zinc-100 text-zinc-500 align-middle">без плану</span>
-                          )}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm font-semibold">{row.category}</span>}
-                        <span className="text-[10px] text-muted-foreground truncate">
-                          {row.lastPurchaseDate ? <>{formatDate(row.lastPurchaseDate)} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span></> : ''}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Потенціал */}
-                    {(row.completed && !isAdmin) ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <Lock className="h-3 w-3 text-muted-foreground/40" />
-                        <span className="text-[14px] font-bold text-muted-foreground amount">{formatUSD(row.potentialAmount)}</span>
-                      </div>
-                    ) : (
-                      <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)}
-                        disabled={lockEdit}
-                        className="amount h-8 w-full text-right text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg" />
-                    )}
-
-                    {/* Етап */}
-                    <Select
-                      value={row.stage || undefined}
-                      onValueChange={(v) => updateGap(i, 'stage', v)}
-                      disabled={lockStage}
-                    >
-                      <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockStage}>
-                        <SelectValue placeholder="Обрати" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {STAGE_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.value}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {/* Статус */}
-                    {row.stage ? (
-                      <div className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold ${
-                        row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'
-                      }`}>
-                        <StageIcon className="h-3 w-3" />
-                        {row.stageDone ? 'Виконано' : 'Очікується'}
-                      </div>
-                    ) : (
-                      <div className="h-8 flex items-center justify-center text-[11px] text-muted-foreground/40">—</div>
-                    )}
-
-                    {/* Дія / Навчання — Навчання показує селектор + комментар, інакше тільки коментар */}
-                    {row.stage === 'Навчання' ? (
-                      <div className="flex flex-col gap-1">
-                        <Select
-                          value={row.trainingId || undefined}
-                          onValueChange={(trainingId) => {
-                            const t = trainings.find(x => x.trainingId === trainingId);
-                            updateGap(i, 'trainingId', trainingId);
-                            if (t) {
-                              updateGap(i, 'trainingName', t.trainingName);
-                              updateGap(i, 'trainingDate', t.date);
-                              updateGap(i, 'deadline', t.date);
-                            }
-                          }}
-                          disabled={lockEdit}
-                        >
-                          <SelectTrigger className="h-8 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockEdit}>
-                            <SelectValue placeholder="Обрати навчання з 1С...">
-                              {row.trainingId ? (row.trainingName || row.trainingId) : null}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {trainings.map(t => (
-                              <SelectItem key={t.trainingId} value={t.trainingId}>
-                                <span className="text-[12px]">
-                                  {formatTrainingOption(t, 50)}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
-                          disabled={readOnly}
-                          className="h-7 text-[11px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
-                      </div>
-                    ) : (
-                      <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)}
-                        disabled={readOnly}
-                        className="h-8 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg" placeholder="Коментар (необов'язково)..." />
-                    )}
-
-                    {/* Факт */}
-                    <p className={`text-[14px] font-bold text-right ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/30'}`}>
-                      {hasFact ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
-                    </p>
-
-                    {/* Видалити */}
-                    {!lockEdit ? (
-                      <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
-                        className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground/20 hover:text-rose-500 transition-colors cursor-pointer">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    ) : <div />}
-                  </div>
-
-                  {/* === MOBILE (<md): vertical-stack картка === */}
-                  <div className="md:hidden p-4 space-y-3">
-                    {/* Шапка */}
-                    <div className="flex items-start gap-3">
-                      {!lockEdit && !(row.completed && !isAdmin) && (
-                        <input
-                          type="checkbox"
-                          aria-label={`Обрати ${row.clientName}`}
-                          className="h-5 w-5 mt-2 cursor-pointer accent-rose-600 shrink-0"
-                          checked={selectedGaps.has(i)}
-                          onChange={() => toggleGap(i)}
-                        />
-                      )}
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${(row.completed && !isAdmin) || hasFact ? 'bg-emerald-100' : 'bg-amber-50'}`}>
-                        {(row.completed && !isAdmin) || hasFact ? <Check className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {row.manuallyAdded ? (
-                          <Input value={row.clientName} onChange={(e) => updateGap(i, 'clientName', e.target.value)} disabled={lockEdit}
-                            className="h-7 text-[13px] font-semibold border-0 shadow-none p-0 bg-transparent focus-visible:ring-0" placeholder="Ім'я клієнта..." />
-                        ) : (
-                          <p className="text-[13px] font-semibold leading-tight">
-                            {row.clientName}
-                            {isPassiveAmount(row.potentialAmount) && (
-                              <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-zinc-100 text-zinc-500 align-middle">без плану</span>
-                            )}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {row.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm font-semibold">{row.category}</span>}
-                          {row.lastPurchaseDate && (
-                            <span className="text-[10px] text-muted-foreground">{formatDate(row.lastPurchaseDate)} · <span className="amount">{formatUSD(row.lastPurchaseAmount)}</span></span>
-                          )}
-                        </div>
-                      </div>
-                      {!lockEdit && !(row.completed && !isAdmin) && (
-                        <button onClick={() => removeGapClosure(i)} aria-label="Видалити клієнта"
-                          className="p-2.5 rounded-lg hover:bg-rose-50 text-muted-foreground/40 hover:text-rose-500 transition-colors shrink-0">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Потенціал + Факт */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Потенціал</label>
-                        {(row.completed && !isAdmin) ? (
-                          <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.potentialAmount)}</p>
-                        ) : (
-                          <Input type="number" value={row.potentialAmount} onChange={(e) => updateGap(i, 'potentialAmount', parseFloat(e.target.value) || 0)} disabled={lockEdit}
-                            className="amount h-9 w-full text-[14px] font-bold border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1" />
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Факт</label>
-                        <p className={`text-[14px] font-bold mt-1.5 ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/40'}`}>
-                          {hasFact ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Етап + статус */}
-                    <div>
-                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Етап</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Select value={row.stage || undefined}
-                          onValueChange={(v) => updateGap(i, 'stage', v)}
-                          disabled={lockStage}>
-                          <SelectTrigger className="h-9 flex-1 text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe]" disabled={lockStage}>
-                            <SelectValue placeholder="Обрати" />
-                          </SelectTrigger>
-                          <SelectContent>
-                                  {STAGE_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.value}</SelectItem>))}
-                          </SelectContent>
-                        </Select>
-                        {row.stage && (
-                          <div className={`flex items-center justify-center gap-1 h-9 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap ${row.stageDone ? 'bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm' : 'bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm'}`}>
-                            <StageIcon className="h-3 w-3" />
-                            {row.stageDone ? 'Викон.' : 'Очік.'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Дія / Навчання + коментар */}
-                    <div>
-                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Дія</label>
-                      {row.stage === 'Навчання' && (
-                        <Select value={row.trainingId || undefined}
-                          onValueChange={(trainingId) => {
-                            const t = trainings.find(x => x.trainingId === trainingId);
-                            updateGap(i, 'trainingId', trainingId);
-                            if (t) { updateGap(i, 'trainingName', t.trainingName); updateGap(i, 'trainingDate', t.date); }
-                          }}
-                          disabled={lockEdit}>
-                          <SelectTrigger className="h-9 w-full text-[12px] rounded-lg border-[#e8ebf4] bg-[#fafbfe] mt-1" disabled={lockEdit}>
-                            <SelectValue placeholder="Обрати навчання...">
-                              {row.trainingId ? (row.trainingName || row.trainingId) : null}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {trainings.map(t => (
-                              <SelectItem key={t.trainingId} value={t.trainingId}>
-                                <span className="text-[12px]">{formatTrainingOption(t, 40)}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <Input value={row.stageComment} onChange={(e) => updateGap(i, 'stageComment', e.target.value)} disabled={readOnly}
-                        className="h-9 text-[12px] border-[#e8ebf4] bg-[#fafbfe] rounded-lg mt-1"
-                        placeholder={row.stage === 'Навчання' ? 'Коментар (необов\'язково)...' : 'Дія...'} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-              {/* Незаплановані з категорій Сплячий / Втрачений / Новий / БЗ —
-                  read-only внизу. Менеджер планує їх на наступний місяць. */}
-              {unplannedSplit.gap.length > 0 && (
-                <>
-                  <div className="px-5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-fuchsia-700">
-                    Незапланованих: {unplannedSplit.gap.length}
-                  </div>
-                  {unplannedSplit.gap.map(b => (
-                    <UnplannedRow key={`gap-unp-${b.clientId}`}
-                      clientId={b.clientId} clientName={b.clientName}
-                      factAmount={b.factAmount} category={b.category} />
-                  ))}
-                </>
-              )}
-            </div>
-
-            {gapClosures.length > 0 && (
-              <div className="mt-3 bg-amber-50/50 rounded-2xl border border-amber-200/30 p-4 flex items-center gap-6 flex-wrap">
-                <div><span className="text-[11px] text-muted-foreground">Потенціал</span><p className="text-lg font-extrabold amount">{formatUSD(gapTotal)}</p></div>
-                <div className="w-px h-8 bg-amber-200/40" />
-                <div><span className="text-[11px] text-muted-foreground">Факт</span><p className="text-lg font-extrabold text-emerald-600 amount">{formatUSD(gapFactTotal)}</p></div>
-                <div className="w-px h-8 bg-amber-200/40" />
-                <div><span className="text-[11px] text-muted-foreground">Клієнтів</span><p className="text-lg font-extrabold">{gapClosures.filter(g => !isPassiveAmount(g.potentialAmount)).length}</p></div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
+      {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === винесено у sections/client-data-by-tm-section (Day 8) */}
+      <ClientDataByTmSection
+        categories={categories}
+        totalCatClients={totalCatClients}
+        totalCatAmount={totalCatAmount}
+        totalCatFact={totalCatFact}
+        totalCatPct={totalCatPct}
+        unplannedAll={unplannedAll}
+        unplannedByCategory={unplannedByCategory}
+        planAmount={planAmount}
+        clientsLoading={clientsLoading}
+        clientsError={clientsError}
+        hasSegmentClients={segmentClients.length > 0}
+      />
+      {/* === ПРОГНОЗ ПО АКТИВНИХ КЛІЄНТАХ === винесено у sections/forecast-section (Day 8) */}
+      <ForecastSection
+        sortedForecasts={sortedForecasts}
+        forecasts={forecasts}
+        forecastTotal={forecastTotal}
+        forecastFactTotal={forecastFactTotal}
+        pendingForecastTotal={pendingForecastTotal}
+        activeForecastCount={activeForecastCount}
+        unplannedForecast={unplannedSplit.forecast}
+        selectedForecasts={selectedForecasts}
+        setSelectedForecasts={setSelectedForecasts}
+        toggleForecast={toggleForecast}
+        bulkDeleteForecasts={bulkDeleteForecasts}
+        updateForecast={updateForecast}
+        removeForecast={removeForecast}
+        setSearchOpen={setSearchOpen}
+        trainings={trainings}
+        lockEdit={lockEdit}
+        lockStage={lockStage}
+        readOnly={readOnly}
+        isAdmin={isAdmin}
+        clientsLoading={clientsLoading}
+      />
+      {/* === ЗАКРИТТЯ РОЗРИВУ === винесено у sections/gap-closure-section (Day 8) */}
+      <GapClosureSection
+        sortedGapClosures={sortedGapClosures}
+        gapClosures={gapClosures}
+        gapTotal={gapTotal}
+        gapFactTotal={gapFactTotal}
+        gapAfterForecast={gapAfterForecast}
+        expectedAmount={expectedAmount}
+        factAmount={factAmount}
+        pendingForecastTotal={pendingForecastTotal}
+        unplannedGap={unplannedSplit.gap}
+        selectedGaps={selectedGaps}
+        setSelectedGaps={setSelectedGaps}
+        toggleGap={toggleGap}
+        bulkDeleteGaps={bulkDeleteGaps}
+        updateGap={updateGap}
+        removeGapClosure={removeGapClosure}
+        setGapSearchOpen={setGapSearchOpen}
+        trainings={trainings}
+        lockEdit={lockEdit}
+        lockStage={lockStage}
+        readOnly={readOnly}
+        isAdmin={isAdmin}
+        clientsLoading={clientsLoading}
+      />
       {/* Дії для закриття */}
       <div className="glass-card overflow-hidden">
         <div className="px-5 py-3 border-b border-[#e2e7ef]">
@@ -2316,87 +1194,30 @@ export function PlanningForm({
         </div>
       </div>
 
-      <ConfirmDialog
-        open={showIncompleteConfirm}
-        title={(() => {
-          const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
-          const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-          return fSum + gSum < propPlanAmount
-            ? 'Увага — план неповний'
-            : 'Підтвердження фіналізації';
-        })()}
-        description={(() => {
-          const fSum = forecasts.reduce((s, f) => s + (Number(f.forecastAmount) || 0), 0);
-          const gSum = gapClosures.reduce((s, g) => s + (Number(g.potentialAmount) || 0), 0);
-          const planned = fSum + gSum;
-          const pct = propPlanAmount > 0 ? (planned / propPlanAmount) * 100 : 0;
-          if (planned < propPlanAmount) {
-            const diff = Math.max(0, propPlanAmount - planned);
-            return `Запланована сума менше за план на ${formatUSD(diff)}, відсоток планування — ${pct.toFixed(1)}%. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми.`;
-          }
-          // План повний або перевищений — теж попереджаємо що це фінальний крок.
-          const overshoot = planned - propPlanAmount;
-          const overMsg = overshoot > 0 ? ` (на ${formatUSD(overshoot)} більше за план)` : '';
-          return `Запланована сума: ${formatUSD(planned)}${overMsg}, відсоток планування — ${pct.toFixed(1)}%. Ви впевнені що хочете фіналізувати? Після цього неможливо додати клієнтів чи змінити суми (коментарі залишаються редагованими).`;
-        })()}
-        confirmLabel="Так, фіналізувати"
-        cancelLabel="Назад"
-        onConfirm={() => { setShowIncompleteConfirm(false); void doFinalize(); }}
-        onCancel={() => setShowIncompleteConfirm(false)}
-      />
-
-
-      {/* Обидва пошукові модали показують ВСІХ клієнтів менеджера. Перевірка на
-          дубль (forecast ∪ gap) робиться у addClient/addGapClient через alert. */}
-      <ClientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={addClient} excludeIds={[]} clients={allManagerClients} loading={clientsLoading} />
-      <ClientSearchModal open={gapSearchOpen} onClose={() => setGapSearchOpen(false)} onSelect={addGapClient} excludeIds={[]} clients={allManagerClients} loading={clientsLoading} />
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        title={
-          pendingDelete?.type === 'forecast-bulk'
-            ? `Видалити ${pendingDelete.ids.length} клієнтів з прогнозу?`
-            : pendingDelete?.type === 'gap-bulk'
-            ? `Видалити ${pendingDelete.indices.length} клієнтів з закриття розриву?`
-            : pendingDelete?.type === 'forecast' || pendingDelete?.type === 'gap'
-            ? `Видалити «${pendingDelete.clientName}»?`
-            : ''
-        }
-        description={
-          pendingDelete?.type === 'forecast' || pendingDelete?.type === 'forecast-bulk'
-            ? 'Зникнуть з блоку «Прогноз по активних». Дія застосується після збереження.'
-            : 'Зникнуть з блоку «Закриття розриву». Дія застосується після збереження.'
-        }
-        confirmLabel="Видалити"
-        variant="danger"
-        onConfirm={confirmDelete}
-        onCancel={() => setPendingDelete(null)}
-      />
-
-      {/* Етап «Зустріч» → пропозиція запланувати точну дату й час. */}
-      <ConfirmDialog
-        open={meetingPrompt !== null}
-        title="Запланувати зустріч?"
-        description={
-          meetingPrompt
-            ? `Хочете одразу запланувати точну дату й час зустрічі з «${meetingPrompt.clientName}»? Подія з'явиться у блоці «Зустрічі».`
-            : ''
-        }
-        confirmLabel="Так, запланувати"
-        cancelLabel="Пізніше"
-        onConfirm={() => {
-          if (meetingPrompt) setMeetingFormState({ clientId: meetingPrompt.clientId });
-          setMeetingPrompt(null);
-        }}
-        onCancel={() => setMeetingPrompt(null)}
-      />
-
-      <MeetingForm
-        open={meetingFormState !== null}
-        mode="create"
-        prefilledClientId={meetingFormState?.clientId}
-        prefilledDate={planDateHint}
-        onClose={() => setMeetingFormState(null)}
-        onSave={handleMeetingSave}
+      <PlanningDialogs
+        showIncompleteConfirm={showIncompleteConfirm}
+        setShowIncompleteConfirm={setShowIncompleteConfirm}
+        forecasts={forecasts}
+        gapClosures={gapClosures}
+        propPlanAmount={propPlanAmount}
+        doFinalize={doFinalize}
+        searchOpen={searchOpen}
+        setSearchOpen={setSearchOpen}
+        gapSearchOpen={gapSearchOpen}
+        setGapSearchOpen={setGapSearchOpen}
+        addClient={addClient}
+        addGapClient={addGapClient}
+        allManagerClients={allManagerClients}
+        clientsLoading={clientsLoading}
+        pendingDelete={pendingDelete}
+        setPendingDelete={setPendingDelete}
+        confirmDelete={confirmDelete}
+        meetingPrompt={meetingPrompt}
+        setMeetingPrompt={setMeetingPrompt}
+        setMeetingFormState={setMeetingFormState}
+        meetingFormState={meetingFormState}
+        planDateHint={planDateHint}
+        handleMeetingSave={handleMeetingSave}
       />
     </div>
   );

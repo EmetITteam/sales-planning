@@ -71,12 +71,15 @@ export function LocationCaptureDialog({ open, mode, meeting, onClose, onConfirm 
 
   useEffect(() => {
     if (!open || !meeting) return;
+    // Reset на reopen + старт async capture — це external system sync (geolocation API).
+    /* eslint-disable react-hooks/set-state-in-effect */
     setPhase('capturing');
     setGeo(null);
     // Префіл: для start — planned address; для finish — startAddress (більш точний бо вже зафіксовано GPS)
     setManualAddress(
       mode === 'finish' ? meeting.startAddress ?? meeting.plannedAddress ?? '' : meeting.plannedAddress ?? '',
     );
+    /* eslint-enable react-hooks/set-state-in-effect */
     let cancelled = false;
     Promise.all([captureGeo(), getGeoPermissionState()]).then(([result, perm]) => {
       if (cancelled) return;

@@ -77,8 +77,14 @@ export function useOneCData<A extends OneCAction>(
   //    Тепер фоном перевіряємо ще 20 разів — варто 1С нарешті прокинутись,
   //    дані з'являться без F5.
   // Reset counter коли змінюється key (новий запит = нова логіка retry).
+  // Render-phase setState pattern (React 19 canonical для derived reset):
+  // якщо key змінився — React переривається і починає render з нуля.
   const [retryAttempt, setRetryAttempt] = useState(0);
-  useEffect(() => { setRetryAttempt(0); }, [key]);
+  const [prevKey, setPrevKey] = useState(key);
+  if (prevKey !== key) {
+    setPrevKey(key);
+    setRetryAttempt(0);
+  }
   const isEmptyData = !!options?.isEmptyResponse && !!data && options.isEmptyResponse(data);
   const FAST_RETRIES = 5;
   const MAX_RETRIES = 25; // 5 fast + 20 background polls

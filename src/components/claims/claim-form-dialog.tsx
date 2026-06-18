@@ -18,7 +18,7 @@
  * Submit → POST /api/claims (multipart/form-data) → Bitrix24 SPA 1038.
  */
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { XIcon, AlertCircle, CheckCircle2, Loader2, Upload, X } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -92,8 +92,13 @@ export function ClaimFormDialog({
     setOpenedPreview({ url: URL.createObjectURL(f), name: f.name, kind });
   };
 
-  // Reset на відкриття.
-  useEffect(() => {
+  // Reset на відкриття — render-phase setState (React 19 canonical).
+  const [prevOpenKey, setPrevOpenKey] = useState<{ open: boolean; client: typeof prefilledClient }>({
+    open,
+    client: prefilledClient,
+  });
+  if (prevOpenKey.open !== open || prevOpenKey.client !== prefilledClient) {
+    setPrevOpenKey({ open, client: prefilledClient });
     if (open) {
       setClient(prefilledClient ?? null);
       setClaimType('');
@@ -106,7 +111,7 @@ export function ClaimFormDialog({
       setFiles([]);
       setSubmit({ loading: false, result: null });
     }
-  }, [open, prefilledClient]);
+  }
 
   const isMedicalClaim = !!(claimType && (MEDICAL_CLAIM_TYPES as readonly string[]).includes(claimType));
   const anketaFields = useMemo(() => {

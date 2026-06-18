@@ -16,12 +16,15 @@ export function useCountUp(target: number, durationMs = 600): number {
 
   useEffect(() => {
     if (!Number.isFinite(target) || target === 0) {
+      // Reset через setState — це external state sync (RAF cancellation).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValue(0);
       return;
     }
     if (typeof window === 'undefined') return;
     // Респектуємо prefers-reduced-motion — без анімації.
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValue(target);
       return;
     }
@@ -33,6 +36,7 @@ export function useCountUp(target: number, durationMs = 600): number {
       const t = Math.min(1, elapsed / durationMs);
       // ease-out cubic
       const eased = 1 - Math.pow(1 - t, 3);
+      // setValue у RAF callback — це async (microtask), не sync у effect body.
       setValue(from + (target - from) * eased);
       if (t < 1) raf = requestAnimationFrame(tick);
     };

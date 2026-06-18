@@ -19,9 +19,15 @@ export function useRegistryPlans(dateFrom: string | null, dateTo: string | null,
   // менеджера». При cold-start 1С інколи віддає плани ІНШИХ менеджерів раніше
   // за цього (глобально не порожньо, але для нас порожньо) → без цього retry
   // не спрацьовував і план показувався $0 (manager-dashboard + /clients).
+  //
+  // ⚠️ 2026-06-18 fix: login входить у payload (отже у SWR ключ). Без цього при
+  // drill-down РМ → менеджер SWR віддавав cached response від РМ-запиту (без
+  // планів цього менеджера) → totalPlan=$0 назавжди до refresh. payload видно
+  // у 1С `__cacheNonce`-вигляді — НЕ використовується для 1С-фільтра (Action 4
+  // ігнорує невідомі поля), лише для розрізнення SWR-ключів.
   return useOneCData(
     'getRegistryPlans',
-    shouldFetch ? { dateFrom: dateFrom!, dateTo: dateTo! } : null,
+    shouldFetch ? { dateFrom: dateFrom!, dateTo: dateTo!, login: loginLower || undefined } : null,
     {
       isEmptyResponse: (r) => {
         if (!r?.plans || r.plans.length === 0) return true;
