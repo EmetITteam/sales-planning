@@ -43,14 +43,19 @@ type RMView = 'dashboard' | 'myPlanning' | 'viewManager';
  */
 export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   // Initial з nav store — щоб refresh повертав на drill-down (Manager/PlanForm).
-  // Не для Director-внутрішнього RM (regionCode prop) — там drill-down nav
-  // керується Director-ом.
+  //
+  // ⚠️ 2026-06-18 fix: раніше guard `!regionCode ?` ігнорував managerLogin
+  // коли RM змонтований з-під Director-а (Director drill-down → viewRegion →
+  // RMDashboard regionCode='...'). Через це F5 на сторінці менеджера
+  // викидав на регіон: Director→viewRegion→RM ігнорує persistedNav.managerLogin
+  // → view='dashboard' замість 'viewManager'. Гард прибрано, тепер RM завжди
+  // читає managerLogin/segmentCode з nav — drill-down персистить на refresh.
   const persistedNav = useAppStore.getState().nav;
-  const startManager = !regionCode ? (persistedNav.managerLogin || '') : '';
+  const startManager = persistedNav.managerLogin || '';
   const [view, setView] = useState<RMView>(startManager ? 'viewManager' : 'dashboard');
   const [selectedManager, setSelectedManager] = useState<string>(startManager);
   const [selectedSegmentForManager, setSelectedSegmentForManager] = useState<string>(
-    !regionCode ? (persistedNav.segmentCode || '') : '',
+    persistedNav.segmentCode || '',
   );
 
   const { user, currentPeriod, liveMode, setNav } = useAppStore();
