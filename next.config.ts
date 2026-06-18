@@ -1,7 +1,22 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  // Sentry tree-shake: видаляє console.log/debug у production build.
+  // Замінює deprecated `disableLogger: true` у withSentryConfig (видалили нижче).
+  webpack: (config, { dev, webpack: webpackInstance }) => {
+    if (!dev) {
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new webpackInstance.DefinePlugin({
+          __SENTRY_DEBUG__: false,
+          __SENTRY_TRACING__: true,
+        }),
+      );
+    }
+    return config;
+  },
+};
 
 // Sentry wrapper — runtime error tracking + source maps upload.
 //
@@ -22,7 +37,8 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.CI,
   // Tunnel route — обходить ad-blockers (вони часто блокують *.sentry.io).
   tunnelRoute: "/monitoring",
-  disableLogger: true,
+  // disableLogger перенесено у nextConfig.webpack (DefinePlugin __SENTRY_DEBUG__).
+  // Це робить те саме (tree-shake console.log у prod) без deprecated warning.
   // widenClientFileUpload — заливає maps також для bundles _next/static/chunks/*
   // (не лише server/api). Без цього frontend errors лишаються minified.
   widenClientFileUpload: true,

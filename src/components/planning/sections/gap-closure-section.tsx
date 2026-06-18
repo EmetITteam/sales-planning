@@ -315,7 +315,7 @@ export function GapClosureSection({
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Потенціал</label>
+                        <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">Потенціал</span>
                         {(row.completed && !isAdmin) ? (
                           <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.potentialAmount)}</p>
                         ) : (
@@ -324,7 +324,7 @@ export function GapClosureSection({
                         )}
                       </div>
                       <div>
-                        <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Факт</label>
+                        <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">Факт</span>
                         <p className={`text-[14px] font-bold mt-1.5 ${hasFact ? 'text-emerald-600' : 'text-muted-foreground/40'}`}>
                           {hasFact ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
                         </p>
@@ -332,7 +332,7 @@ export function GapClosureSection({
                     </div>
 
                     <div>
-                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Етап</label>
+                      <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">Етап</span>
                       <div className="flex items-center gap-2 mt-1">
                         <Select value={row.stage || undefined}
                           onValueChange={(v) => updateGap(i, 'stage', v)}
@@ -354,7 +354,7 @@ export function GapClosureSection({
                     </div>
 
                     <div>
-                      <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Дія</label>
+                      <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">Дія</span>
                       {row.stage === 'Навчання' && (
                         <div className="mt-1">
                           <TrainingSelect

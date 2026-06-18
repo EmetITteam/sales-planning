@@ -283,7 +283,7 @@ export function ForecastSection({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Прогноз</label>
+                    <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">Прогноз</span>
                     {(row.completed && !isAdmin) ? (
                       <p className="text-[14px] font-bold text-muted-foreground amount mt-1">{formatUSD(row.forecastAmount)}</p>
                     ) : (
@@ -294,7 +294,7 @@ export function ForecastSection({
                     )}
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Факт</label>
+                    <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">Факт</span>
                     <p className={`text-[14px] font-bold mt-1.5 ${row.factAmount > 0 ? 'text-emerald-600' : 'text-muted-foreground/40'}`}>
                       {row.factAmount > 0 ? <span className="amount">{formatUSD(row.factAmount)}</span> : '—'}
                     </p>
@@ -302,7 +302,7 @@ export function ForecastSection({
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Етап</label>
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">Етап</span>
                   <div className="flex items-center gap-2 mt-1">
                     <Select
                       value={row.stage || undefined}
@@ -330,7 +330,7 @@ export function ForecastSection({
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Коментар</label>
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider block">Коментар</span>
                   {row.stage === 'Навчання' && (
                     <div className="mt-1">
                       <TrainingSelect
