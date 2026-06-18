@@ -52,7 +52,10 @@ export default function AdminPlanningLocksPage() {
     },
   );
   const [windowDaysDraft, setWindowDaysDraft] = useState<number | null>(null);
-  useEffect(() => { if (settings?.windowDays && windowDaysDraft === null) setWindowDaysDraft(settings.windowDays); }, [settings, windowDaysDraft]);
+  // Initial sync з settings — render-phase setState (один раз коли draft null).
+  if (settings?.windowDays && windowDaysDraft === null) {
+    setWindowDaysDraft(settings.windowDays);
+  }
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
 

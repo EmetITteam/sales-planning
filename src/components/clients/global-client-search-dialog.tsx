@@ -44,6 +44,8 @@ function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`);
+    // Initial sync з matchMedia — це external system subscription, legitimate effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMobile(mq.matches);
     const fn = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener('change', fn);
@@ -60,12 +62,15 @@ export function GlobalClientSearchDialog({ open, onClose, onSelectMine }: Props)
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
 
-  useEffect(() => {
+  // Reset на reopen — render-phase setState pattern (React 19 canonical).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setQuery('');
       setDebouncedQuery('');
     }
-  }, [open]);
+  }
 
   // Делейний фокус — щоб vaul slide-up анімація встигла завершитись перш
   // ніж клавіатура спливе (інакше perша анімація + клавіатура одночасно

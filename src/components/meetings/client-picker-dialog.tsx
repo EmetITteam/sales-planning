@@ -43,14 +43,16 @@ export function ClientPickerDialog({ open, onClose, onSelect, selectedClientId }
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [remoteSearch, setRemoteSearch] = useState(false);
 
-  // Reset on each open
-  useEffect(() => {
+  // Reset on each open — render-phase setState (React 19 canonical).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setQuery('');
       setDebouncedQuery('');
       setRemoteSearch(false);
     }
-  }, [open]);
+  }
 
   // Debounce
   useEffect(() => {

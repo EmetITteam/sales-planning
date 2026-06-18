@@ -41,11 +41,14 @@ export function AttachmentLightbox({ attachment, onClose }: Props) {
     };
   }, [attachment, onClose]);
 
-  // Скидаємо mode/loading коли змінюється attachment
-  useEffect(() => {
+  // Скидаємо mode/loading коли змінюється attachment.
+  // Render-phase setState (React 19 canonical): порівнюємо prev attachment.
+  const [prevAttachment, setPrevAttachment] = useState(attachment);
+  if (prevAttachment !== attachment) {
+    setPrevAttachment(attachment);
     setMode(initialMode(attachment));
     setLoading(true);
-  }, [attachment]);
+  }
 
   if (!attachment) return null;
 

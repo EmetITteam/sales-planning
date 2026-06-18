@@ -52,15 +52,15 @@ export function DonutChart({ title, subtitle, segments, centerLabel, centerSub, 
 
   // Підраховуємо % і offset для кожного сегменту.
   // Circumference = 100 (для r=15.92 dasharray розраховується як з 100% кола).
-  let cumOffset = 0;
+  // .reduce() замість let-mutation — React 19 strict не любить reassign після render.
   const arcs = segments
     .filter(s => s.value > 0)
-    .map(s => {
+    .reduce<Array<typeof segments[number] & { pct: number; offset: number }>>((acc, s) => {
       const pct = (s.value / total) * 100;
-      const arc = { ...s, pct, offset: cumOffset };
-      cumOffset += pct;
-      return arc;
-    });
+      const offset = acc.length === 0 ? 0 : acc[acc.length - 1].offset + acc[acc.length - 1].pct;
+      acc.push({ ...s, pct, offset });
+      return acc;
+    }, []);
 
   const fmt = formatValue ?? ((_v, pct) => pct.toFixed(1) + '%');
 

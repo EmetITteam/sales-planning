@@ -75,10 +75,14 @@ export function CustomMonthPicker({ value, label, active, onChange }: Props) {
 
   // Синхронізовано: коли value змінюється ззовні (інша presetтова кнопка) —
   // оновлюємо рік picker, щоб відкривши «Свій» юзер бачив актуальний рік.
-  useEffect(() => {
+  // Render-phase setState (React 19 canonical): порівнюємо prev value, оновлюємо
+  // pickerYear інлайн. React оптимізує — renders without commit.
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
     const y = parseInt(value.slice(0, 4), 10);
     if (Number.isFinite(y)) setPickerYear(y);
-  }, [value]);
+  }
 
   const selectedMonth = parseInt(value.slice(5, 7), 10); // 1-12
   const selectedYear = parseInt(value.slice(0, 4), 10);

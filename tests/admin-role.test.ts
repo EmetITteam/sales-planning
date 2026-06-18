@@ -40,7 +40,7 @@ test('adaptLogin переписує роль на admin для itd@emet.in.ua', 
     region: '',
     regionCode: '',
     managedUsers: [],
-  } as any);
+  } as unknown as Parameters<typeof adaptLogin>[0]);
   assert.equal(session.role, 'admin');
 });
 
@@ -53,7 +53,7 @@ test('adaptLogin НЕ переписує роль звичайного мене�
     region: 'Київ',
     regionCode: 'KYV',
     managedUsers: [],
-  } as any);
+  } as unknown as Parameters<typeof adaptLogin>[0]);
   assert.equal(session.role, 'manager');
 });
 
@@ -66,7 +66,7 @@ test('adaptLogin працює з різним регістром у логіні
     region: '',
     regionCode: '',
     managedUsers: [],
-  } as any);
+  } as unknown as Parameters<typeof adaptLogin>[0]);
   assert.equal(session.login, 'itd@emet.in.ua');
   assert.equal(session.role, 'admin');
 });

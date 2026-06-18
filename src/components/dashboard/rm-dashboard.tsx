@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';

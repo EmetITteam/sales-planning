@@ -58,6 +58,8 @@ export function RescheduleDialog({ open, meeting, onClose, onConfirm }: Props) {
   const [conflicts, setConflicts] = useState<Array<{ id: string; time: string; clientName: string }>>([]);
   useEffect(() => {
     if (!open || !meeting || !date || !time) {
+      // Reset conflicts на закриття/нездатний state — external fetch state sync.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setConflicts([]);
       return;
     }
@@ -84,13 +86,19 @@ export function RescheduleDialog({ open, meeting, onClose, onConfirm }: Props) {
     return () => clearTimeout(t);
   }, [open, date, time, meeting]);
 
-  useEffect(() => {
+  // Reset on open/meeting change — render-phase setState (React 19 canonical).
+  const [prevKey, setPrevKey] = useState<{ open: boolean; meetingId?: string }>({
+    open,
+    meetingId: meeting?.id,
+  });
+  if (prevKey.open !== open || prevKey.meetingId !== meeting?.id) {
+    setPrevKey({ open, meetingId: meeting?.id });
     if (open && meeting) {
       setDate(getDefaultDate());
       setTime(meeting.time.slice(0, 5));
       setError(null);
     }
-  }, [open, meeting]);
+  }
 
   if (!meeting) return null;
 

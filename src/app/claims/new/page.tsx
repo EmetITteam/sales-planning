@@ -12,7 +12,7 @@
  * повертаємось назад.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { LoginForm } from '@/components/login/login-form';
@@ -23,13 +23,14 @@ export default function NewClaimRoute() {
   const router = useRouter();
   const user = useAppStore(s => s.user);
   const bootstrapped = useAppStore(s => s.bootstrapped);
-  const [open, setOpen] = useState(false);
-
-  // Відкриваємо модалку одразу після монтування — інакше при перезавантаженні
-  // вона була б закрита.
-  useEffect(() => {
+  // open початково true якщо user уже є (поширений сценарій після bootstrap).
+  // Render-phase reaction на пізнішу появу user — без effect.
+  const [open, setOpen] = useState(!!user);
+  const [prevUser, setPrevUser] = useState(user);
+  if (prevUser !== user) {
+    setPrevUser(user);
     if (user) setOpen(true);
-  }, [user]);
+  }
 
   if (!bootstrapped) {
     return (
