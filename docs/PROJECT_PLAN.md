@@ -73,7 +73,7 @@
 | Параметр | Значення |
 |---|---|
 | Стек | Next.js 16 + React 19 + TypeScript + Tailwind 4 + shadcn/ui |
-| База даних | Supabase Postgres (Free tier — потребує upgrade до Pro перед Stage 1.5/2A, ADR-14) |
+| База даних | Supabase Postgres (Pro tier — куплено 2026-06-12, ADR-14 виконано) |
 | Хостинг | Vercel (master auto-deploy, feature-branch preview-deploys) |
 | 1С integration | 13 actions через `/api/onec` proxy + JWT cookie sessions |
 | Тести | 240 кейсів (`tsx --test`) + arch-guard перед кожним пушем |
@@ -91,7 +91,7 @@
 | **0** | **Architecture + Design Prep** | Docs + design exploration (дашборд+форма locked) + спека контрактів | 0 (тільки спека) | — | **3-5** | Low | ✅ Готово |
 | **1** | **Meetings** | Перенос 8 ключових meeting-функцій + покращення (geo ADR-7, calendar worker, buffer ADR-2) | 0 (тримаємо існуючі 12 actions з meeting-4.0) | Google Calendar API | **15-20** | Medium | ✅ Готово (Sprint 1.5, 2026-06-08) + retire metting-4.0 2026-06-12 |
 | **1.5** | **Sales Detail Foundation + Best Manager** | Бекфіл line-item продажів 2025+; nightly+intra-day sync; **Best Manager** widget на Огляді компанії | **2 нових 1С actions** | — | **7-9** | Medium | ⏳ Не починали |
-| **2A** | **Receivables (Debtors)** | Дебіторка з 1С: список, aging, widget на client card | **4 нових 1С actions** | Supabase Pro upgrade | **5-7** | Medium | ⏳ Не починали |
+| **2A** | **Receivables (Debtors)** | Дебіторка з 1С: список, aging, widget на client card | **4 нових 1С actions** | ✅ Supabase Pro (вже куплено) | **5-7** | Medium | ⏳ Не починали |
 | **2B** | **Reclamations** | reclamation-app залишається Python+Bitrix; widget на client card + colокольчик + Bitrix SPA 1048 для верифікації клієнтів КЦ | 0 (зовнішня система) | Bitrix24 + TG bot + Python service | **3-4** | Low | ✅ Готово (Sprint 2B 2026-06-11 + Sprint 2D верифікація 2026-06-12) |
 | **2C** | **Seminars** (новий, 2026-06-17) | Адміністрація семінарів: каталог по регіонах, запис клієнта, контроль умов закупок з 1С, два рівні підтвердження (pre-registered → confirmed), список моделей, dashboard заповненості для РМ/director | **2 нових 1С actions** (Action 14 + 15) | — | **12-15** (3 фази по 4-5 днів) | Medium | ⏳ Готовий план [SEMINARS_PHASE_1_PLAN.md](./SEMINARS_PHASE_1_PLAN.md), старт ~2026-06-17 на feature/seminars |
 | **3** | **Orders / Realizations** | UI lift з meeting-app + повний backend з нуля. Multi-currency, gift logic, status workflow | **9-10 нових 1С actions** | — | **15-20** | High | ⏳ Не починали |
@@ -329,7 +329,7 @@ export async function GET() {
 | **ADR-11** | **Survey/Anketa** — спочатку lift as-is (a), versioned schema (b) пізніше за потреби (Q2) | Accepted |
 | **ADR-12** | **Add Client files** — preview документів з 1С через новий action `getClientDocuments` (Q3) | Accepted |
 | **ADR-13** | **Reclamations widget** — лічильник активних + клік відкриває reclamation-app у новій вкладці (Q5) | Accepted |
-| **ADR-14** | **Supabase Pro upgrade** — обов'язково перед Stage 1.5/2A (PITR + 8 ГБ + DB резервування) (Q6) | Accepted |
+| **ADR-14** | **Supabase Pro upgrade** — ✅ виконано 2026-06-12 (PITR + 8 ГБ + DB резервування) | Done |
 | **ADR-15** | **Director Dashboard з meeting-app** — не переносимо (наш Огляд компанії покриває) (Q7) | Accepted |
 | **ADR-16** | **Best Manager methodology** — 5 ТМ (Ellanse/PETARAN/ESSE/IUSE/Vitaran) з порогами участі + 2 обов'язкових фільтри + виключення спікерів + тайбрейкер за % виконання плану по ТМ | Accepted |
 | **ADR-17** | **Sales Detail line-item format** — 11 базових полів від користувача + 1 додатково (segment_code) + стандартні numerics (qty/price/total/discount) | Accepted |
@@ -631,7 +631,7 @@ CREATE POLICY sales_select ON sales_line_items
 | До 2027 | 480k | ~190 МБ |
 | До 2028 (3 роки) | 720k | ~290 МБ |
 
-Supabase Pro upgrade (8 ГБ) дає роки запасу + PITR (ADR-14).
+Supabase Pro (8 ГБ, вже активний з 2026-06-12) дає роки запасу + PITR (ADR-14).
 
 ## 9.8 Open items (Stage 1.5)
 
