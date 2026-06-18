@@ -227,7 +227,7 @@ export function ForecastSection({
                           {row.trainingId ? (row.trainingName || row.trainingId) : null}
                         </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent alignItemWithTrigger={false}>
                         {trainings.map(t => (
                           <SelectItem key={t.trainingId} value={t.trainingId}>
                             <span className="text-[12px]">{formatTrainingOption(t, 50)}</span>
@@ -359,7 +359,7 @@ export function ForecastSection({
                           {row.trainingId ? (row.trainingName || row.trainingId) : null}
                         </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent alignItemWithTrigger={false}>
                         {trainings.map(t => (
                           <SelectItem key={t.trainingId} value={t.trainingId}>
                             <span className="text-[12px]">{formatTrainingOption(t, 40)}</span>
