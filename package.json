@@ -9,6 +9,8 @@
     "lint": "eslint",
     "qa": "node scripts/qa-review.mjs",
     "qa:headless": "cross-env HEADLESS=1 node scripts/qa-review.mjs",
+    "qa:refactor": "node scripts/qa-refactor-audit.mjs",
+    "qa:refactor:headless": "cross-env HEADLESS=1 node scripts/qa-refactor-audit.mjs",
     "check:arch": "node scripts/architecture-check.mjs",
     "test": "tsx --test tests/**/*.test.ts",
     "test:components": "vitest run",

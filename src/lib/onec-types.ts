@@ -122,6 +122,16 @@ export interface GetRegistryPlansRequest {
   /** YYYY-MM-DD */
   dateFrom: string;
   dateTo: string;
+  /**
+   * Менеджерський login для drill-down (РМ → менеджер) і scope-фільтрації.
+   * Frontend завжди передає login юзера якого дивляться. Backend /api/onec
+   * перевіряє managedUsers і override-ить з сесії якщо потрібно (LOGIN_BOUND_ACTIONS).
+   *
+   * Чому в payload а не у backend-override:
+   *   SWR кешує по {action,payload}. Без login у payload — drill-down між
+   *   менеджерами дістає cached response першого → план $0 до refresh.
+   */
+  login?: string;
 }
 
 export interface OneCRegistryPlan {
