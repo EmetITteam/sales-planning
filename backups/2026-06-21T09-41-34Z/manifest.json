@@ -1,0 +1,46 @@
+{
+  "stamp": "2026-06-21T09-41-34Z",
+  "takenAt": "2026-06-21T09:41:34.650Z",
+  "tables": {
+    "users": {
+      "rows": 30,
+      "totalReported": 30
+    },
+    "periods": {
+      "rows": 3,
+      "totalReported": 3
+    },
+    "forecasts": {
+      "rows": 7079,
+      "totalReported": 7079
+    },
+    "gap_closures": {
+      "rows": 12554,
+      "totalReported": 12554
+    },
+    "period_summaries": {
+      "rows": 353,
+      "totalReported": 353
+    },
+    "planning_snapshots": {
+      "rows": 38192,
+      "totalReported": 38192
+    },
+    "planning_locks": {
+      "rows": 0,
+      "totalReported": 0
+    },
+    "planning_settings": {
+      "rows": 1,
+      "totalReported": 1
+    },
+    "meetings": {
+      "rows": 255,
+      "totalReported": 255
+    },
+    "meeting_syncs": {
+      "rows": 12,
+      "totalReported": 12
+    }
+  }
+}
