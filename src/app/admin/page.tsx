@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import Link from 'next/link';
-import { Shield, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Shield, ShieldAlert, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -105,6 +105,13 @@ export default function AdminPage() {
             icon={<AlertTriangle className="h-4 w-4 text-rose-600" />}
             title="DLQ зустрічей · sync errors"
             description="Sync операції що 1С відмовила MAX_RETRIES разів. Оператор може зробити retry (новий шанс) або skip (визнати втрату)."
+            ready
+          />
+          <AdminCard
+            href="/admin/system-lock"
+            icon={<ShieldAlert className="h-4 w-4 text-rose-700" />}
+            title="Kill-switch системи"
+            description="Глобальне блокування доступу для всіх крім admin. Для форс-мажорних випадків (інцидент безпеки, обслуговування). Менеджери відключаються миттєво."
             ready
           />
         </div>
