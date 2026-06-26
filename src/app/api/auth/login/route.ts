@@ -24,6 +24,7 @@ import { adaptLogin } from '@/lib/onec-adapters';
 import { MOCK_USERS } from '@/lib/mock-data';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { checkSystemLockForUser, systemLockedResponse } from '@/lib/system-lock';
+import { isBlockedLogin } from '@/lib/feature-flags';
 import type { LoginResponse } from '@/lib/onec-types';
 
 export async function POST(request: NextRequest) {
@@ -53,6 +54,16 @@ export async function POST(request: NextRequest) {
   const { login, password, demo } = body ?? {};
   if (!login || typeof login !== 'string') {
     return Response.json({ error: 'login is required' }, { status: 400 });
+  }
+
+  // Permanent blacklist (BLOCKED_LOGINS у feature-flags) — жорсткіше за system-lock.
+  // Спрацьовує завжди, поки логін у масиві. Прибрати з масиву = redeploy.
+  if (isBlockedLogin(login)) {
+    console.log(`[login] BLOCKED by blacklist for ${login}`);
+    return Response.json(
+      { error: 'Доступ закрито. Зверніться до адміністратора.' },
+      { status: 403 },
+    );
   }
 
   // System lock check: якщо система заблокована — пускаємо тільки admin.

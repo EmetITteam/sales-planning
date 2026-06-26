@@ -22,7 +22,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { checkSystemLockForUser, systemLockedResponse } from '@/lib/system-lock';
-import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
+import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES, isBlockedLogin } from '@/lib/feature-flags';
 
 /**
  * Actions де admin прокситься через DIRECTOR_PROXY_LOGIN бо admin не
@@ -104,6 +104,16 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
     return Response.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Permanent blacklist — якщо логін у BLOCKED_LOGINS, відрубаємо живу сесію
+  // одразу. 403 змусить frontend onec-client кинути SessionExpiredError →
+  // AppHeader зробить logout.
+  if (isBlockedLogin(session.login)) {
+    return Response.json(
+      { status: 'error', message: 'Доступ закрито' },
+      { status: 403 },
+    );
   }
 
   // System lock: блокує всі 1С запити крім admin. Активні сесії менеджерів

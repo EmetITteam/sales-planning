@@ -44,6 +44,28 @@ export const FEATURES = {
 export const ADMIN_LOGINS: readonly string[] = ['itd@emet.in.ua'];
 
 /**
+ * Blacklist логінів яким доступ повністю закритий незалежно від ролі/статусу.
+ * Працює як hardcoded ban-list — простіше за per-user колонку у Supabase для
+ * рідкісних випадків.
+ *
+ * Поведінка: 403 на login, 403 на всі /api/onec запити (живі сесії
+ * відключаються одразу).
+ *
+ * Видалити логін з масиву = розблокувати (потребує redeploy).
+ *
+ * Доданий 2026-06-26.
+ */
+export const BLOCKED_LOGINS: readonly string[] = ['owner@emet.in.ua'];
+
+/**
+ * Helper: чи цей логін заблоковано (banlist).
+ */
+export function isBlockedLogin(login: string | null | undefined): boolean {
+  if (!login) return false;
+  return BLOCKED_LOGINS.includes(login.toLowerCase().trim());
+}
+
+/**
  * Логін з якого admin читає company-wide дані з 1С коли явно не вказано
  * чий план дивиться. 1С для itd@emet.in.ua не повертає регіони/менеджерів
  * (бо він не Director у 1С), тому для getRegionData без login підставляємо
