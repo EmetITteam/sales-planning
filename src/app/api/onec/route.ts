@@ -21,6 +21,7 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { checkSystemLockForUser, systemLockedResponse } from '@/lib/system-lock';
 import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 
 /**
@@ -103,6 +104,13 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
     return Response.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+  }
+
+  // System lock: блокує всі 1С запити крім admin. Активні сесії менеджерів
+  // одразу падають з 503, frontend редиректить на /system-locked.
+  const lockState = await checkSystemLockForUser(session.login);
+  if (lockState) {
+    return systemLockedResponse(lockState);
   }
 
   // Rate limit per session.login. Захист від рантонутого скрипта що дамп-ить

@@ -23,6 +23,7 @@ import { setSessionCookie } from '@/lib/session';
 import { adaptLogin } from '@/lib/onec-adapters';
 import { MOCK_USERS } from '@/lib/mock-data';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { checkSystemLockForUser, systemLockedResponse } from '@/lib/system-lock';
 import type { LoginResponse } from '@/lib/onec-types';
 
 export async function POST(request: NextRequest) {
@@ -52,6 +53,14 @@ export async function POST(request: NextRequest) {
   const { login, password, demo } = body ?? {};
   if (!login || typeof login !== 'string') {
     return Response.json({ error: 'login is required' }, { status: 400 });
+  }
+
+  // System lock check: якщо система заблокована — пускаємо тільки admin.
+  // Перевірку робимо ПІСЛЯ парсингу login щоб мати logging того хто пробує зайти.
+  const lockState = await checkSystemLockForUser(login);
+  if (lockState) {
+    console.log(`[login] BLOCKED by system_lock for ${login} (locked since ${lockState.locked_at})`);
+    return systemLockedResponse(lockState);
   }
 
   // === DEMO logins (тільки якщо NEXT_PUBLIC_DEMO_LOGIN=true). ===

@@ -83,6 +83,15 @@ export async function callOneC<A extends OneCAction>(
           }
           throw new SessionExpiredError();
         }
+        // 503 SYSTEM_LOCKED — admin увімкнув kill-switch посеред сесії.
+        // Перекидаємо на /system-locked де користувач побачить причину +
+        // зможе «Спробувати знову» коли admin розблокує.
+        if (res.status === 503) {
+          if (typeof window !== 'undefined' && window.location.pathname !== '/system-locked') {
+            window.location.href = '/system-locked';
+          }
+          throw new OneCError('SYSTEM_LOCKED', action, 503);
+        }
         const text = await res.text().catch(() => '');
         throw new OneCError(`HTTP ${res.status}: ${text || res.statusText}`, action, res.status);
       }

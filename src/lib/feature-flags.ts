@@ -92,3 +92,12 @@ export function isPlanningWritesAllowed(login: string | null | undefined): boole
   if (!login) return false;
   return ADMIN_LOGINS.includes(login.toLowerCase().trim());
 }
+
+/**
+ * Чи цей логін належить admin-у (itd@emet.in.ua).
+ * Використовується для system kill-switch + adminPRoxy + admin UI gating.
+ */
+export function isAdminLogin(login: string | null | undefined): boolean {
+  if (!login) return false;
+  return ADMIN_LOGINS.includes(login.toLowerCase().trim());
+}
