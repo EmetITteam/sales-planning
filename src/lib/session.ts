@@ -103,12 +103,25 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
 /**
  * Прочитати сесію з cookie на сервері (route handlers, server actions).
  * Повертає null якщо нема або підпис невалідний.
+ *
+ * ⚠️ 2026-06-29: blacklist check ВСЕРЕДИНІ getSession() — гарантує що
+ * BLOCKED_LOGINS блокуються у ВСІХ 35+ API routes що викликають getSession(),
+ * не лише /api/onec + /api/auth/login. Якщо логін у banlist → null (як
+ * unauthorized) → route автоматично поверне 401.
  */
 export async function getSession(): Promise<SessionPayload | null> {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifySession(token);
+  const session = await verifySession(token);
+  if (!session) return null;
+  // Inline import щоб уникнути circular dep (feature-flags теж може колись
+  // використовувати session). Якщо в blacklist — повертаємо null.
+  const { isBlockedLogin } = await import('./feature-flags');
+  if (isBlockedLogin(session.login)) {
+    return null;
+  }
+  return session;
 }
 
 export async function setSessionCookie(user: UserSession): Promise<void> {
