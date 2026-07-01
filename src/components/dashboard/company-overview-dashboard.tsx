@@ -523,7 +523,7 @@ export function CompanyOverviewDashboard() {
                   </span>
                   {hasDynamicDiff && (
                     <span className="text-muted-foreground/70 block text-[10.5px]" title="1С-план по dynamic-сегментах замінено на факт (plan=fact). Тут — оригінальна сума з 1С.">
-                      З 1С (з динамічним): <span className="amount">{fmtUSD(filteredRawTotalPlan1c)}</span>
+                      Повний план з 1С: <span className="amount">{fmtUSD(filteredRawTotalPlan1c)}</span>
                     </span>
                   )}
                 </span>
