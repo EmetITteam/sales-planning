@@ -203,6 +203,17 @@ export function DirectorDashboard() {
     return { factCount, factSum };
   }, [companyStats]);
 
+  // ⚠️ ВСІ хуки ВИЩЕ early returns (rules-of-hooks).
+  // Effective план: для dynamic-сегментів беремо факт замість 1С-плану.
+  const totalPlan = useMemo(() => {
+    if (!company) return 0;
+    let acc = 0;
+    for (const seg of company.segments) {
+      acc += dynamicSegments.has(seg.segmentCode) ? seg.factAmount : seg.planAmount;
+    }
+    return acc;
+  }, [company, dynamicSegments]);
+
   // === Sub-views ===
   if (view === 'viewRegion') {
     return (
@@ -264,16 +275,6 @@ export function DirectorDashboard() {
   // тому окремий isAutoRetrying flag не потрібен.
   const noData = !loading && !error && (!company || company.regionAggregates.length === 0);
 
-  // Effective план: для dynamic-сегментів беремо факт замість 1С-плану.
-  // Формула: Σ non-dynamic plans + Σ dynamic facts.
-  const totalPlan = useMemo(() => {
-    if (!company) return 0;
-    let acc = 0;
-    for (const seg of company.segments) {
-      acc += dynamicSegments.has(seg.segmentCode) ? seg.factAmount : seg.planAmount;
-    }
-    return acc;
-  }, [company, dynamicSegments]);
   const totalFact = company?.totalFact ?? 0;
   const totalPct = pctOf(totalFact, totalPlan);
   const totalPrevFact = company?.totalPrevMonthFact ?? 0;

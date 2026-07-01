@@ -230,6 +230,17 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   }, [asOfDate, py, pm]);
   const periodLabel = getMonthName(py, pm - 1);
 
+  // ⚠️ ВСІ хуки ВИЩЕ early returns (rules-of-hooks).
+  // Effective план: для dynamic-сегментів беремо факт замість 1С-плану.
+  const totalPlan = useMemo(() => {
+    if (!aggregate) return 0;
+    let acc = 0;
+    for (const seg of aggregate.segments) {
+      acc += dynamicSegments.has(seg.segmentCode) ? seg.factAmount : seg.planAmount;
+    }
+    return acc;
+  }, [aggregate, dynamicSegments]);
+
   // === Sub-views ===
   if (view === 'myPlanning') {
     return (
@@ -279,17 +290,6 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const noRegion = !loading && !error && !region;
 
   // === Dashboard ===
-  // Effective план: для dynamic-сегментів беремо факт замість 1С-плану, бо
-  // менеджер по ним не планується (обмежений залишок → plan=fact авто).
-  // Формула: Σ non-dynamic plans + Σ dynamic facts.
-  const totalPlan = useMemo(() => {
-    if (!aggregate) return 0;
-    let acc = 0;
-    for (const seg of aggregate.segments) {
-      acc += dynamicSegments.has(seg.segmentCode) ? seg.factAmount : seg.planAmount;
-    }
-    return acc;
-  }, [aggregate, dynamicSegments]);
   const totalFact = aggregate?.totalFact ?? 0;
   const totalPct = pctOf(totalFact, totalPlan);
   const totalPrevFact = aggregate?.totalPrevMonthFact ?? 0;
