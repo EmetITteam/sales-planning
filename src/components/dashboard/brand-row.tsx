@@ -144,31 +144,31 @@ export function BrandRow({
           </span>
         )}
 
-        {/* 3. Факт % + відхилення */}
+        {/* 3. Факт % + відхилення (для dynamic — тільки 100% без dev) */}
         <div className="flex items-baseline gap-1.5">
           <span className="text-xl font-extrabold tracking-tight">{formatPct(factPercent)}</span>
-          <span className={`text-[11px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
-          </span>
+          {!isDynamicPlan && (
+            <span className={`text-[11px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
+            </span>
+          )}
         </div>
 
-        {/* 4. Прогрес-бар + насічки + підпис */}
+        {/* 4. Прогрес-бар + насічки + підпис (для dynamic — чистий бар, без прогнозу/запл.) */}
         <div className="min-w-0">
           <div className="relative w-full h-2 rounded-full bg-[#f0f2f8] overflow-visible">
             <div
               className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emet-blue to-emet-blue-light transition-all duration-500"
               style={{ width: `${factBarWidth}%` }}
             />
-            {/* Насічка прогнозу (run-rate, амбер) */}
-            {forecastPct > 0 && forecastPct <= 100 && (
+            {!isDynamicPlan && forecastPct > 0 && forecastPct <= 100 && (
               <div
                 className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-amber-500 rounded-full"
                 style={{ left: `calc(${Math.min(forecastPct, 100)}% - 1px)` }}
                 title={`Прогноз (темп): ${formatPct(forecastPct)}`}
               />
             )}
-            {/* Насічка очікуваного (план менеджера, EMET-синя) */}
-            {hasManagerPlan && (
+            {!isDynamicPlan && hasManagerPlan && (
               <div
                 className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-emet-blue rounded-full"
                 style={{ left: `calc(${Math.min(computedExpectedPct, 100)}% - 1px)` }}
@@ -176,23 +176,21 @@ export function BrandRow({
               />
             )}
           </div>
-          <p className="text-[10px] mt-1 truncate flex items-center gap-2">
-            <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
-            {/* «Запл.» показуємо ЗАВЖДИ коли бренд активний (planAmount > 0).
-                Навіть «Запл.: 0% · $0» — щоб менеджер бачив що план не складено.
-                Раніше при hasManagerPlan=false блок зникав, і не було видно
-                чи менеджер не планував, чи рендер забув показати. */}
-            {planAmount > 0 && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <span>
-                  <span className="text-emet-blue">●</span> Запл.:{' '}
-                  <span className="font-bold text-emet-blue">{formatPct(computedExpectedPct)}</span>
-                  <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount ?? 0)}</span></span>
-                </span>
-              </>
-            )}
-          </p>
+          {!isDynamicPlan && (
+            <p className="text-[10px] mt-1 truncate flex items-center gap-2">
+              <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
+              {planAmount > 0 && (
+                <>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span>
+                    <span className="text-emet-blue">●</span> Запл.:{' '}
+                    <span className="font-bold text-emet-blue">{formatPct(computedExpectedPct)}</span>
+                    <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount ?? 0)}</span></span>
+                  </span>
+                </>
+              )}
+            </p>
+          )}
         </div>
 
         {/* 5. План */}
@@ -252,13 +250,24 @@ export function BrandRow({
         <div className="flex items-center gap-2 min-w-0">
           <div className={`w-2.5 h-2.5 rounded-full ${tl.dot} shrink-0`} />
           <span className="text-[14px] font-bold truncate flex-1">{segmentName}</span>
-          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${tl.bg} ${tl.color}`}>
-            {tl.label}
-          </span>
+          {isDynamicPlan ? (
+            <span
+              className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap bg-emerald-500/12 border border-emerald-300/50 text-emerald-700"
+              title="Динамічний план: plan=fact автоматично. По клієнтах не плануємо."
+            >
+              Динамічний план
+            </span>
+          ) : (
+            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${tl.bg} ${tl.color}`}>
+              {tl.label}
+            </span>
+          )}
           <span className="text-[18px] font-extrabold tracking-tight">{formatPct(factPercent)}</span>
-          <span className={`text-[10px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
-          </span>
+          {!isDynamicPlan && (
+            <span className={`text-[10px] font-bold ${dev >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {dev >= 0 ? '+' : ''}{dev.toFixed(1)}%
+            </span>
+          )}
           {onClick && (
             expandable
               ? <ChevronDown className={`h-4 w-4 text-muted-foreground/30 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -272,11 +281,11 @@ export function BrandRow({
             className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emet-blue to-emet-blue-light"
             style={{ width: `${factBarWidth}%` }}
           />
-          {forecastPct > 0 && forecastPct <= 100 && (
+          {!isDynamicPlan && forecastPct > 0 && forecastPct <= 100 && (
             <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-amber-500 rounded-full"
               style={{ left: `calc(${Math.min(forecastPct, 100)}% - 1px)` }} />
           )}
-          {hasManagerPlan && (
+          {!isDynamicPlan && hasManagerPlan && (
             <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-emet-blue rounded-full"
               style={{ left: `calc(${Math.min(computedExpectedPct, 100)}% - 1px)` }} />
           )}
@@ -284,15 +293,19 @@ export function BrandRow({
 
         {/* Mobile низ: проценти + суми + динаміка */}
         <div className="flex items-center gap-3 text-[11px] flex-wrap">
-          <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
-          {planAmount > 0 && (
-            <span>
-              <span className="text-emet-blue">●</span> Запл.{' '}
-              <span className="font-bold text-emet-blue">{formatPct(computedExpectedPct)}</span>
-              <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount ?? 0)}</span></span>
-            </span>
+          {!isDynamicPlan && (
+            <>
+              <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(forecastPct)}</span></span>
+              {planAmount > 0 && (
+                <span>
+                  <span className="text-emet-blue">●</span> Запл.{' '}
+                  <span className="font-bold text-emet-blue">{formatPct(computedExpectedPct)}</span>
+                  <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(expectedAmount ?? 0)}</span></span>
+                </span>
+              )}
+              <span className="text-muted-foreground">|</span>
+            </>
           )}
-          <span className="text-muted-foreground">|</span>
           <span>План <span className="font-bold amount">{formatUSD(planAmount)}</span></span>
           <span>Факт <span className="font-bold amount">{formatUSD(factAmount)}</span></span>
           {clientCount !== undefined && <span>Клієнти <span className="font-bold">{clientCount}</span></span>}
