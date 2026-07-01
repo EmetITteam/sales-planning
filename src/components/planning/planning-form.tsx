@@ -1147,8 +1147,10 @@ export function PlanningForm({
         </div>
       )}
 
-      {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === винесено у sections/client-data-by-tm-section (Day 8) */}
-      <ClientDataByTmSection
+      {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === винесено у sections/client-data-by-tm-section (Day 8).
+          Для dynamic-плану ховаємо — числа базуються на forecasts/gap яких для цього
+          бренду не буде (плануємось plan=fact автоматично). Стара історія теж не показуємо. */}
+      {!isDynamicPlan && <ClientDataByTmSection
         categories={categories}
         totalCatClients={totalCatClients}
         totalCatAmount={totalCatAmount}
@@ -1160,7 +1162,7 @@ export function PlanningForm({
         clientsLoading={clientsLoading}
         clientsError={clientsError}
         hasSegmentClients={segmentClients.length > 0}
-      />
+      />}
       {/* === ПРОГНОЗ ПО АКТИВНИХ КЛІЄНТАХ === винесено у sections/forecast-section (Day 8) */}
       {!isDynamicPlan && <ForecastSection
         sortedForecasts={sortedForecasts}
