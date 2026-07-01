@@ -50,11 +50,20 @@ function shortName(fullName: string): string {
  */
 export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, regionLogins, regionExpectedAmount = 0, onDrillDown, onManagerClick, dynamicSegments }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const pct = pctOf(aggregate.totalFact, aggregate.totalPlan);
+  // Effective totalPlan — для dynamic-сегментів беремо факт замість 1С-плану.
+  const effectiveTotalPlan = (() => {
+    if (!dynamicSegments || dynamicSegments.size === 0) return aggregate.totalPlan;
+    let acc = 0;
+    for (const seg of aggregate.segments) {
+      acc += dynamicSegments.has(seg.segmentCode) ? seg.factAmount : seg.planAmount;
+    }
+    return acc;
+  })();
+  const pct = pctOf(aggregate.totalFact, effectiveTotalPlan);
   const tl = getTrafficLight(pct, calcPct);
   const dev = pct - calcPct;
   // Ambient glow за traffic-light станом — лише коли регіон має план.
-  const ambient = aggregate.totalPlan > 0 ? (pct >= calcPct ? 'row-good' : 'row-bad') : '';
+  const ambient = effectiveTotalPlan > 0 ? (pct >= calcPct ? 'row-good' : 'row-bad') : '';
   // Б.2: динаміка vs минулий = заплановане vs минулий факт (forward-looking).
   // Fallback на totalFact якщо нема плану.
   const compareForDyn = regionExpectedAmount > 0 ? regionExpectedAmount : aggregate.totalFact;
@@ -65,9 +74,9 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   // Б.3: насічки прогрес-лінії — forecast (run-rate) + expected (planning).
   const totalWD = getWorkingDaysInMonth(asOfDate.getFullYear(), asOfDate.getMonth());
   const passedWD = getPassedWorkingDays(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
-  const regionForecastPct = calcForecastPercent(aggregate.totalFact, aggregate.totalPlan, passedWD, totalWD);
-  const regionExpectedPct = aggregate.totalPlan > 0
-    ? (regionExpectedAmount / aggregate.totalPlan) * 100
+  const regionForecastPct = calcForecastPercent(aggregate.totalFact, effectiveTotalPlan, passedWD, totalWD);
+  const regionExpectedPct = effectiveTotalPlan > 0
+    ? (regionExpectedAmount / effectiveTotalPlan) * 100
     : 0;
   const hasRegionPlan = regionExpectedAmount > 0;
 
@@ -243,7 +252,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
                   «Запл.: 0% · $0» якщо менеджери ще не finalized. Раніше
                   блок зникав і user не розумів чи це не планували, чи рендер
                   забув показати. */}
-              {aggregate.totalPlan > 0 && (
+              {effectiveTotalPlan > 0 && (
                 <>
                   <span className="text-muted-foreground/40">·</span>
                   <span>
@@ -259,7 +268,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           {/* 5. План */}
           <div className="text-right">
             <p className="text-[9px] text-muted-foreground uppercase tracking-wider">План</p>
-            <p className="text-[12px] font-bold amount">{formatUSD(aggregate.totalPlan)}</p>
+            <p className="text-[12px] font-bold amount">{formatUSD(effectiveTotalPlan)}</p>
           </div>
 
           {/* 6. Факт */}
@@ -359,14 +368,14 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
 
         <div className="flex items-center gap-3 text-[11px] flex-wrap mb-2">
           <span><span className="text-amber-600">●</span> Прогноз (темп) <span className="font-bold text-amber-600">{formatPct(regionForecastPct)}</span></span>
-          {aggregate.totalPlan > 0 && (
+          {effectiveTotalPlan > 0 && (
             <span>
               <span className="text-emet-blue">●</span> Запл. <span className="font-bold text-emet-blue">{formatPct(regionExpectedPct)}</span>
               <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedAmount)}</span></span>
             </span>
           )}
           <span className="text-muted-foreground">|</span>
-          <span>План <span className="font-bold amount">{formatUSD(aggregate.totalPlan)}</span></span>
+          <span>План <span className="font-bold amount">{formatUSD(effectiveTotalPlan)}</span></span>
           <span>Факт <span className="font-bold amount">{formatUSD(aggregate.totalFact)}</span></span>
           {aggregate.totalPrevMonthFact > 0 && (
             <>
@@ -424,7 +433,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               <span className="text-muted-foreground">
                 Факт <span className="font-bold text-foreground amount">{formatUSD(aggregate.totalFact)}</span>
                 <span className="text-muted-foreground/50"> / </span>
-                <span className="amount text-muted-foreground/70">{formatUSD(aggregate.totalPlan)}</span>
+                <span className="amount text-muted-foreground/70">{formatUSD(effectiveTotalPlan)}</span>
               </span>
               {aggregate.totalPrevMonthFact > 0 && (
                 <span className="flex items-center gap-2">

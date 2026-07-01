@@ -254,17 +254,48 @@ export function CompanyOverviewDashboard() {
   })();
 
   // Memoize aggregates щоб не пере-обчислювати при кожному ре-рендер.
-  const { filteredTotalPlan, filteredTotalFact, filteredTotalPrevFact } = useMemo(() => ({
-    filteredTotalPlan: filteredDivisions.reduce((s, d) => s + d.totalPlan, 0),
-    filteredTotalFact: filteredDivisions.reduce((s, d) => s + d.totalFact, 0),
-    filteredTotalPrevFact: filteredDivisions.reduce((s, d) => s + d.totalPrevFact, 0),
-  }), [filteredDivisions]);
+  // Для ПРЕДСТАВНИЦТВ (groupKey='representations') рахуємо effective план з урахуванням
+  // dynamic-сегментів (dynamic → fact замість 1С-плану). Для Колл-центру / Адасси /
+  // Лазерхаузу / дистрибуторів — залишаємо 1С-план як є (там інша модель обліку).
+  const { filteredTotalPlan, filteredTotalFact, filteredTotalPrevFact } = useMemo(() => {
+    let totalPlan = 0, totalFact = 0, totalPrevFact = 0;
+    for (const d of filteredDivisions) {
+      totalFact += d.totalFact;
+      totalPrevFact += d.totalPrevFact;
+      if (d.groupKey === 'representations' && dynamicSegments.size > 0) {
+        for (const code of BRAND_CODES) {
+          const seg = d.segments[code];
+          if (!seg) continue;
+          totalPlan += dynamicSegments.has(code) ? seg.fact : seg.plan;
+        }
+      } else {
+        totalPlan += d.totalPlan;
+      }
+    }
+    return { filteredTotalPlan: totalPlan, filteredTotalFact: totalFact, filteredTotalPrevFact: totalPrevFact };
+  }, [filteredDivisions, dynamicSegments]);
 
   // ⚠️ useCountUp ОБОВ'ЯЗКОВО на верхньому рівні (React rules-of-hooks).
   // Раніше були всередині IIFE conditional → React error #310 на switch view.
   const animPlan = useCountUp(filteredTotalPlan);
   const animFact = useCountUp(filteredTotalFact);
-  const filteredActivePlan = filteredDivisions.filter(d => d.hasFact).reduce((s, d) => s + d.totalPlan, 0);
+  // Effective active-plan (тільки підрозділи що мають факт) — той самий підхід що і filteredTotalPlan.
+  const filteredActivePlan = (() => {
+    let acc = 0;
+    for (const d of filteredDivisions) {
+      if (!d.hasFact) continue;
+      if (d.groupKey === 'representations' && dynamicSegments.size > 0) {
+        for (const code of BRAND_CODES) {
+          const seg = d.segments[code];
+          if (!seg) continue;
+          acc += dynamicSegments.has(code) ? seg.fact : seg.plan;
+        }
+      } else {
+        acc += d.totalPlan;
+      }
+    }
+    return acc;
+  })();
   const filteredWithoutFact = filteredDivisions.filter(d => !d.hasFact).map(d => d.displayName);
 
   const totalPct = filteredActivePlan > 0 ? (filteredTotalFact / filteredActivePlan) * 100 : 0;
