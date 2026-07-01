@@ -48,7 +48,7 @@ export function PlanningSaveBar({
   if (readOnly || (!isAdmin && isWindowLocked)) return null;
 
   return (
-    <div className="sticky top-[56px] -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white/85 backdrop-blur-md border-b border-[#e2e7ef] flex flex-wrap items-center justify-end gap-2 md:gap-3 z-30">
+    <div className="sticky top-[56px] py-2 flex flex-wrap items-center justify-end gap-2 md:gap-3 z-30">
       {lastSavedAt && !saveResult && (
         <span className="text-[11px] text-muted-foreground mr-auto">
           Остання чернетка: {new Date(lastSavedAt).toLocaleString('uk-UA', {
