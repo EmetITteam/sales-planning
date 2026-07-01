@@ -112,10 +112,13 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9, d
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
   // Виключаємо dynamic-сегменти з обліку готовності — по них менеджер не планується.
   const effectiveTotalBrands = totalBrands - (dynamicSegments?.size ?? 0);
-  const isDynamic = (code: string) => !!dynamicSegments?.has(code);
 
   const stats = useMemo<RegionStat[]>(() => {
     if (!planByLogin) return [];
+    // Локальні helper-и всередині useMemo щоб React Compiler правильно вивів залежності
+    // (raw dynamicSegments у deps, без outer let/const, що ламає preserve-manual-memoization).
+    const localEffectiveTotal = totalBrands - (dynamicSegments?.size ?? 0);
+    const localIsDynamic = (code: string) => !!dynamicSegments?.has(code);
     return regions
       .map(r => {
         // Виключаємо менеджерів які НЕ планують у цьому регіоні цього місяця:
@@ -139,7 +142,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9, d
           // з amount > 0 (passive rows відфільтровані у aggregate route).
           // Тому бренд з усіма passive рядками автоматично → empty.
           for (const code of ALL_BRAND_CODES) {
-            if (isDynamic(code)) continue; // dynamic brand — не входить у готовність
+            if (localIsDynamic(code)) continue; // dynamic brand — не входить у готовність
             const row = segMap[code];
             if (!row) empty.push(code);
             else if (row.finalized) finalized.push(code);
@@ -152,7 +155,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9, d
           const status: ManagerStatus = classifyManagerStatus(
             finalized.length + draft.length,
             finalized.length,
-            effectiveTotalBrands,
+            localEffectiveTotal,
           );
           return { login: m.login, name: m.name, status, isTrial, finalized, draft, empty };
         });

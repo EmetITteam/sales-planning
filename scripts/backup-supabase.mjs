@@ -27,11 +27,22 @@ if (!URL || !KEY) {
 
 // ⚠️ Додавати сюди КОЖНУ нову таблицю при створенні. Інакше backup її пропустить.
 const TABLES = [
+  // Core планування
   'users', 'periods', 'forecasts', 'gap_closures', 'period_summaries', 'planning_snapshots',
-  // Admin tables
+  // Archive (historical snapshots per періодему)
+  'archive_forecasts', 'archive_gap_closures', 'archive_period_summaries',
+  // Admin
   'planning_locks', 'planning_settings',
+  // System-lock (kill-switch)
+  'system_settings',
   // Sprint 1.5: meetings buffer-sync
   'meetings', 'meeting_syncs',
+  // Sprint 2D: Bitrix SPA 1048 верифікація клієнтів
+  'client_verifications', 'client_comments',
+  // Notification Center (Sprint 2B+)
+  'notifications',
+  // Dynamic plan segments (ADR-18, 2026-07-01)
+  'dynamic_plan_segments',
 ];
 const PAGE = 1000;
 

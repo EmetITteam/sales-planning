@@ -174,7 +174,7 @@ export default function SystemLockPage() {
             {!state.locked && (
               <div className="glass-card p-5 space-y-3">
                 <label className="block">
-                  <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider">Причина блокування (необов'язково)</span>
+                  <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider">Причина блокування (необов&apos;язково)</span>
                   <input
                     type="text"
                     value={reasonDraft}
