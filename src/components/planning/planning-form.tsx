@@ -1129,6 +1129,24 @@ export function PlanningForm({
         gapClosures={gapClosures}
       />
 
+      {/* Динамічний план: пояснювальна картка ВГОРІ — щоб менеджер одразу
+          побачив чому клієнтів немає у формі і не було блоків Прогноз/Розрив. */}
+      {isDynamicPlan && (
+        <div className="glass-card overflow-hidden border-emerald-200/60">
+          <div className="px-5 py-4 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100/80 flex items-center justify-center shrink-0">
+              <Check className="h-4 w-4 text-emerald-700" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[14px] font-bold text-emerald-800">По цьому бренду не плануємось по клієнтах</p>
+              <p className="text-[12.5px] text-muted-foreground mt-1 leading-relaxed">
+                План = факт автоматично — тобто % виконання завжди 100%. Прогноз і закриття розриву заповнювати не потрібно.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* === ДАНІ ПО КЛІЄНТАХ ПО ТМ === винесено у sections/client-data-by-tm-section (Day 8) */}
       <ClientDataByTmSection
         categories={categories}
@@ -1143,24 +1161,6 @@ export function PlanningForm({
         clientsError={clientsError}
         hasSegmentClients={segmentClients.length > 0}
       />
-      {/* Динамічний план: замість Прогноз + Розрив блоків показуємо пояснювальну картку.
-          plan=fact автоматично, по клієнтах не плануємо. */}
-      {isDynamicPlan && (
-        <div className="glass-card overflow-hidden border-emerald-200/60">
-          <div className="px-5 py-4 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-100/80 flex items-center justify-center shrink-0">
-              <Check className="h-4 w-4 text-emerald-700" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[14px] font-bold text-emerald-800">По цьому бренду не плануємось по клієнтах</p>
-              <p className="text-[12.5px] text-muted-foreground mt-1 leading-relaxed">
-                Обмежений залишок товару. План = факт автоматично — тобто % виконання завжди 100%.
-                Прогноз і закриття розриву заповнювати не потрібно.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
       {/* === ПРОГНОЗ ПО АКТИВНИХ КЛІЄНТАХ === винесено у sections/forecast-section (Day 8) */}
       {!isDynamicPlan && <ForecastSection
         sortedForecasts={sortedForecasts}

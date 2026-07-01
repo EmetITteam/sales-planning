@@ -66,7 +66,7 @@ export function PlanningSaveBar({
       <Button
         onClick={handleSave}
         disabled={saving || finalizing}
-        className="flex-1 md:flex-initial gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
+        className="gap-2 bg-gradient-to-r from-emet-blue to-emet-blue-light hover:from-emet-blue-dark hover:to-[#0775bb] text-white shadow-lg shadow-emet-blue/15 rounded-full h-11 px-5 md:px-7 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
       >
         {saving ? (
           <>
@@ -84,7 +84,7 @@ export function PlanningSaveBar({
         <Button
           onClick={handleFinalize}
           disabled={saving || finalizing}
-          className="flex-1 md:flex-initial gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
+          className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/15 rounded-full h-11 px-5 md:px-7 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
           title="Заблокувати план від подальших змін сум і списку клієнтів"
         >
           <Lock className="h-4 w-4" />
@@ -96,7 +96,7 @@ export function PlanningSaveBar({
         <Button
           onClick={handleUnfinalize}
           disabled={saving || finalizing}
-          className="flex-1 md:flex-initial gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/15 rounded-xl h-11 px-4 md:px-6 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
+          className="gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/15 rounded-full h-11 px-5 md:px-7 text-[13px] md:text-[14px] font-semibold disabled:opacity-50"
           title="Зняти фіналізацію — дозволити менеджеру редагувати"
         >
           <RefreshCw className="h-4 w-4" />
