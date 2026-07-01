@@ -11,6 +11,7 @@
 - `docs/planning/findings.md` — повні аудити meeting-4.0, meeting-app, reclamation-app
 - `docs/planning/stage-1.5-sales-detail.md` — детальна спека Sales Detail
 - `docs/planning/best-manager-spec.md` — детальна спека Best Manager алгоритму
+- `docs/planning/dynamic-plan-segments.md` — Dynamic Plan Segments (plan=fact дзеркально, ADR-18)
 - `docs/planning/progress.md` — sprint-tracker
 - `docs/1C_NEW_ACTIONS_SPEC.md` — буде створено після затвердження цього плану
 
@@ -22,7 +23,7 @@
 2. [Поточний стан (baseline)](#2-поточний-стан-baseline)
 3. [Стратегічна карта — 7 етапів](#3-стратегічна-карта--7-етапів)
 4. [Технологічний стек і архітектура](#4-технологічний-стек-і-архітектура)
-5. [Каталог архітектурних рішень (ADR-1..17)](#5-каталог-архітектурних-рішень-adr-117)
+5. [Каталог архітектурних рішень (ADR-1..18)](#5-каталог-архітектурних-рішень-adr-118)
 6. [Аудити вихідних систем](#6-аудити-вихідних-систем)
 7. [Етап 0 — Architecture + Design Prep](#7-етап-0--architecture--design-prep)
 8. [Етап 1 — Зустрічі (Meetings)](#8-етап-1--зустрічі-meetings)
@@ -310,7 +311,7 @@ export async function GET() {
 
 ---
 
-# 5. Каталог архітектурних рішень (ADR-1..17)
+# 5. Каталог архітектурних рішень (ADR-1..18)
 
 Повні тексти з контекстом і наслідками — `docs/planning/decisions.md`. Тут — короткий реєстр.
 
@@ -333,6 +334,7 @@ export async function GET() {
 | **ADR-15** | **Director Dashboard з meeting-app** — не переносимо (наш Огляд компанії покриває) (Q7) | Accepted |
 | **ADR-16** | **Best Manager methodology** — 5 ТМ (Ellanse/PETARAN/ESSE/IUSE/Vitaran) з порогами участі + 2 обов'язкових фільтри + виключення спікерів + тайбрейкер за % виконання плану по ТМ | Accepted |
 | **ADR-17** | **Sales Detail line-item format** — 11 базових полів від користувача + 1 додатково (segment_code) + стандартні numerics (qty/price/total/discount) | Accepted |
+| **ADR-18** | **Dynamic plan segments** — per-segment override у якому plan=fact дзеркально (для брендів з обмеженим залишком, напр. NEURONOX). Admin вмикає у `/admin/dynamic-plans`. Детально — `docs/planning/dynamic-plan-segments.md`. | Done (2026-07-01) |
 
 ---
 
