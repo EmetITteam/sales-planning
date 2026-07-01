@@ -464,6 +464,7 @@ export function DirectorDashboard() {
             <PlanningReadinessCard
               regions={adapted.regions}
               planByLogin={planAgg?.byLogin ?? null}
+              dynamicSegments={dynamicSegments}
             />
           )}
 

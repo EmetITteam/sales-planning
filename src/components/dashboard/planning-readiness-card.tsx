@@ -41,6 +41,12 @@ interface Props {
   planByLogin?: PlanByLogin | null;
   /** Загальна кількість брендів у плануванні (default = 9 з SEGMENTS). */
   totalBrands?: number;
+  /**
+   * Сегменти з дзеркальним планом (plan=fact авто). По них менеджер НЕ
+   * планується — виключаємо їх зі знаменника готовності, інакше менеджер
+   * ніколи не закриє «всі бренди», хоча зробив усе що від нього залежить.
+   */
+  dynamicSegments?: Set<string>;
 }
 
 const ALL_BRAND_CODES = SEGMENTS.map(s => s.code);
@@ -101,9 +107,12 @@ const badgeBgClass: Record<string, string> = {
 
 const brandName = (code: string) => SEGMENTS.find(s => s.code === code)?.name ?? code;
 
-export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }: Props) {
+export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9, dynamicSegments }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
+  // Виключаємо dynamic-сегменти з обліку готовності — по них менеджер не планується.
+  const effectiveTotalBrands = totalBrands - (dynamicSegments?.size ?? 0);
+  const isDynamic = (code: string) => !!dynamicSegments?.has(code);
 
   const stats = useMemo<RegionStat[]>(() => {
     if (!planByLogin) return [];
@@ -130,6 +139,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           // з amount > 0 (passive rows відфільтровані у aggregate route).
           // Тому бренд з усіма passive рядками автоматично → empty.
           for (const code of ALL_BRAND_CODES) {
+            if (isDynamic(code)) continue; // dynamic brand — не входить у готовність
             const row = segMap[code];
             if (!row) empty.push(code);
             else if (row.finalized) finalized.push(code);
@@ -142,7 +152,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           const status: ManagerStatus = classifyManagerStatus(
             finalized.length + draft.length,
             finalized.length,
-            totalBrands,
+            effectiveTotalBrands,
           );
           return { login: m.login, name: m.name, status, isTrial, finalized, draft, empty };
         });
@@ -168,7 +178,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
         const bProgress = b.totalManagers === 0 ? 0 : (b.managersFinalized + b.managersPartial) / b.totalManagers;
         return aProgress - bProgress;
       });
-  }, [regions, planByLogin, totalBrands]);
+  }, [regions, planByLogin, totalBrands, dynamicSegments]);
 
   const total = useMemo(() => {
     let mgrFin = 0, mgrPartial = 0, mgrEmpty = 0, mgrTrial = 0, mgrAll = 0;
@@ -196,7 +206,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
           <div className="flex-1">
             <p className="text-[14px] font-bold">Усі менеджери фіналізували план</p>
             <p className="text-[11px] text-muted-foreground">
-              {total.mgrAll} менеджерів · усі {totalBrands} брендів закрито
+              {total.mgrAll} менеджерів · усі {effectiveTotalBrands} брендів закрито
             </p>
           </div>
           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-emerald-500/12 border border-emerald-300/40 text-emerald-700 backdrop-blur-sm">✓ ФІНАЛ</span>
@@ -381,7 +391,7 @@ export function PlanningReadinessCard({ regions, planByLogin, totalBrands = 9 }:
                               <span className="text-muted-foreground/40">/</span>
                               <span className="text-amber-600 font-bold">{m.draft.length}</span>
                               <span className="text-muted-foreground/40">/</span>
-                              <span className="text-muted-foreground/60">{totalBrands}</span>
+                              <span className="text-muted-foreground/60">{effectiveTotalBrands}</span>
                             </span>
                           )}
                         </div>
