@@ -274,6 +274,12 @@ export function CompanyOverviewDashboard() {
     }
     return { filteredTotalPlan: totalPlan, filteredTotalFact: totalFact, filteredTotalPrevFact: totalPrevFact };
   }, [filteredDivisions, dynamicSegments]);
+  // Сирий 1С-план (без override) — для інформативного рядка на hero.
+  const filteredRawTotalPlan1c = useMemo(
+    () => filteredDivisions.reduce((s, d) => s + d.totalPlan, 0),
+    [filteredDivisions],
+  );
+  const hasDynamicDiff = dynamicSegments.size > 0 && Math.abs(filteredRawTotalPlan1c - filteredTotalPlan) > 0.5;
 
   // ⚠️ useCountUp ОБОВ'ЯЗКОВО на верхньому рівні (React rules-of-hooks).
   // Раніше були всередині IIFE conditional → React error #310 на switch view.
@@ -511,8 +517,15 @@ export function CompanyOverviewDashboard() {
               isAmount
               value={<span className="amount">{Math.round(animPlan).toLocaleString('en-US')}</span>}
               caption={
-                <span className="text-muted-foreground">
-                  {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
+                <span className="space-y-0.5 block">
+                  <span className="text-muted-foreground block">
+                    {filteredDivisions.length} підрозділів · {passedWD} / {totalWD} робочих днів
+                  </span>
+                  {hasDynamicDiff && (
+                    <span className="text-muted-foreground/70 block text-[10.5px]" title="1С-план по dynamic-сегментах замінено на факт (plan=fact). Тут — оригінальна сума з 1С.">
+                      З 1С (з динамічним): <span className="amount">{fmtUSD(filteredRawTotalPlan1c)}</span>
+                    </span>
+                  )}
                 </span>
               }
             />

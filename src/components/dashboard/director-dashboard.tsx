@@ -213,6 +213,8 @@ export function DirectorDashboard() {
     }
     return acc;
   }, [company, dynamicSegments]);
+  const rawTotalPlan1c = company?.totalPlan ?? 0;
+  const hasDynamicDiff = dynamicSegments.size > 0 && Math.abs(rawTotalPlan1c - totalPlan) > 0.5;
 
   // === Sub-views ===
   if (view === 'viewRegion') {
@@ -386,6 +388,11 @@ export function DirectorDashboard() {
                     <span className="text-muted-foreground block">
                       Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalFin)}</span>
                     </span>
+                    {hasDynamicDiff && (
+                      <span className="text-muted-foreground/70 block text-[10.5px]" title="1С-план по dynamic-сегментах замінено на факт (plan=fact). Тут — оригінальна сума з 1С.">
+                        З 1С (з динамічним): <span className="amount">{formatUSD(rawTotalPlan1c)}</span>
+                      </span>
+                    )}
                   </span>
                 );
               })()}

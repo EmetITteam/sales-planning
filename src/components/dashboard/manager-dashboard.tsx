@@ -330,6 +330,13 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   }, [isDemo, asOfDate, factResponse, myPlansBySegment, planAgg, prevMyPlansBySegment, prevFactsBySegment, dynamicSegments]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
+  // Сирий 1С-план (для інформативного рядка «З 1С: $X» коли є dynamic).
+  const rawTotalPlan1c = useMemo(() => {
+    let acc = 0;
+    for (const [, v] of (myPlansBySegment ?? new Map<string, number>())) acc += v;
+    return acc;
+  }, [myPlansBySegment]);
+  const hasDynamicDiff = dynamicSegments.size > 0 && Math.abs(rawTotalPlan1c - totalPlan) > 0.5;
   // Trial-новачок: 1С виставила $1 sentinel на КОЖЕН сегмент. Дивимось на non-zero
   // плани — якщо всі == $1, це trial. Без цього: totalPlan=$9 / fact=$1143 = 12702%.
   const isTrial = isTrialManager(summaries.map(s => s.planAmount).filter(p => p > 0));
@@ -499,6 +506,11 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
                 <span className="text-muted-foreground block">
                   Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalFin)}</span>
                 </span>
+                {hasDynamicDiff && (
+                  <span className="text-muted-foreground/70 block text-[10.5px]" title="1С-план по dynamic-сегментах замінено на факт (plan=fact). Тут — оригінальна сума з 1С.">
+                    З 1С (з динамічним): <span className="amount">{formatUSD(rawTotalPlan1c)}</span>
+                  </span>
+                )}
               </span>
             );
           })()}

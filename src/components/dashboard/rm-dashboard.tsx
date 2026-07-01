@@ -240,6 +240,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     }
     return acc;
   }, [aggregate, dynamicSegments]);
+  // Сирий 1С-план (для інформативного рядка «З 1С: $X» коли є dynamic).
+  const rawTotalPlan1c = aggregate?.totalPlan ?? 0;
+  const hasDynamicDiff = dynamicSegments.size > 0 && Math.abs(rawTotalPlan1c - totalPlan) > 0.5;
 
   // === Sub-views ===
   if (view === 'myPlanning') {
@@ -425,6 +428,11 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                     <span className="text-muted-foreground block">
                       Заплановано: <span className="amount font-semibold text-foreground">{formatUSD(totalFin)}</span>
                     </span>
+                    {hasDynamicDiff && (
+                      <span className="text-muted-foreground/70 block text-[10.5px]" title="1С-план по dynamic-сегментах замінено на факт (plan=fact). Тут — оригінальна сума з 1С.">
+                        З 1С (з динамічним): <span className="amount">{formatUSD(rawTotalPlan1c)}</span>
+                      </span>
+                    )}
                   </span>
                 );
               })()}
