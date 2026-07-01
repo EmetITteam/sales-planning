@@ -18,6 +18,7 @@ import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { RegionAccordion } from './region-accordion';
 import { BrandRegionGroup, pivotBrandsByRegion } from './brand-region-group';
+import { useDynamicPlanSegments } from '@/lib/use-dynamic-plan-segments';
 import { PlanningReadinessCard } from './planning-readiness-card';
 import { FEATURES } from '@/lib/feature-flags';
 import { MaintenanceBanner } from '@/components/maintenance-banner';
@@ -76,6 +77,9 @@ export function DirectorDashboard() {
     setNav({ regionCode: undefined, managerLogin: undefined, segmentCode: undefined });
   };
   const periodKey = currentPeriod.month.slice(0, 7);
+  // Динамічний план: для NEURONOX тощо plan=fact дзеркально. Прокидуємо у
+  // BrandRegionGroup + RegionAccordion.
+  const { dynamicSegments } = useDynamicPlanSegments(currentPeriod.month);
   // ⚠️ asOfIso ЗАВЖДИ передаємо щоб 1С повертала факт по обраному діапазону
   const asOfIso = liveMode
     ? new Date().toISOString().slice(0, 10)
@@ -508,6 +512,7 @@ export function DirectorDashboard() {
                     asOfDate={asOfDate}
                     regionLogins={regionLogins}
                     regionExpectedAmount={regionExpectedAmount}
+                    dynamicSegments={dynamicSegments}
                     onDrillDown={() => goToRegion(r.regionCode)}
                     onManagerClick={(login) => goToManager(login)}
                   />
@@ -531,6 +536,7 @@ export function DirectorDashboard() {
                   unplannedForBrand={companyStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
                   categoriesLoading={companyStatsLoading}
                   planByLogin={planAgg?.byLogin ?? null}
+                  dynamicSegments={dynamicSegments}
                   onRegionClick={(code) => goToRegion(code)}
                   onManagerClick={(login, segCode) => goToManager(login, segCode)}
                 />

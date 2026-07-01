@@ -51,6 +51,8 @@ interface Props {
    * mock-формули у brand-row.
    */
   planByLogin?: Record<string, Record<string, { forecast: number; gap: number; finalized: boolean }>> | null;
+  /** Set-коди брендів у режимі «Динамічний план» (plan=fact дзеркально). */
+  dynamicSegments?: Set<string>;
 }
 
 /**
@@ -59,9 +61,10 @@ interface Props {
  *
  * Cross-grouping `brand × manager` — дзеркало BrandRegionGroup на РМ-дашборді.
  */
-export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading, planByLogin }: Props) {
+export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading, planByLogin, dynamicSegments }: Props) {
   const [expanded, setExpanded] = useState(false);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
+  const isDynamicPlan = !!dynamicSegments?.has(brand.segmentCode);
 
   // «Запл. %» для бренду в цілому = Σ finalized forecast+gap по менеджерам цього
   // бренду. ТІЛЬКИ фіналізовані плани (не чернетки).
@@ -81,15 +84,16 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
     <div className="glass-card overflow-hidden">
       <BrandRow
         segmentName={brand.segmentName}
-        planAmount={brand.totalPlan}
+        planAmount={isDynamicPlan ? brand.totalFact : brand.totalPlan}
         factAmount={brand.totalFact}
         calcPct={calcPct}
         asOfDate={asOfDate}
         prevMonthFactAmount={brand.totalPrevMonthFact}
         prevMonthFactPercent={totalPrevPct}
-        expectedPercent={brandExpectedPct}
-        expectedAmount={brandPlannedSum}
-        hasManagerPlan={hasBrandPlan}
+        expectedPercent={isDynamicPlan ? 100 : brandExpectedPct}
+        expectedAmount={isDynamicPlan ? brand.totalFact : brandPlannedSum}
+        hasManagerPlan={isDynamicPlan ? false : hasBrandPlan}
+        isDynamicPlan={isDynamicPlan}
         onClick={() => setExpanded(!expanded)}
         expandable
         expanded={expanded}
@@ -124,15 +128,16 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
               <BrandRow
                 key={m.login}
                 segmentName={m.name || m.login}
-                planAmount={m.plan}
+                planAmount={isDynamicPlan ? m.fact : m.plan}
                 factAmount={m.fact}
                 calcPct={calcPct}
                 asOfDate={asOfDate}
                 prevMonthFactAmount={m.prevFact}
                 prevMonthFactPercent={pctOf(m.prevFact, m.prevPlan)}
-                expectedPercent={mgrExpectedPct}
-                expectedAmount={mgrForecast + mgrGap}
-                hasManagerPlan={hasMgrPlan}
+                expectedPercent={isDynamicPlan ? 100 : mgrExpectedPct}
+                expectedAmount={isDynamicPlan ? m.fact : mgrForecast + mgrGap}
+                hasManagerPlan={isDynamicPlan ? false : hasMgrPlan}
+                isDynamicPlan={isDynamicPlan}
                 onClick={() => onManagerClick(m.login, brand.segmentCode)}
               />
             );

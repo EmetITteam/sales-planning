@@ -30,6 +30,8 @@ interface Props {
    * Якщо не передано — імена в mini-list НЕ клікабельні.
    */
   onManagerClick?: (login: string) => void;
+  /** Set-коди брендів у режимі «Динамічний план» (plan=fact дзеркально). */
+  dynamicSegments?: Set<string>;
 }
 
 /** Прізвище І. — наприклад "Сірик Наталія" → "Сірик Н." */
@@ -46,7 +48,7 @@ function shortName(fullName: string): string {
  * Drill-down у RMDashboard — окрема <ChevronRight> кнопка справа з
  * stopPropagation. Mini-list менеджерів між назвою і Факт/План.
  */
-export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, regionLogins, regionExpectedAmount = 0, onDrillDown, onManagerClick }: Props) {
+export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, regionLogins, regionExpectedAmount = 0, onDrillDown, onManagerClick, dynamicSegments }: Props) {
   const [expanded, setExpanded] = useState(false);
   const pct = pctOf(aggregate.totalFact, aggregate.totalPlan);
   const tl = getTrafficLight(pct, calcPct);
@@ -462,19 +464,21 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
               const expectedPercent = seg.planAmount > 0
                 ? ((managerForecast + managerGap) / seg.planAmount) * 100
                 : 0;
+              const isDynamicPlan = !!dynamicSegments?.has(seg.segmentCode);
               return (
                 <BrandRow
                   key={seg.segmentCode}
                   segmentName={seg.segmentName}
-                  planAmount={seg.planAmount}
+                  planAmount={isDynamicPlan ? seg.factAmount : seg.planAmount}
                   factAmount={seg.factAmount}
                   calcPct={calcPct}
                   asOfDate={asOfDate}
-                  hasManagerPlan={hasManagerPlan}
-                  expectedPercent={expectedPercent}
-                  expectedAmount={managerForecast + managerGap}
+                  hasManagerPlan={isDynamicPlan ? false : hasManagerPlan}
+                  expectedPercent={isDynamicPlan ? 100 : expectedPercent}
+                  expectedAmount={isDynamicPlan ? seg.factAmount : managerForecast + managerGap}
                   prevMonthFactAmount={seg.prevMonthFactAmount}
                   prevMonthFactPercent={pctOf(seg.prevMonthFactAmount, seg.prevMonthPlanAmount)}
+                  isDynamicPlan={isDynamicPlan}
                   readOnly
                 />
               );

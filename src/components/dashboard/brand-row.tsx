@@ -40,6 +40,12 @@ export interface BrandRowProps {
   expandable?: boolean;
   /** Стан акордеона — для розвороту chevron */
   expanded?: boolean;
+  /**
+   * Динамічний план (plan=fact дзеркальна підміна). Показуємо emerald-бейдж
+   * замість 'Без плану' / traffic-light — бо звичні метрики (% виконання,
+   * відхилення від норми) для нього не мають сенсу.
+   */
+  isDynamicPlan?: boolean;
 }
 
 export function BrandRow({
@@ -58,6 +64,7 @@ export function BrandRow({
   readOnly,
   expandable,
   expanded,
+  isDynamicPlan,
 }: BrandRowProps) {
   // Trial-менеджер (1С виставила $1 sentinel замість реального плану):
   // factу/$1 = тисячі %, дашборд вибухає. Не показуємо % взагалі.
@@ -119,8 +126,15 @@ export function BrandRow({
           <span className="text-[14px] font-bold truncate">{segmentName}</span>
         </div>
 
-        {/* 2. Бейдж — або стандартний світлофор, або «План не виставлено» */}
-        {planAmount === 0 ? (
+        {/* 2. Бейдж — динамічний план / «без плану» / стандартний світлофор */}
+        {isDynamicPlan ? (
+          <span
+            className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center bg-emerald-500/12 border border-emerald-300/50 text-emerald-700 backdrop-blur-sm"
+            title="Динамічний план: plan=fact автоматично. По клієнтах не плануємо."
+          >
+            Динамічний план
+          </span>
+        ) : planAmount === 0 ? (
           <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-center bg-slate-400/12 border border-slate-300/50 text-slate-500 backdrop-blur-sm" title="План на цей сегмент ще не заведено в 1С">
             Без плану
           </span>

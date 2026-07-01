@@ -19,6 +19,7 @@ import { PlanningDialogs } from './planning-dialogs';
 import { ClientDataByTmSection } from './sections/client-data-by-tm-section';
 import { ForecastSection } from './sections/forecast-section';
 import { GapClosureSection } from './sections/gap-closure-section';
+import { useDynamicPlanSegments } from '@/lib/use-dynamic-plan-segments';
 import { PlanningMetricsRow } from './sections/planning-metrics-row';
 import { PlanningSaveBar } from './sections/planning-save-bar';
 import { compareForecastRows, compareGapRows, isPassiveAmount } from '@/lib/passive-rows';
@@ -105,6 +106,11 @@ export function PlanningForm({
     stageUnlockedAfterFinalize,
     canUnfinalize,
   } = usePlanningLocks({ segmentCode, targetUserLogin, readOnlyProp });
+
+  // Динамічний план: для NEURONOX тощо plan=fact дзеркально. У формі ховаємо
+  // Прогноз + Розрив блоки (по клієнтах не плануємо), показуємо badge зверху.
+  const { dynamicSegments } = useDynamicPlanSegments(currentPeriod?.month ?? null);
+  const isDynamicPlan = dynamicSegments.has(segmentCode);
 
   // Початковий стан — порожньо. Supabase підтягне збережені прогнози у useEffect.
   // Auto-populate з активних клієнтів 1С — нижче (коли 1С відповіла).
@@ -1028,6 +1034,14 @@ export function PlanningForm({
         <span className="text-muted-foreground/40">/</span>
         <span className="text-[15px] font-bold">{segment?.name}</span>
         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emet-50 text-emet-blue">{periodLabel}</span>
+        {isDynamicPlan && (
+          <span
+            className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/12 border border-emerald-300/50 text-emerald-700 backdrop-blur-sm"
+            title="Динамічний план: plan=fact автоматично. По клієнтах не плануємо."
+          >
+            Динамічний план
+          </span>
+        )}
         {readOnlyProp && (
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/12 border border-amber-300/40 text-amber-700 backdrop-blur-sm flex items-center gap-1">
             <Eye className="h-3 w-3" /> Перегляд
@@ -1129,8 +1143,26 @@ export function PlanningForm({
         clientsError={clientsError}
         hasSegmentClients={segmentClients.length > 0}
       />
+      {/* Динамічний план: замість Прогноз + Розрив блоків показуємо пояснювальну картку.
+          plan=fact автоматично, по клієнтах не плануємо. */}
+      {isDynamicPlan && (
+        <div className="glass-card overflow-hidden border-emerald-200/60">
+          <div className="px-5 py-4 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100/80 flex items-center justify-center shrink-0">
+              <Check className="h-4 w-4 text-emerald-700" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[14px] font-bold text-emerald-800">По цьому бренду не плануємось по клієнтах</p>
+              <p className="text-[12.5px] text-muted-foreground mt-1 leading-relaxed">
+                Обмежений залишок товару. План = факт автоматично — тобто % виконання завжди 100%.
+                Прогноз і закриття розриву заповнювати не потрібно.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* === ПРОГНОЗ ПО АКТИВНИХ КЛІЄНТАХ === винесено у sections/forecast-section (Day 8) */}
-      <ForecastSection
+      {!isDynamicPlan && <ForecastSection
         sortedForecasts={sortedForecasts}
         forecasts={forecasts}
         forecastTotal={forecastTotal}
@@ -1151,9 +1183,9 @@ export function PlanningForm({
         readOnly={readOnly}
         isAdmin={isAdmin}
         clientsLoading={clientsLoading}
-      />
+      />}
       {/* === ЗАКРИТТЯ РОЗРИВУ === винесено у sections/gap-closure-section (Day 8) */}
-      <GapClosureSection
+      {!isDynamicPlan && <GapClosureSection
         sortedGapClosures={sortedGapClosures}
         gapClosures={gapClosures}
         gapTotal={gapTotal}
@@ -1176,9 +1208,9 @@ export function PlanningForm({
         readOnly={readOnly}
         isAdmin={isAdmin}
         clientsLoading={clientsLoading}
-      />
+      />}
       {/* Дії для закриття */}
-      <div className="glass-card overflow-hidden">
+      {!isDynamicPlan && <div className="glass-card overflow-hidden">
         <div className="px-5 py-3 border-b border-[#e2e7ef]">
           <h3 className="text-[14px] font-bold">Дії для закриття розриву</h3>
         </div>
@@ -1192,7 +1224,7 @@ export function PlanningForm({
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
       <PlanningDialogs
         showIncompleteConfirm={showIncompleteConfirm}

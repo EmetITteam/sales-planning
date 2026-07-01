@@ -284,6 +284,14 @@ export interface TMSummaryCard {
   weightedPipeline: number;
   clientCount: number;
   status: 'submitted' | 'draft' | 'empty';
+  /**
+   * Динамічний план: planAmount = factAmount (дзеркальна підміна). Активується
+   * per-segment через admin у /admin/dynamic-plans. У UI показуємо badge
+   * «Динамічний план», у формі планування ховаємо forecast + gap блоки.
+   *
+   * Створено 2026-07-01 для NEURONOX (обмежений залишок товарів).
+   */
+  isDynamicPlan?: boolean;
 }
 
 // === Період ===

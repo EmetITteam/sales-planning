@@ -16,6 +16,7 @@ import { useOneCData } from '@/lib/use-onec-data';
 import { useClientsForPlanning } from '@/lib/use-clients-for-planning';
 import { useRegistryPlans } from '@/lib/use-registry-plans';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
+import { useDynamicPlanSegments } from '@/lib/use-dynamic-plan-segments';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import {
   adaptSalesFact, adaptRegistryPlans, adaptClientsForPlanning,
@@ -260,6 +261,9 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     currentPeriod.month,
   );
 
+  // Динамічні сегменти для поточного місяця (NEURONOX тощо) — планaAmount = factAmount.
+  const { dynamicSegments } = useDynamicPlanSegments(currentPeriod.month);
+
   // Будуємо summaries з реальних даних 1С — без mock fallback.
   // Action 4 → план, Action 3 → факт + кількість покупців.
   // PrevMonth поля = 0 поки не готовий Action 5 (UI це коректно обробляє).
@@ -272,10 +276,15 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     const calcPctValue = getMonthProgressPct(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate);
 
     return SEGMENTS.map(seg => {
-      const planAmount = myPlansBySegment?.get(seg.code) ?? 0;
+      const isDynamicPlan = dynamicSegments.has(seg.code);
       const fact = realFacts?.find(f => f.segmentCode === seg.code);
       const factAmount = fact?.totalAmount ?? 0;
       const clientCount = fact?.totalClientCount ?? 0;
+      // Динамічний план: planAmount = factAmount (дзеркальна підміна).
+      // Інакше — план з 1С getRegistryPlans як раніше.
+      const planAmount = isDynamicPlan
+        ? factAmount
+        : (myPlansBySegment?.get(seg.code) ?? 0);
 
       const factPct = pctOf(factAmount, planAmount);
       const forecastPct = calcForecastPercent(factAmount, planAmount, passedWD, totalWD);
@@ -315,9 +324,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
         weightedPipeline: factAmount * 1.5,
         clientCount,
         status: 'draft',
+        isDynamicPlan,
       } satisfies TMSummaryCard;
     });
-  }, [isDemo, asOfDate, factResponse, myPlansBySegment, planAgg, prevMyPlansBySegment, prevFactsBySegment]);
+  }, [isDemo, asOfDate, factResponse, myPlansBySegment, planAgg, prevMyPlansBySegment, prevFactsBySegment, dynamicSegments]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
   // Trial-новачок: 1С виставила $1 sentinel на КОЖЕН сегмент. Дивимось на non-zero
@@ -595,6 +605,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
                   clientCount={tm.clientCount}
                   prevMonthFactAmount={tm.prevMonthFactAmount}
                   prevMonthFactPercent={tm.prevMonthFactPercent}
+                  isDynamicPlan={tm.isDynamicPlan}
                   onClick={() => setExpandedSegment(prev => prev === tm.segmentCode ? null : tm.segmentCode)}
                   readOnly={liveMode}
                   expandable

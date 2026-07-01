@@ -15,6 +15,7 @@ import { getWorkingDaysInMonth, getPassedWorkingDays, getMonthProgressPct } from
 import { ManagerDashboard } from './manager-dashboard';
 import { ManagerAccordion } from './manager-accordion';
 import { BrandManagerGroup, pivotBrandsByManager } from './brand-manager-group';
+import { useDynamicPlanSegments } from '@/lib/use-dynamic-plan-segments';
 import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
 import { DashboardSkeleton } from './dashboard-skeleton';
@@ -73,6 +74,9 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     setNav({ managerLogin: undefined, segmentCode: undefined });
   };
   const periodKey = currentPeriod.month.slice(0, 7); // YYYY-MM
+  // Динамічний план: для NEURONOX тощо plan=fact дзеркально. У BrandManagerGroup
+  // передаємо як prop, там overriding % + planAmount + badge.
+  const { dynamicSegments } = useDynamicPlanSegments(currentPeriod.month);
   // ⚠️ asOfIso ЗАВЖДИ передаємо: live → today, інакше → дата з фільтра
   // (currentPeriod.weekEnd). Якщо не передавати — 1С повертає весь місяць,
   // а норма виконання й факт мають бути узгоджені з обраним періодом.
@@ -506,6 +510,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   onDrillDown={() => goToManager(m.login)}
                   onPlanBrand={(segCode) => goToManager(m.login, segCode)}
                   planByLogin={planAgg?.byLogin ?? null}
+                  dynamicSegments={dynamicSegments}
                 />
               ))}
             </div>
@@ -526,6 +531,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
                   unplannedForBrand={regionStats?.bySegment[brand.segmentCode]?.unplanned ?? null}
                   categoriesLoading={statsLoading}
                   planByLogin={planAgg?.byLogin ?? null}
+                  dynamicSegments={dynamicSegments}
                   onManagerClick={(login, segCode) => goToManager(login, segCode)}
                 />
               ))}

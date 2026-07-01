@@ -67,6 +67,14 @@ class SupabaseTable {
     this.queryParts.push(`${column}=lt.${encodeURIComponent(String(value))}`);
     return this;
   }
+  lte(column: string, value: string): this {
+    this.queryParts.push(`${column}=lte.${encodeURIComponent(String(value))}`);
+    return this;
+  }
+  gte(column: string, value: string): this {
+    this.queryParts.push(`${column}=gte.${encodeURIComponent(String(value))}`);
+    return this;
+  }
   in(column: string, values: unknown[]): this {
     if (values.length === 0) {
       this.queryParts.push(`${column}=in.()`);

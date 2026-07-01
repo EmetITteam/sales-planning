@@ -59,6 +59,8 @@ interface Props {
    * Використовуємо щоб рахувати real «Запл. %» per (region, brand) sum-over-managers.
    */
   planByLogin?: Record<string, Record<string, { forecast: number; gap: number; finalized: boolean }>> | null;
+  /** Set-коди брендів у режимі «Динамічний план» (plan=fact дзеркально). */
+  dynamicSegments?: Set<string>;
 }
 
 /**
@@ -69,10 +71,13 @@ interface Props {
  * `region × brand`). Дозволяє Sales Director швидко побачити «Petaran просідає
  * у Києві, але виконує план в Одесі».
  */
-export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading, planByLogin }: Props) {
+export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onManagerClick, planCategoriesForBrand, factCategoriesForBrand, unplannedForBrand, categoriesLoading, planByLogin, dynamicSegments }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null);
   const totalPrevPct = pctOf(brand.totalPrevMonthFact, brand.totalPrevMonthPlan);
+  const isDynamicPlan = !!dynamicSegments?.has(brand.segmentCode);
+  // Дзеркальний план: plan = fact на всіх рівнях агрегації.
+  const brandPlanShown = isDynamicPlan ? brand.totalFact : brand.totalPlan;
 
   // «Запл. %» для бренду в цілому: Σ finalized forecast+gap по менеджерам цього
   // бренду. ТІЛЬКИ фіналізовані плани, чернетки у звітність не йдуть.
@@ -94,15 +99,16 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
     <div className="glass-card overflow-hidden">
       <BrandRow
         segmentName={brand.segmentName}
-        planAmount={brand.totalPlan}
+        planAmount={brandPlanShown}
         factAmount={brand.totalFact}
         calcPct={calcPct}
         asOfDate={asOfDate}
         prevMonthFactAmount={brand.totalPrevMonthFact}
         prevMonthFactPercent={totalPrevPct}
-        expectedPercent={brandExpectedPct}
-        expectedAmount={brandPlannedSum}
-        hasManagerPlan={hasBrandPlan}
+        expectedPercent={isDynamicPlan ? 100 : brandExpectedPct}
+        expectedAmount={isDynamicPlan ? brand.totalFact : brandPlannedSum}
+        hasManagerPlan={isDynamicPlan ? false : hasBrandPlan}
+        isDynamicPlan={isDynamicPlan}
         onClick={() => setExpanded(!expanded)}
         expandable
         expanded={expanded}
@@ -143,15 +149,16 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
                   <div className="flex-1 min-w-0">
                     <BrandRow
                       segmentName={r.regionName}
-                      planAmount={r.plan}
+                      planAmount={isDynamicPlan ? r.fact : r.plan}
                       factAmount={r.fact}
                       calcPct={calcPct}
                       asOfDate={asOfDate}
                       prevMonthFactAmount={r.prevFact}
                       prevMonthFactPercent={pctOf(r.prevFact, r.prevPlan)}
-                      expectedPercent={regionExpectedPct}
-                      expectedAmount={regionForecastPlusGap}
-                      hasManagerPlan={hasRegionPlan}
+                      expectedPercent={isDynamicPlan ? 100 : regionExpectedPct}
+                      expectedAmount={isDynamicPlan ? r.fact : regionForecastPlusGap}
+                      hasManagerPlan={isDynamicPlan ? false : hasRegionPlan}
+                      isDynamicPlan={isDynamicPlan}
                       onClick={() => onRegionClick(r.regionCode)}
                     />
                   </div>

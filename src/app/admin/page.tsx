@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import Link from 'next/link';
-import { Shield, ShieldAlert, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Shield, ShieldAlert, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle, Sparkles } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -112,6 +112,13 @@ export default function AdminPage() {
             icon={<ShieldAlert className="h-4 w-4 text-rose-700" />}
             title="Kill-switch системи"
             description="Глобальне блокування доступу для всіх крім admin. Для форс-мажорних випадків (інцидент безпеки, обслуговування). Менеджери відключаються миттєво."
+            ready
+          />
+          <AdminCard
+            href="/admin/dynamic-plans"
+            icon={<Sparkles className="h-4 w-4 text-emerald-600" />}
+            title="Динамічні плани"
+            description="Сегменти для яких plan=fact дзеркально (виконання завжди 100%). Юз-кейс: NEURONOX — обмежений залишок товарів. По цих брендах менеджер не планується по клієнтах."
             ready
           />
         </div>

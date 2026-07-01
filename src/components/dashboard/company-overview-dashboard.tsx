@@ -18,6 +18,7 @@ import { useAppStore } from '@/lib/store';
 import { useCountUp } from '@/hooks/use-count-up';
 import { DonutChart } from '@/components/dashboard/donut-chart';
 import { SEGMENTS } from '@/lib/mock-data';
+import { useDynamicPlanSegments } from '@/lib/use-dynamic-plan-segments';
 import { getMonthProgressPct, getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { Building2, RefreshCw, Zap, Target, DollarSign, TrendingUp, TrendingDown, AlertTriangle, CalendarDays, Users } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
@@ -199,38 +200,45 @@ export function CompanyOverviewDashboard() {
     return rows;
   }, [data, filteredDivisions]);
 
+  // Динамічний план: коди брендів для яких plan=fact дзеркально (NEURONOX тощо).
+  const { dynamicSegments } = useDynamicPlanSegments(period);
+
   // brandsForAccordion: для кожного бренду — список ПІДРОЗДІЛІВ (не груп) де його продають.
   const brandsForAccordion = useMemo(() => {
     const rows: Array<{
       code: string; name: string;
       totalPlan: number; totalFact: number;
+      isDynamicPlan?: boolean;
       byDivision: Array<{ divisionName: string; displayName: string; groupKey: string; plan: number; fact: number; hasFact: boolean; }>;
     }> = [];
     if (!data) return rows;
     for (const code of BRAND_CODES) {
+      const isDynamicPlan = dynamicSegments.has(code);
       let totalPlan = 0, totalFact = 0;
       const byDivision: Array<{ divisionName: string; displayName: string; groupKey: string; plan: number; fact: number; hasFact: boolean }> = [];
       for (const d of filteredDivisions) {
         const seg = d.segments[code];
         if (!seg) continue;
         if (seg.plan === 0 && seg.fact === 0) continue;
+        // Динамічний план: дзеркалимо plan = fact, щоб виконання завжди 100%.
+        const planShown = isDynamicPlan ? seg.fact : seg.plan;
         byDivision.push({
           divisionName: d.divisionName,
           displayName: d.groupKey === 'representations' ? d.divisionName : d.displayName,
           groupKey: d.groupKey,
-          plan: seg.plan,
+          plan: planShown,
           fact: seg.fact,
           hasFact: d.hasFact && seg.fact > 0,
         });
-        totalPlan += seg.plan;
+        totalPlan += planShown;
         totalFact += seg.fact;
       }
       byDivision.sort((a, b) => b.fact - a.fact);
-      rows.push({ code, name: BRAND_NAMES[code] || code, totalPlan, totalFact, byDivision });
+      rows.push({ code, name: BRAND_NAMES[code] || code, totalPlan, totalFact, byDivision, isDynamicPlan });
     }
     rows.sort((a, b) => b.totalFact - a.totalFact);
     return rows;
-  }, [data, filteredDivisions]);
+  }, [data, filteredDivisions, dynamicSegments]);
 
   // Контекстний суфікс для hero-карток («План усієї компанії», «План Колл-центру» тощо).
   // Міняється разом з фільтром Група — щоб число у картці відповідало підпису.
@@ -1206,7 +1214,17 @@ export function CompanyOverviewDashboard() {
                         className="w-full grid grid-cols-[20px_1fr_180px_80px_60px] gap-3 items-center text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50 rounded-lg"
                       >
                         <span className={`text-[12px] text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                        <span className="font-bold text-[14px]">{b.name}</span>
+                        <span className="font-bold text-[14px] flex items-center gap-2">
+                          {b.name}
+                          {b.isDynamicPlan && (
+                            <span
+                              className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/12 border border-emerald-300/50 text-emerald-700"
+                              title="Динамічний план: plan=fact автоматично. По клієнтах не плануємо."
+                            >
+                              Динамічний план
+                            </span>
+                          )}
+                        </span>
                         <span className="font-mono tabular-nums text-[12px] text-right">
                           <span className="text-muted-foreground">{fmtUSD(b.totalPlan)} / </span>
                           <strong>{fmtUSD(b.totalFact)}</strong>

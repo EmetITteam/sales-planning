@@ -27,6 +27,8 @@ interface Props {
    * Без нього fallback на totalFact-prevFact (старий неправильний).
    */
   planByLogin?: Record<string, Record<string, { forecast: number; gap: number; finalized: boolean }>> | null;
+  /** Set-коди брендів у режимі «Динамічний план» (plan=fact дзеркально). */
+  dynamicSegments?: Set<string>;
 }
 
 function initials(fullName: string, login: string): string {
@@ -43,7 +45,7 @@ function initials(fullName: string, login: string): string {
  *
  * Дзеркало RegionAccordion але рівнем нижче (manager × segment замість region × segment).
  */
-export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPlanBrand, planByLogin }: Props) {
+export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPlanBrand, planByLogin, dynamicSegments }: Props) {
   const [expanded, setExpanded] = useState(false);
   // Lazy: тільки коли expanded — тягнемо план цього менеджера з Supabase.
   // Потрібно для синьої насічки «Запланований» на progress bar кожного бренду.
@@ -272,19 +274,21 @@ export function ManagerAccordion({ manager, calcPct, asOfDate, onDrillDown, onPl
             const expectedPercent = seg.planAmount > 0
               ? ((managerForecast + managerGap) / seg.planAmount) * 100
               : 0;
+            const isDynamicPlan = !!dynamicSegments?.has(seg.segmentCode);
             return (
               <BrandRow
                 key={seg.segmentCode}
                 segmentName={seg.segmentName}
-                planAmount={seg.planAmount}
+                planAmount={isDynamicPlan ? seg.factAmount : seg.planAmount}
                 factAmount={seg.factAmount}
                 calcPct={calcPct}
                 asOfDate={asOfDate}
-                hasManagerPlan={hasManagerPlan}
-                expectedPercent={expectedPercent}
-                expectedAmount={managerForecast + managerGap}
+                hasManagerPlan={isDynamicPlan ? false : hasManagerPlan}
+                expectedPercent={isDynamicPlan ? 100 : expectedPercent}
+                expectedAmount={isDynamicPlan ? seg.factAmount : managerForecast + managerGap}
                 prevMonthFactAmount={seg.prevMonthFactAmount}
                 prevMonthFactPercent={pctOf(seg.prevMonthFactAmount ?? 0, seg.prevMonthPlanAmount ?? 0)}
+                isDynamicPlan={isDynamicPlan}
                 onClick={onPlanBrand ? () => onPlanBrand(seg.segmentCode) : undefined}
                 readOnly={!onPlanBrand}
               />
