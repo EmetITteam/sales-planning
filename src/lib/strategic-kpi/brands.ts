@@ -47,9 +47,31 @@ export const CHANNEL_LABEL: Record<StrategicChannel, string> = {
 export const ELLANSE_BRAND: StrategicBrand = 'Ellanse';
 
 /**
- * Дистриб'ютори активні тільки для Ellanse.
+ * Бренди які продає Колл-центр. Інші (Vitaran, Neuronox, Petaran тощо) КЦ
+ * не продає — не показуємо цей канал для них.
+ *
+ * Правило узгоджено з ITD 2026-07-02.
+ */
+export const CALL_CENTER_BRANDS: Set<StrategicBrand> = new Set(['ESSE', 'IUSE Coll.', 'БАД']);
+
+/**
+ * Дистриб'ютори — активні тільки для Ellanse (2 фізичні локації: Полтава + Чернівці).
+ * Колл-центр — активний тільки для CALL_CENTER_BRANDS.
+ * Представництва — для всіх брендів.
  */
 export function isChannelActive(brand: StrategicBrand, channel: StrategicChannel): boolean {
   if (channel === 'distributors') return brand === ELLANSE_BRAND;
+  if (channel === 'call_center') return CALL_CENTER_BRANDS.has(brand);
   return true;
 }
+
+/**
+ * Локації дистриб'юторів Ellanse. По кожній — окремий факт семінарів (per місяць).
+ */
+export const ELLANSE_DISTRIBUTOR_LOCATIONS = ['poltava', 'chernivtsi'] as const;
+export type EllanseDistributorLocation = (typeof ELLANSE_DISTRIBUTOR_LOCATIONS)[number];
+
+export const LOCATION_LABEL: Record<EllanseDistributorLocation, string> = {
+  poltava: 'Полтава',
+  chernivtsi: 'Чернівці',
+};
