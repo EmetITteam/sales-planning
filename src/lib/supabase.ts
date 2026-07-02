@@ -75,6 +75,25 @@ class SupabaseTable {
     this.queryParts.push(`${column}=gte.${encodeURIComponent(String(value))}`);
     return this;
   }
+  gt(column: string, value: string): this {
+    this.queryParts.push(`${column}=gt.${encodeURIComponent(String(value))}`);
+    return this;
+  }
+  neq(column: string, value: string | number | boolean): this {
+    this.queryParts.push(`${column}=neq.${encodeURIComponent(String(value))}`);
+    return this;
+  }
+  // not — інверсія фільтру: not.is.null, not.eq.value тощо
+  // Використання: supabase.from('sales').not('discount', 'is', null)
+  not(column: string, operator: string, value: unknown): this {
+    let val: string;
+    if (value === null) val = 'null';
+    else if (value === true) val = 'true';
+    else if (value === false) val = 'false';
+    else val = encodeURIComponent(String(value));
+    this.queryParts.push(`${column}=not.${operator}.${val}`);
+    return this;
+  }
   in(column: string, values: unknown[]): this {
     if (values.length === 0) {
       this.queryParts.push(`${column}=in.()`);
@@ -100,6 +119,13 @@ class SupabaseTable {
 
   limit(n: number): this {
     this.queryParts.push(`limit=${Math.max(0, Math.floor(n))}`);
+    return this;
+  }
+  // range(from, to) — пагінація через PostgREST Range header
+  // Використовується коли limit=1000 REST-ліміт треба перебрати порційно.
+  range(from: number, to: number): this {
+    this._extraHeaders['Range'] = `${from}-${to}`;
+    this._extraHeaders['Range-Unit'] = 'items';
     return this;
   }
 

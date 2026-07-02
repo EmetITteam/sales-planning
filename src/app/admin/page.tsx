@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import Link from 'next/link';
-import { Shield, ShieldAlert, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle, Sparkles, Target } from 'lucide-react';
+import { Shield, ShieldAlert, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle, Sparkles, Target, BarChart3 } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -126,6 +126,13 @@ export default function AdminPage() {
             icon={<Target className="h-4 w-4 text-emet-blue" />}
             title="Стратегічні таргети"
             description="Річні і місячні цілі KPI по 11 брендах × канал (Представництва / Колл-центр / Дистриб'ютори). Живлять дашборд /admin/strategic-kpi."
+            ready
+          />
+          <AdminCard
+            href="/admin/strategic-kpi"
+            icon={<BarChart3 className="h-4 w-4 text-emet-blue" />}
+            title="Стратегічний KPI-дашборд"
+            description="Виконання цілей по брендах: унікальні клієнти, купують у міс., середній чек, ср/уп. На даних sales таблиці (265K рядків з 2022+). Живі дані з Supabase."
             ready
           />
         </div>
