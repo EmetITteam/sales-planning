@@ -329,12 +329,16 @@ export default function StrategicTargetsPage() {
                     </div>
                   </div>
 
-                  {/* ELLANSE-only: навчання */}
-                  {selectedBrand === ELLANSE_BRAND && (
+                  {/* ELLANSE + Дистриб'ютори: план по навчаннях */}
+                  {selectedBrand === ELLANSE_BRAND && channel === 'distributors' && (
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
                         <GraduationCap className="h-3 w-3" />
-                        Навчання (тільки ELLANSE)
+                        Навчання Ellanse (Дистриб&apos;ютори)
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mb-2">
+                        План на рік. Факт по місяцях і локаціях (Полтава / Чернівці) →
+                        {' '}<Link href="/admin/ellanse-seminars" className="text-emet-blue underline font-semibold">/admin/ellanse-seminars</Link>
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <NumField

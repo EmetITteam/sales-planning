@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import Link from 'next/link';
-import { Shield, ShieldAlert, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle, Sparkles, Target, BarChart3 } from 'lucide-react';
+import { Shield, ShieldAlert, Lock, Clock, Settings2, ArrowLeft, Building2, FlaskConical, RefreshCw, Calendar, CheckCircle2, XCircle, AlertTriangle, Sparkles, Target, BarChart3, GraduationCap } from 'lucide-react';
 
 /**
  * Адмін-панель (заглушка під Етап 1 Пакету А).
@@ -133,6 +133,13 @@ export default function AdminPage() {
             icon={<BarChart3 className="h-4 w-4 text-emet-blue" />}
             title="Стратегічний KPI-дашборд"
             description="Виконання цілей по брендах: унікальні клієнти, купують у міс., середній чек, ср/уп. На даних sales таблиці (265K рядків з 2022+). Живі дані з Supabase."
+            ready
+          />
+          <AdminCard
+            href="/admin/ellanse-seminars"
+            icon={<GraduationCap className="h-4 w-4 text-amber-600" />}
+            title="Ellanse семінари · факт"
+            description="Дистриб'ютори по місяцях: Полтава + Чернівці. Скільки семінарів фактично провели + опц. нових обучених. Вручну, бо у 1С даних немає."
             ready
           />
         </div>
