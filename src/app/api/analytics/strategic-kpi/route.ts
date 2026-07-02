@@ -26,6 +26,11 @@ import { fetchEllanseRepSeminars, type RepSeminar } from '@/lib/strategic-kpi/re
 import { fetch1CBrandChannelPlans, fetch1CBrandChannelFacts } from '@/lib/strategic-kpi/onec-plans';
 import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS, STRATEGIC_SEGMENTS, isSegment } from '@/lib/strategic-kpi/brands';
 
+// 1С company-wide екшени (план+факт) можуть тривати 30-40с на першу загрузку —
+// даємо функції достатньо часу (Vercel default 10с вбив би 1С-виклики).
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 interface StrategicTargetRow {
   year: number;
   brand: string;
@@ -136,8 +141,18 @@ export async function GET(request: NextRequest) {
   const onec1CFrom = from.slice(0, 10);
   const onec1CTo = new Date(new Date(to).getTime() - 86400000).toISOString().slice(0, 10);
   const onecPlans: Record<string, Record<string, number>> = {};
+  let onecFacts: Record<string, Record<string, number>> = {};
+  // План (Action 4) + факт (Action 5) — паралельно. company-overview зовe ті ж
+  // важкі company-wide екшени БЕЗ таймауту (30-40с перша загрузка), тому таймаут
+  // тут щедрий (25с), інакше 1С не встигає → % відкочується на клієнтський.
+  // AsyncCache 5хв робить наступні запити періоду миттєвими.
   try {
-    const raw = await softRace(fetch1CBrandChannelPlans(onec1CFrom, onec1CTo), 5000, '1c-plans');
+    const [raw, rawF] = await Promise.all([
+      softRace(fetch1CBrandChannelPlans(onec1CFrom, onec1CTo), 25000, '1c-plans'),
+      periodKind === 'month'
+        ? softRace(fetch1CBrandChannelFacts(monthKey), 25000, '1c-facts')
+        : Promise.resolve(null),
+    ]);
     if (raw) {
       // Ділимо на місяці для averaged-періодів (факт теж усереднений).
       const div = periodKind === 'month' ? 1 : monthsInPeriod;
@@ -146,21 +161,9 @@ export async function GET(request: NextRequest) {
         for (const [ch, v] of Object.entries(chans)) onecPlans[brand][ch] = v / div;
       }
     }
+    if (rawF) onecFacts = rawF;
   } catch (e) {
-    console.warn('1c-plans failed:', (e as Error).message);
-  }
-
-  // Реальний грошовий ФАКТ з 1С (Action 5) — той самий що «Огляд компанії».
-  // Тільки для місячного періоду (getRegionData приймає один місяць YYYY-MM).
-  // Для квартал/рік — лишаємо порожнім, фронт відкотиться на факт із sales.
-  let onecFacts: Record<string, Record<string, number>> = {};
-  if (periodKind === 'month') {
-    try {
-      const rawF = await softRace(fetch1CBrandChannelFacts(monthKey), 8000, '1c-facts');
-      if (rawF) onecFacts = rawF;
-    } catch (e) {
-      console.warn('1c-facts failed:', (e as Error).message);
-    }
+    console.warn('1c plan/fact failed:', (e as Error).message);
   }
 
   if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
