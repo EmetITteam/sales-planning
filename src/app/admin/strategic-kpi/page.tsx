@@ -217,9 +217,9 @@ export default function StrategicKpiPage() {
         @keyframes skDrift { 0%,100% { transform: translate(0,0) scale(1); } 25% { transform: translate(80px,-60px) scale(1.1); } 50% { transform: translate(-40px,100px) scale(0.95); } 75% { transform: translate(60px,40px) scale(1.05); } }
         .sk-glass { background: rgba(255,255,255,0.42); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); border: 1px solid rgba(255,255,255,0.85); border-radius: 24px; box-shadow: 0 8px 32px rgba(31,38,135,0.08), inset 0 1px 0 rgba(255,255,255,0.7); }
         .sk-glass-soft { background: rgba(255,255,255,0.32); backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); border: 1px solid rgba(255,255,255,0.75); border-radius: 18px; }
-        .sk-hero-title { font-family: 'Manrope', sans-serif; font-weight: 200; font-size: 44px; letter-spacing: -1.5px; line-height: 1.05; }
+        .sk-hero-title { font-family: 'Manrope', sans-serif; font-weight: 200; font-size: 30px; letter-spacing: -1px; line-height: 1.05; }
         .sk-hero-title strong { font-weight: 700; }
-        .sk-mega-pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 82px; letter-spacing: -3px; line-height: 1; font-variant-numeric: tabular-nums; }
+        .sk-mega-pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 52px; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
         .sk-metric-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 26px; letter-spacing: -0.5px; line-height: 1; font-variant-numeric: tabular-nums; }
         .sk-brand-pill { padding: 10px 16px; border-radius: 16px; font-weight: 700; font-size: 13px; letter-spacing: -0.2px; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(6,42,61,0.08); background: rgba(255,255,255,0.5); color: rgba(6,42,61,0.58); }
         .sk-brand-pill:hover { transform: translateY(-1px); background: rgba(255,255,255,0.75); color: #062a3d; }
@@ -288,18 +288,18 @@ export default function StrategicKpiPage() {
 
         {/* Hero */}
         {!loading && brandBlocks.length > 0 && (
-          <div className="sk-glass p-8 relative overflow-hidden">
+          <div className="sk-glass p-5 relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none opacity-40" style={{
               background: 'radial-gradient(circle at 85% 20%, rgba(91,213,188,0.22) 0%, transparent 60%)',
             }} />
-            <div className="relative flex items-start justify-between gap-6 flex-wrap">
+            <div className="relative flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <div className="sk-hero-title">
                   <strong>{selectedBrand}</strong> <span className="sk-muted">·</span> <span className="sk-muted font-light">{periodLabel}</span>
                 </div>
                 {m > 0 && (
-                  <div className="text-[12px] sk-muted mt-3 flex items-center gap-3">
-                    <span>По {m}-му місяцю з 12</span>
+                  <div className="text-[11.5px] sk-muted mt-1.5 flex items-center gap-2">
+                    <span>По {m}-му міс. з 12</span>
                     <span className="text-[rgba(6,42,61,0.24)]">·</span>
                     <span><span className="mono font-bold">{Math.round((m / 12) * 100)}%</span> року пройшло</span>
                   </div>
@@ -308,44 +308,29 @@ export default function StrategicKpiPage() {
               {brandExecution !== null && (
                 <div className="text-right">
                   <div className={`sk-mega-pct sk-text-${statusColor(brandExecution)}`}>{brandExecution.toFixed(1)}%</div>
-                  <div className="sk-lbl mt-2">% виконання плану</div>
+                  <div className="sk-lbl mt-1">% виконання плану</div>
                 </div>
               )}
             </div>
 
             {/* Категорії клієнтів (для selected brand) */}
             {data?.categories && (
-              <div className="relative mt-6 pt-5 border-t border-[rgba(6,42,61,0.08)]">
-                <div className="sk-lbl mb-3">Клієнти бренду у періоді</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <CategoryCard
-                    label="Нові"
-                    value={data.categories.new}
-                    total={data.categories.total}
-                    hint="Ніколи не купували цей бренд до цього періоду"
-                    accent="mint"
-                  />
-                  <CategoryCard
-                    label="Активні"
-                    value={data.categories.active}
-                    total={data.categories.total}
-                    hint="Купували цей бренд ≤ 4 міс. до періоду"
-                    accent="good"
-                  />
-                  <CategoryCard
-                    label="Сплячі"
-                    value={data.categories.sleeping}
-                    total={data.categories.total}
-                    hint="Купували 4-6 міс. тому"
-                    accent="warn"
-                  />
-                  <CategoryCard
-                    label="Втрачені"
-                    value={data.categories.lost}
-                    total={data.categories.total}
-                    hint="Не купували > 6 міс."
-                    accent="bad"
-                  />
+              <div className="relative mt-4 pt-3.5 border-t border-[rgba(6,42,61,0.08)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="sk-lbl">Клієнти бренду у періоді</div>
+                  <div className="text-[11px] sk-muted">
+                    · Разом <span className="mono font-bold">{data.categories.total}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <CategoryCard label="Нові" value={data.categories.new} total={data.categories.total}
+                    hint="Ніколи не купували цей бренд до цього періоду" accent="mint" />
+                  <CategoryCard label="Активні" value={data.categories.active} total={data.categories.total}
+                    hint="Купували цей бренд ≤ 4 міс. до періоду" accent="good" />
+                  <CategoryCard label="Сплячі" value={data.categories.sleeping} total={data.categories.total}
+                    hint="Купували 4-6 міс. тому" accent="warn" />
+                  <CategoryCard label="Втрачені" value={data.categories.lost} total={data.categories.total}
+                    hint="Не купували > 6 міс." accent="bad" />
                 </div>
               </div>
             )}
@@ -425,6 +410,53 @@ export default function StrategicKpiPage() {
                     <GraduationCap className="h-3 w-3" /> Навчання Ellanse — Полтава + Чернівці
                   </p>
 
+                  {/* Впервые обучені (автоматично з sales — Ellanse+seminar рядки) */}
+                  {data?.first_trained && (
+                    <div>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2">
+                        Впервые обучені · автоматично з sales
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div
+                          className="rounded-2xl p-4 border relative"
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(91,213,188,0.18) 0%, rgba(20,184,166,0.08) 100%)',
+                            borderColor: 'rgba(91,213,188,0.4)',
+                          }}
+                          title="Клієнти для яких Ellanse-семінарська покупка у цьому періоді — перша в історії бази (з 2022)"
+                        >
+                          <div className="sk-lbl mb-1.5" style={{ color: '#0f766e', opacity: 0.85 }}>
+                            За період
+                          </div>
+                          <div className="mono font-bold text-[32px] leading-none tabular-nums" style={{ color: '#0f766e' }}>
+                            {data.first_trained.period}
+                          </div>
+                          <div className="text-[10.5px] mt-1.5" style={{ color: '#0f766e', opacity: 0.7 }}>
+                            новий клієнт з Ellanse-семінаром вперше
+                          </div>
+                        </div>
+                        <div
+                          className="rounded-2xl p-4 border relative"
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(2,132,199,0.10) 0%, rgba(8,128,204,0.04) 100%)',
+                            borderColor: 'rgba(2,132,199,0.28)',
+                          }}
+                          title="Скільки нових обучених за YTD (з початку року по кінець періоду)"
+                        >
+                          <div className="sk-lbl mb-1.5" style={{ color: '#0284c7', opacity: 0.85 }}>
+                            YTD {data.year}
+                          </div>
+                          <div className="mono font-bold text-[32px] leading-none tabular-nums" style={{ color: '#0284c7' }}>
+                            {data.first_trained.ytd}
+                          </div>
+                          <div className="text-[10.5px] mt-1.5" style={{ color: '#0284c7', opacity: 0.7 }}>
+                            від січня по кінець періоду
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Факт семінарів (з ellanse_seminars_actual) */}
                   {block.seminars_actual && (
                     <div>
@@ -438,7 +470,7 @@ export default function StrategicKpiPage() {
                           ytd={block.seminars_actual.ytd.seminars_held}
                         />
                         <SeminarStatCard
-                          label="Разом обучено"
+                          label="Разом обучено вручну"
                           period={block.seminars_actual.period.new_trained}
                           ytd={block.seminars_actual.ytd.new_trained}
                         />
@@ -621,16 +653,20 @@ function CategoryCard({
   }[accent];
   return (
     <div
-      className="rounded-2xl p-3.5 border relative"
+      className="rounded-xl px-3 py-2 border flex items-center justify-between gap-2"
       style={{ background: bg, borderColor: border }}
       title={hint}
     >
-      <div className="sk-lbl mb-1.5" style={{ color: numColor, opacity: 0.85 }}>{label}</div>
-      <div className="mono font-bold text-[26px] leading-none tabular-nums" style={{ color: numColor }}>
-        {value}
+      <div>
+        <div className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: numColor, opacity: 0.85 }}>
+          {label}
+        </div>
+        <div className="mono font-bold text-[18px] leading-none tabular-nums mt-0.5" style={{ color: numColor }}>
+          {value}
+        </div>
       </div>
-      <div className="text-[10.5px] mt-1" style={{ color: numColor, opacity: 0.7 }}>
-        {pct.toFixed(1)}% від разом
+      <div className="mono text-[10px] font-bold whitespace-nowrap" style={{ color: numColor, opacity: 0.65 }}>
+        {pct.toFixed(0)}%
       </div>
     </div>
   );
