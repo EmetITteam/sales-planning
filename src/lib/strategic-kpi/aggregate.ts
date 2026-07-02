@@ -114,6 +114,95 @@ function toMetric(row: KpiBatchRow, side: 'period' | 'ytd'): BrandChannelMetrics
   };
 }
 
+// ============================================================================
+// Averaged batch RPC (migration 034): усереднений monthly агрегат для
+// квартал/півріччя/рік + YTD одним запитом.
+// ============================================================================
+interface KpiAveragedRow {
+  brand: string; channel: string;
+  period_uc: number; period_qty: number | string; period_sum: number | string;
+  period_avg_qc: number | string; period_avg_chk: number | string; period_rows: number;
+  ytd_uc: number; ytd_qty: number | string; ytd_sum: number | string; ytd_rows: number;
+}
+
+function toAveragedMetric(row: KpiAveragedRow): BrandChannelMetrics {
+  const uc  = row.period_uc;
+  const qty = Number(row.period_qty);
+  const sum = Number(row.period_sum);
+  const avgQc  = Number(row.period_avg_qc);
+  const avgChk = Number(row.period_avg_chk);
+  return {
+    brand: row.brand as BrandChannelMetrics['brand'],
+    channel: row.channel as StrategicChannel,
+    unique_clients: uc,
+    total_qty: Math.round(qty * 100) / 100,
+    total_sum_usd: Math.round(sum * 100) / 100,
+    avg_qty_per_client: Math.round(avgQc * 100) / 100,
+    avg_check_usd: Math.round(avgChk * 100) / 100,
+    rows: row.period_rows,
+  };
+}
+
+/**
+ * Батч-версія для періодів > 1 місяця (квартал/півріччя/рік). SQL робить
+ * monthly-групування + AVG() на сервері за ~500-800 мс замість 30-120
+ * REST-раундів (4-10 сек) у JS. Fallback — старий JS-шлях.
+ */
+export async function fetchKpiMetricsAveragedBatch(
+  periodFrom: string,
+  periodTo: string,
+  ytdFrom: string,
+): Promise<{ period: BrandChannelMetrics[]; ytd: BrandChannelMetrics[] }> {
+  const periodKey = `avg|${periodFrom}|${periodTo}`;
+  const ytdKey    = `single|${ytdFrom}|${periodTo}`;
+
+  const cP = cacheGet(periodKey);
+  const cY = cacheGet(ytdKey);
+  if (cP && cY) return { period: cP, ytd: cY };
+
+  const rpc = await supabase.rpc<KpiAveragedRow[]>('get_kpi_metrics_averaged', {
+    p_from: periodFrom,
+    p_to: periodTo,
+    p_ytd_from: ytdFrom,
+  });
+
+  if (!rpc.error && Array.isArray(rpc.data)) {
+    const period: BrandChannelMetrics[] = [];
+    const ytd: BrandChannelMetrics[] = [];
+    for (const row of rpc.data) {
+      if (row.period_rows > 0) period.push(toAveragedMetric(row));
+      if (row.ytd_rows > 0) {
+        const uc  = row.ytd_uc;
+        const qty = Number(row.ytd_qty);
+        const sum = Number(row.ytd_sum);
+        ytd.push({
+          brand: row.brand as BrandChannelMetrics['brand'],
+          channel: row.channel as StrategicChannel,
+          unique_clients: uc,
+          total_qty: Math.round(qty * 100) / 100,
+          total_sum_usd: Math.round(sum * 100) / 100,
+          avg_qty_per_client: uc > 0 ? Math.round((qty / uc) * 100) / 100 : 0,
+          avg_check_usd: uc > 0 ? Math.round((sum / uc) * 100) / 100 : 0,
+          rows: row.ytd_rows,
+        });
+      }
+    }
+    cacheSet(periodKey, period);
+    cacheSet(ytdKey, ytd);
+    return { period, ytd };
+  }
+  if (rpc.error) {
+    console.warn('[aggregate] get_kpi_metrics_averaged RPC failed, JS fallback:', rpc.error.message);
+  }
+
+  // Fallback: JS-шлях
+  const [period, ytd] = await Promise.all([
+    aggregatePeriodMetricsAveraged(periodFrom, periodTo),
+    aggregateBrandChannelMetrics(ytdFrom, periodTo),
+  ]);
+  return { period, ytd };
+}
+
 /**
  * Батч-версія: один RPC повертає одразу period + YTD агрегати.
  * Заповнює обидва кеш-ключі щоб наступні виклики були cache-hit.

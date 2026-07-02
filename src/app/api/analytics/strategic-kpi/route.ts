@@ -18,7 +18,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { isAdminLogin } from '@/lib/feature-flags';
 import { supabase } from '@/lib/supabase';
-import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregateYTDMetrics, fetchKpiMetricsBatch, parsePeriod } from '@/lib/strategic-kpi/aggregate';
+import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregateYTDMetrics, fetchKpiMetricsBatch, fetchKpiMetricsAveragedBatch, parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { getBrandClientCategories, type ClientCategories } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
@@ -66,12 +66,12 @@ export async function GET(request: NextRequest) {
   // Для одного місяця period+YTD через batch-RPC (один запит).
   // Для квартал/півріччя/рік period — усереднений (JS), YTD окремо через batch.
   const ytdFrom = `${year}-01-01T00:00:00Z`;
-  const useBatch = periodKind === 'month';
-
-  const batchP = useBatch
+  // Обираємо RPC залежно від типу періоду:
+  //   month   → get_kpi_metrics_batch (period+YTD одним запитом, sum-based)
+  //   quarter/half/year → get_kpi_metrics_averaged (monthly-averaged + YTD)
+  const batchP = periodKind === 'month'
     ? fetchKpiMetricsBatch(from, to, ytdFrom)
-    : Promise.all([aggregatePeriodMetricsAveraged(from, to), aggregateYTDMetrics(year, to)])
-        .then(([period, ytd]) => ({ period, ytd }));
+    : fetchKpiMetricsAveragedBatch(from, to, ytdFrom);
 
   const [batch, promos, targetsResult, seminarsResult] = await Promise.all([
     batchP,
