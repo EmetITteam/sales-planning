@@ -14,6 +14,7 @@
 import { AsyncCache } from './cache-helper';
 
 const CACHE = new AsyncCache<Record<string, Record<string, number>>>(5 * 60 * 1000, 'onec-plans');
+const FACT_CACHE = new AsyncCache<Record<string, Record<string, number>>>(5 * 60 * 1000, 'onec-facts');
 
 const DIRECTOR_PROXY_LOGIN = 'sdu@emet.in.ua';
 
@@ -41,8 +42,11 @@ const SEGMENT_TO_BRAND: Record<string, string> = {
 };
 
 interface Plan { divisionName?: string; segmentCode?: string; planAmountUSD?: number | string }
+interface RegionSeg { segmentCode?: string; factAmountUSD?: number | string }
+interface RegionMgr { segments?: RegionSeg[] }
+interface Region { regionName?: string; managers?: RegionMgr[] }
 
-async function callOnec(action: string, payload: Record<string, unknown>): Promise<{ status: string; data?: { plans?: Plan[] }; message?: string }> {
+async function callOnec(action: string, payload: Record<string, unknown>): Promise<{ status: string; data?: { plans?: Plan[]; regions?: Region[] }; message?: string }> {
   const url = process.env.ONEC_BASE_URL;
   if (!url) throw new Error('ONEC_BASE_URL not configured');
   const login = process.env.ONEC_LOGIN;
@@ -83,6 +87,37 @@ async function doFetch(dateFrom: string, dateTo: string): Promise<Record<string,
     const channel = divisionToChannel(String(p.divisionName ?? '').trim());
     if (!channel) continue;
     (out[brand] = out[brand] ?? {})[channel] = (out[brand][channel] ?? 0) + amt;
+  }
+  return out;
+}
+
+// Money FACT per (brand x channel) from 1C Action 5 (getRegionData) — the same
+// source «Ogljad kompaniji» uses. period = YYYY-MM (one month only, as 1C
+// getRegionData accepts a single month). includeAll: true — return all
+// divisions (call-center, distributors), admin-only proxy login.
+export async function fetch1CBrandChannelFacts(
+  period: string,
+): Promise<Record<string, Record<string, number>>> {
+  return FACT_CACHE.getOrLoad(period, () => doFetchFacts(period));
+}
+
+async function doFetchFacts(period: string): Promise<Record<string, Record<string, number>>> {
+  const r = await callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period, includeAll: true });
+  if (r.status !== 'success') throw new Error(`getRegionData: ${r.message ?? 'unknown'}`);
+
+  const out: Record<string, Record<string, number>> = {};
+  for (const reg of r.data?.regions ?? []) {
+    const channel = divisionToChannel(String(reg.regionName ?? '').trim());
+    if (!channel) continue; // Adassa / Lazerhauz* — not part of strategic-kpi
+    for (const mgr of reg.managers ?? []) {
+      for (const seg of mgr.segments ?? []) {
+        const brand = SEGMENT_TO_BRAND[String(seg.segmentCode ?? '').toUpperCase().trim()];
+        if (!brand) continue;
+        const fact = Number(seg.factAmountUSD ?? 0);
+        if (!(fact > 0)) continue;
+        (out[brand] = out[brand] ?? {})[channel] = (out[brand][channel] ?? 0) + fact;
+      }
+    }
   }
   return out;
 }

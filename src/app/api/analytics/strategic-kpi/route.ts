@@ -23,7 +23,7 @@ import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { getBrandClientCategories, getBrandChannelCategories, type ClientCategories, type ChannelCategoriesMap } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
 import { fetchEllanseRepSeminars, type RepSeminar } from '@/lib/strategic-kpi/rep-seminars';
-import { fetch1CBrandChannelPlans } from '@/lib/strategic-kpi/onec-plans';
+import { fetch1CBrandChannelPlans, fetch1CBrandChannelFacts } from '@/lib/strategic-kpi/onec-plans';
 import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS, STRATEGIC_SEGMENTS, isSegment } from '@/lib/strategic-kpi/brands';
 
 interface StrategicTargetRow {
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
   })();
   const onec1CFrom = from.slice(0, 10);
   const onec1CTo = new Date(new Date(to).getTime() - 86400000).toISOString().slice(0, 10);
-  let onecPlans: Record<string, Record<string, number>> = {};
+  const onecPlans: Record<string, Record<string, number>> = {};
   try {
     const raw = await softRace(fetch1CBrandChannelPlans(onec1CFrom, onec1CTo), 5000, '1c-plans');
     if (raw) {
@@ -148,6 +148,19 @@ export async function GET(request: NextRequest) {
     }
   } catch (e) {
     console.warn('1c-plans failed:', (e as Error).message);
+  }
+
+  // Реальний грошовий ФАКТ з 1С (Action 5) — той самий що «Огляд компанії».
+  // Тільки для місячного періоду (getRegionData приймає один місяць YYYY-MM).
+  // Для квартал/рік — лишаємо порожнім, фронт відкотиться на факт із sales.
+  let onecFacts: Record<string, Record<string, number>> = {};
+  if (periodKind === 'month') {
+    try {
+      const rawF = await softRace(fetch1CBrandChannelFacts(monthKey), 8000, '1c-facts');
+      if (rawF) onecFacts = rawF;
+    } catch (e) {
+      console.warn('1c-facts failed:', (e as Error).message);
+    }
   }
 
   if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
@@ -436,5 +449,6 @@ export async function GET(request: NextRequest) {
     ellanse_seminars_summary: ellanseSeminarsSummary,  // річний план + факт YTD
     segment_summary: segmentSummary,   // zvedeni cifri po IUSE-tipu segmentu
     onec_plans: onecPlans,   // грошові плани з 1С Action 4 per brand×channel
+    onec_facts: onecFacts,   // грошовий факт з 1С Action 5 per brand×channel (місяць)
   });
 }
