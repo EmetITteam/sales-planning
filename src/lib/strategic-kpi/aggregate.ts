@@ -36,6 +36,10 @@ interface SalesRow {
 /**
  * Тягне всі валідні рядки sales у діапазоні дат порційно (Range header).
  * Ліміт REST = 1000 рядків / запит.
+ *
+ * ПРАВИЛО (ITD 2026-07-02):
+ *   Клієнт що ТІЛЬКИ отримав бренд як подарунок (без платної покупки) — НЕ
+ *   рахується як клієнт цього бренду. Тому фільтр is_gift=false залишаємо.
  */
 async function fetchValidSales(dateFromIso: string, dateToIso: string): Promise<SalesRow[]> {
   const out: SalesRow[] = [];
@@ -43,6 +47,9 @@ async function fetchValidSales(dateFromIso: string, dateToIso: string): Promise<
   const PAGE = 1000;
 
   while (true) {
+    // ORDER BY ОБОВ'ЯЗКОВО для порційної пагінації — без нього PostgREST повертає
+    // рядки у непередбачуваному порядку і між сторінками може пропускати/дублювати
+    // (був bug 2026-07-02: 108 клієнтів Vitaran пропали між page 0-999 і 1000-1999).
     const result = await supabase
       .from('sales')
       .select('brand,channel,client_code,qty,sum_usd')
@@ -52,6 +59,7 @@ async function fetchValidSales(dateFromIso: string, dateToIso: string): Promise<
       .eq('is_gift', false)
       .eq('is_excluded', false)
       .neq('brand', 'НЕ_МАПНУТО')
+      .order('id')
       .range(from, from + PAGE - 1);
 
     if (result.error || !result.data) {

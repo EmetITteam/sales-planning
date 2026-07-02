@@ -34,6 +34,7 @@ export async function buildFirstTrainedMap(): Promise<Map<string, Date>> {
       .select('client_code,sale_date')
       .eq('brand', 'Ellanse')
       .not('seminar', 'is', null)
+      .order('id')
       .range(from, from + PAGE - 1);
 
     if (result.error || !result.data) {

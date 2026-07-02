@@ -137,10 +137,20 @@ export default function StrategicKpiPage() {
   const [y, m] = period.split('-').map(Number);
   const periodLabel = m ? `${MONTHS_UA[m - 1]} ${y}` : period;
 
+  // Overall % бренду — середнє з УСІХ доступних execution %:
+  // - buyers_monthly (місячна ціль купуючих)
+  // - avg_qty_per_client (місячна ціль ср/уп)
+  // - unique_clients_pace (річна ціль з поправкою на pace — «чи ми на плані»)
+  // - avg_check_annual (річна ціль середнього чеку)
+  // Каждый канал вносить свій набір, потім усереднюємо.
   const brandExecution = useMemo(() => {
     const pcts: number[] = [];
     for (const b of brandBlocks) {
-      if (b.execution.buyers_monthly_pct != null) pcts.push(b.execution.buyers_monthly_pct);
+      const e = b.execution;
+      if (e.buyers_monthly_pct != null) pcts.push(e.buyers_monthly_pct);
+      if (e.avg_qty_per_client_pct != null) pcts.push(e.avg_qty_per_client_pct);
+      if (e.unique_clients_pace_pct != null) pcts.push(e.unique_clients_pace_pct);
+      if (e.avg_check_annual_pct != null) pcts.push(e.avg_check_annual_pct);
     }
     return pcts.length ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
   }, [brandBlocks]);
@@ -216,14 +226,14 @@ export default function StrategicKpiPage() {
         </Link>
 
         {/* Toolbar */}
-        <div className="sk-glass p-5 flex items-end gap-5 flex-wrap">
-          <div>
-            <div className="sk-lbl mb-1.5">Період</div>
+        <div className="sk-glass p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="sk-lbl">Період</div>
             <input type="month" value={period} onChange={e => setPeriod(e.target.value)}
               className="h-10 px-3 text-[13px] rounded-xl border border-[rgba(6,42,61,0.12)] bg-white font-semibold" />
           </div>
-          <div className="flex-1 min-w-[260px]">
-            <div className="sk-lbl mb-1.5">Бренд</div>
+          <div>
+            <div className="sk-lbl mb-2">Бренд</div>
             <div className="flex flex-wrap gap-2">
               {STRATEGIC_BRANDS.map(b => (
                 <button key={b} type="button" onClick={() => setSelectedBrand(b)}
@@ -233,12 +243,6 @@ export default function StrategicKpiPage() {
               ))}
             </div>
           </div>
-          {data && (
-            <div className="text-[11px] sk-muted text-right">
-              <p><span className="mono font-bold">{data.counts.month_rows.toLocaleString('en-US')}</span> рядків місяця</p>
-              <p><span className="mono font-bold">{data.counts.ytd_rows.toLocaleString('en-US')}</span> YTD</p>
-            </div>
-          )}
         </div>
 
         {error && (
@@ -269,12 +273,6 @@ export default function StrategicKpiPage() {
                   <span>Місяць {m} з 12</span>
                   <span className="text-[rgba(6,42,61,0.24)]">·</span>
                   <span>Pace <span className="mono font-bold">{Math.round((m / 12) * 100)}%</span> року</span>
-                  {data && (
-                    <>
-                      <span className="text-[rgba(6,42,61,0.24)]">·</span>
-                      <span><span className="mono font-bold">{data.counts.targets}</span> таргетів у БД</span>
-                    </>
-                  )}
                 </div>
               </div>
               {brandExecution !== null && (

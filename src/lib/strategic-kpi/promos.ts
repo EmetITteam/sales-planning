@@ -26,6 +26,7 @@ export interface Promo {
 }
 
 interface PromoRow {
+  doc_id: string;
   discount: string;
   brand: string;
   channel: string;
@@ -34,6 +35,15 @@ interface PromoRow {
   sum_usd: number;
   is_gift: boolean;
   gift_brand: string | null;
+}
+
+/**
+ * Для gift-акцій треба знати «скільки клієнти реально купили trigger товару» —
+ * не $0 з gift-рядків, а суму пов'язаних покупок у тих же документах.
+ * Тримаємо мапу doc_id → sum trigger_brand у цьому документі.
+ */
+interface DocSums {
+  [docId: string]: { brand: string; sum: number; qty: number };
 }
 
 // ============================================================================
@@ -75,12 +85,13 @@ async function fetchPromoRows(dateFrom: string, dateTo: string): Promise<PromoRo
   while (true) {
     const result = await supabase
       .from('sales')
-      .select('discount,brand,channel,client_code,qty,sum_usd,is_gift,gift_brand')
+      .select('doc_id,discount,brand,channel,client_code,qty,sum_usd,is_gift,gift_brand')
       .gte('sale_date', dateFrom)
       .lt('sale_date', dateTo)
       .eq('is_ignored', false)
       .eq('is_excluded', false)
       .not('discount', 'is', null)
+      .order('id')
       .range(from, from + PAGE - 1);
 
     if (result.error || !result.data) {
@@ -96,8 +107,43 @@ async function fetchPromoRows(dateFrom: string, dateTo: string): Promise<PromoRo
 }
 
 /**
+ * Тягне суми trigger-покупок для набору doc_id. Для gift-акцій потрібно щоб
+ * показати «на яку суму купували» не 0 (з gift-рядка), а РЕАЛЬНУ суму
+ * trigger товару у ТОМУ Ж ДОКУМЕНТІ.
+ *
+ * Приклад: «Vitaran 700$ + Подарок Marine Collagen» — рядок Marine Collagen
+ * має sum=0, але у doc є Vitaran-рядок з sum≈700. Ми тягнемо його sum.
+ */
+async function fetchTriggerSums(docIds: string[], triggerBrand: string): Promise<{ sum: number; qty: number }> {
+  if (docIds.length === 0) return { sum: 0, qty: 0 };
+  // Порційно, бо GET query length обмежена
+  const CHUNK = 100;
+  let totalSum = 0, totalQty = 0;
+  for (let i = 0; i < docIds.length; i += CHUNK) {
+    const chunk = docIds.slice(i, i + CHUNK);
+    const result = await supabase
+      .from('sales')
+      .select('sum_usd,qty')
+      .in('doc_id', chunk)
+      .eq('brand', triggerBrand)
+      .eq('is_ignored', false)
+      .eq('is_gift', false);
+    if (result.error || !result.data) continue;
+    for (const r of result.data as unknown as Array<{ sum_usd: number; qty: number }>) {
+      totalSum += Number(r.sum_usd);
+      totalQty += Number(r.qty);
+    }
+  }
+  return { sum: totalSum, qty: totalQty };
+}
+
+/**
  * Групує промо за унікальним текстом поводу. Trigger brand визначається з
  * тексту (якщо не знайдено — беремо brand з рядка).
+ *
+ * Для gift-акцій (sum=0 у самих рядках) — окремим кроком тягнемо суму
+ * trigger товару у ТИХ ЖЕ документах, щоб показати «на скільки купували
+ * щоб отримати подарунок».
  */
 export async function aggregatePromos(dateFrom: string, dateTo: string): Promise<Promo[]> {
   const rows = await fetchPromoRows(dateFrom, dateTo);
@@ -107,6 +153,7 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
     trigger_brand: string | null;
     channel: string;
     clients: Set<string>;
+    doc_ids: Set<string>;
     qty: number;
     sum: number;
     is_gift_any: boolean;
@@ -127,6 +174,7 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
         trigger_brand: triggerBrand,
         channel: r.channel,
         clients: new Set(),
+        doc_ids: new Set(),
         qty: 0,
         sum: 0,
         is_gift_any: false,
@@ -135,6 +183,7 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
       promoMap.set(key, bucket);
     }
     bucket.clients.add(r.client_code);
+    bucket.doc_ids.add(r.doc_id);
     bucket.qty += Number(r.qty);
     bucket.sum += Number(r.sum_usd);
     if (r.is_gift) bucket.is_gift_any = true;
@@ -143,13 +192,22 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
 
   const result: Promo[] = [];
   for (const b of promoMap.values()) {
+    const qty = b.qty;
+    let sum = b.sum;
+    // Для gift-акцій sum з самих рядків = 0. Тягнемо суму trigger покупок
+    // у тих же документах.
+    if (b.is_gift_any && sum === 0 && b.trigger_brand) {
+      const trigger = await fetchTriggerSums(Array.from(b.doc_ids), b.trigger_brand);
+      sum = trigger.sum;
+      // qty з gift-рядків залишаємо (= скільки подарунків роздали) — це інформативно
+    }
     result.push({
       name: b.name,
       brand: b.trigger_brand as Promo['brand'],
       channel: b.channel as StrategicChannel,
       unique_clients: b.clients.size,
-      total_qty: Math.round(b.qty * 100) / 100,
-      total_sum_usd: Math.round(b.sum * 100) / 100,
+      total_qty: Math.round(qty * 100) / 100,
+      total_sum_usd: Math.round(sum * 100) / 100,
       is_gift: b.is_gift_any,
       gift_brand: b.gift_brand,
     });
