@@ -46,39 +46,54 @@ export function MetricCard({ label, Icon, monthValue, ytdValue, target, simplePc
   const status = statusColor(simplePct);
   const fmt = (n: number | null | undefined) => (n == null ? '—' : isUsd ? fmtUSD(n) : fmtNum(n, isDecimal));
   const barPct = simplePct == null ? 0 : Math.max(0, Math.min(100, simplePct));
+  // Кольори статусу (у стилі «Огляд компанії»)
+  const dot = { good: '#10b981', ok: '#5bd5bc', warn: '#fb923c', bad: '#e11d48', na: '#94a3b8' }[status];
+  const barColor = { good: '#10b981', ok: '#5bd5bc', warn: '#fb923c', bad: '#e11d48', na: '#cbd5e1' }[status];
 
   return (
-    <div className={`sk-ambient-${status} border rounded-2xl p-4 relative`}>
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-7 h-7 rounded-lg bg-white/60 border border-white/80 flex items-center justify-center text-[#066aab]">
-          <Icon size={14} />
-        </div>
-        <div className="sk-lbl">{label}</div>
+    <div className="glass-card-soft p-4 flex flex-col">
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
+        <Icon size={12} />
+        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{label}</span>
       </div>
-      <div className="sk-metric-num mb-1">
+      <p className="text-[28px] font-bold tabular-nums leading-none">
         {fmt(value)}
-        {target != null && <span className="text-[13px] sk-muted font-medium ml-1">/ {fmt(target)}</span>}
-      </div>
-      <div className="sk-progress-track mb-2">
-        {simplePct != null && <div className={`sk-progress-fill ${status}`} style={{ width: `${barPct}%` }} />}
+        {target != null && <span className="text-[13px] text-muted-foreground font-medium ml-1">/ {fmt(target)}</span>}
+      </p>
+      <div className="h-1.5 rounded-full bg-black/5 mt-3 mb-2 overflow-hidden">
+        {simplePct != null && (
+          <div className="h-full rounded-full transition-[width] duration-500"
+            style={{ width: `${barPct}%`, background: barColor }} />
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-[10.5px]">
         {simplePct != null ? (
-          <span className={`sk-chip sk-chip-${status}`} title="Факт / ціль">{fmtPct(simplePct)} від цілі</span>
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full font-bold backdrop-blur-sm border"
+            style={{
+              background: `${barColor}20`,
+              borderColor: `${barColor}66`,
+              color: barColor === '#5bd5bc' ? '#0f766e' : barColor,
+            }}
+            title="Факт / ціль"
+          >
+            {fmtPct(simplePct)} від цілі
+          </span>
         ) : (
-          <span className="sk-muted">цілі не введено</span>
+          <span className="text-muted-foreground">цілі не введено</span>
         )}
         {pacePct != null && (
           <span
-            className="sk-chip sk-chip-ok"
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-teal-500/12 border border-teal-300/40 text-teal-800"
             title="Прогноз виконання плану року на основі поточного темпу"
           >
             {fmtPct(pacePct)} прогноз
           </span>
         )}
         {forecast != null && (
-          <span className="sk-muted" title="Прогноз на кінець року при збереженні темпу">
-            прогн. кінець року: {isUsd ? fmtUSD(forecast) : Math.round(forecast).toLocaleString('en-US')}
+          <span className="text-muted-foreground text-[10px]" title="Прогноз на кінець року при збереженні темпу">
+            кінець року: {isUsd ? fmtUSD(forecast) : Math.round(forecast).toLocaleString('en-US')}
           </span>
         )}
       </div>
@@ -94,44 +109,21 @@ export function CategoryCard({ label, value, total, hint, accent }: {
   accent: 'mint' | 'good' | 'warn' | 'bad';
 }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
-  // 3D-стиль: як у MetricCard — двошарова тінь (inset highlight + drop) +
-  // radial glow акцентного кольору у верхньому правому куті.
-  const palette = {
-    mint: { bg1: 'rgba(91,213,188,0.20)',  bg2: 'rgba(20,184,166,0.06)',  border: 'rgba(91,213,188,0.40)',  glow: 'rgba(91,213,188,0.35)',  num: '#0f766e' },
-    good: { bg1: 'rgba(20,184,166,0.18)',  bg2: 'rgba(91,213,188,0.06)',  border: 'rgba(20,184,166,0.38)',  glow: 'rgba(20,184,166,0.32)',  num: '#0f766e' },
-    warn: { bg1: 'rgba(251,146,60,0.18)',  bg2: 'rgba(251,146,60,0.05)',  border: 'rgba(251,146,60,0.38)',  glow: 'rgba(251,146,60,0.32)',  num: '#c2410c' },
-    bad:  { bg1: 'rgba(225,29,72,0.14)',   bg2: 'rgba(225,29,72,0.04)',   border: 'rgba(225,29,72,0.34)',   glow: 'rgba(225,29,72,0.28)',   num: '#be123c' },
-  }[accent];
+  // Стиль зі скріна «Огляд компанії»: glass-card-soft + кольорова точка +
+  // uppercase label + великий tabular-nums + маленький %-descriptor.
+  const dotColor = { mint: '#10b981', good: '#10b981', warn: '#fb923c', bad: '#94a3b8' }[accent];
   return (
-    <div
-      className="relative rounded-2xl px-3.5 py-2.5 border flex items-center justify-between gap-2 overflow-hidden transition-transform duration-200 hover:-translate-y-0.5"
-      style={{
-        background: `linear-gradient(135deg, ${palette.bg1} 0%, ${palette.bg2} 100%)`,
-        borderColor: palette.border,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 2px rgba(6,42,61,0.04), 0 4px 12px -4px ${palette.glow}`,
-      }}
-      title={hint}
-    >
-      {/* Radial glow accent */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: '-40%', right: '-20%', width: '90%', height: '160%',
-          background: `radial-gradient(ellipse at center, ${palette.glow} 0%, transparent 65%)`,
-          opacity: 0.65,
-        }}
-      />
-      <div className="relative">
-        <div className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: palette.num, opacity: 0.85 }}>
-          {label}
-        </div>
-        <div className="mono font-bold text-[20px] leading-none tabular-nums mt-1" style={{ color: palette.num, textShadow: '0 1px 0 rgba(255,255,255,0.4)' }}>
-          {value}
-        </div>
+    <div className="glass-card-soft p-4 flex flex-col" title={hint}>
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="w-2 h-2 rounded-full" style={{ background: dotColor }} />
+        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{label}</span>
       </div>
-      <div className="relative mono text-[10px] font-bold whitespace-nowrap" style={{ color: palette.num, opacity: 0.7 }}>
-        {pct.toFixed(0)}%
-      </div>
+      <p className="text-[28px] font-bold tabular-nums leading-none">
+        {value}
+      </p>
+      <p className="text-[10px] text-muted-foreground mt-1">
+        {total > 0 ? `${pct.toFixed(1)}% всіх` : 'клієнтів'}
+      </p>
     </div>
   );
 }
