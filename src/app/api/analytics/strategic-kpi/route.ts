@@ -23,7 +23,6 @@ import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { getBrandClientCategories, getBrandChannelCategories, type ClientCategories, type ChannelCategoriesMap } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
 import { fetchEllanseRepSeminars, type RepSeminar } from '@/lib/strategic-kpi/rep-seminars';
-import { fetch1CBrandChannelPlans, fetch1CBrandChannelFacts } from '@/lib/strategic-kpi/onec-plans';
 import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS, STRATEGIC_SEGMENTS, isSegment } from '@/lib/strategic-kpi/brands';
 
 // 1С company-wide екшени (план+факт) можуть тривати 30-40с на першу загрузку —
@@ -131,40 +130,8 @@ export async function GET(request: NextRequest) {
     finally { if (timer) clearTimeout(timer); }
   }
 
-  // Реальні грошові плани з 1С (Action 4) — ті самі числа що «Огляд компанії».
-  // Формат дат YYYY-MM-DD. Для квартал/півріччя/рік ділимо на к-ть місяців,
-  // бо факт у цих періодах — усереднений місячний.
-  const monthsInPeriod = (() => {
-    const f = new Date(from), t = new Date(to);
-    return Math.max(1, (t.getUTCFullYear() - f.getUTCFullYear()) * 12 + (t.getUTCMonth() - f.getUTCMonth()));
-  })();
-  const onec1CFrom = from.slice(0, 10);
-  const onec1CTo = new Date(new Date(to).getTime() - 86400000).toISOString().slice(0, 10);
-  const onecPlans: Record<string, Record<string, number>> = {};
-  let onecFacts: Record<string, Record<string, number>> = {};
-  // План (Action 4) + факт (Action 5) — паралельно. company-overview зовe ті ж
-  // важкі company-wide екшени БЕЗ таймауту (30-40с перша загрузка), тому таймаут
-  // тут щедрий (25с), інакше 1С не встигає → % відкочується на клієнтський.
-  // AsyncCache 5хв робить наступні запити періоду миттєвими.
-  try {
-    const [raw, rawF] = await Promise.all([
-      softRace(fetch1CBrandChannelPlans(onec1CFrom, onec1CTo), 25000, '1c-plans'),
-      periodKind === 'month'
-        ? softRace(fetch1CBrandChannelFacts(monthKey), 25000, '1c-facts')
-        : Promise.resolve(null),
-    ]);
-    if (raw) {
-      // Ділимо на місяці для averaged-періодів (факт теж усереднений).
-      const div = periodKind === 'month' ? 1 : monthsInPeriod;
-      for (const [brand, chans] of Object.entries(raw)) {
-        onecPlans[brand] = {};
-        for (const [ch, v] of Object.entries(chans)) onecPlans[brand][ch] = v / div;
-      }
-    }
-    if (rawF) onecFacts = rawF;
-  } catch (e) {
-    console.warn('1c plan/fact failed:', (e as Error).message);
-  }
+  // % виконання плану рахує фронт із «Огляд компанії» (той самий 1С план+факт,
+  // що в Плануванні) — тут 1С більше не зовемо, щоб не гальмувати ендпоінт.
 
   if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
     try {
@@ -451,7 +418,5 @@ export async function GET(request: NextRequest) {
     rep_seminars: repSeminars,    // тільки для brand=Ellanse — семінари у представництвах
     ellanse_seminars_summary: ellanseSeminarsSummary,  // річний план + факт YTD
     segment_summary: segmentSummary,   // zvedeni cifri po IUSE-tipu segmentu
-    onec_plans: onecPlans,   // грошові плани з 1С Action 4 per brand×channel
-    onec_facts: onecFacts,   // грошовий факт з 1С Action 5 per brand×channel (місяць)
   });
 }

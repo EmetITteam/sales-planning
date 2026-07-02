@@ -20,7 +20,7 @@ import { getSession } from '@/lib/session';
 import { mapSegmentCode } from '@/lib/onec-adapters';
 import { isTrialBrandPlan } from '@/lib/trial-manager';
 import { supabase } from '@/lib/supabase';
-import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
+import { DIRECTOR_PROXY_LOGIN, isStrategicKpiLogin } from '@/lib/feature-flags';
 import {
   type DivisionGroup,
   type SegmentTotals,
@@ -126,7 +126,9 @@ export async function GET(request: NextRequest) {
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   // C2 fix: admin завжди + юзери з can_view_company_overview=true (M10).
   // JWT не оновлюється коли admin перемикає прапор → re-fetch з БД.
-  let canView = session.role === 'admin';
+  // ITD (admin) + Саша (sdu@) — директор продажів дивиться той самий грошовий
+  // огляд і на /admin/strategic-kpi, тому пускаємо strategic-kpi-логіни теж.
+  let canView = session.role === 'admin' || isStrategicKpiLogin(session.login);
   if (!canView) {
     try {
       const { data } = await supabase

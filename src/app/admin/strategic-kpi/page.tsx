@@ -20,6 +20,7 @@ import {
   type StrategicBrand,
   type StrategicChannel,
 } from '@/lib/strategic-kpi/brands';
+import { useCompanyOverviewExec } from '@/lib/strategic-kpi/use-company-overview-exec';
 import {
   ArrowLeft,
   Users,
@@ -105,10 +106,6 @@ interface ApiResponse {
   first_trained: { period: number; ytd: number } | null;
   rep_seminars: Array<{ seminar: string; division: string; unique_clients: number }> | null;
   ellanse_seminars_summary: { plan: number; actual_ytd: number } | null;
-  // Грошові плани з 1С Action 4: onec_plans[brand][channel] = plan_usd
-  onec_plans: Record<string, Record<string, number>>;
-  // Грошовий факт з 1С Action 5 (місяць): onec_facts[brand][channel] = fact_usd
-  onec_facts: Record<string, Record<string, number>>;
 }
 
 const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number }>> = {
@@ -214,28 +211,26 @@ export default function StrategicKpiPage() {
   }, [period]);
   const m = data?.monthIndex ?? 0;
 
-  // Ключ 1С-плану: сегмент (IUSE) → 'IUSE', інакше сам бренд.
+  // Ключ бренду/сегмента для розрахунку з Огляду.
   const planBrandKey = isSegment(selectedBrand) ? (selectedBrand as string) : selectedBrand;
 
-  // Грошовий % = факт 1С (Action 5) / план 1С (Action 4) — ОБА з 1С, як в Огляді, по
-  // всіх каналах. Квартал/рік → відкат на факт sales (rep+КЦ), далі — клієнтський %.
+  // % виконання беремо з ГОТОВОГО розрахунку «Огляд компанії» (той самий 1С
+  // план+факт, що в Плануванні) — щоб цифра збігалась 1-в-1. Тільки місяць.
+  const coExec = useCompanyOverviewExec(period, !!user && isStrategicKpiLogin(user.login));
+
+  // Грошовий % бренду = Σ факт / Σ план по всіх каналах Огляду (вкл. дистрів).
+  // Немає даних Огляду (квартал/рік) → відкат на клієнтський %.
   const brandExecution = useMemo(() => {
     if (!data) return null;
-    const planMap = data.onec_plans?.[planBrandKey] ?? {};
-    const factMap = data.onec_facts?.[planBrandKey] ?? {};
-    const has1CFact = Object.keys(factMap).length > 0;
-    // План — усі канали з 1С-плану.
-    const planSum = Object.values(planMap).reduce((s, v) => s + v, 0);
-    let factSum = 0;
-    if (has1CFact) {
-      factSum = Object.values(factMap).reduce((s, v) => s + v, 0);
-    } else {
-      for (const b of brandBlocks) if (b.channel !== 'distributors' && b.month?.total_sum_usd) factSum += b.month.total_sum_usd;
+    const cells = coExec?.[planBrandKey];
+    if (cells) {
+      let planSum = 0, factSum = 0;
+      for (const c of Object.values(cells)) { planSum += c.plan; factSum += c.fact; }
+      if (planSum > 0) return (factSum / planSum) * 100;
     }
-    if (planSum > 0) return (factSum / planSum) * 100;
     const pcts = brandBlocks.filter(b => b.month?.unique_clients && b.execution.buyers_monthly_pct != null).map(b => b.execution.buyers_monthly_pct!);
     return pcts.length ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
-  }, [brandBlocks, data, planBrandKey]);
+  }, [brandBlocks, data, planBrandKey, coExec]);
 
   if (!user || !isStrategicKpiLogin(user.login)) return null;
 
@@ -431,9 +426,10 @@ export default function StrategicKpiPage() {
           const hasPromos = block.promos.length > 0;
           if (!hasMonth && !hasYtd && !hasSeminars && !hasPromos && !block.target) return null;
           const Icon = CHANNEL_ICON[channel];
-          // Грошовий % per канал: факт 1С / план 1С (як в Огляді). Дистрів у грошах не показуємо.
-          const planUsd = channel === 'distributors' ? 0 : (data?.onec_plans?.[planBrandKey]?.[channel] ?? 0);
-          const factUsd = data?.onec_facts?.[planBrandKey]?.[channel] ?? block.month?.total_sum_usd ?? null;
+          // Грошовий % per канал з Огляду (план+факт 1С). Дистрів у грошах не показуємо.
+          const coCell = coExec?.[planBrandKey]?.[channel];
+          const planUsd = channel === 'distributors' ? 0 : (coCell?.plan ?? 0);
+          const factUsd = coCell?.fact ?? block.month?.total_sum_usd ?? null;
           const overallPct = planUsd > 0 && factUsd != null
             ? (factUsd / planUsd) * 100
             : block.execution.buyers_monthly_pct;
