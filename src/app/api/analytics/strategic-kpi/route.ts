@@ -23,7 +23,7 @@ import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { getBrandClientCategories, type ClientCategories } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
 import { fetchEllanseRepSeminars, type RepSeminar } from '@/lib/strategic-kpi/rep-seminars';
-import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS } from '@/lib/strategic-kpi/brands';
+import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS, STRATEGIC_SEGMENTS, isSegment } from '@/lib/strategic-kpi/brands';
 
 interface StrategicTargetRow {
   year: number;

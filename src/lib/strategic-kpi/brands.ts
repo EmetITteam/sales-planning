@@ -26,6 +26,42 @@ export const STRATEGIC_BRANDS = [
 export type StrategicBrand = (typeof STRATEGIC_BRANDS)[number];
 
 /**
+ * Сегменти — брендові групи для яких у 1С єдиний план у $ (не per-sub-brand).
+ * Приклад: «IUSE» містить SB / hair / Coll. — план по сегменту, а не по трьом
+ * підбрендам окремо.
+ *
+ * На дашборді сегмент відображається як ОДНА pill замість трьох підбрендів.
+ * Hero % — грошовий (fact_sum / plan_sum по сегменту). У channel-блоках —
+ * три sub-cards з клієнтськими метриками без % (тільки дані з strategic_targets
+ * per підбренд).
+ */
+export const STRATEGIC_SEGMENTS = {
+  IUSE: ['IUSE SB', 'IUSE hair', 'IUSE Coll.'] as StrategicBrand[],
+} as const;
+
+export type StrategicSegment = keyof typeof STRATEGIC_SEGMENTS;
+
+/**
+ * Бренди які «сховані» під сегментом (не показуємо їх окремо у пікері).
+ */
+export const SEGMENT_HIDDEN_BRANDS = new Set<StrategicBrand>(
+  Object.values(STRATEGIC_SEGMENTS).flat() as StrategicBrand[],
+);
+
+/**
+ * Список того що показуємо у пікері — не підбренди сегментів (SB/hair/Coll.),
+ * а сегменти (IUSE) + окремі бренди.
+ */
+export const STRATEGIC_PICKER_ITEMS: Array<StrategicBrand | StrategicSegment> = [
+  ...STRATEGIC_BRANDS.filter(b => !SEGMENT_HIDDEN_BRANDS.has(b)),
+  ...(Object.keys(STRATEGIC_SEGMENTS) as StrategicSegment[]),
+];
+
+export function isSegment(id: string): id is StrategicSegment {
+  return id in STRATEGIC_SEGMENTS;
+}
+
+/**
  * Канали продажу для стратегічного дашборду.
  * - representatives: усі 8 регіонів (Київ, Одеса, ..., Житомир) агрегатом
  * - call_center: Колл-центр B2C
