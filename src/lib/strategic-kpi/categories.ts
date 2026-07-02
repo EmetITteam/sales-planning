@@ -17,6 +17,12 @@ import { supabase } from '@/lib/supabase';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// In-memory cache: (brand + dateFrom + dateTo) → categories, TTL 5 хв.
+// getBrandClientCategories тягне ~70K рядків від початку бази до dateTo — це
+// повільно (14-30 сек). Кеш різко зменшує повторні виклики.
+const CATEGORIES_CACHE = new Map<string, { at: number; data: ClientCategories }>();
+const CATEGORIES_TTL_MS = 5 * 60 * 1000;
+
 export interface ClientCategories {
   new: number;
   active: number;
@@ -63,12 +69,19 @@ async function fetchAllBrandRows(brand: string, dateToIso: string): Promise<Sale
 
 /**
  * Обчислює категорії клієнтів для бренду у [dateFromIso, dateToIso).
+ * Кешовано у пам'яті на 5 хвилин.
  */
 export async function getBrandClientCategories(
   brand: string,
   dateFromIso: string,
   dateToIso: string,
 ): Promise<ClientCategories> {
+  const cacheKey = `${brand}|${dateFromIso}|${dateToIso}`;
+  const cached = CATEGORIES_CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.at < CATEGORIES_TTL_MS) {
+    return cached.data;
+  }
+
   const rows = await fetchAllBrandRows(brand, dateToIso);
   const periodStart = new Date(dateFromIso).getTime();
 
@@ -99,5 +112,6 @@ export async function getBrandClientCategories(
       else result.lost++;
     }
   }
+  CATEGORIES_CACHE.set(cacheKey, { at: Date.now(), data: result });
   return result;
 }

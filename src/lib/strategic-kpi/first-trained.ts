@@ -19,11 +19,18 @@ interface EllanseSeminarRow {
   sale_date: string;
 }
 
+// Кеш повного firstTrainedMap на 10 хв — весь Ellanse×seminar dataset малий (~5K)
+// але порційно все одно тягнеться довгувато.
+let FT_CACHE: { at: number; map: Map<string, Date> } | null = null;
+const FT_TTL_MS = 10 * 60 * 1000;
+
 /**
  * Тягне всі ELLANSE-seminar рядки за весь час, будує firstTrainedDate map.
  * Кешування — на рівні API route (5-хвилинний in-memory кеш).
  */
 export async function buildFirstTrainedMap(): Promise<Map<string, Date>> {
+  if (FT_CACHE && Date.now() - FT_CACHE.at < FT_TTL_MS) return FT_CACHE.map;
+
   const map = new Map<string, Date>();
   let from = 0;
   const PAGE = 1000;
@@ -51,6 +58,7 @@ export async function buildFirstTrainedMap(): Promise<Map<string, Date>> {
     if (rows.length < PAGE) break;
     from += PAGE;
   }
+  FT_CACHE = { at: Date.now(), map };
   return map;
 }
 
