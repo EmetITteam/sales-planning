@@ -73,6 +73,9 @@ interface SeminarActual {
     ytd: { seminars_held: number; new_trained: number };
   }>;
 }
+interface Categories {
+  new: number; active: number; sleeping: number; lost: number; total: number;
+}
 interface ApiResponse {
   period: string;
   periodKind: 'month' | 'quarter' | 'half' | 'year';
@@ -80,6 +83,8 @@ interface ApiResponse {
   monthIndex: number;
   monthPace: number;
   blocks: Block[];
+  categories: Categories | null;
+  first_trained: { period: number; ytd: number } | null;
 }
 
 const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number }>> = {
@@ -124,7 +129,7 @@ export default function StrategicKpiPage() {
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/analytics/strategic-kpi?period=${period}`, { credentials: 'same-origin' })
+    fetch(`/api/analytics/strategic-kpi?period=${period}&brand=${encodeURIComponent(selectedBrand)}`, { credentials: 'same-origin' })
       .then(r => r.json())
       .then((s: ApiResponse & { error?: string }) => {
         if (s.error) throw new Error(s.error);
@@ -132,7 +137,7 @@ export default function StrategicKpiPage() {
       })
       .catch(e => setError((e as Error).message))
       .finally(() => setLoading(false));
-  }, [period]);
+  }, [period, selectedBrand]);
 
   useEffect(() => {
     if (!user || user.role !== 'admin') return;
@@ -163,20 +168,21 @@ export default function StrategicKpiPage() {
   }, [period]);
   const m = data?.monthIndex ?? 0;
 
-  // Overall % бренду — середнє з УСІХ доступних execution %:
-  // - buyers_monthly (місячна ціль купуючих)
-  // - avg_qty_per_client (місячна ціль ср/уп)
-  // - unique_clients_pace (річна ціль з поправкою на pace — «чи ми на плані»)
-  // - avg_check_annual (річна ціль середнього чеку)
-  // Каждый канал вносить свій набір, потім усереднюємо.
+  // % виконання плану бренду:
+  //   Ключова метрика — «Купують у місяць» (buyers_monthly_pct). Це те що
+  //   найкраще відображає «як ми виконуємо план по бренду за період».
+  //   Якщо monthly даних для періоду немає (напр. майбутній місяць) — null.
+  //
+  //   Раніше усереднювали 4 метрики — але це давало 3179% коли одна з них
+  //   була нерепрезентативна (напр. ср/уп для 0 клієнтів → NaN → сумарно
+  //   абсурдно).
   const brandExecution = useMemo(() => {
     const pcts: number[] = [];
     for (const b of brandBlocks) {
-      const e = b.execution;
-      if (e.buyers_monthly_pct != null) pcts.push(e.buyers_monthly_pct);
-      if (e.avg_qty_per_client_pct != null) pcts.push(e.avg_qty_per_client_pct);
-      if (e.unique_clients_pace_pct != null) pcts.push(e.unique_clients_pace_pct);
-      if (e.avg_check_annual_pct != null) pcts.push(e.avg_check_annual_pct);
+      // Тільки якщо є факт і ціль — beремо buyers_monthly_pct
+      if (b.month?.unique_clients && b.execution.buyers_monthly_pct != null) {
+        pcts.push(b.execution.buyers_monthly_pct);
+      }
     }
     return pcts.length ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
   }, [brandBlocks]);
@@ -295,17 +301,54 @@ export default function StrategicKpiPage() {
                   <div className="text-[12px] sk-muted mt-3 flex items-center gap-3">
                     <span>По {m}-му місяцю з 12</span>
                     <span className="text-[rgba(6,42,61,0.24)]">·</span>
-                    <span>Pace <span className="mono font-bold">{Math.round((m / 12) * 100)}%</span> року</span>
+                    <span><span className="mono font-bold">{Math.round((m / 12) * 100)}%</span> року пройшло</span>
                   </div>
                 )}
               </div>
               {brandExecution !== null && (
                 <div className="text-right">
                   <div className={`sk-mega-pct sk-text-${statusColor(brandExecution)}`}>{brandExecution.toFixed(1)}%</div>
-                  <div className="sk-lbl mt-2">Місячне виконання</div>
+                  <div className="sk-lbl mt-2">% виконання плану</div>
                 </div>
               )}
             </div>
+
+            {/* Категорії клієнтів (для selected brand) */}
+            {data?.categories && (
+              <div className="relative mt-6 pt-5 border-t border-[rgba(6,42,61,0.08)]">
+                <div className="sk-lbl mb-3">Клієнти бренду у періоді</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <CategoryCard
+                    label="Нові"
+                    value={data.categories.new}
+                    total={data.categories.total}
+                    hint="Ніколи не купували цей бренд до цього періоду"
+                    accent="mint"
+                  />
+                  <CategoryCard
+                    label="Активні"
+                    value={data.categories.active}
+                    total={data.categories.total}
+                    hint="Купували цей бренд ≤ 4 міс. до періоду"
+                    accent="good"
+                  />
+                  <CategoryCard
+                    label="Сплячі"
+                    value={data.categories.sleeping}
+                    total={data.categories.total}
+                    hint="Купували 4-6 міс. тому"
+                    accent="warn"
+                  />
+                  <CategoryCard
+                    label="Втрачені"
+                    value={data.categories.lost}
+                    total={data.categories.total}
+                    hint="Не купували > 6 міс."
+                    accent="bad"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -531,13 +574,63 @@ function MetricCard({ label, Icon, monthValue, ytdValue, target, simplePct, pace
           <span className="sk-muted">цілі не введено</span>
         )}
         {pacePct != null && (
-          <span className="sk-chip sk-chip-ok" title="Факт vs очікуваний рівень на цей момент року">на темпі {fmtPct(pacePct)}</span>
+          <span
+            className="sk-chip sk-chip-ok"
+            title="Прогноз виконання плану року на основі поточного темпу. Наприклад: якщо річна ціль 1000, зараз червень (6 з 12) → очікуємо 500. Факт 656 → 131% (перевиконуємо темп)."
+          >
+            {fmtPct(pacePct)} прогноз
+          </span>
         )}
         {forecast != null && (
           <span className="sk-muted" title="Прогноз на кінець року при збереженні темпу">
             прогноз на рік: {isUsd ? fmtUSD(forecast) : Math.round(forecast).toLocaleString('en-US')}
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CategoryCard({
+  label, value, total, hint, accent,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  hint: string;
+  accent: 'mint' | 'good' | 'warn' | 'bad';
+}) {
+  const pct = total > 0 ? (value / total) * 100 : 0;
+  const bg = {
+    mint: 'linear-gradient(135deg, rgba(91,213,188,0.16) 0%, rgba(20,184,166,0.06) 100%)',
+    good: 'linear-gradient(135deg, rgba(20,184,166,0.14) 0%, rgba(91,213,188,0.06) 100%)',
+    warn: 'linear-gradient(135deg, rgba(251,146,60,0.14) 0%, rgba(251,146,60,0.05) 100%)',
+    bad:  'linear-gradient(135deg, rgba(225,29,72,0.12) 0%, rgba(225,29,72,0.04) 100%)',
+  }[accent];
+  const border = {
+    mint: 'rgba(91,213,188,0.35)',
+    good: 'rgba(20,184,166,0.32)',
+    warn: 'rgba(251,146,60,0.32)',
+    bad:  'rgba(225,29,72,0.30)',
+  }[accent];
+  const numColor = {
+    mint: '#0f766e',
+    good: '#0f766e',
+    warn: '#c2410c',
+    bad:  '#be123c',
+  }[accent];
+  return (
+    <div
+      className="rounded-2xl p-3.5 border relative"
+      style={{ background: bg, borderColor: border }}
+      title={hint}
+    >
+      <div className="sk-lbl mb-1.5" style={{ color: numColor, opacity: 0.85 }}>{label}</div>
+      <div className="mono font-bold text-[26px] leading-none tabular-nums" style={{ color: numColor }}>
+        {value}
+      </div>
+      <div className="text-[10.5px] mt-1" style={{ color: numColor, opacity: 0.7 }}>
+        {pct.toFixed(1)}% від разом
       </div>
     </div>
   );
@@ -652,18 +745,19 @@ function PeriodPicker({ period, onChange }: { period: string; onChange: (p: stri
 function MonthSubPicker({ period, onChange }: { period: string; onChange: (p: string) => void }) {
   const currentMonth = Number(period.slice(5, 7));
   const year = period.slice(0, 4);
+  const SHORT = ['Січ','Лют','Бер','Кві','Тра','Чер','Лип','Сер','Вер','Жов','Лис','Гру'];
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {MONTHS_UA.map((name, i) => {
+    <div className="flex flex-wrap gap-1">
+      {SHORT.map((name, i) => {
         const m = i + 1;
         const active = m === currentMonth;
         return (
           <button key={m} type="button"
             onClick={() => onChange(`${year}-${String(m).padStart(2, '0')}`)}
-            className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+            className={`px-2 py-1 rounded-md text-[10.5px] font-bold uppercase tracking-wider transition-all ${
               active
-                ? 'bg-gradient-to-br from-[#066aab] to-[#0284c7] text-white shadow-md shadow-[rgba(6,106,171,0.3)]'
-                : 'bg-white/60 border border-[rgba(6,42,61,0.08)] text-[rgba(6,42,61,0.65)] hover:text-[#062a3d] hover:bg-white'
+                ? 'bg-gradient-to-br from-[#066aab] to-[#0284c7] text-white shadow-sm'
+                : 'bg-white/60 border border-[rgba(6,42,61,0.08)] text-[rgba(6,42,61,0.55)] hover:text-[#062a3d] hover:bg-white'
             }`}>
             {name}
           </button>

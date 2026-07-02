@@ -18,8 +18,10 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { isAdminLogin } from '@/lib/feature-flags';
 import { supabase } from '@/lib/supabase';
-import { aggregateBrandChannelMetrics, aggregateYTDMetrics, parsePeriod } from '@/lib/strategic-kpi/aggregate';
+import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregateYTDMetrics, parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { aggregatePromos } from '@/lib/strategic-kpi/promos';
+import { getBrandClientCategories, type ClientCategories } from '@/lib/strategic-kpi/categories';
+import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
 import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS } from '@/lib/strategic-kpi/brands';
 
 interface StrategicTargetRow {
@@ -48,6 +50,9 @@ export async function GET(request: NextRequest) {
 
   const url = new URL(request.url);
   const periodParam = url.searchParams.get('period') ?? new Date().toISOString().slice(0, 7);
+  // Опційно фільтруємо тільки selected brand щоб швидко рахувати категорії +
+  // first-trained (для одного бренду це швидко, для всіх — довго).
+  const brandParam = url.searchParams.get('brand');
   let parsed;
   try {
     parsed = parsePeriod(periodParam);
@@ -56,9 +61,14 @@ export async function GET(request: NextRequest) {
   }
   const { from, to, label: monthKey, monthIndex, year, kind: periodKind } = parsed;
 
-  // Паралельно: month agg + YTD + promos + targets + Ellanse семінари
+  // Паралельно: period agg + YTD + promos + targets + Ellanse семінари.
+  // Для квартал/півріччя/рік — СЕРЕДНЄ за місяць. Для одного місяця — сама метрика.
+  const periodAggFn = periodKind === 'month'
+    ? aggregateBrandChannelMetrics
+    : aggregatePeriodMetricsAveraged;
+
   const [monthMetrics, ytdMetrics, promos, targetsResult, seminarsResult] = await Promise.all([
-    aggregateBrandChannelMetrics(from, to),
+    periodAggFn(from, to),
     aggregateYTDMetrics(year, to),
     aggregatePromos(from, to),
     supabase.from('strategic_targets').select('*').eq('year', year),
@@ -76,6 +86,32 @@ export async function GET(request: NextRequest) {
     seminars_held: number; new_trained: number | null;
   }
   const seminars = (seminarsResult.data as unknown as SeminarActualRow[]) ?? [];
+
+  // Категорії клієнтів + First-trained (Ellanse only) — рахуємо ТІЛЬКИ якщо
+  // передано ?brand=X (для одного бренду швидко, для всіх — довго).
+  let categories: ClientCategories | null = null;
+  let firstTrained: { period: number; ytd: number } | null = null;
+  if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
+    try {
+      categories = await getBrandClientCategories(brandParam, from, to);
+    } catch (e) {
+      console.warn('categories failed:', (e as Error).message);
+    }
+    if (brandParam === 'Ellanse') {
+      try {
+        const map = await buildFirstTrainedMap();
+        const yearStart = new Date(`${year}-01-01T00:00:00Z`);
+        const periodStart = new Date(from);
+        const periodEnd = new Date(to);
+        firstTrained = {
+          period: countFirstTrainedInRange(map, periodStart, periodEnd),
+          ytd: countFirstTrainedInRange(map, yearStart, periodEnd),
+        };
+      } catch (e) {
+        console.warn('first-trained failed:', (e as Error).message);
+      }
+    }
+  }
   // Період покриває місяці startM..endM
   const startM = new Date(from).getUTCMonth() + 1;
   const endM = new Date(to).getUTCMonth();  // to — початок наступного місяця, тобто endM inclusive
@@ -231,5 +267,7 @@ export async function GET(request: NextRequest) {
     monthIndex,
     monthPace: monthIndex / 12,
     blocks,
+    categories,      // тільки коли ?brand=X переданий
+    first_trained: firstTrained,  // тільки для brand=Ellanse
   });
 }
