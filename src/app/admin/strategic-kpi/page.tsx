@@ -137,23 +137,36 @@ export default function StrategicKpiPage() {
 
   useEffect(() => { if (user && user.role !== 'admin') router.replace('/'); }, [user, router]);
 
-  const load = useCallback(() => {
+  const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    fetch(`/api/analytics/strategic-kpi?period=${period}&brand=${encodeURIComponent(selectedBrand)}`, { credentials: 'same-origin' })
+    fetch(
+      `/api/analytics/strategic-kpi?period=${period}&brand=${encodeURIComponent(selectedBrand)}`,
+      { credentials: 'same-origin', signal },
+    )
       .then(r => r.json())
       .then((s: ApiResponse & { error?: string }) => {
+        if (signal?.aborted) return;
         if (s.error) throw new Error(s.error);
         setData(s);
       })
-      .catch(e => setError((e as Error).message))
-      .finally(() => setLoading(false));
+      .catch(e => {
+        if ((e as Error).name === 'AbortError') return;
+        setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
   }, [period, selectedBrand]);
 
   useEffect(() => {
     if (!user || user.role !== 'admin') return;
+    // AbortController — щоб при швидкому переключенні бренду/періоду старий
+    // запит скасовувався і його результат не перезаписував новіший стан.
+    const ctrl = new AbortController();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    load();
+    load(ctrl.signal);
+    return () => ctrl.abort();
   }, [user, load]);
 
   const brandBlocks = useMemo(
@@ -224,7 +237,6 @@ export default function StrategicKpiPage() {
         .sk-hero-title { font-family: var(--font-sans); font-weight: 200; font-size: 30px; letter-spacing: -1px; line-height: 1.05; }
         .sk-hero-title strong { font-weight: 700; }
         .sk-mega-pct { font-family: var(--font-mono); font-weight: 700; font-size: 52px; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
-        .sk-metric-num { font-family: var(--font-mono); font-weight: 700; font-size: 26px; letter-spacing: -0.5px; line-height: 1; font-variant-numeric: tabular-nums; }
         /* Фіксована мін-ширина щоб рядок брендів не «стрибав» коли активний
            бренд з коротшим/довшим ім'ям. text-align:center щоб текст був
            по центру в комірках рівної ширини. */
@@ -232,57 +244,6 @@ export default function StrategicKpiPage() {
         .sk-brand-pill:hover { transform: translateY(-1px); background: rgba(255,255,255,0.75); color: #062a3d; }
         .sk-brand-pill.active { background: linear-gradient(135deg, #066aab 0%, #0284c7 100%); color: white; border-color: transparent; box-shadow: 0 4px 14px rgba(6,106,171,0.35); }
         .sk-brand-pill.active:hover { transform: translateY(-1px); }
-        /* Об'ємні KPI-картки (стиль sales-planning hero cards):
-           - Верхній highlight (inset white top) — «свіжий блиск»
-           - Основний ambient gradient за статусом
-           - Нижня м'яка тінь — «picking off page»
-           - При hover — легкий підйом
-        */
-        .sk-ambient-good, .sk-ambient-ok, .sk-ambient-warn, .sk-ambient-bad, .sk-ambient-na {
-          box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.85),
-            inset 0 -1px 0 rgba(6,42,61,0.04),
-            0 1px 2px rgba(6,42,61,0.06),
-            0 8px 24px -6px rgba(6,42,61,0.12);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .sk-ambient-good:hover, .sk-ambient-ok:hover, .sk-ambient-warn:hover,
-        .sk-ambient-bad:hover, .sk-ambient-na:hover {
-          transform: translateY(-2px);
-          box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.9),
-            inset 0 -1px 0 rgba(6,42,61,0.04),
-            0 2px 4px rgba(6,42,61,0.08),
-            0 16px 36px -8px rgba(6,42,61,0.18);
-        }
-        .sk-ambient-good  {
-          background:
-            radial-gradient(circle at 90% 0%, rgba(91,213,188,0.35) 0%, transparent 55%),
-            linear-gradient(160deg, rgba(20,184,166,0.18) 0%, rgba(91,213,188,0.08) 45%, rgba(255,255,255,0.55) 100%);
-          border-color: rgba(20,184,166,0.38);
-        }
-        .sk-ambient-ok    {
-          background:
-            radial-gradient(circle at 90% 0%, rgba(56,189,248,0.28) 0%, transparent 55%),
-            linear-gradient(160deg, rgba(2,132,199,0.15) 0%, rgba(56,189,248,0.06) 45%, rgba(255,255,255,0.55) 100%);
-          border-color: rgba(2,132,199,0.32);
-        }
-        .sk-ambient-warn  {
-          background:
-            radial-gradient(circle at 90% 0%, rgba(251,146,60,0.32) 0%, transparent 55%),
-            linear-gradient(160deg, rgba(251,146,60,0.18) 0%, rgba(251,191,36,0.08) 45%, rgba(255,255,255,0.55) 100%);
-          border-color: rgba(251,146,60,0.38);
-        }
-        .sk-ambient-bad   {
-          background:
-            radial-gradient(circle at 90% 0%, rgba(251,113,133,0.28) 0%, transparent 55%),
-            linear-gradient(160deg, rgba(225,29,72,0.14) 0%, rgba(251,113,133,0.06) 45%, rgba(255,255,255,0.55) 100%);
-          border-color: rgba(225,29,72,0.32);
-        }
-        .sk-ambient-na    {
-          background: linear-gradient(160deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.4) 100%);
-          border-color: rgba(255,255,255,0.9);
-        }
         .sk-text-good { color: #0f766e; } .sk-text-ok { color: #0284c7; } .sk-text-warn { color: #c2410c; } .sk-text-bad { color: #be123c; }
         .sk-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.2px; }
         .sk-chip-good { background: rgba(20,184,166,0.14); color: #0f766e; }

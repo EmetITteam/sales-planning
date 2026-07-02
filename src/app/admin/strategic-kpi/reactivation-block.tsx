@@ -61,24 +61,31 @@ export function ReactivationBlock({ period, selectedBrand }: Props) {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Toggle: коли true — блок ігнорує selectedBrand і показує агрегат по всіх
+  // брендах (dim=brand). Коли false — фільтр по selectedBrand + dim=channel.
+  const [allBrands, setAllBrands] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
+    const ctrl = new AbortController();
     setLoading(true);
     setError(null);
-    // Використовуємо валідний API-token через same-origin cookie session
-    fetch(`/api/analytics/reactivation?period=${encodeURIComponent(period)}&brand=${encodeURIComponent(selectedBrand)}`, {
+    const brandParam = allBrands ? '' : `&brand=${encodeURIComponent(selectedBrand)}`;
+    fetch(`/api/analytics/reactivation?period=${encodeURIComponent(period)}${brandParam}`, {
       credentials: 'same-origin',
+      signal: ctrl.signal,
     })
       .then(async r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(json => { if (!cancelled) setData(json as ApiResponse); })
-      .catch(e => { if (!cancelled) setError((e as Error).message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [period, selectedBrand]);
+      .then(json => { if (!ctrl.signal.aborted) setData(json as ApiResponse); })
+      .catch(e => {
+        if ((e as Error).name === 'AbortError') return;
+        setError((e as Error).message);
+      })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
+    return () => ctrl.abort();
+  }, [period, selectedBrand, allBrands]);
 
   if (loading) {
     return (
@@ -111,14 +118,31 @@ export function ReactivationBlock({ period, selectedBrand }: Props) {
 
   return (
     <div className="sk-glass p-6 space-y-4">
-      <div>
-        <div className="sk-lbl flex items-center gap-1.5 text-amber-700">
-          <Tag className="h-3 w-3" /> Акції — реактивація категорій
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <div className="sk-lbl flex items-center gap-1.5 text-amber-700">
+            <Tag className="h-3 w-3" /> Акції — реактивація категорій
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Куди прийшли клієнти категорії — по {dimHeader.toLowerCase()}у і акції.
+            Класифікація станом на 1-е {data.from.slice(0, 7)}.
+          </p>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          Куди прийшли клієнти категорії — по {dimHeader.toLowerCase()}у і акції.
-          Класифікація станом на 1-е {data.from.slice(0, 7)}.
-        </p>
+        <button
+          type="button"
+          onClick={() => setAllBrands(v => !v)}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
+            allBrands
+              ? 'bg-[#066aab] border-[#066aab] text-white shadow-[0_2px_8px_rgba(6,106,171,0.28)]'
+              : 'bg-white/60 border-[rgba(6,42,61,0.15)] text-[#062a3d] hover:bg-white/80'
+          }`}
+          title={allBrands
+            ? 'Показати тільки клієнтів обраного бренду (розклад по каналах)'
+            : 'Показати клієнтів по ВСІХ брендах (розклад по брендах)'
+          }
+        >
+          {allBrands ? 'Всі бренди ✓' : 'Всі бренди'}
+        </button>
       </div>
 
       {(['new', 'sleeping', 'lost'] as const).map(cat => {
