@@ -119,34 +119,67 @@ async function fetchPromoRows(dateFrom: string, dateTo: string): Promise<PromoRo
 }
 
 /**
- * Тягне суми trigger-покупок для набору doc_id. Для gift-акцій потрібно щоб
+ * Тягне суми trigger-покупок для БАГАТЬОХ промо ОДРАЗУ. Для gift-акцій треба
  * показати «на яку суму купували» не 0 (з gift-рядка), а РЕАЛЬНУ суму
- * trigger товару у ТОМУ Ж ДОКУМЕНТІ.
+ * trigger товару у тих же документах.
  *
- * Приклад: «Vitaran 700$ + Подарок Marine Collagen» — рядок Marine Collagen
- * має sum=0, але у doc є Vitaran-рядок з sum≈700. Ми тягнемо його sum.
+ * Раніше було N+1: цикл по промо × окремий запит на кожне (по 300-500 мс кожен
+ * = 15-25 сек на бренд з 50+ gift-промо). Тепер: 1 запит з великим IN, потім
+ * розподіл по бекетах у JS.
+ *
+ * @param buckets  { promoKey: { brand: string; docIds: string[] } }
+ * @returns Map<promoKey, { sum, qty }>
  */
-async function fetchTriggerSums(docIds: string[], triggerBrand: string): Promise<{ sum: number; qty: number }> {
-  if (docIds.length === 0) return { sum: 0, qty: 0 };
-  // Порційно, бо GET query length обмежена
-  const CHUNK = 100;
-  let totalSum = 0, totalQty = 0;
-  for (let i = 0; i < docIds.length; i += CHUNK) {
-    const chunk = docIds.slice(i, i + CHUNK);
-    const result = await supabase
+async function fetchTriggerSumsBatch(
+  buckets: Array<{ key: string; brand: string; docIds: string[] }>,
+): Promise<Map<string, { sum: number; qty: number }>> {
+  const result = new Map<string, { sum: number; qty: number }>();
+  for (const b of buckets) result.set(b.key, { sum: 0, qty: 0 });
+  if (buckets.length === 0) return result;
+
+  // Об'єднаний масив унікальних doc_id
+  const allDocSet = new Set<string>();
+  for (const b of buckets) for (const d of b.docIds) allDocSet.add(d);
+  const allDocs = Array.from(allDocSet);
+  if (allDocs.length === 0) return result;
+
+  // Тягнемо всі рядки по цих doc_id за одним запитом (порційно тільки якщо
+  // GET URL довжина > лімітів — PostgREST мовчки обрізає).
+  interface Row { doc_id: string; brand: string; sum_usd: number; qty: number }
+  const allRows: Row[] = [];
+  const CHUNK = 200; // ~200 × 12-char doc_id ≈ 2.4KB що безпечно у query string
+  for (let i = 0; i < allDocs.length; i += CHUNK) {
+    const chunk = allDocs.slice(i, i + CHUNK);
+    const res = await supabase
       .from('sales')
-      .select('sum_usd,qty')
+      .select('doc_id,brand,sum_usd,qty')
       .in('doc_id', chunk)
-      .eq('brand', triggerBrand)
       .eq('is_ignored', false)
       .eq('is_gift', false);
-    if (result.error || !result.data) continue;
-    for (const r of result.data as unknown as Array<{ sum_usd: number; qty: number }>) {
-      totalSum += Number(r.sum_usd);
-      totalQty += Number(r.qty);
-    }
+    if (res.error || !res.data) continue;
+    allRows.push(...(res.data as unknown as Row[]));
   }
-  return { sum: totalSum, qty: totalQty };
+
+  // Індекс: (doc_id, brand) → aggregated { sum, qty }
+  const idx = new Map<string, { sum: number; qty: number }>();
+  for (const r of allRows) {
+    const k = `${r.doc_id}|${r.brand}`;
+    let agg = idx.get(k);
+    if (!agg) { agg = { sum: 0, qty: 0 }; idx.set(k, agg); }
+    agg.sum += Number(r.sum_usd);
+    agg.qty += Number(r.qty);
+  }
+
+  // Розподіляємо суми по бекетах промо
+  for (const b of buckets) {
+    let totalSum = 0, totalQty = 0;
+    for (const d of b.docIds) {
+      const agg = idx.get(`${d}|${b.brand}`);
+      if (agg) { totalSum += agg.sum; totalQty += agg.qty; }
+    }
+    result.set(b.key, { sum: totalSum, qty: totalQty });
+  }
+  return result;
 }
 
 /**
@@ -268,18 +301,27 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
     });
   }
 
+  // Батчимо всі промо з sum=0 у один запит trigger-sums. Раніше було N+1:
+  // цикл × окремий REST-запит на кожне промо (по 300-500 мс) → 15-25 сек.
+  const needTrigger: Array<{ key: string; brand: string; docIds: string[] }> = [];
+  for (const b of promoMap.values()) {
+    if (b.sum === 0 && b.trigger_brand) {
+      needTrigger.push({
+        key: `${b.name}||${b.channel}`,
+        brand: b.trigger_brand,
+        docIds: Array.from(b.doc_ids),
+      });
+    }
+  }
+  const triggerSums = await fetchTriggerSumsBatch(needTrigger);
+
   const result: Promo[] = [];
   for (const b of promoMap.values()) {
     const qty = b.qty;
     let sum = b.sum;
-    // Якщо у самих рядків промо sum=0 — це або gift-акція, або накопичувальна
-    // (типу «ESSE 7000грн+Tube»), де discount тег стоїть тільки на bonus-рядках
-    // з $0, а справжня покупка — інші рядки того ж документа без тегу.
-    // Тягнемо суму trigger-бренду у ТИХ ЖЕ документах — це і є факт покупки
-    // на яку відреагувала акція.
     if (sum === 0 && b.trigger_brand) {
-      const trigger = await fetchTriggerSums(Array.from(b.doc_ids), b.trigger_brand);
-      sum = trigger.sum;
+      const trigger = triggerSums.get(`${b.name}||${b.channel}`);
+      if (trigger) sum = trigger.sum;
     }
     const overlapInfo = overlapMap.get(`${b.name}||${b.channel}`);
     result.push({
