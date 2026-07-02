@@ -111,19 +111,20 @@ export function CategoryCard({ label, value, total, hint, accent }: {
   accent: 'mint' | 'good' | 'warn' | 'bad';
 }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
-  const dotColor = { mint: '#10b981', good: '#10b981', warn: '#fb923c', bad: '#94a3b8' }[accent];
-  const tintBg   = { mint: 'rgba(16,185,129,0.06)', good: 'rgba(16,185,129,0.06)', warn: 'rgba(251,146,60,0.07)', bad: 'rgba(148,163,184,0.06)' }[accent];
+  // Label фарбуємо у колір категорії (teal/orange/rose) щоб добре читалось.
+  // Сірий muted-foreground на glass-фоні читається погано.
+  const labelColor = {
+    mint: '#0f766e',
+    good: '#0f766e',
+    warn: '#c2410c',
+    bad:  '#be123c',
+  }[accent];
+  const dotColor = { mint: '#10b981', good: '#10b981', warn: '#fb923c', bad: '#e11d48' }[accent];
   return (
     <div
-      className="glass-card relative flex items-center gap-3 pl-3.5 pr-3 py-2.5 overflow-hidden"
+      className="glass-card flex items-center gap-3 px-3.5 py-2.5"
       title={hint}
-      style={{ background: tintBg }}
     >
-      <span
-        className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
-        style={{ background: dotColor }}
-        aria-hidden="true"
-      />
       <p
         className="text-[26px] font-bold tabular-nums leading-none min-w-[2ch]"
         style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.5px' }}
@@ -131,11 +132,19 @@ export function CategoryCard({ label, value, total, hint, accent }: {
         {value}
       </p>
       <div className="flex flex-col leading-tight min-w-0">
-        <span className="text-[10.5px] uppercase tracking-[0.06em] font-bold text-muted-foreground">
+        <span
+          className="text-[11.5px] uppercase tracking-[0.06em] font-bold flex items-center gap-1.5"
+          style={{ color: labelColor }}
+        >
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ background: dotColor }}
+            aria-hidden="true"
+          />
           {label}
         </span>
-        <span className="text-[10.5px] tabular-nums text-muted-foreground/90 mt-0.5">
-          {total > 0 ? `${pct.toFixed(1)}%` : '—'}
+        <span className="text-[10.5px] tabular-nums text-muted-foreground mt-0.5">
+          {total > 0 ? `${pct.toFixed(1)}% всіх` : '—'}
         </span>
       </div>
     </div>
