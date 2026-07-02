@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Strategic KPI · Wireframe</title>
+<style>
+  :root {
+    --emet: #066aab;
+    --emet-light: #0879c2;
+    --emet-mint: #5BD5BC;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --bg: #f5f7fa;
+    --card: #fff;
+    --border: #e2e8f0;
+    --good: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    font-size: 13px;
+    padding: 20px;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+    letter-spacing: -0.3px;
+    color: var(--emet);
+  }
+  .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+
+  /* Filter bar */
+  .filterbar {
+    display: flex;
+    gap: 10px;
+    background: var(--card);
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+    border: 1px solid var(--border);
+  }
+  .filterbar label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .seg {
+    display: inline-flex;
+    background: #f0f4f9;
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .seg button {
+    border: 0;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .seg button.active { background: white; color: var(--emet); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  select {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--ink);
+    background: white;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  /* Overview grid */
+  .overview {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+  }
+  .overview h2 {
+    font-size: 14px;
+    margin: 0 0 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .brand-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+  }
+  .brand-card {
+    background: linear-gradient(135deg, #f8fbfd 0%, #fff 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .brand-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15,23,42,0.08); }
+  .brand-name {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    margin-bottom: 10px;
+  }
+  .channel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .channel-row .lbl { color: var(--muted); }
+  .channel-row .val { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+  .dot.good { background: var(--good); }
+  .dot.warn { background: var(--warn); }
+  .dot.bad { background: var(--bad); }
+
+  /* Brand section */
+  .brand-section {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+  }
+  .brand-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-section-head h2 {
+    margin: 0;
+    font-size: 20px;
+    color: var(--emet);
+    letter-spacing: -0.3px;
+  }
+  .brand-section-head .pct {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .brand-section-head .pct.good { color: var(--good); }
+  .brand-section-head .pct.warn { color: var(--warn); }
+  .brand-section-head .pct.bad { color: var(--bad); }
+  .channels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 900px) { .channels { grid-template-columns: 1fr; } }
+  .channel-block {
+    background: #fafcfe;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .channel-block h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin: 0 0 12px;
+    color: var(--emet);
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .channel-block h3 .pct {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.3px;
+  }
+  table.kpi {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  table.kpi th, table.kpi td {
+    text-align: right;
+    padding: 8px 10px;
+    border-bottom: 1px solid #eef2f7;
+    font-variant-numeric: tabular-nums;
+  }
+  table.kpi th:first-child, table.kpi td:first-child { text-align: left; }
+  table.kpi thead th {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+  }
+  table.kpi tbody tr:last-child td { border-bottom: 0; }
+  table.kpi td.metric { font-weight: 600; color: var(--ink); text-align: left; }
+  table.kpi td.plan { color: var(--muted); }
+  table.kpi td.fact { font-weight: 700; }
+  table.kpi td.pct { font-weight: 700; }
+  table.kpi td.pct.good { color: var(--good); }
+  table.kpi td.pct.warn { color: var(--warn); }
+  table.kpi td.pct.bad { color: var(--bad); }
+  table.kpi td.hint { color: var(--muted); font-size: 11px; text-align: left; }
+
+  .subblock { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .subblock h4 {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    margin: 0 0 8px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .promos {
+    display: grid;
+    gap: 6px;
+  }
+  .promo {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    padding: 8px 10px;
+    background: #fef7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    font-size: 12px;
+    align-items: center;
+  }
+  .promo .name { color: var(--ink); font-weight: 600; }
+  .promo .stat { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Explainer */
+  .explainer {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 11.5px;
+    color: #1e40af;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  .explainer strong { color: #1e3a8a; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Стратегічні показники · 2026</h1>
+  <p class="subtitle">Виконання річних і місячних цілей по брендах × канал (Представництва / Колл-центр)</p>
+
+  <!-- Filter bar -->
+  <div class="filterbar" style="align-items: end;">
+    <div>
+      <label>Період</label>
+      <div class="seg">
+        <button class="active">Місяць</button>
+        <button>Квартал</button>
+        <button>Півріччя</button>
+      </div>
+    </div>
+    <div>
+      <label>Місяць</label>
+      <select><option>Липень 2026</option><option>Червень 2026</option><option>Травень 2026</option></select>
+    </div>
+    <div>
+      <label>Рік для річних цілей</label>
+      <select><option>2026</option></select>
+    </div>
+    <div style="margin-left:auto;">
+      <button style="background: var(--emet); color: white; border: 0; padding: 8px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 12px;">🔄 Оновити з 1С</button>
+    </div>
+  </div>
+
+  <div class="explainer">
+    💡 <strong>Як читати:</strong> для <strong>річних</strong> цілей показуємо два %:
+    <em>просте</em> (факт YTD / річна ціль, де ми зараз) і
+    <em>пропорційне</em> (з урахуванням pace-у місяців — чи ми на темпі).
+    <strong>Прогноз</strong> — лінійна екстраполяція «якщо темп збережеться, скільки буде на кінець року».
+    Для <strong>місячних</strong> цілей — просте % (факт місяця / місячний план).
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="overview">
+    <h2>Зведення по брендах — липень 2026</h2>
+    <div class="brand-grid">
+
+      <div class="brand-card">
+        <div class="brand-name">EXOXE</div>
+        <div class="channel-row"><span class="lbl">Представництва</span><span class="val"><span class="dot good"></span>81.1%</span></div>
+        <div class="channel-row"><span class="lbl">Колл-центр</span><span class="val"><span class="dot warn"></span>62.4%</span></div>
+      </div>
+
+      <div class="brand-card">
+        <div class="brand-name">PETARAN</div>
+        <div class="channel-row"><span class="lbl">Представництва</span><span class="val"><span class="dot warn"></span>68.5%</span></div>
+        <div class="channel-row"><span class="lbl">Колл-центр</span><span class="val"><span class="dot bad"></span>42.1%</span></div>
+      </div>
+
+      <div class="brand-card">
+        <div class="brand-name">ELLANSE</div>
+        <div class="channel-row"><span class="lbl">Представництва</span><span class="val"><span class="dot good"></span>92.0%</span></div>
+        <div class="channel-row"><span class="lbl">Дистриб'ютори</span><span class="val"><span class="dot warn"></span>71.4%</span></div>
+      </div>
+
+      <div class="brand-card">
+        <div class="brand-name">ESSE</div>
+        <div class="channel-row"><span class="lbl">Представництва</span><span class="val"><span class="dot warn"></span>71.3%</span></div>
+        <div class="channel-row"><span class="lbl">Колл-центр</span><span class="val"><span class="dot good"></span>88.6%</span></div>
+      </div>
+
+      <div class="brand-card">
+        <div class="brand-name">Vitaran</div>
+        <div class="channel-row"><span class="lbl">Представництва</span><span class="val"><span class="dot good"></span>105%</span></div>
+        <div class="channel-row"><span class="lbl">Колл-центр</span><span class="val"><span class="dot good"></span>96.2%</span></div>
+      </div>
+
+      <div class="brand-card">
+        <div class="brand-name">IUSE</div>
+        <div class="channel-row"><span class="lbl">Представництва</span><span class="val"><span class="dot bad"></span>34.2%</span></div>
+        <div class="channel-row"><span class="lbl">Колл-центр</span><span class="val"><span class="dot warn"></span>58.1%</span></div>
+      </div>
+
+      <div class="brand-card">
+        <div class="brand-name">NEURAMIS</div>
+        <div class="channel-row"><span class="lbl">Представництва</span><span class="val"><span class="dot warn"></span>67.8%</span></div>
+        <div class="channel-row"><span class="lbl">Колл-центр</span><span class="val"><span class="dot bad"></span>41.0%</span></div>
+      </div>
+
+      <div class="brand-card">
+        <div class="brand-name">Collagen</div>
+        <div class="channel-row"><span class="lbl">Представництва</span><span class="val"><span class="dot good"></span>87.5%</span></div>
+        <div class="channel-row"><span class="lbl">Колл-центр</span><span class="val"><span class="dot good"></span>91.3%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXOXE DETAILED -->
+  <div class="brand-section">
+    <div class="brand-section-head">
+      <h2>EXOXE</h2>
+      <div><span class="subtitle">Серед. виконання по каналах</span> <span class="pct good">76.8%</span></div>
+    </div>
+
+    <div class="channels">
+
+      <!-- Представництва -->
+      <div class="channel-block">
+        <h3>Представництва <span class="pct good">81.1%</span></h3>
+        <table class="kpi">
+          <thead>
+            <tr>
+              <th>Показник</th>
+              <th>План</th>
+              <th>Факт</th>
+              <th title="Просте: факт/план">% прост.</th>
+              <th title="Пропорційне: факт / (план × 7/12)">% темп.</th>
+              <th title="Прогноз на кінець року">Прогн.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="metric">Унік. користувачі 2026</td>
+              <td class="plan">640</td>
+              <td class="fact">213</td>
+              <td class="pct warn">33.3%</td>
+              <td class="pct warn">57.1%</td>
+              <td class="fact">365</td>
+            </tr>
+            <tr>
+              <td class="metric">Покупають у місяць</td>
+              <td class="plan">117</td>
+              <td class="fact">66</td>
+              <td class="pct warn">56.4%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric">ср/уп на 1 клієнта, шт</td>
+              <td class="plan">3.2</td>
+              <td class="fact">6.0</td>
+              <td class="pct good">188%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric">Середній чек, $</td>
+              <td class="plan">1 250</td>
+              <td class="fact">1 148</td>
+              <td class="pct warn">91.8%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric" style="color:var(--muted);">Приріст vs 2025 (довідково)</td>
+              <td class="hint" colspan="5">+75 клієнтів було очікувано у плані; факт зараз +42</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="subblock">
+          <h4>Активні промо (з sales.discount)</h4>
+          <div class="promos">
+            <div class="promo">
+              <span class="name">EXOXE 5 сетів + Подарок EXOXE 1 сет (СПЕЦ) 05.26</span>
+              <span class="stat">46 купили</span>
+              <span class="stat">57 шт</span>
+            </div>
+            <div class="promo">
+              <span class="name">Ехохе від 2х сетів -15% (05.26)</span>
+              <span class="stat">12 купили</span>
+              <span class="stat">26 шт</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Колл-центр -->
+      <div class="channel-block">
+        <h3>Колл-центр <span class="pct warn">62.4%</span></h3>
+        <table class="kpi">
+          <thead>
+            <tr>
+              <th>Показник</th>
+              <th>План</th>
+              <th>Факт</th>
+              <th>% прост.</th>
+              <th>% темп.</th>
+              <th>Прогн.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="metric">Унік. користувачі 2026</td>
+              <td class="plan">280</td>
+              <td class="fact">96</td>
+              <td class="pct warn">34.3%</td>
+              <td class="pct warn">58.8%</td>
+              <td class="fact">165</td>
+            </tr>
+            <tr>
+              <td class="metric">Покупають у місяць</td>
+              <td class="plan">48</td>
+              <td class="fact">22</td>
+              <td class="pct bad">45.8%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric">ср/уп на 1 клієнта, шт</td>
+              <td class="plan">2.1</td>
+              <td class="fact">1.8</td>
+              <td class="pct warn">85.7%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ELLANSE — з обучениями і дистриб'юторами -->
+  <div class="brand-section">
+    <div class="brand-section-head">
+      <h2>ELLANSE</h2>
+      <div><span class="subtitle">Серед. виконання</span> <span class="pct good">81.7%</span></div>
+    </div>
+
+    <div class="channels">
+      <!-- Представництва -->
+      <div class="channel-block">
+        <h3>Представництва <span class="pct good">92.0%</span></h3>
+        <table class="kpi">
+          <thead><tr><th>Показник</th><th>План</th><th>Факт</th><th>% прост.</th><th>% темп.</th><th>Прогн.</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="metric">Унік. користувачі 2026</td>
+              <td class="plan">420</td><td class="fact">312</td>
+              <td class="pct good">74.3%</td><td class="pct good">127%</td><td class="fact">535</td>
+            </tr>
+            <tr>
+              <td class="metric">Покупають у місяць</td>
+              <td class="plan">81</td><td class="fact">74</td>
+              <td class="pct good">91.4%</td><td class="hint">—</td><td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric">ср/уп на 1 клієнта</td>
+              <td class="plan">3.7</td><td class="fact">4.1</td>
+              <td class="pct good">111%</td><td class="hint">—</td><td class="hint">—</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="subblock">
+          <h4>🎓 Навчання (обучение)</h4>
+          <table class="kpi">
+            <thead><tr><th>Показник</th><th>План</th><th>Факт</th><th>% прост.</th><th>% темп.</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="metric">Нових обучених у 2026, чел</td>
+                <td class="plan">123</td><td class="fact">89</td>
+                <td class="pct good">72.4%</td><td class="pct good">124%</td>
+              </tr>
+              <tr>
+                <td class="metric">Навчань провести у 2026, шт</td>
+                <td class="plan">25 <span style="color:var(--muted); font-size: 10px;">+5 повт.</span></td>
+                <td class="fact">18</td>
+                <td class="pct good">72.0%</td><td class="pct good">123%</td>
+              </tr>
+              <tr>
+                <td class="metric">Конверсія обучених → повторні</td>
+                <td class="plan">49%</td><td class="fact">44%</td>
+                <td class="pct warn">89.8%</td><td class="hint">—</td>
+              </tr>
+              <tr>
+                <td class="metric">Утримання покупаючих</td>
+                <td class="plan">57</td><td class="fact">51</td>
+                <td class="pct warn">89.5%</td><td class="hint">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Дистриб'ютори -->
+      <div class="channel-block">
+        <h3>Дистриб'ютори <span class="pct warn">71.4%</span></h3>
+        <table class="kpi">
+          <thead><tr><th>Показник</th><th>План</th><th>Факт</th><th>% прост.</th><th>% темп.</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="metric">Нових обучених у 2026, чел</td>
+              <td class="plan">32</td><td class="fact">22</td>
+              <td class="pct warn">68.8%</td><td class="pct good">118%</td>
+            </tr>
+            <tr>
+              <td class="metric">Навчань провести у 2026, шт</td>
+              <td class="plan">6</td><td class="fact">4</td>
+              <td class="pct warn">66.7%</td><td class="pct good">114%</td>
+            </tr>
+            <tr>
+              <td class="metric">Приріст купуючих у міс. 2026, чел</td>
+              <td class="plan">5</td><td class="fact">3</td>
+              <td class="pct warn">60.0%</td><td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric">Утримання покупаючих у міс. 2025</td>
+              <td class="plan">30</td><td class="fact">27</td>
+              <td class="pct warn">90.0%</td><td class="hint">—</td>
+            </tr>
+            <tr style="background: #f0fdf4;">
+              <td class="metric" style="color: var(--good);">ПЛАН — покупают у міс., чел</td>
+              <td class="plan" style="color: var(--good); font-weight: 700;">35</td>
+              <td class="fact" style="color: var(--good);">30</td>
+              <td class="pct good">85.7%</td><td class="hint">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN UI mock -->
+  <div class="brand-section" style="background: #f8fafc; border: 2px dashed #cbd5e1;">
+    <div class="brand-section-head">
+      <h2 style="color: #475569;">🛠 Адмінка · Введення таргетів</h2>
+      <a href="#" style="color: var(--emet); text-decoration: none; font-size: 12px; font-weight: 700;">/admin/strategic-targets</a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 200px 1fr; gap: 20px; padding: 10px;">
+      <div style="border-right: 1px solid var(--border); padding-right: 20px;">
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; display: block; margin-bottom: 6px;">Бренд</label>
+          <select style="width: 100%;">
+            <option>EXOXE</option><option>PETARAN</option><option>ELLANSE</option>
+            <option>ESSE</option><option>Vitaran</option><option>IUSE</option>
+            <option>NEURAMIS</option><option>Collagen</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; display: block; margin-bottom: 6px;">Канал</label>
+          <select style="width: 100%;">
+            <option>Представництва</option>
+            <option>Колл-центр</option>
+            <option>Дистриб'ютори (ELLANSE)</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; display: block; margin-bottom: 6px;">Рік</label>
+          <select style="width: 100%;"><option>2026</option><option>2025</option></select>
+        </div>
+      </div>
+
+      <div>
+        <div style="display: grid; grid-template-columns: 1fr 120px; gap: 8px 12px; align-items: center;">
+          <div style="font-weight: 700; color: var(--emet); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding-top: 8px;">Річні цілі</div>
+          <div></div>
+
+          <label>Унікальні користувачі за рік, чел</label>
+          <input type="number" value="640" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: right; font-family: inherit; font-variant-numeric: tabular-nums; font-size: 13px;" />
+
+          <label>Середній чек, $</label>
+          <input type="number" value="1250" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: right; font-family: inherit; font-variant-numeric: tabular-nums; font-size: 13px;" />
+
+          <div style="font-weight: 700; color: var(--emet); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding-top: 16px;">Місячні цілі</div>
+          <div></div>
+
+          <label>Покупають у місяць, чел</label>
+          <input type="number" value="117" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: right; font-family: inherit; font-variant-numeric: tabular-nums; font-size: 13px;" />
+
+          <label>ср/уп на 1 клієнта, шт</label>
+          <input type="number" step="0.1" value="3.2" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: right; font-family: inherit; font-variant-numeric: tabular-nums; font-size: 13px;" />
+
+          <!-- ELLANSE only -->
+          <div style="font-weight: 700; color: var(--emet); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding-top: 16px;">
+            🎓 Навчання <span style="color: var(--muted); text-transform: none;">(тільки ELLANSE)</span>
+          </div>
+          <div></div>
+
+          <label>Нових обучених у рік, чел</label>
+          <input type="number" value="123" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: right; font-family: inherit; font-variant-numeric: tabular-nums; font-size: 13px;" />
+
+          <label>Провести навчань, шт</label>
+          <input type="number" value="25" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: right; font-family: inherit; font-variant-numeric: tabular-nums; font-size: 13px;" />
+
+          <label>Повторних навчань</label>
+          <input type="number" value="5" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: right; font-family: inherit; font-variant-numeric: tabular-nums; font-size: 13px;" />
+
+          <label>Конверсія → повторні, %</label>
+          <input type="number" value="49" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: right; font-family: inherit; font-variant-numeric: tabular-nums; font-size: 13px;" />
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 8px; justify-content: flex-end;">
+          <button style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: white; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600;">Скасувати</button>
+          <button style="padding: 8px 14px; border-radius: 8px; border: 0; background: var(--emet); color: white; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 700;">Зберегти цілі</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="explainer" style="margin-top: 20px;">
+    📌 <strong>Ще не показано на mock, але буде:</strong>
+    решта 6 брендів (розкриваються аналогічно EXOXE),
+    графік тренду по місяцях під головним KPI,
+    порівняння з попереднім місяцем/кварталом.
+  </div>
+</div>
+</body>
+</html>

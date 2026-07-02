@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic KPI · 3 варіанти · Sales Planning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --ink: #062a3d;
+  --ink-soft: rgba(6, 42, 61, 0.78);
+  --ink-muted: rgba(6, 42, 61, 0.58);
+  --ink-faded: rgba(6, 42, 61, 0.38);
+  --accent: #066aab;
+  --accent-light: #0879c2;
+  --mint: #5bd5bc;
+  --warn: #fb923c;
+  --bad: #e11d48;
+  --good: #14b8a6;
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --card-shadow: 0 8px 32px rgba(6, 42, 61, 0.06);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Manrope', sans-serif;
+  background: #f8fbfd;
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+  padding-bottom: 100px;
+}
+.amount, .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* Mesh background — with EMET blobs */
+.mesh-bg {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+    radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+    radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+    linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
+}
+.blob { position: fixed; border-radius: 50%; filter: blur(90px); z-index: -1; pointer-events: none; opacity: 0.28; }
+.blob.a { width: 520px; height: 520px; background: rgba(6, 106, 171, 0.35); top: -100px; left: -100px; }
+.blob.b { width: 440px; height: 440px; background: rgba(91, 213, 188, 0.4); top: 30%; right: -80px; }
+.blob.c { width: 380px; height: 380px; background: rgba(8, 128, 204, 0.3); bottom: -100px; left: 30%; }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 30px 24px; }
+
+/* ============ HEADER ============ */
+.page-head { margin-bottom: 30px; }
+.page-head h1 {
+  font-size: 34px;
+  font-weight: 200;
+  letter-spacing: -1.2px;
+  line-height: 1;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.page-head h1 strong { font-weight: 700; color: var(--accent); }
+.page-head .sub {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.variant-picker {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 6px;
+  width: fit-content;
+  box-shadow: var(--card-shadow);
+}
+.variant-picker button {
+  border: 0; padding: 10px 18px; border-radius: 10px;
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--ink-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.variant-picker button.active {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+  color: white;
+  box-shadow: 0 4px 14px rgba(6, 106, 171, 0.3);
+}
+
+/* ============ COMMON: Filter bar ============ */
+.filter-bar {
+  display: flex;
+  gap: 14px;
+  align-items: end;
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--card-shadow);
+}
+.filter-bar label {
+  display: block;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.seg {
+  display: inline-flex;
+  background: rgba(6, 42, 61, 0.06);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg button {
+  border: 0; background: transparent;
+  padding: 7px 14px; border-radius: 8px;
+  font-size: 11.5px; font-weight: 700;
+  color: var(--ink-muted); cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.seg button.active { background: white; color: var(--accent); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+select.glass-select {
+  border: 1px solid rgba(6, 42, 61, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px; font-size: 12px;
+  font-family: inherit;
+  background: white; color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 140px;
+}
+.btn-primary {
+  border: 0; padding: 10px 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+  color: white; font-family: inherit;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 14px rgba(6, 106, 171, 0.3);
+  transition: all 0.2s;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(6, 106, 171, 0.4); }
+
+/* ============ VARIANT A: BRAND FOCUS ============ */
+.variant { display: none; }
+.variant.active { display: block; }
+
+/* Brand tabs */
+.brand-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 4px 16px;
+  margin-bottom: 20px;
+}
+.brand-tab {
+  min-width: 120px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  flex-shrink: 0;
+  box-shadow: var(--card-shadow);
+}
+.brand-tab:hover { transform: translateY(-2px); }
+.brand-tab.active {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 8px 24px rgba(6, 106, 171, 0.35);
+}
+.brand-tab .btn-name {
+  font-size: 13px; font-weight: 800;
+  letter-spacing: -0.2px;
+  margin-bottom: 4px;
+}
+.brand-tab .btn-pct {
+  font-size: 18px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.brand-tab .btn-status {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--ink-muted); font-weight: 600;
+  margin-top: 2px;
+}
+.brand-tab.active .btn-status { color: rgba(255,255,255,0.75); }
+
+/* Hero KPI section */
+.hero-kpi {
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  box-shadow: var(--card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.hero-kpi::before {
+  content: ''; position: absolute; top: -60%; right: -20%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(91,213,188,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 24px; position: relative;
+}
+.hero-title h2 {
+  font-size: 32px; font-weight: 200; letter-spacing: -1px;
+  line-height: 1; margin-bottom: 6px;
+}
+.hero-title h2 strong { font-weight: 700; color: var(--accent); }
+.hero-title .sub { color: var(--ink-muted); font-size: 12px; font-weight: 500; }
+.hero-score {
+  text-align: right;
+}
+.hero-score .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 56px; font-weight: 700;
+  letter-spacing: -2px; line-height: 1;
+  color: var(--good);
+}
+.hero-score .num.warn { color: var(--warn); }
+.hero-score .num.bad { color: var(--bad); }
+.hero-score .lbl {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--ink-muted);
+  font-weight: 700; margin-top: 4px;
+}
+
+.hero-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  position: relative;
+}
+.hero-metric {
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 16px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-metric.accent { background: linear-gradient(135deg, rgba(6,106,171,0.06) 0%, rgba(91,213,188,0.06) 100%); }
+.hero-metric .icon {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+  color: white;
+  margin-bottom: 10px;
+}
+.hero-metric .icon.mint { background: linear-gradient(135deg, var(--mint) 0%, #7dd3c0 100%); }
+.hero-metric .icon.warn { background: linear-gradient(135deg, var(--warn) 0%, #fbbf24 100%); }
+.hero-metric .lbl {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px;
+  color: var(--ink-muted); font-weight: 700;
+}
+.hero-metric .val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px; font-weight: 700;
+  letter-spacing: -0.8px; line-height: 1;
+  margin: 6px 0 4px;
+}
+.hero-metric .sub-line {
+  font-size: 11px; color: var(--ink-muted);
+  font-weight: 500; display: flex; gap: 8px; align-items: center;
+}
+.hero-metric .sub-line .delta.good { color: var(--good); font-weight: 700; }
+.hero-metric .sub-line .delta.bad { color: var(--bad); font-weight: 700; }
+
+/* Channel blocks */
+.channel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+@media (max-width: 900px) { .channel-row { grid-template-columns: 1fr; } }
+
+.channel-block {
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 22px 24px;
+  box-shadow: var(--card-shadow);
+}
+.channel-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid rgba(6, 42, 61, 0.08);
+}
+.channel-head h3 {
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px;
+  font-weight: 800; color: var(--accent);
+}
+.channel-head .status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; font-weight: 700;
+  letter-spacing: -0.6px;
+}
+.channel-head .status.good { color: var(--good); }
+.channel-head .status.warn { color: var(--warn); }
+.channel-head .status.bad { color: var(--bad); }
+
+/* KPI table */
+table.kpi {
+  width: 100%; border-collapse: collapse;
+  font-size: 12.5px;
+}
+table.kpi thead th {
+  font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.7px; color: var(--ink-muted);
+  font-weight: 700;
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid rgba(6, 42, 61, 0.08);
+}
+table.kpi thead th:first-child { text-align: left; }
+table.kpi td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(6, 42, 61, 0.05);
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+table.kpi td.metric {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600; text-align: left;
+  color: var(--ink);
+}
+table.kpi td.plan { color: var(--ink-muted); font-weight: 500; }
+table.kpi td.fact { font-weight: 700; color: var(--ink); }
+table.kpi td.pct { font-weight: 700; }
+table.kpi td.pct.good { color: var(--good); }
+table.kpi td.pct.warn { color: var(--warn); }
+table.kpi td.pct.bad { color: var(--bad); }
+table.kpi td.hint { color: var(--ink-faded); font-size: 11px; }
+table.kpi tbody tr:last-child td { border-bottom: 0; }
+table.kpi tbody tr.hint-row td {
+  background: rgba(6, 42, 61, 0.02);
+  font-size: 11px; color: var(--ink-muted);
+  font-style: italic;
+  padding: 6px 8px;
+}
+
+/* Sub-block for training */
+.sub-block {
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px dashed rgba(6, 42, 61, 0.15);
+}
+.sub-block h4 {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.7px; color: var(--warn);
+  font-weight: 800; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sub-block h4::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--warn);
+}
+
+/* Promo cards */
+.promo-list { display: grid; gap: 8px; }
+.promo-card {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 14px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.06) 0%, rgba(253, 186, 116, 0.04) 100%);
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  border-radius: 12px;
+  font-size: 12px;
+  align-items: center;
+}
+.promo-card .name { font-weight: 600; color: var(--ink); }
+.promo-card .stat {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--ink-muted);
+  font-weight: 600;
+}
+.promo-card .stat strong { color: var(--warn); font-weight: 700; }
+
+/* ============ VARIANT B: HEATMAP ============ */
+.heatmap-wrap {
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  padding: 26px 30px;
+  box-shadow: var(--card-shadow);
+  margin-bottom: 20px;
+}
+.heatmap-wrap h2 {
+  font-size: 24px; font-weight: 200; letter-spacing: -0.8px;
+  margin-bottom: 4px;
+}
+.heatmap-wrap h2 strong { font-weight: 700; color: var(--accent); }
+.heatmap-wrap .sub { color: var(--ink-muted); font-size: 12px; margin-bottom: 22px; }
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: 140px repeat(4, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+.heatmap-grid .hh {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.7px; color: var(--ink-muted);
+  font-weight: 700;
+  padding: 8px 4px;
+  text-align: center;
+}
+.heatmap-grid .hh.left { text-align: left; padding-left: 10px; }
+.heatmap-grid .brand-name-cell {
+  font-weight: 800; font-size: 14px;
+  padding: 12px 10px;
+  letter-spacing: -0.2px;
+}
+.heatmap-cell {
+  aspect-ratio: 2.2 / 1;
+  border-radius: 12px;
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  gap: 3px;
+  border: 1px solid rgba(255,255,255,0.9);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.heatmap-cell:hover { transform: scale(1.05); z-index: 2; }
+.heatmap-cell.na {
+  background: rgba(6, 42, 61, 0.03);
+  border-style: dashed;
+  color: var(--ink-faded);
+  cursor: default;
+}
+.heatmap-cell.na::before { content: '—'; font-size: 20px; font-weight: 700; }
+.heatmap-cell .cell-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px; font-weight: 700;
+  letter-spacing: -0.5px; line-height: 1;
+}
+.heatmap-cell .cell-lbl {
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.5px; opacity: 0.7;
+  font-weight: 700;
+}
+.hc-good { background: linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(20, 184, 166, 0.25) 100%); color: #0f766e; }
+.hc-warn { background: linear-gradient(135deg, rgba(251, 146, 60, 0.15) 0%, rgba(251, 146, 60, 0.25) 100%); color: #c2410c; }
+.hc-bad { background: linear-gradient(135deg, rgba(225, 29, 72, 0.12) 0%, rgba(225, 29, 72, 0.22) 100%); color: #be123c; }
+.hc-excellent { background: linear-gradient(135deg, rgba(6, 106, 171, 0.18) 0%, rgba(91, 213, 188, 0.22) 100%); color: var(--accent); }
+
+/* ============ VARIANT C: SCOREBOARD ============ */
+.scoreboard {
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  padding: 26px 30px;
+  box-shadow: var(--card-shadow);
+  margin-bottom: 20px;
+}
+.scoreboard h2 {
+  font-size: 24px; font-weight: 200; letter-spacing: -0.8px;
+  margin-bottom: 4px;
+}
+.scoreboard h2 strong { font-weight: 700; color: var(--accent); }
+.scoreboard .sub { color: var(--ink-muted); font-size: 12px; margin-bottom: 22px; }
+
+.rank-list { display: grid; gap: 8px; }
+.rank-row {
+  display: grid;
+  grid-template-columns: 40px 130px 1fr 100px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.85);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.rank-row:hover { transform: translateX(4px); }
+.rank-row .rank-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px; font-weight: 700;
+  color: var(--ink-faded);
+  letter-spacing: -0.5px;
+}
+.rank-row.top-1 .rank-num { color: var(--good); }
+.rank-row.top-3 .rank-num { color: var(--accent); }
+.rank-row.bottom .rank-num { color: var(--bad); }
+
+.rank-row .brand-name-cell {
+  font-weight: 800; font-size: 16px;
+  letter-spacing: -0.2px;
+}
+.rank-row .brand-channels {
+  font-size: 11px; color: var(--ink-muted);
+  margin-top: 3px;
+  display: flex; gap: 10px;
+}
+
+.progress-bar {
+  height: 8px; border-radius: 4px;
+  background: rgba(6, 42, 61, 0.06);
+  overflow: hidden;
+  position: relative;
+}
+.progress-bar .fill {
+  height: 100%; border-radius: 4px;
+  transition: width 0.6s;
+}
+.progress-bar .fill.good { background: linear-gradient(90deg, var(--good), var(--mint)); }
+.progress-bar .fill.warn { background: linear-gradient(90deg, var(--warn), #fbbf24); }
+.progress-bar .fill.bad { background: linear-gradient(90deg, var(--bad), #f87171); }
+.progress-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--ink-muted);
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.rank-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; font-weight: 700;
+  letter-spacing: -0.6px;
+  text-align: right;
+}
+.rank-pct.good { color: var(--good); }
+.rank-pct.warn { color: var(--warn); }
+.rank-pct.bad { color: var(--bad); }
+
+/* Explainer badge */
+.explainer {
+  background: linear-gradient(135deg, rgba(6,106,171,0.06) 0%, rgba(91,213,188,0.06) 100%);
+  border: 1px solid rgba(6, 106, 171, 0.15);
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-bottom: 20px;
+  line-height: 1.55;
+}
+.explainer strong { color: var(--accent); font-weight: 800; }
+
+/* ADMIN mini banner */
+.admin-hint {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(251,146,60,0.08) 0%, rgba(253,186,116,0.05) 100%);
+  border: 1px dashed rgba(251, 146, 60, 0.4);
+  border-radius: 14px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 30px;
+}
+.admin-hint .icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: var(--warn); color: white;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+</style>
+</head>
+<body>
+
+<div class="mesh-bg"></div>
+<div class="blob a"></div>
+<div class="blob b"></div>
+<div class="blob c"></div>
+
+<div class="container">
+
+  <div class="page-head">
+    <h1>Стратегічні <strong>показники</strong> · 2026</h1>
+    <div class="sub">Виконання річних і місячних цілей по брендах × канал (Представництва / Колл-центр / Дистриб'ютори)</div>
+  </div>
+
+  <!-- Variant picker -->
+  <div class="variant-picker">
+    <button class="active" onclick="showV('a')">A · Focus by Brand</button>
+    <button onclick="showV('b')">B · Heatmap Overview</button>
+    <button onclick="showV('c')">C · Ranking Board</button>
+  </div>
+
+  <!-- Common filter bar -->
+  <div class="filter-bar">
+    <div>
+      <label>Період</label>
+      <div class="seg">
+        <button class="active">Місяць</button>
+        <button>Квартал</button>
+        <button>Півріччя</button>
+      </div>
+    </div>
+    <div>
+      <label>Дата</label>
+      <select class="glass-select"><option>Липень 2026</option><option>Червень 2026</option><option>Q3 2026</option></select>
+    </div>
+    <div>
+      <label>Рік цілей</label>
+      <select class="glass-select"><option>2026</option></select>
+    </div>
+    <div style="margin-left: auto;">
+      <button class="btn-primary">Оновити з 1С</button>
+    </div>
+  </div>
+
+  <div class="explainer">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg><strong>Як читати:</strong> для річних цілей — три %:
+    <strong>прост.</strong> (факт YTD / річна ціль),
+    <strong>темп.</strong> (з урахуванням pace: чи ми на плані на цей місяць року),
+    <strong>прогн.</strong> (лінійна екстраполяція на кінець року).
+    Для місячних — просто факт / план.
+  </div>
+
+  <!-- =========================== -->
+  <!-- ============ VARIANT A ==== -->
+  <!-- =========================== -->
+  <div class="variant active" id="v-a">
+
+    <!-- Brand tabs -->
+    <div class="brand-tabs">
+      <div class="brand-tab active">
+        <div class="btn-name">EXOXE</div>
+        <div class="btn-pct">76.8%</div>
+        <div class="btn-status">на плані</div>
+      </div>
+      <div class="brand-tab">
+        <div class="btn-name">PETARAN</div>
+        <div class="btn-pct">55.3%</div>
+        <div class="btn-status">відстає</div>
+      </div>
+      <div class="brand-tab">
+        <div class="btn-name">ELLANSE</div>
+        <div class="btn-pct">81.7%</div>
+        <div class="btn-status">на плані</div>
+      </div>
+      <div class="brand-tab">
+        <div class="btn-name">ESSE</div>
+        <div class="btn-pct">80.0%</div>
+        <div class="btn-status">на плані</div>
+      </div>
+      <div class="brand-tab">
+        <div class="btn-name">Vitaran</div>
+        <div class="btn-pct">100.6%</div>
+        <div class="btn-status">перевик.</div>
+      </div>
+      <div class="brand-tab">
+        <div class="btn-name">IUSE</div>
+        <div class="btn-pct">46.1%</div>
+        <div class="btn-status">критично</div>
+      </div>
+      <div class="brand-tab">
+        <div class="btn-name">NEURAMIS</div>
+        <div class="btn-pct">54.4%</div>
+        <div class="btn-status">відстає</div>
+      </div>
+      <div class="brand-tab">
+        <div class="btn-name">Collagen</div>
+        <div class="btn-pct">89.4%</div>
+        <div class="btn-status">на плані</div>
+      </div>
+    </div>
+
+    <!-- Hero KPI -->
+    <div class="hero-kpi">
+      <div class="hero-head">
+        <div class="hero-title">
+          <h2><strong>EXOXE</strong> · липень 2026</h2>
+          <div class="sub">Серед. виконання по двох каналах</div>
+        </div>
+        <div class="hero-score">
+          <div class="num">76.8%</div>
+          <div class="lbl">Загальне виконання</div>
+        </div>
+      </div>
+
+      <div class="hero-metrics-row">
+        <div class="hero-metric accent">
+          <div class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div class="lbl">Унікальні за рік</div>
+          <div class="val">213 <span style="font-size: 14px; color: var(--ink-muted); font-weight: 500;">/ 640</span></div>
+          <div class="sub-line">
+            <span class="delta warn">33.3%</span>
+            <span>прост. · темп. 57.1%</span>
+          </div>
+        </div>
+        <div class="hero-metric">
+          <div class="icon mint"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg></div>
+          <div class="lbl">Купують у міс.</div>
+          <div class="val">66 <span style="font-size: 14px; color: var(--ink-muted); font-weight: 500;">/ 117</span></div>
+          <div class="sub-line">
+            <span class="delta warn">56.4%</span>
+            <span>прог. 116 до кінця року</span>
+          </div>
+        </div>
+        <div class="hero-metric">
+          <div class="icon warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></div>
+          <div class="lbl">ср/уп на клієнта</div>
+          <div class="val">6.0 <span style="font-size: 14px; color: var(--ink-muted); font-weight: 500;">/ 3.2</span></div>
+          <div class="sub-line">
+            <span class="delta good">+188%</span>
+            <span>значно вище плану</span>
+          </div>
+        </div>
+        <div class="hero-metric">
+          <div class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          <div class="lbl">Середній чек</div>
+          <div class="val">$1148 <span style="font-size: 14px; color: var(--ink-muted); font-weight: 500;">/ 1250</span></div>
+          <div class="sub-line">
+            <span class="delta warn">91.8%</span>
+            <span>чуть нижче цілі</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Channel row -->
+    <div class="channel-row">
+      <div class="channel-block">
+        <div class="channel-head">
+          <h3>Представництва</h3>
+          <div class="status good">81.1%</div>
+        </div>
+
+        <table class="kpi">
+          <thead>
+            <tr>
+              <th>Показник</th>
+              <th>План</th>
+              <th>Факт</th>
+              <th>Прост.</th>
+              <th>Темп.</th>
+              <th>Прогн.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="metric">Унік. користувачі 2026</td>
+              <td class="plan">640</td>
+              <td class="fact">213</td>
+              <td class="pct warn">33.3%</td>
+              <td class="pct warn">57.1%</td>
+              <td class="fact">365</td>
+            </tr>
+            <tr>
+              <td class="metric">Покупають у місяць</td>
+              <td class="plan">117</td>
+              <td class="fact">66</td>
+              <td class="pct warn">56.4%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric">ср/уп на клієнта</td>
+              <td class="plan">3.2</td>
+              <td class="fact">6.0</td>
+              <td class="pct good">188%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric">Середній чек, $</td>
+              <td class="plan">1 250</td>
+              <td class="fact">1 148</td>
+              <td class="pct warn">91.8%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+            <tr class="hint-row">
+              <td colspan="6">Приріст vs 2025 (довідково з розрахунків): очікувано +75 клієнтів; факт зараз +42</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="sub-block">
+          <h4>Активні промо</h4>
+          <div class="promo-list">
+            <div class="promo-card">
+              <span class="name">EXOXE 5 сетів + Подарок EXOXE 1 сет (СПЕЦ) 05.26</span>
+              <span class="stat"><strong>46</strong> купили</span>
+              <span class="stat"><strong>57</strong> шт</span>
+            </div>
+            <div class="promo-card">
+              <span class="name">Ехохе від 2х сетів -15% (05.26)</span>
+              <span class="stat"><strong>12</strong> купили</span>
+              <span class="stat"><strong>26</strong> шт</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="channel-block">
+        <div class="channel-head">
+          <h3>Колл-центр</h3>
+          <div class="status warn">62.4%</div>
+        </div>
+
+        <table class="kpi">
+          <thead>
+            <tr>
+              <th>Показник</th>
+              <th>План</th>
+              <th>Факт</th>
+              <th>Прост.</th>
+              <th>Темп.</th>
+              <th>Прогн.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="metric">Унік. користувачі 2026</td>
+              <td class="plan">280</td>
+              <td class="fact">96</td>
+              <td class="pct warn">34.3%</td>
+              <td class="pct warn">58.8%</td>
+              <td class="fact">165</td>
+            </tr>
+            <tr>
+              <td class="metric">Покупають у місяць</td>
+              <td class="plan">48</td>
+              <td class="fact">22</td>
+              <td class="pct bad">45.8%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+            <tr>
+              <td class="metric">ср/уп на клієнта</td>
+              <td class="plan">2.1</td>
+              <td class="fact">1.8</td>
+              <td class="pct warn">85.7%</td>
+              <td class="hint">—</td>
+              <td class="hint">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- =========================== -->
+  <!-- ============ VARIANT B ==== -->
+  <!-- =========================== -->
+  <div class="variant" id="v-b">
+
+    <div class="heatmap-wrap">
+      <h2>Heatmap · <strong>8 брендів × канали</strong></h2>
+      <div class="sub">Виконання цілей за липень 2026. Клікнути на комірку → детальний розклад бренду.</div>
+
+      <div class="heatmap-grid">
+        <!-- Header row -->
+        <div class="hh left">Бренд</div>
+        <div class="hh">Представництва</div>
+        <div class="hh">Колл-центр</div>
+        <div class="hh">Дистриб'ютори</div>
+        <div class="hh">Серед.</div>
+
+        <!-- EXOXE -->
+        <div class="brand-name-cell">EXOXE</div>
+        <div class="heatmap-cell hc-good"><span class="cell-val">81.1%</span><span class="cell-lbl">на плані</span></div>
+        <div class="heatmap-cell hc-warn"><span class="cell-val">62.4%</span><span class="cell-lbl">відстає</span></div>
+        <div class="heatmap-cell na"></div>
+        <div class="heatmap-cell hc-good"><span class="cell-val">76.8%</span><span class="cell-lbl">агрегат</span></div>
+
+        <!-- PETARAN -->
+        <div class="brand-name-cell">PETARAN</div>
+        <div class="heatmap-cell hc-warn"><span class="cell-val">68.5%</span><span class="cell-lbl">відстає</span></div>
+        <div class="heatmap-cell hc-bad"><span class="cell-val">42.1%</span><span class="cell-lbl">критично</span></div>
+        <div class="heatmap-cell na"></div>
+        <div class="heatmap-cell hc-warn"><span class="cell-val">55.3%</span><span class="cell-lbl">агрегат</span></div>
+
+        <!-- ELLANSE -->
+        <div class="brand-name-cell">ELLANSE</div>
+        <div class="heatmap-cell hc-excellent"><span class="cell-val">92.0%</span><span class="cell-lbl">excellent</span></div>
+        <div class="heatmap-cell na"></div>
+        <div class="heatmap-cell hc-warn"><span class="cell-val">71.4%</span><span class="cell-lbl">відстає</span></div>
+        <div class="heatmap-cell hc-good"><span class="cell-val">81.7%</span><span class="cell-lbl">агрегат</span></div>
+
+        <!-- ESSE -->
+        <div class="brand-name-cell">ESSE</div>
+        <div class="heatmap-cell hc-warn"><span class="cell-val">71.3%</span><span class="cell-lbl">відстає</span></div>
+        <div class="heatmap-cell hc-good"><span class="cell-val">88.6%</span><span class="cell-lbl">на плані</span></div>
+        <div class="heatmap-cell na"></div>
+        <div class="heatmap-cell hc-good"><span class="cell-val">80.0%</span><span class="cell-lbl">агрегат</span></div>
+
+        <!-- Vitaran -->
+        <div class="brand-name-cell">Vitaran</div>
+        <div class="heatmap-cell hc-excellent"><span class="cell-val">105%</span><span class="cell-lbl">перевик.</span></div>
+        <div class="heatmap-cell hc-excellent"><span class="cell-val">96.2%</span><span class="cell-lbl">excellent</span></div>
+        <div class="heatmap-cell na"></div>
+        <div class="heatmap-cell hc-excellent"><span class="cell-val">100.6%</span><span class="cell-lbl">перевик.</span></div>
+
+        <!-- IUSE -->
+        <div class="brand-name-cell">IUSE</div>
+        <div class="heatmap-cell hc-bad"><span class="cell-val">34.2%</span><span class="cell-lbl">критично</span></div>
+        <div class="heatmap-cell hc-warn"><span class="cell-val">58.1%</span><span class="cell-lbl">відстає</span></div>
+        <div class="heatmap-cell na"></div>
+        <div class="heatmap-cell hc-bad"><span class="cell-val">46.1%</span><span class="cell-lbl">агрегат</span></div>
+
+        <!-- NEURAMIS -->
+        <div class="brand-name-cell">NEURAMIS</div>
+        <div class="heatmap-cell hc-warn"><span class="cell-val">67.8%</span><span class="cell-lbl">відстає</span></div>
+        <div class="heatmap-cell hc-bad"><span class="cell-val">41.0%</span><span class="cell-lbl">критично</span></div>
+        <div class="heatmap-cell na"></div>
+        <div class="heatmap-cell hc-warn"><span class="cell-val">54.4%</span><span class="cell-lbl">агрегат</span></div>
+
+        <!-- Collagen -->
+        <div class="brand-name-cell">Collagen</div>
+        <div class="heatmap-cell hc-good"><span class="cell-val">87.5%</span><span class="cell-lbl">на плані</span></div>
+        <div class="heatmap-cell hc-excellent"><span class="cell-val">91.3%</span><span class="cell-lbl">excellent</span></div>
+        <div class="heatmap-cell na"></div>
+        <div class="heatmap-cell hc-good"><span class="cell-val">89.4%</span><span class="cell-lbl">агрегат</span></div>
+
+      </div>
+    </div>
+
+    <div class="explainer">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg><strong>Heatmap показує ЗАГАЛЬНИЙ % виконання</strong> по каналу — середнє з ключових метрик (унік. користувачі, покупають у міс., ср/уп). Клік на комірку → повний розкід метрик того бренду × каналу.
+      <br>Дистриб'ютори — сірі комірки для 7 брендів окрім ELLANSE (там дистриб'ютори активні).
+    </div>
+
+  </div>
+
+  <!-- =========================== -->
+  <!-- ============ VARIANT C ==== -->
+  <!-- =========================== -->
+  <div class="variant" id="v-c">
+
+    <div class="scoreboard">
+      <h2>Табель <strong>виконання</strong> · липень 2026</h2>
+      <div class="sub">Бренди відсортовані від найкращого до найгіршого виконання. Клік → деталі бренду.</div>
+
+      <div class="rank-list">
+
+        <div class="rank-row top-1">
+          <div class="rank-num">1</div>
+          <div>
+            <div class="brand-name-cell">Vitaran</div>
+            <div class="brand-channels">Представн. 105% · Колл-центр 96.2%</div>
+          </div>
+          <div>
+            <div class="progress-bar"><div class="fill good" style="width: 100%;"></div></div>
+            <div class="progress-labels"><span>0%</span><span>серед. 100.6% · темп 172%</span><span>план 100%</span></div>
+          </div>
+          <div class="rank-pct good">100.6%</div>
+        </div>
+
+        <div class="rank-row top-3">
+          <div class="rank-num">2</div>
+          <div>
+            <div class="brand-name-cell">Collagen</div>
+            <div class="brand-channels">Представн. 87.5% · Колл-центр 91.3%</div>
+          </div>
+          <div>
+            <div class="progress-bar"><div class="fill good" style="width: 89%;"></div></div>
+            <div class="progress-labels"><span>0%</span><span>серед. 89.4% · темп 153%</span><span>план 100%</span></div>
+          </div>
+          <div class="rank-pct good">89.4%</div>
+        </div>
+
+        <div class="rank-row top-3">
+          <div class="rank-num">3</div>
+          <div>
+            <div class="brand-name-cell">ELLANSE</div>
+            <div class="brand-channels">Представн. 92.0% · Дистриб. 71.4%</div>
+          </div>
+          <div>
+            <div class="progress-bar"><div class="fill good" style="width: 82%;"></div></div>
+            <div class="progress-labels"><span>0%</span><span>серед. 81.7% · темп 140%</span><span>план 100%</span></div>
+          </div>
+          <div class="rank-pct good">81.7%</div>
+        </div>
+
+        <div class="rank-row">
+          <div class="rank-num">4</div>
+          <div>
+            <div class="brand-name-cell">ESSE</div>
+            <div class="brand-channels">Представн. 71.3% · Колл-центр 88.6%</div>
+          </div>
+          <div>
+            <div class="progress-bar"><div class="fill good" style="width: 80%;"></div></div>
+            <div class="progress-labels"><span>0%</span><span>серед. 80.0% · темп 137%</span><span>план 100%</span></div>
+          </div>
+          <div class="rank-pct good">80.0%</div>
+        </div>
+
+        <div class="rank-row">
+          <div class="rank-num">5</div>
+          <div>
+            <div class="brand-name-cell">EXOXE</div>
+            <div class="brand-channels">Представн. 81.1% · Колл-центр 62.4%</div>
+          </div>
+          <div>
+            <div class="progress-bar"><div class="fill warn" style="width: 77%;"></div></div>
+            <div class="progress-labels"><span>0%</span><span>серед. 76.8% · темп 132%</span><span>план 100%</span></div>
+          </div>
+          <div class="rank-pct warn">76.8%</div>
+        </div>
+
+        <div class="rank-row">
+          <div class="rank-num">6</div>
+          <div>
+            <div class="brand-name-cell">PETARAN</div>
+            <div class="brand-channels">Представн. 68.5% · Колл-центр 42.1%</div>
+          </div>
+          <div>
+            <div class="progress-bar"><div class="fill warn" style="width: 55%;"></div></div>
+            <div class="progress-labels"><span>0%</span><span>серед. 55.3% · темп 95%</span><span>план 100%</span></div>
+          </div>
+          <div class="rank-pct warn">55.3%</div>
+        </div>
+
+        <div class="rank-row">
+          <div class="rank-num">7</div>
+          <div>
+            <div class="brand-name-cell">NEURAMIS</div>
+            <div class="brand-channels">Представн. 67.8% · Колл-центр 41.0%</div>
+          </div>
+          <div>
+            <div class="progress-bar"><div class="fill warn" style="width: 54%;"></div></div>
+            <div class="progress-labels"><span>0%</span><span>серед. 54.4% · темп 93%</span><span>план 100%</span></div>
+          </div>
+          <div class="rank-pct warn">54.4%</div>
+        </div>
+
+        <div class="rank-row bottom">
+          <div class="rank-num">8</div>
+          <div>
+            <div class="brand-name-cell">IUSE</div>
+            <div class="brand-channels">Представн. 34.2% · Колл-центр 58.1%</div>
+          </div>
+          <div>
+            <div class="progress-bar"><div class="fill bad" style="width: 46%;"></div></div>
+            <div class="progress-labels"><span>0%</span><span>серед. 46.1% · темп 79%</span><span>план 100%</span></div>
+          </div>
+          <div class="rank-pct bad">46.1%</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="explainer">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg><strong>Ranking view</strong> — миттєво видно хто лідер, хто відстає. Прогрес-бари з мітками показують і <strong>прост.</strong> % (заливка) і <strong>темп.</strong> % (текст під бару).
+    </div>
+
+  </div>
+
+  <div class="admin-hint">
+    <div class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+    <div>
+      <strong>Адмінка</strong> — окрема сторінка <code style="background: rgba(6,42,61,0.06); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono';">/admin/strategic-targets</code>
+      з формою вводу річних і місячних цілей по кожному бренду × канал. Показана як окрема секція нижче після затвердження варіанту дашборду.
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showV(v) {
+  document.querySelectorAll('.variant').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.variant-picker button').forEach(el => el.classList.remove('active'));
+  document.getElementById('v-' + v).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

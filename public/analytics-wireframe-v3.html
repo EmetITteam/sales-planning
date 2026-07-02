@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Стратегічні показники · Sales Planning · Wireframe v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --ink: #062a3d;
+  --ink-soft: rgba(6, 42, 61, 0.78);
+  --ink-muted: rgba(6, 42, 61, 0.58);
+  --ink-faded: rgba(6, 42, 61, 0.38);
+  --ink-ghost: rgba(6, 42, 61, 0.14);
+  --accent: #066aab;
+  --accent2: #5bd5bc;
+  --warn: #fb923c;
+  --bad: #e11d48;
+  --good: #14b8a6;
+  --ok: #0284c7;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Manrope', sans-serif;
+  background: #f8fbfd;
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+  font-weight: 400;
+}
+.mono, .num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+
+/* ==== BACKGROUND ==== */
+.mesh-bg {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
+    radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
+    radial-gradient(at 60% 80%, #eff6ff 0%, transparent 55%),
+    radial-gradient(at 20% 90%, #e0f7fa 0%, transparent 55%),
+    linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
+}
+.blob {
+  position: fixed; border-radius: 50%;
+  filter: blur(90px);
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.32;
+  animation: blob-drift 25s ease-in-out infinite;
+}
+.blob.a { width: 520px; height: 520px; background: rgba(6, 106, 171, 0.35); top: -100px; left: -100px; animation-delay: 0s; }
+.blob.b { width: 440px; height: 440px; background: rgba(91, 213, 188, 0.4); top: 30%; right: -80px; animation-delay: -8s; }
+.blob.c { width: 380px; height: 380px; background: rgba(8, 128, 204, 0.3); bottom: -100px; left: 30%; animation-delay: -16s; }
+.blob.d { width: 460px; height: 460px; background: rgba(45, 212, 191, 0.32); top: 60%; left: -120px; animation-delay: -4s; }
+@keyframes blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(80px, -60px) scale(1.1); }
+  50% { transform: translate(-40px, 100px) scale(0.95); }
+  75% { transform: translate(60px, 40px) scale(1.05); }
+}
+.noise {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+.spotlight {
+  position: fixed;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.5) 0%, transparent 70%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  mix-blend-mode: overlay;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+body:hover .spotlight { opacity: 1; }
+
+/* ==== GLASS BASE ==== */
+.glass {
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 24px;
+  box-shadow:
+    0 8px 32px rgba(31, 38, 135, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.glass-soft {
+  background: rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+}
+
+/* ==== SVG ICON BASELINE ==== */
+.icon { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.icon.lg { width: 20px; height: 20px; }
+.icon.sm { width: 12px; height: 12px; stroke-width: 2.2; }
+.icon.xs { width: 10px; height: 10px; stroke-width: 2.4; }
+
+/* ==== NAV ==== */
+.nav {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 100;
+  padding: 10px 20px;
+  display: flex; gap: 20px; align-items: center;
+  border-radius: 999px;
+}
+.nav .brand { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 10px; }
+.nav .brand-icon {
+  width: 26px; height: 26px; border-radius: 9px;
+  background: linear-gradient(135deg, #066aab, #5bd5bc);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 10px; font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.nav .divider { width: 1px; height: 20px; background: var(--ink-ghost); }
+.nav .path { font-size: 12px; color: var(--ink-soft); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.nav .path .crumb { color: var(--ink); font-weight: 700; }
+.nav .live {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--ink-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.12);
+}
+.nav .live::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: #14b8a6; box-shadow: 0 0 8px #14b8a6;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+/* ==== PAGE ==== */
+.page {
+  padding: 108px 32px 64px;
+  max-width: 1360px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* ==== HEADER ==== */
+.header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 24px;
+  padding: 0 6px;
+}
+.header .title h1 {
+  font-size: 40px; font-weight: 200; letter-spacing: -1.2px;
+  line-height: 1.05; color: var(--ink);
+  margin-bottom: 6px;
+}
+.header .title h1 b {
+  font-weight: 700;
+  background: linear-gradient(135deg, #066aab 0%, #5bd5bc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.header .title .sub {
+  font-size: 13px; color: var(--ink-muted); display: flex; align-items: center; gap: 8px;
+}
+.header .title .sub .sep { color: var(--ink-faded); }
+
+/* ==== TOP BAR — period + refresh ==== */
+.topbar {
+  display: flex; gap: 10px; align-items: center;
+}
+.seg-group {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  padding: 4px;
+  backdrop-filter: blur(12px);
+}
+.seg-group .seg {
+  padding: 7px 16px;
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-muted);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+}
+.seg-group .seg:hover { color: var(--ink); }
+.seg-group .seg.active {
+  background: linear-gradient(135deg, #066aab, #0880cc);
+  color: white;
+  box-shadow: 0 4px 12px rgba(6, 106, 171, 0.3);
+}
+.select-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px 8px 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  color: var(--ink);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.select-pill:hover { background: rgba(255, 255, 255, 0.7); }
+.select-pill .icon { color: var(--ink-muted); }
+.icon-btn {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(12px);
+}
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--accent);
+  transform: rotate(90deg);
+}
+
+/* ==== BRAND SWITCHER ==== */
+.brand-switcher {
+  display: flex; gap: 8px;
+  padding: 8px;
+  margin-bottom: 32px;
+  overflow-x: auto;
+}
+.brand-pill {
+  flex: 1;
+  min-width: 128px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  font-family: inherit;
+  text-align: left;
+  color: var(--ink);
+}
+.brand-pill:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: translateY(-2px);
+}
+.brand-pill .b-name {
+  font-size: 14px; font-weight: 700; letter-spacing: -0.3px;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+.brand-pill .b-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ink-faded);
+  box-shadow: 0 0 6px var(--ink-faded);
+}
+.brand-pill .b-pct {
+  font-size: 18px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.6px;
+  color: var(--ink-soft);
+}
+.brand-pill.active {
+  background: linear-gradient(135deg, rgba(6, 106, 171, 0.1), rgba(91, 213, 188, 0.15));
+  border-color: rgba(6, 106, 171, 0.25);
+  box-shadow: 0 8px 24px rgba(6, 106, 171, 0.12);
+}
+.brand-pill.active .b-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.brand-pill.active .b-pct { color: var(--ink); }
+.brand-pill.active::after {
+  content: ''; position: absolute; bottom: -1px; left: 20%; right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+  border-radius: 2px;
+}
+.brand-pill .b-status {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.9px;
+  color: var(--ink-muted);
+  margin-top: 4px;
+}
+.brand-pill.active .b-status.good { color: var(--good); }
+.brand-pill.active .b-status.warn { color: var(--warn); }
+.brand-pill.active .b-status.bad { color: var(--bad); }
+
+/* ==== HERO CARD ==== */
+.hero-card {
+  padding: 44px 48px;
+  margin-bottom: 32px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(91, 213, 188, 0.14) 100%);
+}
+.hero-card::before {
+  content: '';
+  position: absolute; top: -50%; right: -20%;
+  width: 60%; height: 200%;
+  background: radial-gradient(circle, rgba(91, 213, 188, 0.3), transparent 60%);
+  filter: blur(60px);
+  pointer-events: none;
+}
+.hero-card::after {
+  content: '';
+  position: absolute; bottom: -60%; left: -20%;
+  width: 50%; height: 200%;
+  background: radial-gradient(circle, rgba(6, 106, 171, 0.22), transparent 60%);
+  filter: blur(70px);
+  pointer-events: none;
+}
+.hero-card .row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 40px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.hero-card .eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700;
+  color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+.hero-card .brand-name {
+  font-size: 44px; font-weight: 200; letter-spacing: -1.8px;
+  color: var(--ink); line-height: 1;
+  margin-bottom: 16px;
+}
+.hero-card .brand-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-soft);
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+}
+.hero-card .brand-tag .icon { color: var(--accent); }
+.hero-card .big-pct {
+  text-align: center;
+}
+.hero-card .big-pct .lbl {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+.hero-card .big-pct .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 82px; font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -3.5px;
+  background: linear-gradient(135deg, #066aab 0%, #5bd5bc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.hero-card .big-pct .num .pct { font-size: 42px; letter-spacing: -1.2px; margin-left: 4px; -webkit-text-fill-color: initial; color: var(--ink-muted); font-weight: 400; }
+.hero-card .big-pct .note {
+  font-size: 12px; color: var(--ink-muted); margin-top: 6px;
+}
+.hero-card .side-stats {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.hero-card .stat-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+}
+.hero-card .stat-row .k { font-size: 11px; color: var(--ink-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; display: flex; align-items: center; gap: 6px; }
+.hero-card .stat-row .v { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.4px; }
+.hero-card .stat-row .v.good { color: var(--good); }
+.hero-card .stat-row .v.warn { color: var(--warn); }
+.hero-card .stat-row .v.bad { color: var(--bad); }
+
+/* ==== SECTION ==== */
+.section {
+  margin-bottom: 32px;
+}
+.section-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 0 6px;
+}
+.section-head h2 {
+  font-size: 22px; font-weight: 300; letter-spacing: -0.6px;
+  color: var(--ink);
+  display: flex; align-items: center; gap: 12px;
+}
+.section-head h2 b { font-weight: 700; }
+.section-head .meta {
+  font-size: 11px; color: var(--ink-muted);
+  display: inline-flex; align-items: center; gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+}
+.section-head .meta::before {
+  content: ''; height: 1px; width: 32px;
+  background: var(--ink-faded);
+}
+
+/* ==== CHANNEL COMPARISON ==== */
+.channels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.channel-card {
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.channel-card.good  { background: linear-gradient(135deg, rgba(255,255,255,0.45), rgba(20, 184, 166, 0.08)); }
+.channel-card.ok    { background: linear-gradient(135deg, rgba(255,255,255,0.45), rgba(2, 132, 199, 0.08)); }
+.channel-card.warn  { background: linear-gradient(135deg, rgba(255,255,255,0.45), rgba(251, 146, 60, 0.1)); }
+.channel-card.bad   { background: linear-gradient(135deg, rgba(255,255,255,0.45), rgba(225, 29, 72, 0.09)); }
+.channel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px dashed rgba(6, 42, 61, 0.12);
+}
+.channel-head .name {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.4px;
+  color: var(--ink);
+  display: flex; align-items: center; gap: 10px;
+}
+.channel-head .name .ic-wrap {
+  width: 36px; height: 36px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--accent);
+}
+.channel-head .score {
+  text-align: right;
+}
+.channel-head .score .p {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 34px; font-weight: 700; letter-spacing: -1.2px;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.channel-head .score .p .pct { font-size: 20px; color: var(--ink-muted); font-weight: 500; margin-left: 2px; }
+.channel-head .score .lb {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--ink-muted);
+  margin-top: 4px;
+}
+
+/* ==== MINI KPI GRID inside channel ==== */
+.kpi-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.mini-kpi {
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  position: relative;
+  transition: all 0.3s;
+}
+.mini-kpi:hover {
+  background: rgba(255, 255, 255, 0.75);
+  transform: translateY(-2px);
+}
+.mini-kpi .head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.mini-kpi .head .k {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.9px;
+  color: var(--ink-muted);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.mini-kpi .head .k .ic { width: 12px; height: 12px; color: var(--accent); }
+.mini-kpi .head .period-tag {
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(6, 106, 171, 0.1);
+  color: var(--accent);
+}
+.mini-kpi .head .period-tag.month {
+  background: rgba(91, 213, 188, 0.2);
+  color: #0d7f6a;
+}
+.mini-kpi .value-row {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-bottom: 4px;
+}
+.mini-kpi .value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px; font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.mini-kpi .value .u { font-size: 14px; font-weight: 500; color: var(--ink-muted); margin-left: 4px; }
+.mini-kpi .value .cur { font-size: 16px; font-weight: 500; color: var(--ink-muted); margin-right: 2px; }
+.mini-kpi .target {
+  font-size: 11px; color: var(--ink-muted); font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+}
+.mini-kpi .target b { color: var(--ink-soft); font-weight: 700; }
+.mini-kpi .bar-track {
+  margin-top: 12px;
+  height: 3px;
+  background: rgba(6, 42, 61, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.mini-kpi .bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #066aab, #5bd5bc);
+  box-shadow: 0 0 6px rgba(6, 106, 171, 0.35);
+  transition: width 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mini-kpi .bar-fill.warn { background: linear-gradient(90deg, #f97316, #fb923c); box-shadow: 0 0 6px rgba(251, 146, 60, 0.4); }
+.mini-kpi .bar-fill.bad  { background: linear-gradient(90deg, #e11d48, #fb7185); box-shadow: 0 0 6px rgba(225, 29, 72, 0.35); }
+.mini-kpi .bar-fill.good { background: linear-gradient(90deg, #14b8a6, #5bd5bc); box-shadow: 0 0 6px rgba(20, 184, 166, 0.4); }
+.mini-kpi .chips {
+  display: flex; gap: 6px; margin-top: 12px;
+  flex-wrap: wrap;
+}
+.mini-kpi .chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(6, 42, 61, 0.06);
+  color: var(--ink-soft);
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.mini-kpi .chip .l {
+  font-family: 'Manrope', sans-serif;
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--ink-muted); margin-right: 2px;
+}
+.mini-kpi .chip.good { background: rgba(20, 184, 166, 0.16); color: #0f766e; }
+.mini-kpi .chip.good .l { color: #0f766e; opacity: 0.7; }
+.mini-kpi .chip.warn { background: rgba(251, 146, 60, 0.18); color: #9a3412; }
+.mini-kpi .chip.warn .l { color: #9a3412; opacity: 0.7; }
+.mini-kpi .chip.bad  { background: rgba(225, 29, 72, 0.16); color: #9f1239; }
+.mini-kpi .chip.bad .l { color: #9f1239; opacity: 0.7; }
+.mini-kpi .chip.accent { background: rgba(6, 106, 171, 0.14); color: var(--accent); }
+.mini-kpi .chip.accent .l { color: var(--accent); opacity: 0.7; }
+
+/* Radial ring option */
+.ring-wrap {
+  position: absolute;
+  top: 16px; right: 16px;
+  width: 40px; height: 40px;
+}
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-wrap .track { fill: none; stroke: rgba(6, 42, 61, 0.1); stroke-width: 4; }
+.ring-wrap .fill  { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 1.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.ring-wrap .fill.good { stroke: var(--good); }
+.ring-wrap .fill.warn { stroke: var(--warn); }
+.ring-wrap .fill.bad  { stroke: var(--bad); }
+.ring-wrap .lbl {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==== TRAINING (ELLANSE-only) ==== */
+.training-note {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(6, 106, 171, 0.1);
+  color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  margin-left: 12px;
+}
+.training-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.training-card {
+  padding: 22px;
+  border-radius: 18px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(6, 106, 171, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+.training-card.warn { background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(251, 146, 60, 0.08)); }
+.training-card.good { background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(20, 184, 166, 0.08)); }
+.training-card .k {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.9px;
+  color: var(--ink-muted);
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 14px;
+}
+.training-card .k .ic { color: var(--accent); width: 14px; height: 14px; }
+.training-card .value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 34px; font-weight: 700; letter-spacing: -1.2px;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.training-card .value .u { font-size: 14px; font-weight: 500; color: var(--ink-muted); margin-left: 4px; }
+.training-card .target {
+  font-size: 11px; color: var(--ink-muted); font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+  margin-bottom: 12px;
+}
+.training-card .target b { color: var(--ink-soft); font-weight: 700; }
+.training-card .bar-track {
+  height: 3px;
+  background: rgba(6, 42, 61, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.training-card .bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #066aab, #5bd5bc);
+}
+.training-card .bar-fill.warn { background: linear-gradient(90deg, #f97316, #fb923c); }
+.training-card .bar-fill.good { background: linear-gradient(90deg, #14b8a6, #5bd5bc); }
+.training-card .delta {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.training-card .delta.good { background: rgba(20, 184, 166, 0.18); color: #0f766e; }
+.training-card .delta.warn { background: rgba(251, 146, 60, 0.2); color: #9a3412; }
+.training-card .delta.bad  { background: rgba(225, 29, 72, 0.18); color: #9f1239; }
+
+/* ==== PROMOS ==== */
+.promos-row {
+  display: flex; gap: 12px;
+  overflow-x: auto;
+  padding: 6px 4px 12px;
+  margin: 0 -4px;
+}
+.promo-pill {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  min-width: 380px;
+  display: flex; align-items: center; gap: 16px;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.promo-pill:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(6, 106, 171, 0.2);
+}
+.promo-pill .ic-tag {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(6, 106, 171, 0.14), rgba(91, 213, 188, 0.2));
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.promo-pill .body { flex: 1; min-width: 0; }
+.promo-pill .name {
+  font-size: 13px; font-weight: 700; color: var(--ink);
+  letter-spacing: -0.2px;
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+.promo-pill .meta {
+  font-size: 11px; color: var(--ink-muted);
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.promo-pill .meta .dot {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: var(--ink-faded);
+}
+.promo-pill .meta b { color: var(--ink); font-weight: 700; }
+.promo-pill .badge {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 10px; font-weight: 700;
+  background: rgba(6, 106, 171, 0.12);
+  color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  flex-shrink: 0;
+}
+.promo-pill .badge.spec {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(225, 29, 72, 0.16));
+  color: #9a3412;
+}
+
+/* ==== FOOTER EXPLAINER ==== */
+.footer-card {
+  margin-top: 40px;
+  padding: 28px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px;
+}
+.footer-card .txt {
+  flex: 1;
+  font-size: 12px; color: var(--ink-muted); line-height: 1.6;
+}
+.footer-card .txt b { color: var(--ink); font-weight: 700; }
+.footer-card .txt .lbl {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(6, 106, 171, 0.1);
+  color: var(--accent);
+  font-size: 10px; font-weight: 700;
+  margin: 0 2px;
+}
+.footer-card .link-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #066aab, #0880cc);
+  color: white; font-weight: 700; font-size: 12px;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: transform 0.2s;
+  box-shadow: 0 6px 18px rgba(6, 106, 171, 0.28);
+  flex-shrink: 0;
+}
+.footer-card .link-btn:hover { transform: translateY(-2px); }
+
+/* ==== REVEAL ==== */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal:nth-child(1) { transition-delay: 0s; }
+.reveal:nth-child(2) { transition-delay: 0.05s; }
+.reveal:nth-child(3) { transition-delay: 0.1s; }
+.reveal:nth-child(4) { transition-delay: 0.15s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .blob, .nav .live::before { animation: none; }
+  .reveal { opacity: 1; transform: none; }
+}
+
+/* ==== RESPONSIVE ==== */
+@media (max-width: 1100px) {
+  .hero-card .row { grid-template-columns: 1fr; text-align: center; }
+  .hero-card .side-stats { max-width: 400px; margin: 0 auto; }
+  .channels { grid-template-columns: 1fr; }
+  .training-grid { grid-template-columns: repeat(2, 1fr); }
+  .header { flex-direction: column; align-items: flex-start; gap: 20px; }
+}
+@media (max-width: 720px) {
+  .kpi-grid-2 { grid-template-columns: 1fr; }
+  .training-grid { grid-template-columns: 1fr; }
+  .brand-switcher { flex-wrap: nowrap; }
+  .brand-pill { min-width: 140px; }
+  .hero-card .big-pct .num { font-size: 60px; }
+  .hero-card .brand-name { font-size: 32px; }
+  .page { padding: 100px 16px 48px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Background -->
+<div class="mesh-bg"></div>
+<div class="blob a"></div>
+<div class="blob b"></div>
+<div class="blob c"></div>
+<div class="blob d"></div>
+<div class="noise"></div>
+<div class="spotlight" id="spotlight"></div>
+
+<!-- Nav -->
+<nav class="nav glass">
+  <div class="brand">
+    <div class="brand-icon">SP</div>
+    <span>EMET</span>
+  </div>
+  <div class="divider"></div>
+  <div class="path">
+    <svg class="icon sm" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+    Аналітика
+    <svg class="icon xs" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    <span class="crumb">Стратегічні показники</span>
+  </div>
+  <div class="live">Оновлено 21:36</div>
+</nav>
+
+<main class="page">
+
+  <!-- HEADER -->
+  <header class="header reveal">
+    <div class="title">
+      <h1>Стратегічні показники · <b>2026</b></h1>
+      <div class="sub">
+        <span>Фокус: 1 бренд</span>
+        <span class="sep">·</span>
+        <span>2 канали продажу</span>
+        <span class="sep">·</span>
+        <span>7 із 12 місяців</span>
+      </div>
+    </div>
+    <div class="topbar">
+      <div class="seg-group">
+        <button class="seg">Місяць</button>
+        <button class="seg active">Квартал</button>
+        <button class="seg">Півріччя</button>
+        <button class="seg">Рік</button>
+      </div>
+      <button class="select-pill">
+        <svg class="icon sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Q3 2026 · Липень
+        <svg class="icon sm" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <button class="icon-btn" title="Оновити дані">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- BRAND SWITCHER -->
+  <div class="brand-switcher glass reveal">
+    <button class="brand-pill active">
+      <div class="b-name"><span class="b-dot"></span>EXOXE</div>
+      <div class="b-pct">78.9<span style="font-size:11px;font-weight:500;color:var(--ink-muted);">%</span></div>
+      <div class="b-status good">В плані</div>
+    </button>
+    <button class="brand-pill">
+      <div class="b-name"><span class="b-dot"></span>PETARAN</div>
+      <div class="b-pct">20.9%</div>
+      <div class="b-status">Bідстає</div>
+    </button>
+    <button class="brand-pill">
+      <div class="b-name"><span class="b-dot"></span>ELLANSE</div>
+      <div class="b-pct">57.0%</div>
+      <div class="b-status">В плані</div>
+    </button>
+    <button class="brand-pill">
+      <div class="b-name"><span class="b-dot"></span>ESSE</div>
+      <div class="b-pct">43.4%</div>
+      <div class="b-status">Bідстає</div>
+    </button>
+    <button class="brand-pill">
+      <div class="b-name"><span class="b-dot"></span>VITARAN</div>
+      <div class="b-pct">61.2%</div>
+      <div class="b-status">В плані</div>
+    </button>
+    <button class="brand-pill">
+      <div class="b-name"><span class="b-dot"></span>IUSE</div>
+      <div class="b-pct">54.7%</div>
+      <div class="b-status">В плані</div>
+    </button>
+    <button class="brand-pill">
+      <div class="b-name"><span class="b-dot"></span>NEURAMIS</div>
+      <div class="b-pct">22.4%</div>
+      <div class="b-status">Bідстає</div>
+    </button>
+    <button class="brand-pill">
+      <div class="b-name"><span class="b-dot"></span>COLLAGEN</div>
+      <div class="b-pct">68.5%</div>
+      <div class="b-status">В плані</div>
+    </button>
+  </div>
+
+  <!-- HERO CARD -->
+  <section class="hero-card glass reveal">
+    <div class="row">
+      <div class="hero-left">
+        <div class="eyebrow">
+          <svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Активний бренд · липень 2026
+        </div>
+        <div class="brand-name">EXOXE</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="brand-tag">
+            <svg class="icon sm" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            8 регіонів
+          </span>
+          <span class="brand-tag">
+            <svg class="icon sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            20 менеджерів
+          </span>
+          <span class="brand-tag">
+            <svg class="icon sm" viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+            2 канали
+          </span>
+        </div>
+      </div>
+
+      <div class="big-pct">
+        <div class="lbl">Загальний бал</div>
+        <div class="num">78.9<span class="pct">%</span></div>
+        <div class="note">Комбінований по 4 показниках</div>
+      </div>
+
+      <div class="side-stats">
+        <div class="stat-row">
+          <span class="k">
+            <svg class="icon sm" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+            Річна ціль
+          </span>
+          <span class="v">640 клієнтів</span>
+        </div>
+        <div class="stat-row">
+          <span class="k">
+            <svg class="icon sm" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>
+            Факт YTD
+          </span>
+          <span class="v good">213 (33%)</span>
+        </div>
+        <div class="stat-row">
+          <span class="k">
+            <svg class="icon sm" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Прогноз до 12.26
+          </span>
+          <span class="v warn">365 (57%)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHANNELS -->
+  <section class="section">
+    <div class="section-head reveal">
+      <h2>Канали <b>продажу</b></h2>
+      <div class="meta">Бренд EXOXE · 4 KPI на канал</div>
+    </div>
+
+    <div class="channels">
+
+      <!-- ==== ПРЕДСТАВНИЦТВА ==== -->
+      <div class="channel-card glass good reveal">
+        <div class="channel-head">
+          <div class="name">
+            <span class="ic-wrap">
+              <svg class="icon lg" viewBox="0 0 24 24"><path d="M3 21h18M4 21V10l8-6 8 6v11M9 21v-6h6v6"/></svg>
+            </span>
+            Представництва
+          </div>
+          <div class="score">
+            <div class="p">81.1<span class="pct">%</span></div>
+            <div class="lb">середній по 4 KPI</div>
+          </div>
+        </div>
+
+        <div class="kpi-grid-2">
+          <!-- 1. Унікальні користувачі (річний) -->
+          <div class="mini-kpi">
+            <div class="ring-wrap">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle class="track" cx="20" cy="20" r="16"/>
+                <circle class="fill warn" cx="20" cy="20" r="16" stroke-dasharray="100.5" stroke-dashoffset="43"/>
+              </svg>
+              <div class="lbl">57%</div>
+            </div>
+            <div class="head">
+              <div class="k"><svg class="ic icon xs" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Унік. користувачі</div>
+              <span class="period-tag">рік</span>
+            </div>
+            <div class="value-row">
+              <span class="value">213<span class="u">/ 640</span></span>
+            </div>
+            <div class="target">ціль <b>640</b> клієнтів</div>
+            <div class="bar-track">
+              <div class="bar-fill warn" style="width:57%"></div>
+            </div>
+            <div class="chips">
+              <span class="chip"><span class="l">прост.</span>33%</span>
+              <span class="chip accent"><span class="l">темп.</span>57%</span>
+              <span class="chip good"><span class="l">прогн.</span>365</span>
+            </div>
+          </div>
+
+          <!-- 2. Середній чек (річний) -->
+          <div class="mini-kpi">
+            <div class="ring-wrap">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle class="track" cx="20" cy="20" r="16"/>
+                <circle class="fill good" cx="20" cy="20" r="16" stroke-dasharray="100.5" stroke-dashoffset="8"/>
+              </svg>
+              <div class="lbl">92%</div>
+            </div>
+            <div class="head">
+              <div class="k"><svg class="ic icon xs" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Середній чек</div>
+              <span class="period-tag">рік</span>
+            </div>
+            <div class="value-row">
+              <span class="value"><span class="cur">$</span>1148</span>
+            </div>
+            <div class="target">ціль <b>$1,250</b> · до −8%</div>
+            <div class="bar-track">
+              <div class="bar-fill good" style="width:92%"></div>
+            </div>
+            <div class="chips">
+              <span class="chip"><span class="l">прост.</span>91.8%</span>
+              <span class="chip accent"><span class="l">темп.</span>92%</span>
+              <span class="chip good"><span class="l">прогн.</span>$1148</span>
+            </div>
+          </div>
+
+          <!-- 3. Купують у місяць (місячний) -->
+          <div class="mini-kpi">
+            <div class="ring-wrap">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle class="track" cx="20" cy="20" r="16"/>
+                <circle class="fill warn" cx="20" cy="20" r="16" stroke-dasharray="100.5" stroke-dashoffset="44"/>
+              </svg>
+              <div class="lbl">56%</div>
+            </div>
+            <div class="head">
+              <div class="k"><svg class="ic icon xs" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Купують у місяць</div>
+              <span class="period-tag month">міс</span>
+            </div>
+            <div class="value-row">
+              <span class="value">66<span class="u">/ 117 чол</span></span>
+            </div>
+            <div class="target">ціль <b>117</b> клієнтів · липень</div>
+            <div class="bar-track">
+              <div class="bar-fill warn" style="width:56%"></div>
+            </div>
+            <div class="chips">
+              <span class="chip warn"><span class="l">викон.</span>56.4%</span>
+              <span class="chip"><span class="l">−</span>51 клієнтів</span>
+            </div>
+          </div>
+
+          <!-- 4. Ср/уп на 1 клієнта (місячний) -->
+          <div class="mini-kpi">
+            <div class="ring-wrap">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle class="track" cx="20" cy="20" r="16"/>
+                <circle class="fill good" cx="20" cy="20" r="16" stroke-dasharray="100.5" stroke-dashoffset="0"/>
+              </svg>
+              <div class="lbl">100%+</div>
+            </div>
+            <div class="head">
+              <div class="k"><svg class="ic icon xs" viewBox="0 0 24 24"><path d="M6 2l1.5 4.5L12 8l-4.5 1.5L6 14l-1.5-4.5L0 8l4.5-1.5L6 2z"/><path d="M17 12l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/></svg>Ср/уп на клієнта</div>
+              <span class="period-tag month">міс</span>
+            </div>
+            <div class="value-row">
+              <span class="value">6.0<span class="u">/ 3.2 шт</span></span>
+            </div>
+            <div class="target">ціль <b>3.2 шт</b> · перевиконано</div>
+            <div class="bar-track">
+              <div class="bar-fill good" style="width:100%"></div>
+            </div>
+            <div class="chips">
+              <span class="chip good"><span class="l">викон.</span>188%</span>
+              <span class="chip good"><span class="l">+</span>2.8 шт</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==== КОЛЛ-ЦЕНТР ==== -->
+      <div class="channel-card glass warn reveal">
+        <div class="channel-head">
+          <div class="name">
+            <span class="ic-wrap" style="color:#c2410c;">
+              <svg class="icon lg" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </span>
+            Колл-центр
+          </div>
+          <div class="score">
+            <div class="p">62.4<span class="pct">%</span></div>
+            <div class="lb">середній по 4 KPI</div>
+          </div>
+        </div>
+
+        <div class="kpi-grid-2">
+          <div class="mini-kpi">
+            <div class="ring-wrap">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle class="track" cx="20" cy="20" r="16"/>
+                <circle class="fill warn" cx="20" cy="20" r="16" stroke-dasharray="100.5" stroke-dashoffset="41"/>
+              </svg>
+              <div class="lbl">59%</div>
+            </div>
+            <div class="head">
+              <div class="k"><svg class="ic icon xs" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Унік. користувачі</div>
+              <span class="period-tag">рік</span>
+            </div>
+            <div class="value-row">
+              <span class="value">96<span class="u">/ 280</span></span>
+            </div>
+            <div class="target">ціль <b>280</b> клієнтів</div>
+            <div class="bar-track">
+              <div class="bar-fill warn" style="width:59%"></div>
+            </div>
+            <div class="chips">
+              <span class="chip"><span class="l">прост.</span>34.3%</span>
+              <span class="chip accent"><span class="l">темп.</span>58.8%</span>
+              <span class="chip warn"><span class="l">прогн.</span>165</span>
+            </div>
+          </div>
+
+          <div class="mini-kpi">
+            <div class="ring-wrap">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle class="track" cx="20" cy="20" r="16"/>
+                <circle class="fill warn" cx="20" cy="20" r="16" stroke-dasharray="100.5" stroke-dashoffset="14"/>
+              </svg>
+              <div class="lbl">86%</div>
+            </div>
+            <div class="head">
+              <div class="k"><svg class="ic icon xs" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Середній чек</div>
+              <span class="period-tag">рік</span>
+            </div>
+            <div class="value-row">
+              <span class="value"><span class="cur">$</span>892</span>
+            </div>
+            <div class="target">ціль <b>$1,040</b></div>
+            <div class="bar-track">
+              <div class="bar-fill warn" style="width:86%"></div>
+            </div>
+            <div class="chips">
+              <span class="chip"><span class="l">прост.</span>85.8%</span>
+              <span class="chip accent"><span class="l">темп.</span>86%</span>
+              <span class="chip warn"><span class="l">прогн.</span>$892</span>
+            </div>
+          </div>
+
+          <div class="mini-kpi">
+            <div class="ring-wrap">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle class="track" cx="20" cy="20" r="16"/>
+                <circle class="fill bad" cx="20" cy="20" r="16" stroke-dasharray="100.5" stroke-dashoffset="54"/>
+              </svg>
+              <div class="lbl">46%</div>
+            </div>
+            <div class="head">
+              <div class="k"><svg class="ic icon xs" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>Купують у місяць</div>
+              <span class="period-tag month">міс</span>
+            </div>
+            <div class="value-row">
+              <span class="value">22<span class="u">/ 48 чол</span></span>
+            </div>
+            <div class="target">ціль <b>48</b> клієнтів · липень</div>
+            <div class="bar-track">
+              <div class="bar-fill bad" style="width:46%"></div>
+            </div>
+            <div class="chips">
+              <span class="chip bad"><span class="l">викон.</span>45.8%</span>
+              <span class="chip"><span class="l">−</span>26 клієнтів</span>
+            </div>
+          </div>
+
+          <div class="mini-kpi">
+            <div class="ring-wrap">
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle class="track" cx="20" cy="20" r="16"/>
+                <circle class="fill warn" cx="20" cy="20" r="16" stroke-dasharray="100.5" stroke-dashoffset="14"/>
+              </svg>
+              <div class="lbl">86%</div>
+            </div>
+            <div class="head">
+              <div class="k"><svg class="ic icon xs" viewBox="0 0 24 24"><path d="M6 2l1.5 4.5L12 8l-4.5 1.5L6 14l-1.5-4.5L0 8l4.5-1.5L6 2z"/></svg>Ср/уп на клієнта</div>
+              <span class="period-tag month">міс</span>
+            </div>
+            <div class="value-row">
+              <span class="value">1.8<span class="u">/ 2.1 шт</span></span>
+            </div>
+            <div class="target">ціль <b>2.1 шт</b> · до −14%</div>
+            <div class="bar-track">
+              <div class="bar-fill warn" style="width:86%"></div>
+            </div>
+            <div class="chips">
+              <span class="chip warn"><span class="l">викон.</span>85.7%</span>
+              <span class="chip"><span class="l">−</span>0.3 шт</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==== ELLANSE-ONLY TRAINING BLOCK ==== -->
+  <section class="section">
+    <div class="section-head reveal">
+      <h2>
+        Навчання <b>та утримання</b>
+        <span class="training-note">
+          <svg class="icon xs" viewBox="0 0 24 24"><path d="M12 2l3 6.5L22 9l-5 5 1.5 7L12 17l-6.5 4L7 14 2 9l7-.5L12 2z"/></svg>
+          Тільки для ELLANSE
+        </span>
+      </h2>
+      <div class="meta">4 показники · річна ціль</div>
+    </div>
+
+    <div class="training-grid">
+
+      <div class="training-card glass reveal">
+        <div class="k">
+          <svg class="ic icon" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          Нові обучені · рік
+        </div>
+        <div class="value">89<span class="u">/ 123</span></div>
+        <div class="target">ціль <b>123</b> лікарів</div>
+        <div class="bar-track"><div class="bar-fill" style="width:72%"></div></div>
+        <div style="display:flex;gap:6px;">
+          <span class="delta good">
+            <svg class="icon xs" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+            72%
+          </span>
+          <span class="delta warn">−34 до цілі</span>
+        </div>
+      </div>
+
+      <div class="training-card glass warn reveal">
+        <div class="k">
+          <svg class="ic icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          Провести навчань · рік
+        </div>
+        <div class="value">18<span class="u">/ 25</span></div>
+        <div class="target">ціль <b>25 + 5 повт.</b></div>
+        <div class="bar-track"><div class="bar-fill warn" style="width:72%"></div></div>
+        <div style="display:flex;gap:6px;">
+          <span class="delta warn">72%</span>
+          <span class="delta bad">−7 семінарів</span>
+        </div>
+      </div>
+
+      <div class="training-card glass warn reveal">
+        <div class="k">
+          <svg class="ic icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Конверсія у повторні
+        </div>
+        <div class="value">44<span class="u">%</span></div>
+        <div class="target">ціль <b>49%</b> обучених</div>
+        <div class="bar-track"><div class="bar-fill warn" style="width:90%"></div></div>
+        <div style="display:flex;gap:6px;">
+          <span class="delta warn">90%</span>
+          <span class="delta warn">−5 п.п.</span>
+        </div>
+      </div>
+
+      <div class="training-card glass good reveal">
+        <div class="k">
+          <svg class="ic icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          Утримання покуп. · міс
+        </div>
+        <div class="value">51<span class="u">/ 57</span></div>
+        <div class="target">ціль <b>57</b> · липень</div>
+        <div class="bar-track"><div class="bar-fill good" style="width:89%"></div></div>
+        <div style="display:flex;gap:6px;">
+          <span class="delta good">89%</span>
+          <span class="delta warn">−6 клієнтів</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==== ACTIVE PROMOS ==== -->
+  <section class="section">
+    <div class="section-head reveal">
+      <h2>Активні <b>акції</b></h2>
+      <div class="meta">2 діючі · закінчуються 31.07</div>
+    </div>
+
+    <div class="promos-row">
+
+      <div class="promo-pill glass-soft">
+        <div class="ic-tag">
+          <svg class="icon lg" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        </div>
+        <div class="body">
+          <div class="name">EXOXE 5 сетів + Подарок EXOXE 1 сет</div>
+          <div class="meta">
+            <span>05.26</span>
+            <span class="dot"></span>
+            <span><b>46</b> купили</span>
+            <span class="dot"></span>
+            <span><b>57</b> шт</span>
+          </div>
+        </div>
+        <span class="badge spec">СПЕЦ</span>
+      </div>
+
+      <div class="promo-pill glass-soft">
+        <div class="ic-tag">
+          <svg class="icon lg" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        </div>
+        <div class="body">
+          <div class="name">Ехохе від 2х сетів −15%</div>
+          <div class="meta">
+            <span>05.26</span>
+            <span class="dot"></span>
+            <span><b>12</b> купили</span>
+            <span class="dot"></span>
+            <span><b>26</b> шт</span>
+          </div>
+        </div>
+        <span class="badge">−15%</span>
+      </div>
+
+      <div class="promo-pill glass-soft">
+        <div class="ic-tag">
+          <svg class="icon lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="body">
+          <div class="name">Наступна акція: EXOXE box · серпень 2026</div>
+          <div class="meta">
+            <span>черговість</span>
+            <span class="dot"></span>
+            <span>план <b>60</b> сетів</span>
+          </div>
+        </div>
+        <span class="badge">DRAFT</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <div class="footer-card glass reveal">
+    <div class="txt">
+      <b>Як рахуємо:</b> <span class="lbl">прост.</span> — факт / річна ціль. <span class="lbl">темп.</span> — факт / (ціль × місяців пройшло ÷ 12). <span class="lbl">прогн.</span> — факт × 12 ÷ місяців пройшло. Місячні KPI показуємо простим %. Дані оновлюються щогодини з 1С Action 5 + Bitrix. Цілі задає директор напряму — керує ним <b>тільки Стас</b>.
+    </div>
+    <a class="link-btn" href="/admin/strategic-targets">
+      Керувати цілями
+      <svg class="icon sm" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </a>
+  </div>
+
+</main>
+
+<script>
+// spotlight
+const spotlight = document.getElementById('spotlight');
+document.addEventListener('mousemove', (e) => {
+  spotlight.style.left = e.clientX + 'px';
+  spotlight.style.top = e.clientY + 'px';
+});
+
+// reveal on scroll
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.12 });
+reveals.forEach(el => observer.observe(el));
+
+// brand-pill switching (visual only in wireframe)
+document.querySelectorAll('.brand-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.brand-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+  });
+});
+
+// seg-group
+document.querySelectorAll('.seg-group').forEach(group => {
+  group.querySelectorAll('.seg').forEach(seg => {
+    seg.addEventListener('click', () => {
+      group.querySelectorAll('.seg').forEach(s => s.classList.remove('active'));
+      seg.classList.add('active');
+    });
+  });
+});
+</script>
+
+</body>
+</html>
