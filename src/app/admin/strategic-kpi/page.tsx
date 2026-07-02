@@ -630,7 +630,24 @@ export default function StrategicKpiPage() {
                             <div className="mono text-[11px] flex items-center gap-2 whitespace-nowrap">
                               <span className="sk-chip sk-chip-warn">{p.unique_clients} кл.</span>
                               <span className="sk-muted">{p.total_qty.toFixed(0)} шт</span>
-                              <span className="font-bold">{fmtUSD(p.total_sum_usd)}</span>
+                              {(() => {
+                                // Частка від загального факту бренд × канал у періоді.
+                                // Для gift-акцій p.total_sum_usd = сума trigger-покупок у тих
+                                // документах (див. fetchTriggerSums). Ділимо на факт каналу.
+                                const brandFact = block.month?.total_sum_usd ?? 0;
+                                if (brandFact <= 0 || p.total_sum_usd <= 0) {
+                                  return <span className="sk-muted">—</span>;
+                                }
+                                const share = (p.total_sum_usd / brandFact) * 100;
+                                return (
+                                  <span
+                                    className="font-bold text-[#066aab]"
+                                    title={`Частка ${share.toFixed(1)}% від факту каналу у періоді`}
+                                  >
+                                    {share.toFixed(1)}%
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
 
