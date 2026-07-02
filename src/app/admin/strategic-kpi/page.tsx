@@ -130,7 +130,10 @@ export default function StrategicKpiPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }, []);
   const [period, setPeriod] = useState(defaultPeriod);
-  const [selectedBrand, setSelectedBrand] = useState<StrategicBrand>('Vitaran');
+  // 'reactivation' — окремий mode «Акції»: замість бренд-даних показуємо
+  // блок реактивації (2 таблиці по категоріях × брендах + × акціях).
+  const [selectedBrand, setSelectedBrand] = useState<StrategicBrand | 'reactivation'>('Vitaran');
+  const isReactivationMode = selectedBrand === 'reactivation';
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +143,13 @@ export default function StrategicKpiPage() {
   const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
+    // У режимі «Акції» показуємо тільки ReactivationBlock (він має власний fetch),
+    // тому дорогий strategic-kpi запит НЕ потрібен.
+    if (selectedBrand === 'reactivation') {
+      setData(null);
+      setLoading(false);
+      return;
+    }
     fetch(
       `/api/analytics/strategic-kpi?period=${period}&brand=${encodeURIComponent(selectedBrand)}`,
       { credentials: 'same-origin', signal },
@@ -244,6 +254,9 @@ export default function StrategicKpiPage() {
         .sk-brand-pill:hover { transform: translateY(-1px); background: rgba(255,255,255,0.75); color: #062a3d; }
         .sk-brand-pill.active { background: linear-gradient(135deg, #066aab 0%, #0284c7 100%); color: white; border-color: transparent; box-shadow: 0 4px 14px rgba(6,106,171,0.35); }
         .sk-brand-pill.active:hover { transform: translateY(-1px); }
+        /* Акції-режим: warn/amber gradient щоб візуально відрізнявся від брендів */
+        .sk-brand-pill.active-warn { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); color: white; border-color: transparent; box-shadow: 0 4px 14px rgba(217,119,6,0.35); }
+        .sk-brand-pill.active-warn:hover { transform: translateY(-1px); }
         .sk-text-good { color: #0f766e; } .sk-text-ok { color: #0284c7; } .sk-text-warn { color: #c2410c; } .sk-text-bad { color: #be123c; }
         .sk-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.2px; }
         .sk-chip-good { background: rgba(20,184,166,0.14); color: #0f766e; }
@@ -275,25 +288,40 @@ export default function StrategicKpiPage() {
         <div className="sk-glass p-5 space-y-4">
           <PeriodPicker period={period} onChange={setPeriod} />
           <div>
-            <div className="sk-lbl mb-2">Бренд</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="sk-lbl mb-2">Бренд · Режим</div>
+            <div className="flex flex-wrap gap-2 items-center">
               {STRATEGIC_BRANDS.map(b => (
                 <button key={b} type="button" onClick={() => setSelectedBrand(b)}
                   className={`sk-brand-pill ${b === selectedBrand ? 'active' : ''}`}>
                   {b}
                 </button>
               ))}
+              {/* Роздільник */}
+              <span className="mx-1 h-6 w-px bg-[rgba(6,42,61,0.15)]" aria-hidden="true" />
+              {/* Спеціальний mode — показує ReactivationBlock замість брендового дашборду */}
+              <button
+                type="button"
+                onClick={() => setSelectedBrand('reactivation')}
+                className={`sk-brand-pill ${isReactivationMode ? 'active-warn' : ''}`}
+                title="Реактивація категорій: 2 таблиці — по акціях та по брендах, для Нових / Сплячих / Втрачених клієнтів"
+              >
+                Акції
+              </button>
             </div>
           </div>
         </div>
 
-        {error && (
+        {error && !isReactivationMode && (
           <div className="sk-glass p-4 border-l-4 border-rose-500 text-[13px] text-rose-700">
             <strong>Помилка:</strong> {error}
           </div>
         )}
-        {loading && <SkeletonHero />}
-        {!loading && !error && brandBlocks.length === 0 && (
+        {loading && !isReactivationMode && <SkeletonHero />}
+
+        {/* РЕЖИМ «АКЦІЇ»: тільки блок реактивації, брендових метрик не показуємо */}
+        {isReactivationMode && <ReactivationBlock period={period} />}
+
+        {!isReactivationMode && !loading && !error && brandBlocks.length === 0 && (
           <div className="sk-glass p-6 text-[13px] sk-muted">
             Нема даних для <strong>{selectedBrand}</strong> у {periodLabel}.
             Введи таргети у <Link href="/admin/strategic-targets" className="text-emet-blue underline">/admin/strategic-targets</Link>.
@@ -301,7 +329,7 @@ export default function StrategicKpiPage() {
         )}
 
         {/* Hero */}
-        {!loading && brandBlocks.length > 0 && (
+        {!isReactivationMode && !loading && brandBlocks.length > 0 && (
           <div className="sk-glass px-5 pt-4 pb-4 relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none opacity-40" style={{
               background: 'radial-gradient(circle at 85% 20%, rgba(91,213,188,0.22) 0%, transparent 60%)',
@@ -370,9 +398,11 @@ export default function StrategicKpiPage() {
         )}
 
         {/* Channel blocks */}
-        {!loading && brandBlocks.map(block => {
+        {!isReactivationMode && !loading && brandBlocks.map(block => {
           const channel = block.channel as StrategicChannel;
-          if (!isChannelActive(selectedBrand, channel)) return null;
+          if (isReactivationMode) return null;
+          const brand = selectedBrand as StrategicBrand;
+          if (!isChannelActive(brand, channel)) return null;
           // Приховуємо канальний блок якщо у періоді для нього немає даних
           // AND нема таргетів AND нема семінарів (Ellanse) AND нема промо.
           // Тобто нема сенсу показувати порожній блок.
@@ -674,12 +704,9 @@ export default function StrategicKpiPage() {
           );
         })}
 
-        {/* Блок «Акції — Реактивація категорій».
-            Три категорії (Нові / Сплячі / Втрачені) × два розрізи
-            (по каналу коли бренд обраний / по бренду коли ні + по акціях). */}
-        {!loading && brandBlocks.length > 0 && (
-          <ReactivationBlock period={period} />
-        )}
+        {/* Блок «Акції — Реактивація категорій» тепер показується виключно
+            через pill «Акції» у ряду брендів (рядок ~322). Тут його не рендеримо
+            щоб не було дублювання. */}
       </main>
     </>
   );
