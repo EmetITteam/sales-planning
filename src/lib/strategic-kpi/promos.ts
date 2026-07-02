@@ -27,6 +27,14 @@ export interface Promo {
   total_sum_usd: number;
   is_gift: boolean;
   gift_brand: string | null;
+  // Overlap з іншим промо ТОГО ж бренду у ТОМУ ж періоді. Якщо промо А (знижка)
+  // і промо B (gift) мають високий overlap (>50%) — це фактично ОДНА акція
+  // розписана у 1С двома поводами. Показуємо це у UI.
+  overlap_with?: {
+    name: string;         // текст пов'язаного повода
+    is_gift: boolean;     // чи то gift
+    clients: number;      // скільки унікальних клієнтів у overlap
+  };
 }
 
 interface PromoRow {
