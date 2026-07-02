@@ -1,0 +1,119 @@
+[
+  {
+    "id": "1a34e0b7-791f-48db-900d-ee81585ed2d7",
+    "user_login": "itd@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "Новий коментар у рекламації #27",
+    "message": "Евгения Малькова: тест уведомления",
+    "link": "/claims/27",
+    "meta": {
+      "claimId": "27",
+      "commentId": "1178153"
+    },
+    "read_at": "2026-06-10T13:39:40.791+00:00",
+    "created_at": "2026-06-10T13:39:31.793416+00:00",
+    "dedup_key": "bitrix:claim:27:comment:1178153"
+  },
+  {
+    "id": "27e964cb-b37c-49bd-bf52-adc44fe40f05",
+    "user_login": "itd@emet.in.ua",
+    "type": "client_verified",
+    "title": "Клієнт «ТЕСТ verify 3» верифіковано",
+    "message": null,
+    "link": "/clients?focus=000023418",
+    "meta": {
+      "stageId": "DT1048_10:UC_119I4U",
+      "bitrixItemId": 1,
+      "verificationId": 1
+    },
+    "read_at": "2026-06-12T11:00:52.384+00:00",
+    "created_at": "2026-06-12T11:00:03.227733+00:00",
+    "dedup_key": "bitrix:verification:1:verified"
+  },
+  {
+    "id": "30eabe27-edd1-446c-85bd-bc1231ed7c44",
+    "user_login": "itd@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "[SIMULATE] Тест #18",
+    "message": "Симуляція webhook event",
+    "link": "/claims/18",
+    "meta": {},
+    "read_at": "2026-06-10T13:37:04.353+00:00",
+    "created_at": "2026-06-10T13:32:53.976532+00:00",
+    "dedup_key": "simulate:18:1781098373"
+  },
+  {
+    "id": "32c37ae2-71c0-425a-837e-72c9a107ce32",
+    "user_login": "itd@emet.in.ua",
+    "type": "system",
+    "title": "🧪 Тест колокольчика",
+    "message": "Manual test з /api/sp_notif_test",
+    "link": "/claims",
+    "meta": {},
+    "read_at": "2026-06-10T13:22:49.002+00:00",
+    "created_at": "2026-06-10T13:20:20.891975+00:00",
+    "dedup_key": "test:itd@emet.in.ua:1781097620"
+  },
+  {
+    "id": "6cfdf425-b1d6-4ea1-8fc3-7c297f0ef094",
+    "user_login": "itd@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "Новий коментар у рекламації #18",
+    "message": "Евгения Малькова: тест итоговый",
+    "link": "/claims/18",
+    "meta": {
+      "claimId": "18",
+      "commentId": "1178136"
+    },
+    "read_at": "2026-06-10T13:34:15.575+00:00",
+    "created_at": "2026-06-10T13:33:20.002064+00:00",
+    "dedup_key": "bitrix:claim:18:comment:1178136"
+  },
+  {
+    "id": "99af2061-cf12-4e77-88f3-373d7af08c6e",
+    "user_login": "itd@emet.in.ua",
+    "type": "client_rejected",
+    "title": "Клієнт «Тест загрузки файлов» відхилено",
+    "message": null,
+    "link": "/clients?focus=000023420",
+    "meta": {
+      "stageId": "DT1048_10:UC_OE18M6",
+      "bitrixItemId": 4,
+      "verificationId": 3
+    },
+    "read_at": "2026-06-26T06:16:31.707+00:00",
+    "created_at": "2026-06-24T10:44:06.27983+00:00",
+    "dedup_key": "bitrix:verification:3:rejected"
+  },
+  {
+    "id": "bfe752dd-68d7-44fc-accd-7d82b5ab0bd9",
+    "user_login": "sm.kiev8@emet.in.ua",
+    "type": "client_clarification",
+    "title": "Уточнення по клієнту «Віа Дерм»",
+    "message": null,
+    "link": "/clients?focus=000023482",
+    "meta": {
+      "stageId": "DT1048_10:CLIENT",
+      "bitrixItemId": 5,
+      "verificationId": 4
+    },
+    "read_at": null,
+    "created_at": "2026-06-24T07:44:12.064484+00:00",
+    "dedup_key": "bitrix:verification:4:clarification"
+  },
+  {
+    "id": "e92fff5f-517d-489c-98e8-c1840aa4b14c",
+    "user_login": "itd@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "Новий коментар у рекламації #18",
+    "message": "Евгения Малькова: Малькова Евгения Андреевна (Менеджер):Тест ответа сообщений итоговая версия",
+    "link": "/claims/18",
+    "meta": {
+      "claimId": "18",
+      "commentId": "1178142"
+    },
+    "read_at": "2026-06-10T13:37:04.353+00:00",
+    "created_at": "2026-06-10T13:34:31.859928+00:00",
+    "dedup_key": "bitrix:claim:18:comment:1178142"
+  }
+]
