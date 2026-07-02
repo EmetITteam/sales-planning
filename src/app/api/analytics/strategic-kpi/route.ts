@@ -269,6 +269,9 @@ export async function GET(request: NextRequest) {
 
   const blocks: BlockResult[] = [];
   for (const brand of STRATEGIC_BRANDS) {
+    // Коли запит по сегменту (IUSE), НЕ додаємо окремі блоки підбрендів —
+    // замість них у циклі нижче створюється 1 aggregated блок per канал.
+    if (segmentBrands && segmentBrands.includes(brand)) continue;
     for (const channel of STRATEGIC_CHANNELS) {
       const t = targetMap.get(targetKey(brand, channel));
       const m = monthMap.get(metricKey(brand, channel));
@@ -396,10 +399,9 @@ export async function GET(request: NextRequest) {
       plan_ytd_uc: pYearUC,
     };
   }
-  // Стара агрегація virtual-block'у видалена. UI тепер показує реальні
-  // блоки sub-brands (як окремі бренди) + segment_summary у hero.
-  const skipOldSegmentAggregation = true;
-  if (!skipOldSegmentAggregation && segmentBrands) {
+  // SEGMENT-агрегація: 1 канал = 1 aggregated блок з sum(sub-brands).
+  // Sub_brands[] у блоці — розкладка per підбренд (без %).
+  if (segmentBrands) {
     const segmentName = brandParamRaw!;
     for (const channel of STRATEGIC_CHANNELS) {
       // Sub-brand cards (без %)

@@ -203,6 +203,60 @@ export function ChannelCategoriesRow({ data, channelLabel, periodLabel }: {
 }
 
 // ============================================================================
+// SubBrandRow — розкладка сегменту (напр. IUSE) по підбрендах.
+// БЕЗ %, БЕЗ прогрес-барів — тільки числа: клієнти/факт/чек.
+// Плану на sub-brand немає у 1С — там тільки план на сегмент цілком.
+// ============================================================================
+export function SubBrandRow({ subBrands }: {
+  subBrands: Array<{
+    brand: string;
+    month_uc: number;
+    month_sum: number;
+    month_avg_qty: number;
+    month_avg_check: number;
+    ytd_uc: number;
+    ytd_sum: number;
+  }>;
+}) {
+  if (!subBrands || subBrands.length === 0) return null;
+  const visible = subBrands.filter(s => s.month_uc > 0 || s.ytd_uc > 0);
+  if (visible.length === 0) return null;
+  return (
+    <div className="pt-4 mt-3 border-t border-dashed border-[rgba(6,42,61,0.10)]">
+      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.55)] mb-2">
+        Розкладка по підбрендах
+      </p>
+      <div className={`grid gap-3 ${visible.length === 1 ? 'grid-cols-1' : visible.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-3'}`}>
+        {visible.map(s => (
+          <div key={s.brand} className="glass-card p-4">
+            <div className="text-[13px] font-bold text-[#066aab] mb-2">{s.brand}</div>
+            <div className="space-y-1.5 text-[12px]">
+              <Row label="Купують у міс." value={s.month_uc.toString()} />
+              <Row label="Факт місяця" value={fmtUSD(s.month_sum)} />
+              <Row label="ср/уп на клієнта" value={s.month_avg_qty.toFixed(1)} />
+              <Row label="Середній чек" value={fmtUSD(s.month_avg_check)} />
+              <div className="pt-1 mt-1 border-t border-dashed border-[rgba(6,42,61,0.08)]">
+                <Row label="YTD унік. клієнтів" value={s.ytd_uc.toString()} />
+                <Row label="YTD факт" value={fmtUSD(s.ytd_sum)} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between items-baseline">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="mono font-bold tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+// ============================================================================
 // SeminarStatCard — для Ellanse блоку
 // ============================================================================
 export function SeminarStatCard({ label, period, ytd }: { label: string; period: number; ytd: number }) {

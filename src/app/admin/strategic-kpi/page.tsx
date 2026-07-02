@@ -33,7 +33,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import {
-  MetricCard, CategoryCard, ChannelCategoriesRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
+  MetricCard, CategoryCard, ChannelCategoriesRow, SubBrandRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
 } from './components';
 import { ReactivationBlock } from './reactivation-block';
 
@@ -195,11 +195,7 @@ export default function StrategicKpiPage() {
 
   const brandBlocks = useMemo(() => {
     if (!data) return [];
-    // Для сегмента (IUSE) показуємо блоки всіх його підбрендів як окремі бренди.
-    if (isSegment(selectedBrand)) {
-      const subs = STRATEGIC_SEGMENTS[selectedBrand as keyof typeof STRATEGIC_SEGMENTS];
-      return data.blocks.filter(b => subs.includes(b.brand as StrategicBrand));
-    }
+    // Для сегмента (IUSE) блоки — це aggregated per-channel entries з brand=IUSE.
     return data.blocks.filter(b => b.brand === selectedBrand);
   }, [data, selectedBrand]);
 
@@ -443,12 +439,7 @@ export default function StrategicKpiPage() {
                   <Icon size={17} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-[15px] font-bold tracking-tight">
-                    {CHANNEL_LABEL[channel]}
-                    {isSegment(selectedBrand) && (
-                      <span className="text-muted-foreground font-medium"> · <span className="text-[#066aab]">{block.brand}</span></span>
-                    )}
-                  </h3>
+                  <h3 className="text-[15px] font-bold tracking-tight">{CHANNEL_LABEL[channel]}</h3>
                   {!block.target && (
                     <p className="text-[11px] text-amber-700 mt-0.5">
                       Таргети не введено · <Link href="/admin/strategic-targets" className="underline">Ввести</Link>
@@ -522,6 +513,8 @@ export default function StrategicKpiPage() {
                 );
               })()}
 
+              {/* Segment mode (IUSE): розкладка по підбрендах без % */}
+              {block.sub_brands && <SubBrandRow subBrands={block.sub_brands} />}
 
               {/* ELLANSE Представництва — «Впервые обучені» + факт семінарів */}
               {selectedBrand === ELLANSE_BRAND && channel === 'representatives' && data?.first_trained && (
