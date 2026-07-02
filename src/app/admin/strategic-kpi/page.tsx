@@ -93,6 +93,7 @@ interface ApiResponse {
   blocks: Block[];
   categories: Categories | null;
   first_trained: { period: number; ytd: number } | null;
+  rep_seminars: Array<{ seminar: string; division: string; unique_clients: number }> | null;
 }
 
 const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number }>> = {
@@ -532,6 +533,35 @@ export default function StrategicKpiPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Семінари у представництвах — автоматично зі sales
+                      Групуємо (seminar, division) → 1 подія, count-distinct client
+                      = учасники. */}
+                  {data.rep_seminars && data.rep_seminars.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2 flex items-center gap-1.5">
+                        <GraduationCap className="h-3 w-3 text-amber-700" />
+                        Семінари у представництвах · {data.rep_seminars.length} подій, {new Set(data.rep_seminars.map(s => s.division)).size} міст
+                      </p>
+                      <div className="space-y-1.5">
+                        {data.rep_seminars.map((s, i) => (
+                          <div key={`${s.seminar}-${s.division}-${i}`} className="glass-card p-3 text-[12px]">
+                            <div className="flex items-center gap-3">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-teal-500/15 border border-teal-300/40 text-teal-800 whitespace-nowrap">
+                                {s.division}
+                              </span>
+                              <span className="flex-1 min-w-0 truncate" title={s.seminar}>
+                                {s.seminar}
+                              </span>
+                              <span className="mono font-bold text-[13px] text-[#0f766e] whitespace-nowrap">
+                                {s.unique_clients} <span className="text-[10px] font-medium text-muted-foreground">клієнтів</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

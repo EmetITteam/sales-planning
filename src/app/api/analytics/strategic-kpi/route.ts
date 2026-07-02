@@ -22,6 +22,7 @@ import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregate
 import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { getBrandClientCategories, type ClientCategories } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
+import { fetchEllanseRepSeminars, type RepSeminar } from '@/lib/strategic-kpi/rep-seminars';
 import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS } from '@/lib/strategic-kpi/brands';
 
 interface StrategicTargetRow {
@@ -97,6 +98,7 @@ export async function GET(request: NextRequest) {
   // передано ?brand=X (для одного бренду швидко, для всіх — довго).
   let categories: ClientCategories | null = null;
   let firstTrained: { period: number; ytd: number } | null = null;
+  let repSeminars: RepSeminar[] | null = null;
   if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
     try {
       categories = await getBrandClientCategories(brandParam, from, to);
@@ -115,6 +117,11 @@ export async function GET(request: NextRequest) {
         };
       } catch (e) {
         console.warn('first-trained failed:', (e as Error).message);
+      }
+      try {
+        repSeminars = await fetchEllanseRepSeminars(from, to);
+      } catch (e) {
+        console.warn('rep-seminars failed:', (e as Error).message);
       }
     }
   }
@@ -277,5 +284,6 @@ export async function GET(request: NextRequest) {
     blocks,
     categories,      // тільки коли ?brand=X переданий
     first_trained: firstTrained,  // тільки для brand=Ellanse
+    rep_seminars: repSeminars,    // тільки для brand=Ellanse — семінари у представництвах
   });
 }
