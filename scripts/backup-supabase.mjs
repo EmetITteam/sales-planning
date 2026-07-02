@@ -46,11 +46,18 @@ const TABLES = [
 ];
 const PAGE = 1000;
 
+// PK-колонки за таблицею для стабільного `?order=`. Дефолт — `id`.
+// Додавати сюди тільки таблиці у яких PK НЕ `id`.
+const ORDER_KEY = {
+  system_settings: 'key', // system_settings.key text PRIMARY KEY (system_lock kill-switch)
+};
+
 async function dumpTable(table) {
   const out = [];
   let from = 0;
+  const orderCol = ORDER_KEY[table] || 'id';
   while (true) {
-    const r = await fetch(`${URL}/rest/v1/${table}?select=*&order=id.asc`, {
+    const r = await fetch(`${URL}/rest/v1/${table}?select=*&order=${orderCol}.asc`, {
       headers: {
         apikey: KEY,
         Authorization: `Bearer ${KEY}`,
