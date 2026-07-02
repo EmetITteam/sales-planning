@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
+import { useGlassHover } from '@/hooks/use-glass-hover';
 import {
   STRATEGIC_BRANDS,
   CHANNEL_LABEL,
@@ -118,6 +119,7 @@ function fmtNum(n: number | null | undefined, decimal = false) {
 export default function StrategicKpiPage() {
   const router = useRouter();
   const { user } = useAppStore();
+  useGlassHover();  // cursor-follow spotlight на .glass-card як на інших бордах
 
   const defaultPeriod = useMemo(() => {
     const d = new Date();
@@ -221,7 +223,10 @@ export default function StrategicKpiPage() {
         .sk-hero-title strong { font-weight: 700; }
         .sk-mega-pct { font-family: var(--font-mono); font-weight: 700; font-size: 52px; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
         .sk-metric-num { font-family: var(--font-mono); font-weight: 700; font-size: 26px; letter-spacing: -0.5px; line-height: 1; font-variant-numeric: tabular-nums; }
-        .sk-brand-pill { padding: 10px 16px; border-radius: 16px; font-weight: 700; font-size: 13px; letter-spacing: -0.2px; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(6,42,61,0.08); background: rgba(255,255,255,0.5); color: rgba(6,42,61,0.58); }
+        /* Фіксована мін-ширина щоб рядок брендів не «стрибав» коли активний
+           бренд з коротшим/довшим ім'ям. text-align:center щоб текст був
+           по центру в комірках рівної ширини. */
+        .sk-brand-pill { padding: 10px 16px; border-radius: 16px; font-weight: 700; font-size: 13px; letter-spacing: -0.2px; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(6,42,61,0.08); background: rgba(255,255,255,0.5); color: rgba(6,42,61,0.58); min-width: 118px; text-align: center; }
         .sk-brand-pill:hover { transform: translateY(-1px); background: rgba(255,255,255,0.75); color: #062a3d; }
         .sk-brand-pill.active { background: linear-gradient(135deg, #066aab 0%, #0284c7 100%); color: white; border-color: transparent; box-shadow: 0 4px 14px rgba(6,106,171,0.35); }
         .sk-brand-pill.active:hover { transform: translateY(-1px); }
@@ -487,7 +492,7 @@ export default function StrategicKpiPage() {
               {selectedBrand === ELLANSE_BRAND && channel === 'representatives' && data?.first_trained && (
                 <div className="pt-5 border-t border-dashed border-[rgba(6,42,61,0.15)]">
                   <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2 flex items-center gap-1.5">
-                    <GraduationCap className="h-3 w-3 text-amber-700" /> Впервые обучені · автоматично з sales
+                    <GraduationCap className="h-3 w-3 text-amber-700" /> Вперше пройшли навчання
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div
@@ -517,7 +522,7 @@ export default function StrategicKpiPage() {
                       title="Скільки нових обучених за YTD (з початку року по кінець періоду)"
                     >
                       <div className="sk-lbl mb-1.5" style={{ color: '#0284c7', opacity: 0.85 }}>
-                        YTD {data.year}
+                        Всього за {data.year}
                       </div>
                       <div className="mono font-bold text-[32px] leading-none tabular-nums" style={{ color: '#0284c7' }}>
                         {data.first_trained.ytd}

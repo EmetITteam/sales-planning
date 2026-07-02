@@ -87,6 +87,79 @@ async function fetchValidSales(dateFromIso: string, dateToIso: string): Promise<
   return out;
 }
 
+// ============================================================================
+// Batch RPC (migration 031): період + YTD одним запитом на сервері.
+// Це прискорює перше завантаження strategic-kpi у 8-10 разів.
+// ============================================================================
+interface KpiBatchRow {
+  brand: string; channel: string;
+  period_uc: number; period_qty: number | string; period_sum: number | string; period_rows: number;
+  ytd_uc: number;    ytd_qty: number | string;    ytd_sum: number | string;    ytd_rows: number;
+}
+
+function toMetric(row: KpiBatchRow, side: 'period' | 'ytd'): BrandChannelMetrics {
+  const uc  = side === 'period' ? row.period_uc  : row.ytd_uc;
+  const qty = Number(side === 'period' ? row.period_qty : row.ytd_qty);
+  const sum = Number(side === 'period' ? row.period_sum : row.ytd_sum);
+  const rows = side === 'period' ? row.period_rows : row.ytd_rows;
+  return {
+    brand: row.brand as BrandChannelMetrics['brand'],
+    channel: row.channel as StrategicChannel,
+    unique_clients: uc,
+    total_qty: Math.round(qty * 100) / 100,
+    total_sum_usd: Math.round(sum * 100) / 100,
+    avg_qty_per_client: uc > 0 ? Math.round((qty / uc) * 100) / 100 : 0,
+    avg_check_usd: uc > 0 ? Math.round((sum / uc) * 100) / 100 : 0,
+    rows,
+  };
+}
+
+/**
+ * Батч-версія: один RPC повертає одразу period + YTD агрегати.
+ * Заповнює обидва кеш-ключі щоб наступні виклики були cache-hit.
+ * Fallback на JS-шлях якщо RPC відсутня (migration 031 не застосована).
+ */
+export async function fetchKpiMetricsBatch(
+  periodFrom: string,
+  periodTo: string,
+  ytdFrom: string,
+): Promise<{ period: BrandChannelMetrics[]; ytd: BrandChannelMetrics[] }> {
+  const periodKey = `single|${periodFrom}|${periodTo}`;
+  const ytdKey    = `single|${ytdFrom}|${periodTo}`;
+
+  const cP = cacheGet(periodKey);
+  const cY = cacheGet(ytdKey);
+  if (cP && cY) return { period: cP, ytd: cY };
+
+  const rpc = await supabase.rpc<KpiBatchRow[]>('get_kpi_metrics_batch', {
+    p_from: periodFrom,
+    p_to: periodTo,
+    p_ytd_from: ytdFrom,
+  });
+
+  if (!rpc.error && Array.isArray(rpc.data)) {
+    const period: BrandChannelMetrics[] = [];
+    const ytd: BrandChannelMetrics[] = [];
+    for (const row of rpc.data) {
+      if (row.period_rows > 0) period.push(toMetric(row, 'period'));
+      if (row.ytd_rows > 0)    ytd.push(toMetric(row, 'ytd'));
+    }
+    cacheSet(periodKey, period);
+    cacheSet(ytdKey, ytd);
+    return { period, ytd };
+  }
+  if (rpc.error) {
+    console.warn('[aggregate] get_kpi_metrics_batch RPC failed, JS fallback:', rpc.error.message);
+  }
+
+  // Fallback: два послідовні JS-агрегати (як раніше)
+  const [period, ytd] = await Promise.all([
+    aggregateBrandChannelMetrics(periodFrom, periodTo),
+    aggregateBrandChannelMetrics(ytdFrom, periodTo),
+  ]);
+  return { period, ytd };
+}
+
 /**
  * Агрегує рядки sales у метрики (per бренд × канал).
  *

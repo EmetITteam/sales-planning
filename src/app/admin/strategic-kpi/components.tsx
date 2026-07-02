@@ -51,7 +51,7 @@ export function MetricCard({ label, Icon, monthValue, ytdValue, target, simplePc
   const barColor = { good: '#10b981', ok: '#5bd5bc', warn: '#fb923c', bad: '#e11d48', na: '#cbd5e1' }[status];
 
   return (
-    <div className="glass-card-soft p-4 flex flex-col">
+    <div className="glass-card p-4 flex flex-col">
       <div className="flex items-center gap-1.5 mb-2">
         <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
         <Icon size={12} />
@@ -109,11 +109,11 @@ export function CategoryCard({ label, value, total, hint, accent }: {
   accent: 'mint' | 'good' | 'warn' | 'bad';
 }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
-  // Стиль зі скріна «Огляд компанії»: glass-card-soft + кольорова точка +
+  // Стиль зі скріна «Огляд компанії»: glass-card + кольорова точка +
   // uppercase label + великий tabular-nums + маленький %-descriptor.
   const dotColor = { mint: '#10b981', good: '#10b981', warn: '#fb923c', bad: '#94a3b8' }[accent];
   return (
-    <div className="glass-card-soft p-4 flex flex-col" title={hint}>
+    <div className="glass-card p-4 flex flex-col" title={hint}>
       <div className="flex items-center gap-1.5 mb-2">
         <span className="w-2 h-2 rounded-full" style={{ background: dotColor }} />
         <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{label}</span>

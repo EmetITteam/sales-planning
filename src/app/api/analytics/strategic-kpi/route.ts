@@ -18,7 +18,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { isAdminLogin } from '@/lib/feature-flags';
 import { supabase } from '@/lib/supabase';
-import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregateYTDMetrics, parsePeriod } from '@/lib/strategic-kpi/aggregate';
+import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregateYTDMetrics, fetchKpiMetricsBatch, parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { getBrandClientCategories, type ClientCategories } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
@@ -62,18 +62,24 @@ export async function GET(request: NextRequest) {
   const { from, to, label: monthKey, monthIndex, year, kind: periodKind } = parsed;
 
   // Паралельно: period agg + YTD + promos + targets + Ellanse семінари.
-  // Для квартал/півріччя/рік — СЕРЕДНЄ за місяць. Для одного місяця — сама метрика.
-  const periodAggFn = periodKind === 'month'
-    ? aggregateBrandChannelMetrics
-    : aggregatePeriodMetricsAveraged;
+  // Для одного місяця period+YTD через batch-RPC (один запит).
+  // Для квартал/півріччя/рік period — усереднений (JS), YTD окремо через batch.
+  const ytdFrom = `${year}-01-01T00:00:00Z`;
+  const useBatch = periodKind === 'month';
 
-  const [monthMetrics, ytdMetrics, promos, targetsResult, seminarsResult] = await Promise.all([
-    periodAggFn(from, to),
-    aggregateYTDMetrics(year, to),
+  const batchP = useBatch
+    ? fetchKpiMetricsBatch(from, to, ytdFrom)
+    : Promise.all([aggregatePeriodMetricsAveraged(from, to), aggregateYTDMetrics(year, to)])
+        .then(([period, ytd]) => ({ period, ytd }));
+
+  const [batch, promos, targetsResult, seminarsResult] = await Promise.all([
+    batchP,
     aggregatePromos(from, to),
     supabase.from('strategic_targets').select('*').eq('year', year),
     supabase.from('ellanse_seminars_actual').select('*').eq('year', year),
   ]);
+  const monthMetrics = batch.period;
+  const ytdMetrics = batch.ytd;
 
   if (targetsResult.error) {
     return Response.json({ error: `targets: ${targetsResult.error.message}` }, { status: 500 });
