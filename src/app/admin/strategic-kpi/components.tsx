@@ -316,6 +316,76 @@ export function FirstTrainedCards({ period, ytd, year }: { period: number; ytd: 
 }
 
 // ============================================================================
+// SkeletonHero — placeholder під час завантаження даних
+// ============================================================================
+export function SkeletonHero() {
+  return (
+    <div className="space-y-6">
+      <style jsx>{`
+        @keyframes skPulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 0.7; }
+        }
+        .sk-skel {
+          background: linear-gradient(90deg, rgba(6,42,61,0.05) 25%, rgba(6,42,61,0.10) 50%, rgba(6,42,61,0.05) 75%);
+          background-size: 200% 100%;
+          animation: skPulse 1.6s ease-in-out infinite;
+          border-radius: 8px;
+        }
+      `}</style>
+
+      {/* Hero skeleton */}
+      <div className="sk-glass p-5 relative overflow-hidden">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="space-y-2">
+            <div className="sk-skel h-8 w-64" />
+            <div className="sk-skel h-3.5 w-40" />
+          </div>
+          <div className="text-right space-y-2">
+            <div className="sk-skel h-14 w-36 ml-auto" />
+            <div className="sk-skel h-3 w-24 ml-auto" />
+          </div>
+        </div>
+
+        <div className="mt-4 pt-3.5 border-t border-[rgba(6,42,61,0.08)]">
+          <div className="sk-skel h-3 w-40 mb-2" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[0, 1, 2, 3].map(i => <div key={i} className="sk-skel h-14 rounded-xl" />)}
+          </div>
+        </div>
+      </div>
+
+      {/* Channels skeleton — 2 blocks */}
+      {[0, 1].map(idx => (
+        <div key={idx} className="sk-glass p-6 space-y-5">
+          <div className="flex items-center gap-4 pb-4 border-b border-[rgba(6,42,61,0.08)]">
+            <div className="sk-skel w-11 h-11 rounded-2xl" />
+            <div className="flex-1 space-y-1.5">
+              <div className="sk-skel h-4 w-32" />
+              <div className="sk-skel h-3 w-24" />
+            </div>
+            <div className="sk-skel h-8 w-20" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="rounded-2xl border border-white/60 bg-white/40 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="sk-skel w-7 h-7 rounded-lg" />
+                  <div className="sk-skel h-3 w-24" />
+                </div>
+                <div className="sk-skel h-7 w-28" />
+                <div className="sk-skel h-2 w-full rounded-full" />
+                <div className="sk-skel h-4 w-32" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
 // Re-export EllanseSeminarsLink
 // ============================================================================
 export function EllanseSeminarsLink() {

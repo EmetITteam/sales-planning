@@ -14,6 +14,20 @@
 import { supabase } from '@/lib/supabase';
 import type { StrategicBrand, StrategicChannel } from './brands';
 
+// In-memory cache: (from|to) → BrandChannelMetrics[], TTL 5 хв.
+// Одна і та сама пара [from, to) для різних брендів переюзує кеш.
+const METRICS_CACHE = new Map<string, { at: number; data: BrandChannelMetrics[] }>();
+const METRICS_TTL_MS = 5 * 60 * 1000;
+
+function cacheGet(key: string): BrandChannelMetrics[] | null {
+  const c = METRICS_CACHE.get(key);
+  if (c && Date.now() - c.at < METRICS_TTL_MS) return c.data;
+  return null;
+}
+function cacheSet(key: string, data: BrandChannelMetrics[]) {
+  METRICS_CACHE.set(key, { at: Date.now(), data });
+}
+
 export interface BrandChannelMetrics {
   brand: StrategicBrand | 'НЕ_МАПНУТО';
   channel: StrategicChannel;
@@ -83,6 +97,10 @@ export async function aggregateBrandChannelMetrics(
   dateFrom: string,
   dateTo: string,
 ): Promise<BrandChannelMetrics[]> {
+  const cacheKey = `single|${dateFrom}|${dateTo}`;
+  const c = cacheGet(cacheKey);
+  if (c) return c;
+
   const rows = await fetchValidSales(dateFrom, dateTo);
 
   const bucketMap = new Map<string, {
@@ -121,6 +139,7 @@ export async function aggregateBrandChannelMetrics(
       rows: b.rows,
     });
   }
+  cacheSet(cacheKey, result);
   return result;
 }
 
@@ -198,6 +217,10 @@ export async function aggregatePeriodMetricsAveraged(
     // Для одного місяця середнє = сама метрика
     return aggregateBrandChannelMetrics(dateFrom, dateTo);
   }
+
+  const cacheKey = `avg|${dateFrom}|${dateTo}`;
+  const c = cacheGet(cacheKey);
+  if (c) return c;
 
   const rows = await fetchValidSalesWithDate(dateFrom, dateTo);
 
@@ -283,6 +306,7 @@ export async function aggregatePeriodMetricsAveraged(
       rows: p.rowsSum,
     });
   }
+  cacheSet(cacheKey, result);
   return result;
 }
 

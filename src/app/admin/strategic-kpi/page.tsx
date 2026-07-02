@@ -36,7 +36,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import {
-  MetricCard, CategoryCard, SeminarStatCard, StaticRow, PeriodPicker,
+  MetricCard, CategoryCard, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
 } from './components';
 
 interface Block {
@@ -281,7 +281,7 @@ export default function StrategicKpiPage() {
             <strong>Помилка:</strong> {error}
           </div>
         )}
-        {loading && <div className="sk-glass p-6 text-[13px] sk-muted">Завантажую метрики…</div>}
+        {loading && <SkeletonHero />}
         {!loading && !error && brandBlocks.length === 0 && (
           <div className="sk-glass p-6 text-[13px] sk-muted">
             Нема даних для <strong>{selectedBrand}</strong> у {periodLabel}.

@@ -14,6 +14,10 @@
 import { supabase } from '@/lib/supabase';
 import type { StrategicBrand, StrategicChannel } from './brands';
 
+// 5-хв in-memory кеш промо
+const PROMOS_CACHE = new Map<string, { at: number; data: Promo[] }>();
+const PROMOS_TTL_MS = 5 * 60 * 1000;
+
 export interface Promo {
   name: string;
   brand: StrategicBrand | 'НЕ_МАПНУТО';
@@ -146,6 +150,10 @@ async function fetchTriggerSums(docIds: string[], triggerBrand: string): Promise
  * щоб отримати подарунок».
  */
 export async function aggregatePromos(dateFrom: string, dateTo: string): Promise<Promo[]> {
+  const cacheKey = `${dateFrom}|${dateTo}`;
+  const c = PROMOS_CACHE.get(cacheKey);
+  if (c && Date.now() - c.at < PROMOS_TTL_MS) return c.data;
+
   const rows = await fetchPromoRows(dateFrom, dateTo);
 
   const promoMap = new Map<string, {
@@ -212,6 +220,7 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
       gift_brand: b.gift_brand,
     });
   }
+  PROMOS_CACHE.set(cacheKey, { at: Date.now(), data: result });
   return result;
 }
 
