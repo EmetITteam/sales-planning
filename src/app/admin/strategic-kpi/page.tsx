@@ -39,6 +39,7 @@ import {
 import {
   MetricCard, CategoryCard, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
 } from './components';
+import { ReactivationBlock } from './reactivation-block';
 
 interface Block {
   brand: string;
@@ -711,6 +712,13 @@ export default function StrategicKpiPage() {
             </div>
           );
         })}
+
+        {/* Блок «Акції — Реактивація категорій».
+            Три категорії (Нові / Сплячі / Втрачені) × два розрізи
+            (по каналу коли бренд обраний / по бренду коли ні + по акціях). */}
+        {!loading && brandBlocks.length > 0 && (
+          <ReactivationBlock period={period} selectedBrand={selectedBrand} />
+        )}
       </main>
     </>
   );
