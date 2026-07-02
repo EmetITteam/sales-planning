@@ -163,6 +163,7 @@ export async function GET(request: NextRequest) {
       total_sum_usd: number;
       is_gift: boolean;
       gift_brand: string | null;
+      overlap_with?: { name: string; is_gift: boolean; clients: number };
     }>;
     // Тільки для Ellanse × distributors — факт семінарів з ellanse_seminars_actual
     seminars_actual?: {
@@ -234,6 +235,7 @@ export async function GET(request: NextRequest) {
           total_sum_usd: p.total_sum_usd,
           is_gift: p.is_gift,
           gift_brand: p.gift_brand,
+          overlap_with: p.overlap_with,
         })),
         seminars_actual: isEllanseDist ? {
           period: {

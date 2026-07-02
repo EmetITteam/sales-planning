@@ -63,7 +63,11 @@ interface Block {
     unique_clients_forecast: number | null;
     avg_check_annual_pct: number | null;
   };
-  promos: Array<{ name: string; unique_clients: number; total_qty: number; total_sum_usd: number; is_gift: boolean; gift_brand: string | null }>;
+  promos: Array<{
+    name: string; unique_clients: number; total_qty: number; total_sum_usd: number;
+    is_gift: boolean; gift_brand: string | null;
+    overlap_with?: { name: string; is_gift: boolean; clients: number };
+  }>;
   seminars_actual?: SeminarActual;
 }
 
@@ -606,23 +610,56 @@ export default function StrategicKpiPage() {
                     <Tag className="h-3 w-3" /> Топ-5 активних промо
                   </p>
                   <div className="space-y-1.5">
-                    {block.promos.map(p => (
-                      <div key={p.name} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl sk-glass-soft text-[12px]">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate" title={p.name}>{p.name}</div>
-                          {p.is_gift && p.gift_brand && (
-                            <div className="text-[10px] text-amber-700 font-bold uppercase tracking-wider mt-0.5">
-                              подарунок: {p.gift_brand}
+                    {block.promos.map(p => {
+                      // Overlap: якщо це промо перекликається з іншим (знижка + подарунок
+                      // на одні і ті ж продажі) — показуємо це чітко.
+                      const cleanCount = p.overlap_with
+                        ? Math.max(0, p.unique_clients - p.overlap_with.clients)
+                        : null;
+                      return (
+                        <div key={p.name} className="rounded-xl sk-glass-soft text-[12px] px-3.5 py-2.5">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate" title={p.name}>{p.name}</div>
+                              {p.is_gift && p.gift_brand && (
+                                <div className="text-[10px] text-amber-700 font-bold uppercase tracking-wider mt-0.5">
+                                  подарунок: {p.gift_brand}
+                                </div>
+                              )}
+                            </div>
+                            <div className="mono text-[11px] flex items-center gap-2 whitespace-nowrap">
+                              <span className="sk-chip sk-chip-warn">{p.unique_clients} кл.</span>
+                              <span className="sk-muted">{p.total_qty.toFixed(0)} шт</span>
+                              <span className="font-bold">{fmtUSD(p.total_sum_usd)}</span>
+                            </div>
+                          </div>
+
+                          {/* Overlap-розкладка */}
+                          {p.overlap_with && cleanCount !== null && (
+                            <div className="mt-2 pt-2 border-t border-dashed border-[rgba(6,42,61,0.10)] flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px]">
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span className="sk-muted">
+                                  Чисто {p.is_gift ? 'подарунок' : 'знижка'}:
+                                </span>
+                                <span className="mono font-bold">{cleanCount} кл.</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                <span className="sk-muted">
+                                  {p.is_gift ? 'Разом зі знижкою' : 'З подарунком'}:
+                                </span>
+                                <span className="mono font-bold">{p.overlap_with.clients} кл.</span>
+                              </div>
+                              <div className="sk-muted italic text-[10px] truncate max-w-[300px]"
+                                title={`Пов'язане промо: ${p.overlap_with.name}`}>
+                                ↔ {p.overlap_with.name}
+                              </div>
                             </div>
                           )}
                         </div>
-                        <div className="mono text-[11px] flex items-center gap-2 whitespace-nowrap">
-                          <span className="sk-chip sk-chip-warn">{p.unique_clients} кл.</span>
-                          <span className="sk-muted">{p.total_qty.toFixed(0)} шт</span>
-                          <span className="font-bold">{fmtUSD(p.total_sum_usd)}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

@@ -206,6 +206,46 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
     if (r.gift_brand && !bucket.gift_brand) bucket.gift_brand = r.gift_brand;
   }
 
+  // ============================================================================
+  // OVERLAP: знаходимо промо-пари одного бренду у одному каналі які
+  // перекликаються по клієнтах (>50% меншого множини). Це типовий випадок
+  // «Vitaran -15% + Vitaran на 700дол+Подарок Marine Collagen» — це фактично
+  // одна акція у 1С, розписана двома поводами. Треба показати зв'язок у UI.
+  // ============================================================================
+  const buckets = Array.from(promoMap.values());
+  const overlapMap = new Map<string, { name: string; is_gift: boolean; clients: number }>();
+
+  for (let i = 0; i < buckets.length; i++) {
+    for (let j = i + 1; j < buckets.length; j++) {
+      const a = buckets[i], b = buckets[j];
+      // Перекликаються тільки промо одного бренду та каналу
+      if (a.trigger_brand !== b.trigger_brand || a.channel !== b.channel) continue;
+      // Одна має бути gift, інша ні (або обидві не-gift, тоді пропускаємо?)
+      // Насправді нам цікаво коли є пара «знижка + подарунок».
+      if (a.is_gift_any === b.is_gift_any) continue;
+      // Overlap клієнтів
+      let overlap = 0;
+      const smaller = a.clients.size < b.clients.size ? a.clients : b.clients;
+      const larger  = a.clients.size < b.clients.size ? b.clients : a.clients;
+      for (const c of smaller) if (larger.has(c)) overlap++;
+      // Threshold: >50% від меншого множини
+      if (overlap * 2 < smaller.size) continue;
+
+      // Записуємо взаємне посилання
+      const keyA = `${a.name}||${a.channel}`;
+      const keyB = `${b.name}||${b.channel}`;
+      // Для A запам'ятовуємо посилання на B (з полем is_gift = b.is_gift)
+      const existingA = overlapMap.get(keyA);
+      if (!existingA || overlap > existingA.clients) {
+        overlapMap.set(keyA, { name: b.name, is_gift: b.is_gift_any, clients: overlap });
+      }
+      const existingB = overlapMap.get(keyB);
+      if (!existingB || overlap > existingB.clients) {
+        overlapMap.set(keyB, { name: a.name, is_gift: a.is_gift_any, clients: overlap });
+      }
+    }
+  }
+
   const result: Promo[] = [];
   for (const b of promoMap.values()) {
     const qty = b.qty;
@@ -217,6 +257,7 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
       sum = trigger.sum;
       // qty з gift-рядків залишаємо (= скільки подарунків роздали) — це інформативно
     }
+    const overlapInfo = overlapMap.get(`${b.name}||${b.channel}`);
     result.push({
       name: b.name,
       brand: b.trigger_brand as Promo['brand'],
@@ -226,6 +267,7 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
       total_sum_usd: Math.round(sum * 100) / 100,
       is_gift: b.is_gift_any,
       gift_brand: b.gift_brand,
+      overlap_with: overlapInfo,
     });
   }
   PROMOS_CACHE.set(cacheKey, { at: Date.now(), data: result });
