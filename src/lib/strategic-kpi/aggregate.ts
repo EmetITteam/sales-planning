@@ -137,15 +137,79 @@ export async function aggregateYTDMetrics(
 }
 
 /**
- * Місячна дата: перший день місяця → перший день наступного (виключно).
- * Приймає period='2026-06' або '2026-06-01'.
+ * Гнучкий period parser. Підтримує:
+ *   - '2026-06'       → місяць
+ *   - '2026-Q2'       → квартал (Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec)
+ *   - '2026-H1'       → півріччя (H1=Jan-Jun, H2=Jul-Dec)
+ *   - '2026'          → цілий рік
+ *
+ * monthIndex — для pace / пропорційного розрахунку:
+ *   місяць N → N (1..12)
+ *   квартал Q → останній місяць кварталу (Q1=3, Q2=6, Q3=9, Q4=12)
+ *   півріччя H → останній місяць півріччя (H1=6, H2=12)
+ *   рік       → 12
  */
+export function parsePeriod(period: string): {
+  from: string; to: string;
+  kind: 'month' | 'quarter' | 'half' | 'year';
+  year: number;
+  monthIndex: number;
+  label: string;
+} {
+  const p = period.trim();
+
+  // Місяць '2026-06' або '2026-06-01'
+  const monthMatch = p.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  if (monthMatch) {
+    const y = Number(monthMatch[1]);
+    const m = Number(monthMatch[2]);
+    const from = `${y}-${String(m).padStart(2, '0')}-01T00:00:00Z`;
+    const nextMonth = m === 12 ? 1 : m + 1;
+    const nextYear = m === 12 ? y + 1 : y;
+    const to = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00Z`;
+    return { from, to, kind: 'month', year: y, monthIndex: m, label: `${y}-${String(m).padStart(2, '0')}` };
+  }
+
+  // Квартал '2026-Q2'
+  const qMatch = p.match(/^(\d{4})-Q([1-4])$/i);
+  if (qMatch) {
+    const y = Number(qMatch[1]);
+    const q = Number(qMatch[2]);
+    const startMonth = (q - 1) * 3 + 1;      // Q1=1, Q2=4, Q3=7, Q4=10
+    const endMonth = q * 3;                   // Q1=3, Q2=6, Q3=9, Q4=12
+    const from = `${y}-${String(startMonth).padStart(2, '0')}-01T00:00:00Z`;
+    const nextMonth = endMonth === 12 ? 1 : endMonth + 1;
+    const nextYear = endMonth === 12 ? y + 1 : y;
+    const to = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00Z`;
+    return { from, to, kind: 'quarter', year: y, monthIndex: endMonth, label: `${y}-Q${q}` };
+  }
+
+  // Півріччя '2026-H1'
+  const hMatch = p.match(/^(\d{4})-H([12])$/i);
+  if (hMatch) {
+    const y = Number(hMatch[1]);
+    const h = Number(hMatch[2]);
+    const startMonth = h === 1 ? 1 : 7;
+    const endMonth = h === 1 ? 6 : 12;
+    const from = `${y}-${String(startMonth).padStart(2, '0')}-01T00:00:00Z`;
+    const nextMonth = endMonth === 12 ? 1 : endMonth + 1;
+    const nextYear = endMonth === 12 ? y + 1 : y;
+    const to = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00Z`;
+    return { from, to, kind: 'half', year: y, monthIndex: endMonth, label: `${y}-H${h}` };
+  }
+
+  // Рік '2026'
+  const yMatch = p.match(/^(\d{4})$/);
+  if (yMatch) {
+    const y = Number(yMatch[1]);
+    return { from: `${y}-01-01T00:00:00Z`, to: `${y + 1}-01-01T00:00:00Z`, kind: 'year', year: y, monthIndex: 12, label: `${y}` };
+  }
+
+  throw new Error(`Invalid period: ${period}. Use YYYY-MM, YYYY-Qn, YYYY-Hn або YYYY.`);
+}
+
+/** Backward compat — старий monthRange. */
 export function monthRange(period: string): { from: string; to: string; monthKey: string; monthIndex: number } {
-  const monthKey = period.slice(0, 7); // '2026-06'
-  const [y, m] = monthKey.split('-').map(Number);
-  const from = `${monthKey}-01T00:00:00Z`;
-  const nextMonth = m === 12 ? 1 : m + 1;
-  const nextYear = m === 12 ? y + 1 : y;
-  const to = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00Z`;
-  return { from, to, monthKey, monthIndex: m };
+  const p = parsePeriod(period);
+  return { from: p.from, to: p.to, monthKey: p.label, monthIndex: p.monthIndex };
 }

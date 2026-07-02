@@ -18,7 +18,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { isAdminLogin } from '@/lib/feature-flags';
 import { supabase } from '@/lib/supabase';
-import { aggregateBrandChannelMetrics, aggregateYTDMetrics, monthRange } from '@/lib/strategic-kpi/aggregate';
+import { aggregateBrandChannelMetrics, aggregateYTDMetrics, parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS } from '@/lib/strategic-kpi/brands';
 
@@ -47,26 +47,43 @@ export async function GET(request: NextRequest) {
   }
 
   const url = new URL(request.url);
-  const period = url.searchParams.get('period') ?? new Date().toISOString().slice(0, 7);
-  if (!/^\d{4}-\d{2}(-\d{2})?$/.test(period)) {
-    return Response.json({ error: 'period must be YYYY-MM or YYYY-MM-DD' }, { status: 400 });
+  const periodParam = url.searchParams.get('period') ?? new Date().toISOString().slice(0, 7);
+  let parsed;
+  try {
+    parsed = parsePeriod(periodParam);
+  } catch (e) {
+    return Response.json({ error: (e as Error).message }, { status: 400 });
   }
+  const { from, to, label: monthKey, monthIndex, year, kind: periodKind } = parsed;
 
-  const { from, to, monthKey, monthIndex } = monthRange(period);
-  const year = Number(monthKey.slice(0, 4));
-
-  // Паралельно: month agg + YTD + promos + targets
-  const [monthMetrics, ytdMetrics, promos, targetsResult] = await Promise.all([
+  // Паралельно: month agg + YTD + promos + targets + Ellanse семінари
+  const [monthMetrics, ytdMetrics, promos, targetsResult, seminarsResult] = await Promise.all([
     aggregateBrandChannelMetrics(from, to),
     aggregateYTDMetrics(year, to),
     aggregatePromos(from, to),
     supabase.from('strategic_targets').select('*').eq('year', year),
+    supabase.from('ellanse_seminars_actual').select('*').eq('year', year),
   ]);
 
   if (targetsResult.error) {
     return Response.json({ error: `targets: ${targetsResult.error.message}` }, { status: 500 });
   }
   const targets = (targetsResult.data as unknown as StrategicTargetRow[]) ?? [];
+
+  // Ellanse семінари — фільтр по місяцях у period range
+  interface SeminarActualRow {
+    year: number; month: number; location: string;
+    seminars_held: number; new_trained: number | null;
+  }
+  const seminars = (seminarsResult.data as unknown as SeminarActualRow[]) ?? [];
+  // Період покриває місяці startM..endM
+  const startM = new Date(from).getUTCMonth() + 1;
+  const endM = new Date(to).getUTCMonth();  // to — початок наступного місяця, тобто endM inclusive
+  const endMFixed = endM === 0 ? 12 : endM;
+  const seminarsInPeriod = seminars.filter(s => s.month >= startM && s.month <= endMFixed);
+  const seminarsYTD = seminars.filter(s => s.month <= endMFixed);
+  const sumSeminars = (rows: SeminarActualRow[], field: 'seminars_held' | 'new_trained') =>
+    rows.reduce((s, r) => s + (r[field] ?? 0), 0);
 
   const targetKey = (b: string, c: string) => `${b}|${c}`;
   const targetMap = new Map<string, StrategicTargetRow>();
@@ -111,6 +128,16 @@ export async function GET(request: NextRequest) {
       is_gift: boolean;
       gift_brand: string | null;
     }>;
+    // Тільки для Ellanse × distributors — факт семінарів з ellanse_seminars_actual
+    seminars_actual?: {
+      period: { seminars_held: number; new_trained: number };
+      ytd: { seminars_held: number; new_trained: number };
+      by_location: Array<{
+        location: string;
+        period: { seminars_held: number; new_trained: number };
+        ytd: { seminars_held: number; new_trained: number };
+      }>;
+    };
   }
 
   const blocks: BlockResult[] = [];
@@ -124,8 +151,10 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => b.unique_clients - a.unique_clients)
         .slice(0, 5);
 
-      // Skip якщо нема ні таргетів ні даних
-      if (!t && !m && !y && brandPromos.length === 0) continue;
+      const isEllanseDist = brand === 'Ellanse' && channel === 'distributors';
+
+      // Skip якщо нема ні таргетів ні даних (Ellanse×distributors — завжди показуємо, там семінари)
+      if (!isEllanseDist && !t && !m && !y && brandPromos.length === 0) continue;
 
       const pctOr = (num: number | null, den: number | null | undefined) => {
         if (num === null || !den || den === 0) return null;
@@ -170,21 +199,37 @@ export async function GET(request: NextRequest) {
           is_gift: p.is_gift,
           gift_brand: p.gift_brand,
         })),
+        seminars_actual: isEllanseDist ? {
+          period: {
+            seminars_held: sumSeminars(seminarsInPeriod, 'seminars_held'),
+            new_trained: sumSeminars(seminarsInPeriod, 'new_trained'),
+          },
+          ytd: {
+            seminars_held: sumSeminars(seminarsYTD, 'seminars_held'),
+            new_trained: sumSeminars(seminarsYTD, 'new_trained'),
+          },
+          by_location: ['poltava', 'chernivtsi'].map(loc => ({
+            location: loc,
+            period: {
+              seminars_held: sumSeminars(seminarsInPeriod.filter(s => s.location === loc), 'seminars_held'),
+              new_trained: sumSeminars(seminarsInPeriod.filter(s => s.location === loc), 'new_trained'),
+            },
+            ytd: {
+              seminars_held: sumSeminars(seminarsYTD.filter(s => s.location === loc), 'seminars_held'),
+              new_trained: sumSeminars(seminarsYTD.filter(s => s.location === loc), 'new_trained'),
+            },
+          })),
+        } : undefined,
       });
     }
   }
 
   return Response.json({
     period: monthKey,
+    periodKind,
     year,
     monthIndex,
     monthPace: monthIndex / 12,
     blocks,
-    counts: {
-      month_rows: monthMetrics.reduce((s, m) => s + m.rows, 0),
-      ytd_rows: ytdMetrics.reduce((s, m) => s + m.rows, 0),
-      promos: promos.length,
-      targets: targets.length,
-    },
   });
 }

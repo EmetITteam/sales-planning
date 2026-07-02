@@ -61,15 +61,25 @@ interface Block {
     avg_check_annual_pct: number | null;
   };
   promos: Array<{ name: string; unique_clients: number; total_qty: number; total_sum_usd: number; is_gift: boolean; gift_brand: string | null }>;
+  seminars_actual?: SeminarActual;
 }
 
+interface SeminarActual {
+  period: { seminars_held: number; new_trained: number };
+  ytd: { seminars_held: number; new_trained: number };
+  by_location: Array<{
+    location: string;
+    period: { seminars_held: number; new_trained: number };
+    ytd: { seminars_held: number; new_trained: number };
+  }>;
+}
 interface ApiResponse {
   period: string;
+  periodKind: 'month' | 'quarter' | 'half' | 'year';
   year: number;
   monthIndex: number;
   monthPace: number;
   blocks: Block[];
-  counts: { month_rows: number; ytd_rows: number; promos: number; targets: number };
 }
 
 const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number }>> = {
@@ -134,8 +144,24 @@ export default function StrategicKpiPage() {
     () => data?.blocks.filter(b => b.brand === selectedBrand) ?? [],
     [data, selectedBrand],
   );
-  const [y, m] = period.split('-').map(Number);
-  const periodLabel = m ? `${MONTHS_UA[m - 1]} ${y}` : period;
+
+  // Гарний label періоду з урахуванням kind
+  const periodLabel = useMemo(() => {
+    const monthMatch = period.match(/^(\d{4})-(\d{2})$/);
+    if (monthMatch) {
+      const yr = Number(monthMatch[1]);
+      const mo = Number(monthMatch[2]);
+      return `${MONTHS_UA[mo - 1]} ${yr}`;
+    }
+    const qMatch = period.match(/^(\d{4})-Q([1-4])$/i);
+    if (qMatch) return `${qMatch[2]} квартал ${qMatch[1]}`;
+    const hMatch = period.match(/^(\d{4})-H([12])$/i);
+    if (hMatch) return `${hMatch[2] === '1' ? 'І' : 'ІІ'} півріччя ${hMatch[1]}`;
+    const yMatch = period.match(/^(\d{4})$/);
+    if (yMatch) return `Рік ${yMatch[1]}`;
+    return period;
+  }, [period]);
+  const m = data?.monthIndex ?? 0;
 
   // Overall % бренду — середнє з УСІХ доступних execution %:
   // - buyers_monthly (місячна ціль купуючих)
@@ -227,11 +253,7 @@ export default function StrategicKpiPage() {
 
         {/* Toolbar */}
         <div className="sk-glass p-5 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="sk-lbl">Період</div>
-            <input type="month" value={period} onChange={e => setPeriod(e.target.value)}
-              className="h-10 px-3 text-[13px] rounded-xl border border-[rgba(6,42,61,0.12)] bg-white font-semibold" />
-          </div>
+          <PeriodPicker period={period} onChange={setPeriod} />
           <div>
             <div className="sk-lbl mb-2">Бренд</div>
             <div className="flex flex-wrap gap-2">
@@ -269,11 +291,13 @@ export default function StrategicKpiPage() {
                 <div className="sk-hero-title">
                   <strong>{selectedBrand}</strong> <span className="sk-muted">·</span> <span className="sk-muted font-light">{periodLabel}</span>
                 </div>
-                <div className="text-[12px] sk-muted mt-3 flex items-center gap-3">
-                  <span>Місяць {m} з 12</span>
-                  <span className="text-[rgba(6,42,61,0.24)]">·</span>
-                  <span>Pace <span className="mono font-bold">{Math.round((m / 12) * 100)}%</span> року</span>
-                </div>
+                {m > 0 && (
+                  <div className="text-[12px] sk-muted mt-3 flex items-center gap-3">
+                    <span>По {m}-му місяцю з 12</span>
+                    <span className="text-[rgba(6,42,61,0.24)]">·</span>
+                    <span>Pace <span className="mono font-bold">{Math.round((m / 12) * 100)}%</span> року</span>
+                  </div>
+                )}
               </div>
               {brandExecution !== null && (
                 <div className="text-right">
@@ -351,22 +375,82 @@ export default function StrategicKpiPage() {
                 />
               </div>
 
-              {/* ELLANSE Дистриб'ютори — навчання */}
-              {selectedBrand === ELLANSE_BRAND && channel === 'distributors' && block.target && (
-                <div className="pt-5 border-t border-dashed border-[rgba(6,42,61,0.15)]">
-                  <p className="sk-lbl mb-3 flex items-center gap-1.5 text-amber-700">
+              {/* ELLANSE Дистриб'ютори — навчання (план + факт семінарів) */}
+              {selectedBrand === ELLANSE_BRAND && channel === 'distributors' && (
+                <div className="pt-5 border-t border-dashed border-[rgba(6,42,61,0.15)] space-y-4">
+                  <p className="sk-lbl flex items-center gap-1.5 text-amber-700">
                     <GraduationCap className="h-3 w-3" /> Навчання Ellanse — Полтава + Чернівці
                   </p>
-                  <div className="text-[11px] sk-muted mb-3">
-                    Ці таргети + факт з <Link href="/admin/ellanse-seminars" className="text-emet-blue underline">/admin/ellanse-seminars</Link>.
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12px]">
-                    <StaticRow label="Нових обучених у рік, план" value={block.target.new_trained_annual} />
-                    <StaticRow label="Провести навчань у рік, план" value={block.target.trainings_annual}
-                      suffix={block.target.trainings_repeat ? `(+${block.target.trainings_repeat} повт.)` : ''} />
-                    <StaticRow label="Конверсія → повторні, %" value={block.target.conversion_repeat_pct} />
-                    <StaticRow label="Утримання у міс., план" value={block.target.retention_monthly} />
-                  </div>
+
+                  {/* Факт семінарів (з ellanse_seminars_actual) */}
+                  {block.seminars_actual && (
+                    <div>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2">
+                        Факт семінарів · {periodLabel}
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <SeminarStatCard
+                          label="Разом семінарів"
+                          period={block.seminars_actual.period.seminars_held}
+                          ytd={block.seminars_actual.ytd.seminars_held}
+                        />
+                        <SeminarStatCard
+                          label="Разом обучено"
+                          period={block.seminars_actual.period.new_trained}
+                          ytd={block.seminars_actual.ytd.new_trained}
+                        />
+                        <div className="rounded-2xl sk-glass-soft p-3.5 flex items-center justify-center">
+                          <Link href="/admin/ellanse-seminars"
+                            className="text-[11px] text-[#066aab] font-bold underline hover:no-underline">
+                            Редагувати факт →
+                          </Link>
+                        </div>
+                      </div>
+                      {block.seminars_actual.by_location.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                          {block.seminars_actual.by_location.map(loc => (
+                            <div key={loc.location} className="rounded-2xl sk-glass-soft p-3.5">
+                              <p className="text-[10.5px] font-bold uppercase tracking-wider text-[#066aab] mb-2">
+                                {loc.location === 'poltava' ? 'Полтава' : 'Чернівці'}
+                              </p>
+                              <div className="grid grid-cols-2 gap-2 text-[12px]">
+                                <div>
+                                  <div className="sk-muted text-[10px]">Семінарів (період)</div>
+                                  <div className="mono font-bold text-[18px]">{loc.period.seminars_held}</div>
+                                  <div className="sk-muted text-[10px]">YTD: {loc.ytd.seminars_held}</div>
+                                </div>
+                                <div>
+                                  <div className="sk-muted text-[10px]">Обучено (період)</div>
+                                  <div className="mono font-bold text-[18px]">{loc.period.new_trained || '—'}</div>
+                                  <div className="sk-muted text-[10px]">YTD: {loc.ytd.new_trained || '—'}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* План (річні цілі) */}
+                  {block.target ? (
+                    <div>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2">
+                        План на рік {data?.year}
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12px]">
+                        <StaticRow label="Нових обучених у рік, план" value={block.target.new_trained_annual} />
+                        <StaticRow label="Провести навчань у рік, план" value={block.target.trainings_annual}
+                          suffix={block.target.trainings_repeat ? `(+${block.target.trainings_repeat} повт.)` : ''} />
+                        <StaticRow label="Конверсія → повторні, %" value={block.target.conversion_repeat_pct} />
+                        <StaticRow label="Утримання у міс., план" value={block.target.retention_monthly} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[11.5px] sk-muted italic">
+                      Цілі не введено. <Link href="/admin/strategic-targets" className="text-emet-blue underline">Ввести</Link>.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -442,17 +526,29 @@ function MetricCard({ label, Icon, monthValue, ytdValue, target, simplePct, pace
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-[10.5px]">
         {simplePct != null ? (
-          <span className={`sk-chip sk-chip-${status}`}>{fmtPct(simplePct)} прост.</span>
+          <span className={`sk-chip sk-chip-${status}`} title="Факт / ціль">{fmtPct(simplePct)} від цілі</span>
         ) : (
           <span className="sk-muted">цілі не введено</span>
         )}
         {pacePct != null && (
-          <span className="sk-chip sk-chip-ok">темп {fmtPct(pacePct)}</span>
+          <span className="sk-chip sk-chip-ok" title="Факт vs очікуваний рівень на цей момент року">на темпі {fmtPct(pacePct)}</span>
         )}
         {forecast != null && (
-          <span className="sk-muted">прогн. {isUsd ? fmtUSD(forecast) : Math.round(forecast).toLocaleString('en-US')}</span>
+          <span className="sk-muted" title="Прогноз на кінець року при збереженні темпу">
+            прогноз на рік: {isUsd ? fmtUSD(forecast) : Math.round(forecast).toLocaleString('en-US')}
+          </span>
         )}
       </div>
+    </div>
+  );
+}
+
+function SeminarStatCard({ label, period, ytd }: { label: string; period: number; ytd: number }) {
+  return (
+    <div className="rounded-2xl sk-glass-soft p-3.5">
+      <div className="sk-lbl">{label}</div>
+      <div className="mono font-bold text-[26px] leading-none mt-1.5">{period}</div>
+      <div className="text-[10.5px] sk-muted mt-1">YTD: <span className="mono font-bold">{ytd}</span></div>
     </div>
   );
 }
@@ -465,6 +561,131 @@ function StaticRow({ label, value, suffix }: { label: string; value: number | nu
         {value ?? '—'}
         {suffix && <span className="text-[10px] sk-muted ml-1 font-normal">{suffix}</span>}
       </span>
+    </div>
+  );
+}
+
+// ============================================================================
+// PeriodPicker — custom селектор Місяць/Квартал/Півріччя/Рік у стилі v3
+// ============================================================================
+type PeriodKind = 'month' | 'quarter' | 'half' | 'year';
+
+function detectKind(p: string): PeriodKind {
+  if (/^\d{4}-Q[1-4]$/i.test(p)) return 'quarter';
+  if (/^\d{4}-H[12]$/i.test(p)) return 'half';
+  if (/^\d{4}$/.test(p)) return 'year';
+  return 'month';
+}
+
+function PeriodPicker({ period, onChange }: { period: string; onChange: (p: string) => void }) {
+  const kind = detectKind(period);
+  const year = Number(period.slice(0, 4));
+
+  const setKind = (k: PeriodKind) => {
+    const now = new Date();
+    const yr = year || now.getFullYear();
+    if (k === 'month') {
+      const m = kind === 'month' ? Number(period.slice(5, 7)) : now.getMonth() + 1;
+      onChange(`${yr}-${String(m).padStart(2, '0')}`);
+    } else if (k === 'quarter') {
+      const q = kind === 'quarter' ? Number(period.slice(-1)) : Math.floor(now.getMonth() / 3) + 1;
+      onChange(`${yr}-Q${q}`);
+    } else if (k === 'half') {
+      const h = kind === 'half' ? Number(period.slice(-1)) : now.getMonth() < 6 ? 1 : 2;
+      onChange(`${yr}-H${h}`);
+    } else {
+      onChange(`${yr}`);
+    }
+  };
+
+  const setYear = (yr: number) => {
+    if (kind === 'month') onChange(`${yr}-${period.slice(5, 7)}`);
+    else if (kind === 'quarter' || kind === 'half') onChange(`${yr}${period.slice(4)}`);
+    else onChange(`${yr}`);
+  };
+
+  const KINDS: Array<[PeriodKind, string]> = [
+    ['month', 'Місяць'], ['quarter', 'Квартал'], ['half', 'Півріччя'], ['year', 'Рік'],
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="sk-lbl">Період</div>
+        {/* Segment control */}
+        <div className="flex gap-1 p-1 rounded-xl bg-[rgba(6,42,61,0.06)]">
+          {KINDS.map(([k, lbl]) => (
+            <button key={k} type="button" onClick={() => setKind(k)}
+              className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+                kind === k
+                  ? 'bg-white text-[#066aab] shadow-sm'
+                  : 'text-[rgba(6,42,61,0.58)] hover:text-[#062a3d]'
+              }`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+        {/* Рік */}
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={() => setYear(year - 1)}
+            className="w-8 h-8 rounded-lg bg-white border border-[rgba(6,42,61,0.12)] hover:bg-[rgba(6,42,61,0.04)] text-[13px] font-bold">‹</button>
+          <div className="min-w-[60px] text-center mono font-bold text-[14px]">{year}</div>
+          <button type="button" onClick={() => setYear(year + 1)}
+            className="w-8 h-8 rounded-lg bg-white border border-[rgba(6,42,61,0.12)] hover:bg-[rgba(6,42,61,0.04)] text-[13px] font-bold">›</button>
+        </div>
+      </div>
+
+      {/* Sub-selector */}
+      {kind === 'month' && <MonthSubPicker period={period} onChange={onChange} />}
+      {kind === 'quarter' && <SegmentPicker
+        options={[['Q1', 'Q1 · січ-бер'], ['Q2', 'Q2 · квіт-чер'], ['Q3', 'Q3 · лип-вер'], ['Q4', 'Q4 · жов-гру']]}
+        value={period.slice(-2)} onChange={v => onChange(`${year}-${v}`)}
+      />}
+      {kind === 'half' && <SegmentPicker
+        options={[['H1', 'І півріччя · січ-чер'], ['H2', 'ІІ півріччя · лип-гру']]}
+        value={period.slice(-2)} onChange={v => onChange(`${year}-${v}`)}
+      />}
+    </div>
+  );
+}
+
+function MonthSubPicker({ period, onChange }: { period: string; onChange: (p: string) => void }) {
+  const currentMonth = Number(period.slice(5, 7));
+  const year = period.slice(0, 4);
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {MONTHS_UA.map((name, i) => {
+        const m = i + 1;
+        const active = m === currentMonth;
+        return (
+          <button key={m} type="button"
+            onClick={() => onChange(`${year}-${String(m).padStart(2, '0')}`)}
+            className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+              active
+                ? 'bg-gradient-to-br from-[#066aab] to-[#0284c7] text-white shadow-md shadow-[rgba(6,106,171,0.3)]'
+                : 'bg-white/60 border border-[rgba(6,42,61,0.08)] text-[rgba(6,42,61,0.65)] hover:text-[#062a3d] hover:bg-white'
+            }`}>
+            {name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SegmentPicker({ options, value, onChange }: { options: Array<[string, string]>; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map(([v, lbl]) => (
+        <button key={v} type="button" onClick={() => onChange(v)}
+          className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${
+            value === v
+              ? 'bg-gradient-to-br from-[#066aab] to-[#0284c7] text-white shadow-md shadow-[rgba(6,106,171,0.3)]'
+              : 'bg-white/60 border border-[rgba(6,42,61,0.08)] text-[rgba(6,42,61,0.65)] hover:text-[#062a3d] hover:bg-white'
+          }`}>
+          {lbl}
+        </button>
+      ))}
     </div>
   );
 }

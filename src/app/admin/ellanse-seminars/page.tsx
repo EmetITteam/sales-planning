@@ -203,52 +203,53 @@ export default function EllanseSeminarsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-y-1">
-                  <div className="grid grid-cols-[100px_100px_100px_1fr_auto] gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground pb-1 border-b border-[#f0f2f8]">
-                    <span>Місяць</span>
-                    <span className="text-right">Семінарів</span>
-                    <span className="text-right">Обучено</span>
-                    <span>Примітка</span>
-                    <span />
-                  </div>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
-                    const key = `${m}|${loc}`;
-                    const r = getRow(m, loc);
-                    const isDirty = !!dirty[key];
-                    const existing = rows.find(x => x.month === m && x.location === loc);
-                    return (
-                      <div key={key} className="grid grid-cols-[100px_100px_100px_1fr_auto] gap-2 items-center py-1.5 text-[12.5px] border-b border-[#f0f2f8] last:border-b-0">
-                        <span className="text-muted-foreground">{MONTHS_UA[m - 1]}</span>
-                        <input
-                          type="number" min="0"
-                          value={r.seminars_held ?? ''}
-                          onChange={e => updateField(m, loc, 'seminars_held', e.target.value)}
-                          className="h-8 px-2 text-[12px] rounded-lg border border-[#e8ebf4] bg-white font-mono tabular-nums text-right"
-                        />
-                        <input
-                          type="number" min="0"
-                          value={r.new_trained ?? ''}
-                          placeholder="—"
-                          onChange={e => updateField(m, loc, 'new_trained', e.target.value)}
-                          className="h-8 px-2 text-[12px] rounded-lg border border-[#e8ebf4] bg-white font-mono tabular-nums text-right"
-                        />
-                        <input
-                          type="text"
-                          value={r.notes ?? ''}
-                          placeholder={existing?.updated_at ? `${existing.updated_by} · ${new Date(existing.updated_at).toLocaleDateString('uk-UA')}` : ''}
-                          onChange={e => updateField(m, loc, 'notes', e.target.value)}
-                          className="h-8 px-2 text-[12px] rounded-lg border border-[#e8ebf4] bg-white"
-                        />
-                        <button type="button" onClick={() => save(m, loc)}
-                          disabled={!isDirty || savingKey === key}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emet-blue text-white text-[11px] font-bold hover:bg-emet-blue/90 disabled:opacity-30 transition-all"
-                        >
-                          {savingKey === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                        </button>
-                      </div>
-                    );
-                  })}
+                {/* Header */}
+                <div className="grid grid-cols-[110px_110px_110px_1fr_44px] gap-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground pb-2 border-b border-[#f0f2f8] items-center">
+                  <span>Місяць</span>
+                  <span className="text-right">Семінарів</span>
+                  <span className="text-right">Обучено</span>
+                  <span>Примітка</span>
+                  <span />
                 </div>
+                {/* Rows */}
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                  const key = `${m}|${loc}`;
+                  const r = getRow(m, loc);
+                  const isDirty = !!dirty[key];
+                  const existing = rows.find(x => x.month === m && x.location === loc);
+                  return (
+                    <div key={key} className="grid grid-cols-[110px_110px_110px_1fr_44px] gap-3 items-center py-2 text-[12.5px] border-b border-[#f0f2f8] last:border-b-0">
+                      <span className="text-muted-foreground">{MONTHS_UA[m - 1]}</span>
+                      <input
+                        type="number" min="0"
+                        value={r.seminars_held ?? ''}
+                        onChange={e => updateField(m, loc, 'seminars_held', e.target.value)}
+                        className="h-9 w-full px-2.5 text-[13px] rounded-lg border border-[#e8ebf4] bg-white font-mono tabular-nums text-right"
+                      />
+                      <input
+                        type="number" min="0"
+                        value={r.new_trained ?? ''}
+                        placeholder="—"
+                        onChange={e => updateField(m, loc, 'new_trained', e.target.value)}
+                        className="h-9 w-full px-2.5 text-[13px] rounded-lg border border-[#e8ebf4] bg-white font-mono tabular-nums text-right"
+                      />
+                      <input
+                        type="text"
+                        value={r.notes ?? ''}
+                        placeholder={existing?.updated_at ? `${existing.updated_by} · ${new Date(existing.updated_at).toLocaleDateString('uk-UA')}` : ''}
+                        onChange={e => updateField(m, loc, 'notes', e.target.value)}
+                        className="h-9 w-full px-2.5 text-[12px] rounded-lg border border-[#e8ebf4] bg-white"
+                      />
+                      <button type="button" onClick={() => save(m, loc)}
+                        disabled={!isDirty || savingKey === key}
+                        className="w-9 h-9 rounded-lg bg-emet-blue text-white flex items-center justify-center hover:bg-emet-blue/90 disabled:opacity-30 transition-all"
+                        title="Зберегти рядок"
+                      >
+                        {savingKey === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
