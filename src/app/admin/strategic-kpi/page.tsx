@@ -105,16 +105,8 @@ interface ApiResponse {
   first_trained: { period: number; ytd: number } | null;
   rep_seminars: Array<{ seminar: string; division: string; unique_clients: number }> | null;
   ellanse_seminars_summary: { plan: number; actual_ytd: number } | null;
-  segment_summary: {
-    brand: string;
-    month_uc: number;
-    month_sum: number;
-    ytd_uc: number;
-    ytd_sum: number;
-    plan_month_uc: number;
-    plan_month_sum_derived: number;
-    plan_ytd_uc: number;
-  } | null;
+  // Грошові плани з 1С Action 4: onec_plans[brand][channel] = plan_usd
+  onec_plans: Record<string, Record<string, number>>;
 }
 
 const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number }>> = {
@@ -220,20 +212,24 @@ export default function StrategicKpiPage() {
   }, [period]);
   const m = data?.monthIndex ?? 0;
 
-  // Грошовий % (fact_$ / sum(buyers_monthly × avg_check)). Fallback — клієнтський.
+  // Ключ 1С-плану: сегмент (IUSE) → 'IUSE', інакше сам бренд.
+  const planBrandKey = isSegment(selectedBrand) ? (selectedBrand as string) : selectedBrand;
+
+  // Грошовий % = сума факту / сума РЕАЛЬНОГО плану 1С (Action 4, як в Огляді).
+  // Fallback — клієнтський % коли 1С-плану немає (БАД).
   const brandExecution = useMemo(() => {
-    if (isSegment(selectedBrand) && data?.segment_summary?.plan_month_sum_derived) {
-      return (data.segment_summary.month_sum / data.segment_summary.plan_month_sum_derived) * 100;
-    }
+    if (!data) return null;
+    const planMap = data.onec_plans?.[planBrandKey] ?? {};
     let factSum = 0, planSum = 0;
+    const seen = new Set<string>();
     for (const b of brandBlocks) {
       if (b.month?.total_sum_usd) factSum += b.month.total_sum_usd;
-      if (b.target?.buyers_monthly && b.target.avg_check_annual) planSum += b.target.buyers_monthly * b.target.avg_check_annual;
+      if (!seen.has(b.channel)) { planSum += planMap[b.channel] ?? 0; seen.add(b.channel); }
     }
     if (planSum > 0) return (factSum / planSum) * 100;
     const pcts = brandBlocks.filter(b => b.month?.unique_clients && b.execution.buyers_monthly_pct != null).map(b => b.execution.buyers_monthly_pct!);
     return pcts.length ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
-  }, [brandBlocks, data, selectedBrand]);
+  }, [brandBlocks, data, planBrandKey]);
 
   if (!user || !isStrategicKpiLogin(user.login)) return null;
 
@@ -429,10 +425,10 @@ export default function StrategicKpiPage() {
           const hasPromos = block.promos.length > 0;
           if (!hasMonth && !hasYtd && !hasSeminars && !hasPromos && !block.target) return null;
           const Icon = CHANNEL_ICON[channel];
-          // Грошовий % per канал: fact_$ / (target.buyers_monthly × target.avg_check_annual)
-          const planDollar = (block.target?.buyers_monthly ?? 0) * (block.target?.avg_check_annual ?? 0);
-          const overallPct = planDollar > 0 && block.month?.total_sum_usd
-            ? (block.month.total_sum_usd / planDollar) * 100
+          // Грошовий % per канал з РЕАЛЬНОГО плану 1С (Action 4).
+          const planUsd = data?.onec_plans?.[planBrandKey]?.[channel] ?? 0;
+          const overallPct = planUsd > 0 && block.month?.total_sum_usd
+            ? (block.month.total_sum_usd / planUsd) * 100
             : block.execution.buyers_monthly_pct;
           const overallStatus = statusColor(overallPct);
 
@@ -449,14 +445,14 @@ export default function StrategicKpiPage() {
                       <span className="text-muted-foreground font-medium"> · <span className="text-[#066aab]">{block.brand}</span></span>
                     )}
                   </h3>
-                  {!block.target && !isSegment(selectedBrand) && (
-                    <p className="text-[11px] text-amber-700 mt-0.5">
-                      Таргети не введено · <Link href="/admin/strategic-targets" className="underline">Ввести</Link>
+                  {planUsd > 0 && !isSegment(selectedBrand) && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      План <b className="mono text-[#062a3d]">{fmtUSD(planUsd)}</b>
+                      {block.month?.total_sum_usd != null && <> · Факт <b className="mono text-[#062a3d]">{fmtUSD(block.month.total_sum_usd)}</b></>}
                     </p>
                   )}
                 </div>
-                {/* % виконання ХОВАЄМО на підбренд-блоках сегмента —
-                    плану на sub-brand немає, % тільки на hero сегмента. */}
+                {/* % ховаємо на підбренд-блоках сегмента (плану на sub-brand немає). */}
                 {overallPct !== null && !isSegment(selectedBrand) && (
                   <div className="text-right">
                     <div className={`num text-[26px] font-bold leading-none sk-text-${overallStatus}`}>{fmtPct(overallPct)}</div>
