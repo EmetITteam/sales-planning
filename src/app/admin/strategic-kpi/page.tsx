@@ -477,7 +477,10 @@ export default function StrategicKpiPage() {
                   <MetricCard
                     label="Середній чек"
                     Icon={DollarSign}
-                    ytdValue={block.ytd?.avg_check_usd ?? null}
+                    // ⚠ Раніше було ytdValue (YTD-сума / YTD-унік клієнти)
+                    //   — це давало $2,054 замість реального $974 за червень.
+                    //   Тепер картка показує саме ЧЕК ЗА ПЕРІОД як «Купують у міс.» і «ср/уп».
+                    monthValue={block.month?.avg_check_usd ?? null}
                     target={block.target?.avg_check_annual ?? null}
                     simplePct={block.execution.avg_check_annual_pct}
                     isUsd
