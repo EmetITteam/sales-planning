@@ -14,14 +14,12 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { AsyncCache } from './cache-helper';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// In-memory cache: (brand + dateFrom + dateTo) → categories, TTL 5 хв.
-// getBrandClientCategories тягне ~70K рядків від початку бази до dateTo — це
-// повільно (14-30 сек). Кеш різко зменшує повторні виклики.
-const CATEGORIES_CACHE = new Map<string, { at: number; data: ClientCategories }>();
-const CATEGORIES_TTL_MS = 5 * 60 * 1000;
+// AsyncCache: 5-хв TTL + dedup race + LRU eviction + frozen return.
+const CATEGORIES_CACHE = new AsyncCache<ClientCategories>(5 * 60 * 1000, 'categories');
 
 export interface ClientCategories {
   new: number;
@@ -82,11 +80,14 @@ export async function getBrandClientCategories(
   dateToIso: string,
 ): Promise<ClientCategories> {
   const cacheKey = `${brand}|${dateFromIso}|${dateToIso}`;
-  const cached = CATEGORIES_CACHE.get(cacheKey);
-  if (cached && Date.now() - cached.at < CATEGORIES_TTL_MS) {
-    return cached.data;
-  }
+  return CATEGORIES_CACHE.getOrLoad(cacheKey, () => computeCategories(brand, dateFromIso, dateToIso));
+}
 
+async function computeCategories(
+  brand: string,
+  dateFromIso: string,
+  dateToIso: string,
+): Promise<ClientCategories> {
   // Пробуємо RPC (швидко)
   interface RpcRow { new_cnt: number; active_cnt: number; sleeping_cnt: number; lost_cnt: number; total_cnt: number }
   const rpc = await supabase.rpc<RpcRow[]>('get_brand_client_categories', {
@@ -96,17 +97,14 @@ export async function getBrandClientCategories(
   });
   if (!rpc.error && Array.isArray(rpc.data) && rpc.data.length > 0) {
     const row = rpc.data[0];
-    const result: ClientCategories = {
+    return {
       new: row.new_cnt || 0,
       active: row.active_cnt || 0,
       sleeping: row.sleeping_cnt || 0,
       lost: row.lost_cnt || 0,
       total: row.total_cnt || 0,
     };
-    CATEGORIES_CACHE.set(cacheKey, { at: Date.now(), data: result });
-    return result;
   }
-  // Якщо RPC failed — логуємо і йдемо на JS fallback
   if (rpc.error) {
     console.warn('[categories] RPC failed, using JS fallback:', rpc.error.message);
   }
@@ -115,9 +113,8 @@ export async function getBrandClientCategories(
   const rows = await fetchAllBrandRows(brand, dateToIso);
   const periodStart = new Date(dateFromIso).getTime();
 
-  // Для кожного клієнта: перша дата у періоді + остання дата ДО періоду
-  const periodClients = new Map<string, boolean>();  // client → any purchase in period
-  const lastBefore = new Map<string, number>();       // client → max(sale_date < periodStart)
+  const periodClients = new Map<string, boolean>();
+  const lastBefore = new Map<string, number>();
 
   for (const r of rows) {
     const t = new Date(r.sale_date).getTime();
@@ -142,6 +139,5 @@ export async function getBrandClientCategories(
       else result.lost++;
     }
   }
-  CATEGORIES_CACHE.set(cacheKey, { at: Date.now(), data: result });
   return result;
 }

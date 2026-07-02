@@ -16,8 +16,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar } from 'lucide-react';
+import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar, TrendingUp } from 'lucide-react';
 import { NotificationsBell } from '@/components/notifications/notifications-bell';
+import { isStrategicKpiLogin } from '@/lib/feature-flags';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -55,7 +56,8 @@ export function AppHeader() {
   const pathname = usePathname();
   const isOnClientsPage = pathname?.startsWith('/clients') ?? false;
   const isOnMeetingsPage = pathname?.startsWith('/meetings') ?? false;
-  const isOnPlanningPage = !isOnClientsPage && !isOnMeetingsPage;
+  const isOnStrategicKpiPage = pathname?.startsWith('/admin/strategic-kpi') ?? false;
+  const isOnPlanningPage = !isOnClientsPage && !isOnMeetingsPage && !isOnStrategicKpiPage;
   // Cursor-following gradient на всіх glass-card. Один document listener.
   useGlassHover();
   const handleLogout = async () => {
@@ -175,7 +177,7 @@ export function AppHeader() {
             Якщо ми НЕ на головній (/clients, /meetings, /admin/...) — клік
             переводить на головну з відповідним activeView. Інакше — звичайний
             in-place toggle (state-only). */}
-        {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
+        {(user.role === 'admin' || user.canViewCompanyOverview === true || isStrategicKpiLogin(user.login)) && (
           <div className="hidden md:inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 ml-2 shrink-0">
             <button
               onClick={() => {
@@ -203,6 +205,20 @@ export function AppHeader() {
             >
               Огляд компанії
             </button>
+            {/* Стратегічний KPI — тільки для ITD (admin) + Директора продажів. */}
+            {isStrategicKpiLogin(user.login) && (
+              <button
+                onClick={() => router.push('/admin/strategic-kpi')}
+                className={`inline-flex items-center gap-1.5 h-7 px-4 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  isOnStrategicKpiPage
+                    ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <TrendingUp className="h-3 w-3" />
+                Стратегія
+              </button>
+            )}
           </div>
         )}
 

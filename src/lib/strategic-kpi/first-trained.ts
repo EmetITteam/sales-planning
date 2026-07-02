@@ -13,24 +13,23 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { AsyncCache } from './cache-helper';
 
 interface EllanseSeminarRow {
   client_code: string;
   sale_date: string;
 }
 
-// Кеш повного firstTrainedMap на 10 хв — весь Ellanse×seminar dataset малий (~5K)
-// але порційно все одно тягнеться довгувато.
-let FT_CACHE: { at: number; map: Map<string, Date> } | null = null;
-const FT_TTL_MS = 10 * 60 * 1000;
+// AsyncCache: single-key бо buildFirstTrainedMap не має параметрів. 10-хв TTL
+// бо dataset важкий (5-10K рядків). Dedup гарантує що при cold start двом
+// одночасним запитам ми НЕ тягнемо все двічі.
+const FT_CACHE = new AsyncCache<Map<string, Date>>(10 * 60 * 1000, 'first-trained');
 
-/**
- * Тягне всі ELLANSE-seminar рядки за весь час, будує firstTrainedDate map.
- * Кешування — на рівні API route (5-хвилинний in-memory кеш).
- */
 export async function buildFirstTrainedMap(): Promise<Map<string, Date>> {
-  if (FT_CACHE && Date.now() - FT_CACHE.at < FT_TTL_MS) return FT_CACHE.map;
+  return FT_CACHE.getOrLoad('__singleton__', () => doBuildFirstTrainedMap());
+}
 
+async function doBuildFirstTrainedMap(): Promise<Map<string, Date>> {
   const map = new Map<string, Date>();
   let from = 0;
   const PAGE = 1000;
@@ -68,7 +67,6 @@ export async function buildFirstTrainedMap(): Promise<Map<string, Date>> {
     if (rows.length < PAGE) break;
     from += PAGE;
   }
-  FT_CACHE = { at: Date.now(), map };
   return map;
 }
 

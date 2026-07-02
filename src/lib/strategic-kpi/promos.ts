@@ -296,12 +296,18 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
       }
     }
 
-    // Записуємо overlap: name — найкращий партнер, clients — сума по всій стороні
-    overlapMap.set(`${b.name}||${b.channel}`, {
-      name: bestPartner?.name ?? '(інша сторона)',
-      is_gift: !b.is_gift_any,
-      clients: overlapTotal,
-    });
+    // Записуємо overlap ТІЛЬКИ якщо є конкретний найкращий партнер.
+    // Раніше при null bestPartner ставили '(інша сторона)' — це вводило
+    // у оману користувача, коли pair-wise overlap = 0 але aggregate > 0
+    // (мала фрагментація по багатьох дрібних промо). Тепер UI просто
+    // не показує overlap-плашку для таких випадків.
+    if (bestPartner) {
+      overlapMap.set(`${b.name}||${b.channel}`, {
+        name: bestPartner.name,
+        is_gift: !b.is_gift_any,
+        clients: overlapTotal,
+      });
+    }
   }
 
   // Батчимо всі промо з sum=0 у один запит trigger-sums. Раніше було N+1:
@@ -327,11 +333,21 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
       if (trigger) sum = trigger.sum;
     }
     const overlapInfo = overlapMap.get(`${b.name}||${b.channel}`);
+    // Dedup правило (ITD 2026-07-02): якщо discount-промо перекликається з
+    // gift-промо у тому ж бренді/каналі, то overlap-клієнти зараховуємо у gift
+    // (це «сплеск» продажу — тригер акції). У discount-рядку показуємо тільки
+    // ЧИСТУ знижку (без gift-overlap). Гарантія: сума unique_clients по gift+
+    // discount = загальний унік. Не буде подвоєння у верхньоплановій цифрі.
+    // Gift-сторона залишається як є (усі overlap-клієнти зараховуються сюди).
+    let uc = b.clients.size;
+    if (!b.is_gift_any && overlapInfo && overlapInfo.is_gift) {
+      uc = Math.max(0, uc - overlapInfo.clients);
+    }
     result.push({
       name: b.name,
       brand: b.trigger_brand as Promo['brand'],
       channel: b.channel as StrategicChannel,
-      unique_clients: b.clients.size,
+      unique_clients: uc,
       total_qty: Math.round(qty * 100) / 100,
       total_sum_usd: Math.round(sum * 100) / 100,
       is_gift: b.is_gift_any,

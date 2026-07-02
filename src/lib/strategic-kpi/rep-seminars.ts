@@ -8,6 +8,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { AsyncCache } from './cache-helper';
 
 export interface RepSeminar {
   seminar: string;
@@ -21,21 +22,19 @@ interface Row {
   client_code: string;
 }
 
-const CACHE = new Map<string, { at: number; data: RepSeminar[] }>();
-const TTL_MS = 5 * 60 * 1000;
+const CACHE = new AsyncCache<RepSeminar[]>(5 * 60 * 1000, 'rep-seminars');
 
-/**
- * Тягне усі Ellanse-семінарські рядки у представництвах за період.
- * Групує по (seminar, division), рахує унікальних клієнтів.
- */
 export async function fetchEllanseRepSeminars(
   dateFromIso: string,
   dateToIso: string,
 ): Promise<RepSeminar[]> {
-  const key = `${dateFromIso}|${dateToIso}`;
-  const c = CACHE.get(key);
-  if (c && Date.now() - c.at < TTL_MS) return c.data;
+  return CACHE.getOrLoad(`${dateFromIso}|${dateToIso}`, () => doFetchRepSeminars(dateFromIso, dateToIso));
+}
 
+async function doFetchRepSeminars(
+  dateFromIso: string,
+  dateToIso: string,
+): Promise<RepSeminar[]> {
   const all: Row[] = [];
   let from = 0;
   const PAGE = 1000;
@@ -88,6 +87,5 @@ export async function fetchEllanseRepSeminars(
   }
   // Сортуємо: спочатку по division, потім за спаданням клієнтів
   result.sort((a, b) => a.division.localeCompare(b.division) || b.unique_clients - a.unique_clients);
-  CACHE.set(key, { at: Date.now(), data: result });
   return result;
 }

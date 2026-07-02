@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import { useGlassHover } from '@/hooks/use-glass-hover';
+import { isStrategicKpiLogin } from '@/lib/feature-flags';
 import {
   STRATEGIC_BRANDS,
   CHANNEL_LABEL,
@@ -95,6 +96,7 @@ interface ApiResponse {
   categories: Categories | null;
   first_trained: { period: number; ytd: number } | null;
   rep_seminars: Array<{ seminar: string; division: string; unique_clients: number }> | null;
+  ellanse_seminars_summary: { plan: number; actual_ytd: number } | null;
 }
 
 const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number }>> = {
@@ -138,7 +140,7 @@ export default function StrategicKpiPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { if (user && user.role !== 'admin') router.replace('/'); }, [user, router]);
+  useEffect(() => { if (user && !isStrategicKpiLogin(user.login)) router.replace('/'); }, [user, router]);
 
   const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
@@ -170,7 +172,7 @@ export default function StrategicKpiPage() {
   }, [period, selectedBrand]);
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') return;
+    if (!user || !isStrategicKpiLogin(user.login)) return;
     // AbortController — щоб при швидкому переключенні бренду/періоду старий
     // запит скасовувався і його результат не перезаписував новіший стан.
     const ctrl = new AbortController();
@@ -221,7 +223,7 @@ export default function StrategicKpiPage() {
     return pcts.length ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
   }, [brandBlocks]);
 
-  if (!user || user.role !== 'admin') return null;
+  if (!user || !isStrategicKpiLogin(user.login)) return null;
 
   return (
     <>
@@ -633,10 +635,19 @@ export default function StrategicKpiPage() {
                   </p>
                   <div className="space-y-1.5">
                     {block.promos.map(p => {
-                      // Overlap: якщо це промо перекликається з іншим (знижка + подарунок
-                      // на одні і ті ж продажі) — показуємо це чітко.
+                      // Overlap-розкладка.
+                      // unique_clients ВЖЕ dedup-ований на сервері:
+                      //   gift-сторона: вся група клієнтів (u_g)
+                      //   discount-сторона: лише «чиста знижка» = u_d - overlap
+                      // Для UI треба показати:
+                      //   gift promo: «Чисто подарунок = u_g - overlap, Разом зі знижкою = overlap»
+                      //   discount promo: «Чисто знижка = u_d (вже dedup), З подарунком = overlap»
+                      const overlapCount = p.overlap_with?.clients ?? 0;
                       const cleanCount = p.overlap_with
-                        ? Math.max(0, p.unique_clients - p.overlap_with.clients)
+                        ? (p.is_gift
+                          ? Math.max(0, p.unique_clients - overlapCount)   // gift row still has full total
+                          : p.unique_clients                                 // discount row already collapsed
+                        )
                         : null;
                       return (
                         <div key={p.name} className="rounded-xl sk-glass-soft text-[12px] px-3.5 py-2.5">

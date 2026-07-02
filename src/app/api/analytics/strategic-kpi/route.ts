@@ -16,7 +16,7 @@
 import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
-import { isAdminLogin } from '@/lib/feature-flags';
+import { isStrategicKpiLogin } from '@/lib/feature-flags';
 import { supabase } from '@/lib/supabase';
 import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregateYTDMetrics, fetchKpiMetricsBatch, fetchKpiMetricsAveragedBatch, parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { aggregatePromos } from '@/lib/strategic-kpi/promos';
@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
   if (!auth.valid) return Response.json({ error: auth.error }, { status: 401 });
   const session = await getSession();
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!isAdminLogin(session.login)) {
-    return Response.json({ error: 'Admin only' }, { status: 403 });
+  if (!isStrategicKpiLogin(session.login)) {
+    return Response.json({ error: 'Access denied' }, { status: 403 });
   }
 
   const url = new URL(request.url);
@@ -99,6 +99,10 @@ export async function GET(request: NextRequest) {
   let categories: ClientCategories | null = null;
   let firstTrained: { period: number; ytd: number } | null = null;
   let repSeminars: RepSeminar[] | null = null;
+  // Річна зведена картина Ellanse-навчань:
+  //   plan  = сума trainings_annual по всіх Ellanse × channel таргетах
+  //   actual_ytd = уник. пари (seminar, division) у представництвах + семінари у дистрів
+  let ellanseSeminarsSummary: { plan: number; actual_ytd: number } | null = null;
   if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
     try {
       categories = await getBrandClientCategories(brandParam, from, to);
@@ -122,6 +126,23 @@ export async function GET(request: NextRequest) {
         repSeminars = await fetchEllanseRepSeminars(from, to);
       } catch (e) {
         console.warn('rep-seminars failed:', (e as Error).message);
+      }
+      // Річна зведена картина
+      try {
+        const yearStartIso = `${year}-01-01T00:00:00Z`;
+        const ytdRepSeminars = await fetchEllanseRepSeminars(yearStartIso, to);
+        const distSeminarsYTD = seminars
+          .filter(s => s.month <= (endM === 0 ? 12 : endM))
+          .reduce((sum, s) => sum + (s.seminars_held ?? 0), 0);
+        const planTotal = targets
+          .filter(t => t.brand === 'Ellanse')
+          .reduce((sum, t) => sum + (t.trainings_annual ?? 0), 0);
+        ellanseSeminarsSummary = {
+          plan: planTotal,
+          actual_ytd: ytdRepSeminars.length + distSeminarsYTD,
+        };
+      } catch (e) {
+        console.warn('ellanse-seminars-summary failed:', (e as Error).message);
       }
     }
   }
@@ -285,5 +306,6 @@ export async function GET(request: NextRequest) {
     categories,      // тільки коли ?brand=X переданий
     first_trained: firstTrained,  // тільки для brand=Ellanse
     rep_seminars: repSeminars,    // тільки для brand=Ellanse — семінари у представництвах
+    ellanse_seminars_summary: ellanseSeminarsSummary,  // річний план + факт YTD
   });
 }

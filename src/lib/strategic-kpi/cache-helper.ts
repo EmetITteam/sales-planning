@@ -59,6 +59,20 @@ export class AsyncCache<T> {
     return promise;
   }
 
+  /** Sync API для legacy місць. Повертає frozen ready value або null. */
+  get(key: string): T | null {
+    const entry = this.map.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.at >= this.ttlMs) return null;
+    return entry.ready ?? null;
+  }
+
+  /** Sync set — freeze + LRU eviction. */
+  set(key: string, value: T) {
+    this.map.set(key, { at: Date.now(), ready: deepFreeze(value) });
+    this.evictIfNeeded();
+  }
+
   clear() { this.map.clear(); }
 
   /** LRU eviction — коли ліміт перевищено, видаляємо найстарші EVICT_BATCH. */

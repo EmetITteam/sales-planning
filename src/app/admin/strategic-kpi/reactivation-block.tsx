@@ -27,6 +27,7 @@ interface DimRow {
 interface CategoryOut {
   total_clients: number;
   total_sum_usd: number;
+  pct_of_reactivation: number;   // % категорії від суми всієї реактивації
   by_dim: DimRow[];
   by_promo: DimRow[];
 }
@@ -160,6 +161,19 @@ function CategorySection({ label, dotColor, hint, data, dimLabel, dimType }: {
         <span className="text-[11px] text-muted-foreground">
           <b className="mono">{data.total_clients}</b> кл. · <b className="mono">{fmtUSD(data.total_sum_usd)}</b>
         </span>
+        {data.pct_of_reactivation > 0 && (
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold border mono ml-auto"
+            style={{
+              background: `${dotColor}18`,
+              borderColor: `${dotColor}66`,
+              color: dotColor,
+            }}
+            title="Частка категорії у загальній сумі реактивації (Нові + Сплячі + Втрачені)"
+          >
+            {data.pct_of_reactivation.toFixed(1)}% від реактивації
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <RankTable title={dimLabel} rows={data.by_dim} humanize={dimType === 'channel'} />

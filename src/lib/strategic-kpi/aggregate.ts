@@ -13,19 +13,17 @@
 
 import { supabase } from '@/lib/supabase';
 import type { StrategicBrand, StrategicChannel } from './brands';
+import { AsyncCache } from './cache-helper';
 
-// In-memory cache: (from|to) → BrandChannelMetrics[], TTL 5 хв.
-// Одна і та сама пара [from, to) для різних брендів переюзує кеш.
-const METRICS_CACHE = new Map<string, { at: number; data: BrandChannelMetrics[] }>();
-const METRICS_TTL_MS = 5 * 60 * 1000;
+// AsyncCache: дедуплікує race при cache miss + LRU eviction + frozen return.
+const METRICS_CACHE = new AsyncCache<BrandChannelMetrics[]>(5 * 60 * 1000, 'metrics');
 
+// Обгортки для legacy викликів у цьому файлі.
 function cacheGet(key: string): BrandChannelMetrics[] | null {
-  const c = METRICS_CACHE.get(key);
-  if (c && Date.now() - c.at < METRICS_TTL_MS) return c.data;
-  return null;
+  return METRICS_CACHE.get(key);
 }
 function cacheSet(key: string, data: BrandChannelMetrics[]) {
-  METRICS_CACHE.set(key, { at: Date.now(), data });
+  METRICS_CACHE.set(key, data);
 }
 
 export interface BrandChannelMetrics {

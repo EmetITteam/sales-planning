@@ -123,3 +123,17 @@ export function isAdminLogin(login: string | null | undefined): boolean {
   if (!login) return false;
   return ADMIN_LOGINS.includes(login.toLowerCase().trim());
 }
+
+/**
+ * Хто має доступ до стратегічного KPI дашборду (`/admin/strategic-kpi`).
+ * ITD (admin) + Саша (Director of Sales, sdu@emet.in.ua) — щоб директор
+ * продажів міг переглядати без admin-повноважень.
+ */
+const STRATEGIC_KPI_LOGINS: readonly string[] = [
+  ...ADMIN_LOGINS,
+  DIRECTOR_PROXY_LOGIN,     // sdu@emet.in.ua
+];
+export function isStrategicKpiLogin(login: string | null | undefined): boolean {
+  if (!login) return false;
+  return STRATEGIC_KPI_LOGINS.includes(login.toLowerCase().trim());
+}
