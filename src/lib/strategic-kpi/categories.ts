@@ -70,6 +70,11 @@ async function fetchAllBrandRows(brand: string, dateToIso: string): Promise<Sale
 /**
  * Обчислює категорії клієнтів для бренду у [dateFromIso, dateToIso).
  * Кешовано у пам'яті на 5 хвилин.
+ *
+ * Стратегія (2026-07-02):
+ *  1. Спочатку пробуємо SQL RPC функцію `get_brand_client_categories`
+ *     (migration 030) — вона робить GROUP BY на сервері за ~500 мс.
+ *  2. Якщо RPC не існує (стара БД) — fallback на JS (тягне всі рядки).
  */
 export async function getBrandClientCategories(
   brand: string,
@@ -82,6 +87,31 @@ export async function getBrandClientCategories(
     return cached.data;
   }
 
+  // Пробуємо RPC (швидко)
+  interface RpcRow { new_cnt: number; active_cnt: number; sleeping_cnt: number; lost_cnt: number; total_cnt: number }
+  const rpc = await supabase.rpc<RpcRow[]>('get_brand_client_categories', {
+    p_brand: brand,
+    p_from: dateFromIso,
+    p_to: dateToIso,
+  });
+  if (!rpc.error && Array.isArray(rpc.data) && rpc.data.length > 0) {
+    const row = rpc.data[0];
+    const result: ClientCategories = {
+      new: row.new_cnt || 0,
+      active: row.active_cnt || 0,
+      sleeping: row.sleeping_cnt || 0,
+      lost: row.lost_cnt || 0,
+      total: row.total_cnt || 0,
+    };
+    CATEGORIES_CACHE.set(cacheKey, { at: Date.now(), data: result });
+    return result;
+  }
+  // Якщо RPC failed — логуємо і йдемо на JS fallback
+  if (rpc.error) {
+    console.warn('[categories] RPC failed, using JS fallback:', rpc.error.message);
+  }
+
+  // Fallback: JS-логіка
   const rows = await fetchAllBrandRows(brand, dateToIso);
   const periodStart = new Date(dateFromIso).getTime();
 

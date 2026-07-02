@@ -256,6 +256,29 @@ class SupabaseClient {
   from(table: string): SupabaseTable {
     return new SupabaseTable(this.url, { ...this.headers }, table);
   }
+
+  // rpc — виклик PostgreSQL функції через REST /rpc/{name}.
+  // Приклад: supabase.rpc('get_brand_client_categories', { p_brand: 'Vitaran', p_from: '...', p_to: '...' })
+  async rpc<T = unknown>(name: string, params: Record<string, unknown> = {}): Promise<{ data: T | null; error: { message: string } | null }> {
+    try {
+      const r = await fetch(`${this.url}/rest/v1/rpc/${name}`, {
+        method: 'POST',
+        headers: {
+          ...this.headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+      const text = await r.text();
+      if (!r.ok) {
+        return { data: null, error: { message: `HTTP ${r.status}: ${text}` } };
+      }
+      const data = text ? JSON.parse(text) as T : null;
+      return { data, error: null };
+    } catch (e) {
+      return { data: null, error: { message: (e as Error).message } };
+    }
+  }
 }
 
 export const supabase = new SupabaseClient(SUPABASE_URL, SUPABASE_KEY);

@@ -94,34 +94,42 @@ export function CategoryCard({ label, value, total, hint, accent }: {
   accent: 'mint' | 'good' | 'warn' | 'bad';
 }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
-  const bg = {
-    mint: 'linear-gradient(135deg, rgba(91,213,188,0.16) 0%, rgba(20,184,166,0.06) 100%)',
-    good: 'linear-gradient(135deg, rgba(20,184,166,0.14) 0%, rgba(91,213,188,0.06) 100%)',
-    warn: 'linear-gradient(135deg, rgba(251,146,60,0.14) 0%, rgba(251,146,60,0.05) 100%)',
-    bad:  'linear-gradient(135deg, rgba(225,29,72,0.12) 0%, rgba(225,29,72,0.04) 100%)',
+  // 3D-стиль: як у MetricCard — двошарова тінь (inset highlight + drop) +
+  // radial glow акцентного кольору у верхньому правому куті.
+  const palette = {
+    mint: { bg1: 'rgba(91,213,188,0.20)',  bg2: 'rgba(20,184,166,0.06)',  border: 'rgba(91,213,188,0.40)',  glow: 'rgba(91,213,188,0.35)',  num: '#0f766e' },
+    good: { bg1: 'rgba(20,184,166,0.18)',  bg2: 'rgba(91,213,188,0.06)',  border: 'rgba(20,184,166,0.38)',  glow: 'rgba(20,184,166,0.32)',  num: '#0f766e' },
+    warn: { bg1: 'rgba(251,146,60,0.18)',  bg2: 'rgba(251,146,60,0.05)',  border: 'rgba(251,146,60,0.38)',  glow: 'rgba(251,146,60,0.32)',  num: '#c2410c' },
+    bad:  { bg1: 'rgba(225,29,72,0.14)',   bg2: 'rgba(225,29,72,0.04)',   border: 'rgba(225,29,72,0.34)',   glow: 'rgba(225,29,72,0.28)',   num: '#be123c' },
   }[accent];
-  const border = {
-    mint: 'rgba(91,213,188,0.35)',
-    good: 'rgba(20,184,166,0.32)',
-    warn: 'rgba(251,146,60,0.32)',
-    bad:  'rgba(225,29,72,0.30)',
-  }[accent];
-  const numColor = { mint: '#0f766e', good: '#0f766e', warn: '#c2410c', bad: '#be123c' }[accent];
   return (
     <div
-      className="rounded-xl px-3 py-2 border flex items-center justify-between gap-2"
-      style={{ background: bg, borderColor: border }}
+      className="relative rounded-2xl px-3.5 py-2.5 border flex items-center justify-between gap-2 overflow-hidden transition-transform duration-200 hover:-translate-y-0.5"
+      style={{
+        background: `linear-gradient(135deg, ${palette.bg1} 0%, ${palette.bg2} 100%)`,
+        borderColor: palette.border,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 2px rgba(6,42,61,0.04), 0 4px 12px -4px ${palette.glow}`,
+      }}
       title={hint}
     >
-      <div>
-        <div className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: numColor, opacity: 0.85 }}>
+      {/* Radial glow accent */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: '-40%', right: '-20%', width: '90%', height: '160%',
+          background: `radial-gradient(ellipse at center, ${palette.glow} 0%, transparent 65%)`,
+          opacity: 0.65,
+        }}
+      />
+      <div className="relative">
+        <div className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: palette.num, opacity: 0.85 }}>
           {label}
         </div>
-        <div className="mono font-bold text-[18px] leading-none tabular-nums mt-0.5" style={{ color: numColor }}>
+        <div className="mono font-bold text-[20px] leading-none tabular-nums mt-1" style={{ color: palette.num, textShadow: '0 1px 0 rgba(255,255,255,0.4)' }}>
           {value}
         </div>
       </div>
-      <div className="mono text-[10px] font-bold whitespace-nowrap" style={{ color: numColor, opacity: 0.65 }}>
+      <div className="relative mono text-[10px] font-bold whitespace-nowrap" style={{ color: palette.num, opacity: 0.7 }}>
         {pct.toFixed(0)}%
       </div>
     </div>
@@ -326,13 +334,52 @@ export function SkeletonHero() {
           0%, 100% { opacity: 0.4; }
           50% { opacity: 0.7; }
         }
+        @keyframes skBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.35; }
+        }
+        @keyframes skDot {
+          0%, 20% { opacity: 0.2; }
+          50% { opacity: 1; }
+          80%, 100% { opacity: 0.2; }
+        }
         .sk-skel {
           background: linear-gradient(90deg, rgba(6,42,61,0.05) 25%, rgba(6,42,61,0.10) 50%, rgba(6,42,61,0.05) 75%);
           background-size: 200% 100%;
           animation: skPulse 1.6s ease-in-out infinite;
           border-radius: 8px;
         }
+        .sk-loading-banner {
+          animation: skBlink 1.4s ease-in-out infinite;
+        }
+        .sk-loading-dot {
+          display: inline-block;
+          animation: skDot 1.4s ease-in-out infinite;
+        }
+        .sk-loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .sk-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes skSpin { to { transform: rotate(360deg); } }
+        .sk-spinner {
+          width: 14px; height: 14px; border-radius: 50%;
+          border: 2px solid rgba(6,106,171,0.18);
+          border-top-color: #066aab;
+          animation: skSpin 0.85s linear infinite;
+        }
       `}</style>
+
+      {/* Banner: «Розрахунок даних...» — з крутком + мигання */}
+      <div className="sk-glass px-4 py-3 flex items-center gap-3 sk-loading-banner">
+        <div className="sk-spinner" />
+        <div className="flex items-baseline gap-1">
+          <span className="text-[13px] font-bold text-[#066aab] tracking-tight">Розрахунок даних</span>
+          <span className="text-[13px] font-bold text-[#066aab]">
+            <span className="sk-loading-dot">.</span>
+            <span className="sk-loading-dot">.</span>
+            <span className="sk-loading-dot">.</span>
+          </span>
+        </div>
+        <span className="text-[11px] text-[#3a5570] opacity-70 ml-auto">Перше завантаження — до 15 сек, далі з кешу</span>
+      </div>
 
       {/* Hero skeleton */}
       <div className="sk-glass p-5 relative overflow-hidden">
