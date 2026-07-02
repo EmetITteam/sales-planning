@@ -13,10 +13,10 @@
 
 import { supabase } from '@/lib/supabase';
 import type { StrategicBrand, StrategicChannel } from './brands';
+import { AsyncCache } from './cache-helper';
 
-// 5-хв in-memory кеш промо
-const PROMOS_CACHE = new Map<string, { at: number; data: Promo[] }>();
-const PROMOS_TTL_MS = 5 * 60 * 1000;
+// 5-хв кеш з дедуплікацією in-flight запитів + LRU eviction + frozen return
+const PROMOS_CACHE = new AsyncCache<Promo[]>(5 * 60 * 1000, 'promos');
 
 export interface Promo {
   name: string;
@@ -147,7 +147,10 @@ async function fetchTriggerSumsBatch(
   // GET URL довжина > лімітів — PostgREST мовчки обрізає).
   interface Row { doc_id: string; brand: string; sum_usd: number; qty: number }
   const allRows: Row[] = [];
-  const CHUNK = 200; // ~200 × 12-char doc_id ≈ 2.4KB що безпечно у query string
+  // CHUNK 100 замість 200 (audit Agent 4): при 200 × 12-char + escape ≈ 2.4KB
+  // що може обрізуватись PostgREST мовчки. 100 × 12-char ≈ 1.2KB — безпечний
+  // запас під більшість URL-лімітів (Vercel/Cloudflare 4-8KB).
+  const CHUNK = 100;
   for (let i = 0; i < allDocs.length; i += CHUNK) {
     const chunk = allDocs.slice(i, i + CHUNK);
     const res = await supabase
@@ -191,10 +194,10 @@ async function fetchTriggerSumsBatch(
  * щоб отримати подарунок».
  */
 export async function aggregatePromos(dateFrom: string, dateTo: string): Promise<Promo[]> {
-  const cacheKey = `${dateFrom}|${dateTo}`;
-  const c = PROMOS_CACHE.get(cacheKey);
-  if (c && Date.now() - c.at < PROMOS_TTL_MS) return c.data;
+  return PROMOS_CACHE.getOrLoad(`${dateFrom}|${dateTo}`, () => computePromos(dateFrom, dateTo));
+}
 
+async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]> {
   const rows = await fetchPromoRows(dateFrom, dateTo);
 
   const promoMap = new Map<string, {
@@ -336,7 +339,6 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
       overlap_with: overlapInfo,
     });
   }
-  PROMOS_CACHE.set(cacheKey, { at: Date.now(), data: result });
   return result;
 }
 

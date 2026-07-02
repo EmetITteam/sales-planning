@@ -36,11 +36,21 @@ export async function buildFirstTrainedMap(): Promise<Map<string, Date>> {
   const PAGE = 1000;
 
   while (true) {
+    // ⚠ ФІЛЬТРИ (audit 2026-07-02, Agent 1):
+    //   is_gift=false      — клієнт що ТІЛЬКИ отримав Ellanse-семінар як подарунок
+    //                        НЕ є «навченим клієнтом». Не рахуємо.
+    //   is_ignored=false   — розхідники / сервісні рядки.
+    //   is_excluded=false  — реклама / ДР / гонорар — теж не рахуємо.
+    // Раніше ці фільтри були відсутні → «уперше навчений» рахував подарункові
+    // семінари, що завищувало метрику.
     const result = await supabase
       .from('sales')
       .select('client_code,sale_date')
       .eq('brand', 'Ellanse')
       .not('seminar', 'is', null)
+      .eq('is_gift', false)
+      .eq('is_ignored', false)
+      .eq('is_excluded', false)
       .order('id')
       .range(from, from + PAGE - 1);
 

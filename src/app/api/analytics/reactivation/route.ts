@@ -21,7 +21,9 @@ import { STRATEGIC_BRANDS } from '@/lib/strategic-kpi/brands';
 
 interface RpcRow {
   category: 'new' | 'sleeping' | 'lost';
-  dimension: 'brand' | 'channel' | 'promo';
+  // '__cat_total__' — новий тип рядка з migration 035: справжній COUNT DISTINCT
+  // клієнтів у категорії (без double-count по брендах).
+  dimension: 'brand' | 'channel' | 'promo' | '__cat_total__';
   key: string;
   unique_clients: number;
   total_qty: number | string;
@@ -102,9 +104,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Розкладаємо. Порахуємо total_clients як сумму DISTINCT client з dim=brand або
-  // dim=channel — це «клієнти категорії у періоді» (враховуємо всіх, не тільки топ-5).
-  const categoryTotalClients: Record<string, number> = { new: 0, sleeping: 0, lost: 0 };
+  // Розкладаємо. total_clients беремо з рядка dimension='__cat_total__'
+  // (справжній COUNT DISTINCT з RPC — migration 035). Це виправляє
+  // подвоєння коли клієнт купив 2 бренди у категорії.
+  const categoryTrueTotal: Record<string, number> = { new: 0, sleeping: 0, lost: 0 };
 
   for (const r of rpc.data) {
     if (!(r.category in categories)) continue;
@@ -112,6 +115,11 @@ export async function GET(request: NextRequest) {
     const sum = Number(r.total_sum_usd);
     const qty = Number(r.total_qty);
     const catTot = categoryTotal[r.category] ?? 0;
+
+    if (r.dimension === '__cat_total__') {
+      categoryTrueTotal[r.category] = r.unique_clients;
+      continue;
+    }
 
     const row: DimRow = {
       key: r.key,
@@ -123,27 +131,20 @@ export async function GET(request: NextRequest) {
 
     if (r.dimension === 'brand' || r.dimension === 'channel') {
       cat.by_dim.push(row);
-      categoryTotalClients[r.category] += r.unique_clients;
     } else if (r.dimension === 'promo') {
       cat.by_promo.push(row);
     }
   }
 
-  // total_clients = максимальне з (сума UC по dim) — dim унікальний по клієнтах
-  // усередині категорії тільки якщо брали canonical розріз. Насправді якщо клієнт
-  // купив 2 бренди, він рахується двічі у sum. Тому total_clients беремо як
-  // max по by_dim (найбільший acumulate) — це наближення. Для точного числа
-  // треба окремий COUNT DISTINCT client_code per category, але для UI ~ok.
   for (const cat of ['new', 'sleeping', 'lost'] as const) {
     categories[cat].total_sum_usd = Math.round((categoryTotal[cat] ?? 0) * 100) / 100;
-    // Всі бренди і всі акції — сортування від найбільшої частки до найменшої.
-    // (Раніше .slice(0,5) — але власник хоче повний список.)
     categories[cat].by_dim = categories[cat].by_dim
       .sort((a, b) => b.pct_of_category - a.pct_of_category);
     categories[cat].by_promo = categories[cat].by_promo
       .sort((a, b) => b.pct_of_category - a.pct_of_category);
-    const dimClients = categoryTotalClients[cat];
-    categories[cat].total_clients = dimClients;
+    // ⭐ CORRECT: справжня кількість унікальних клієнтів (без double-count).
+    // Fallback до 0 якщо migration 035 не застосована ще.
+    categories[cat].total_clients = categoryTrueTotal[cat];
   }
 
   const response = Response.json({
