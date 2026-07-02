@@ -12,10 +12,10 @@ import type { ComponentType } from 'react';
 // Утиліти (продубльовано для independence — page.tsx має свої версії)
 // ============================================================================
 function statusColor(pct: number | null): 'good' | 'ok' | 'warn' | 'bad' | 'na' {
+  // ≥100 зелений · 60-99 жовтий · <60 червоний · null сірий
   if (pct == null) return 'na';
-  if (pct >= 90) return 'good';
-  if (pct >= 70) return 'ok';
-  if (pct >= 50) return 'warn';
+  if (pct >= 100) return 'good';
+  if (pct >= 60) return 'warn';
   return 'bad';
 }
 function fmtUSD(n: number) { return `$${Math.round(n).toLocaleString('en-US')}`; }

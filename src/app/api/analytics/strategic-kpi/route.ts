@@ -103,27 +103,44 @@ export async function GET(request: NextRequest) {
   //   plan  = сума trainings_annual по всіх Ellanse × channel таргетах
   //   actual_ytd = уник. пари (seminar, division) у представництвах + семінари у дистрів
   let ellanseSeminarsSummary: { plan: number; actual_ytd: number } | null = null;
+  // Soft-timeout helper для оптіональних важких операцій. Якщо запит YT+Ellanse
+  // може затягнутись до 10-15 сек — Vercel вбʼє процес. Краще повернути null для
+  // оптіональних полів ніж всю відповідь провалити.
+  async function softRace<T>(op: Promise<T>, ms: number, label: string): Promise<T | null> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>(resolve => {
+      timer = setTimeout(() => {
+        console.warn(`[strategic-kpi] ${label} exceeded ${ms}ms, returning null`);
+        resolve(null);
+      }, ms);
+    });
+    try { return await Promise.race([op, timeout]); }
+    finally { if (timer) clearTimeout(timer); }
+  }
+
   if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
     try {
-      categories = await getBrandClientCategories(brandParam, from, to);
+      categories = await softRace(getBrandClientCategories(brandParam, from, to), 6000, 'categories');
     } catch (e) {
       console.warn('categories failed:', (e as Error).message);
     }
     if (brandParam === 'Ellanse') {
       try {
-        const map = await buildFirstTrainedMap();
-        const yearStart = new Date(`${year}-01-01T00:00:00Z`);
-        const periodStart = new Date(from);
-        const periodEnd = new Date(to);
-        firstTrained = {
-          period: countFirstTrainedInRange(map, periodStart, periodEnd),
-          ytd: countFirstTrainedInRange(map, yearStart, periodEnd),
-        };
+        const map = await softRace(buildFirstTrainedMap(), 6000, 'first-trained-map');
+        if (map) {
+          const yearStart = new Date(`${year}-01-01T00:00:00Z`);
+          const periodStart = new Date(from);
+          const periodEnd = new Date(to);
+          firstTrained = {
+            period: countFirstTrainedInRange(map, periodStart, periodEnd),
+            ytd: countFirstTrainedInRange(map, yearStart, periodEnd),
+          };
+        }
       } catch (e) {
         console.warn('first-trained failed:', (e as Error).message);
       }
       try {
-        repSeminars = await fetchEllanseRepSeminars(from, to);
+        repSeminars = await softRace(fetchEllanseRepSeminars(from, to), 4000, 'rep-seminars');
       } catch (e) {
         console.warn('rep-seminars failed:', (e as Error).message);
       }
@@ -162,6 +179,20 @@ export async function GET(request: NextRequest) {
   const metricKey = (b: string, c: string) => `${b}|${c}`;
   const monthMap = new Map(monthMetrics.map(m => [metricKey(m.brand, m.channel), m]));
   const ytdMap = new Map(ytdMetrics.map(m => [metricKey(m.brand, m.channel), m]));
+
+  // Реальний прогрес YTD у частках (0..1). Для запиту 15 квітня 2026:
+  //   monthIndex=4 → старе pace=4/12=0.33, але реально пройшло тільки 105 з 365 днів = 0.288.
+  //   Для запиту наприкінці кварталу різниця мала, для запиту всередині — суттєва.
+  // Використовуємо min(to, now) щоб для «майбутніх» періодів pace = завершений період.
+  const realPace = (() => {
+    const now = Date.now();
+    const yearStartTs = new Date(`${year}-01-01T00:00:00Z`).getTime();
+    const yearEndTs   = new Date(`${year + 1}-01-01T00:00:00Z`).getTime();
+    const toTs        = Math.min(new Date(to).getTime(), now);
+    if (toTs <= yearStartTs) return 0;
+    if (toTs >= yearEndTs)   return 1;
+    return (toTs - yearStartTs) / (yearEndTs - yearStartTs);
+  })();
 
   // Собираємо per (brand × channel) блок з таргетами + метриками + %.
   interface BlockResult {
@@ -232,7 +263,7 @@ export async function GET(request: NextRequest) {
         return Math.round((num / den) * 1000) / 10;
       };
 
-      const monthPace = monthIndex / 12;
+      const monthPace = realPace;
 
       blocks.push({
         brand,

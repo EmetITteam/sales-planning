@@ -107,10 +107,14 @@ const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number
 const MONTHS_UA = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 
 function statusColor(pct: number | null): 'good' | 'ok' | 'warn' | 'bad' | 'na' {
+  // ITD 2026-07-02: пороги пересмотрены
+  //   ≥ 100 → зелений (виконано план)
+  //   60..99 → жовтий (в роботі)
+  //   < 60 → червоний (відстає)
+  //   null → сірий
   if (pct == null) return 'na';
-  if (pct >= 90) return 'good';
-  if (pct >= 70) return 'ok';
-  if (pct >= 50) return 'warn';
+  if (pct >= 100) return 'good';
+  if (pct >= 60) return 'warn';
   return 'bad';
 }
 function fmtUSD(n: number) { return `$${Math.round(n).toLocaleString('en-US')}`; }
@@ -486,6 +490,38 @@ export default function StrategicKpiPage() {
                   через представництва, тому карточки тут а не у дистрів. */}
               {selectedBrand === ELLANSE_BRAND && channel === 'representatives' && data?.first_trained && (
                 <div className="pt-5 border-t border-dashed border-[rgba(6,42,61,0.15)]">
+                  {/* Річна зведена картина: план vs факт YTD семінарів */}
+                  {data.ellanse_seminars_summary && data.ellanse_seminars_summary.plan > 0 && (() => {
+                    const s = data.ellanse_seminars_summary;
+                    const pct = (s.actual_ytd / s.plan) * 100;
+                    const st = statusColor(pct);
+                    const barColor = { good: '#10b981', ok: '#5bd5bc', warn: '#fb923c', bad: '#e11d48', na: '#cbd5e1' }[st];
+                    return (
+                      <div
+                        className="glass-card mb-3 px-4 py-3 flex items-center gap-3 flex-wrap"
+                        style={{ background: `${barColor}0d` }}
+                        title="Разом семінарів проведено з початку року (представництва + дистрибутори) vs річний план"
+                      >
+                        <GraduationCap className="h-4 w-4" style={{ color: barColor }} />
+                        <div className="text-[12px]">
+                          <span className="font-bold">Семінари за {data.year}: </span>
+                          <span className="mono font-bold">{s.actual_ytd}</span>
+                          <span className="text-muted-foreground"> з </span>
+                          <span className="mono font-bold">{s.plan}</span>
+                        </div>
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border mono ml-auto"
+                          style={{
+                            background: `${barColor}22`,
+                            borderColor: `${barColor}66`,
+                            color: st === 'ok' ? '#0f766e' : barColor,
+                          }}
+                        >
+                          {pct.toFixed(1)}% плану
+                        </span>
+                      </div>
+                    );
+                  })()}
                   <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2 flex items-center gap-1.5">
                     <GraduationCap className="h-3 w-3 text-amber-700" /> Вперше пройшли навчання
                   </p>

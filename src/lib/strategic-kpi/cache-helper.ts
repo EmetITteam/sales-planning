@@ -22,10 +22,22 @@ interface Entry<T> {
 const MAX_ENTRIES = 200;   // LRU cap на один інстанс кешу
 const EVICT_BATCH = 50;    // видаляємо N найстаріших коли досягли ліміту
 
+// Registry — щоб можна було очистити ВСІ кеші одним викликом (для backfill).
+const REGISTRY: Array<AsyncCache<unknown>> = [];
+export function clearAllStrategicCaches(): { cleared: string[] } {
+  const cleared: string[] = [];
+  for (const c of REGISTRY) { c.clear(); cleared.push(c.getName()); }
+  return { cleared };
+}
+
 export class AsyncCache<T> {
   private map = new Map<string, Entry<T>>();
 
-  constructor(private ttlMs: number, private name: string) {}
+  constructor(private ttlMs: number, private name: string) {
+    REGISTRY.push(this as AsyncCache<unknown>);
+  }
+
+  getName() { return this.name; }
 
   /**
    * Отримати значення з кешу або запустити fetcher (дедуплікація race).
