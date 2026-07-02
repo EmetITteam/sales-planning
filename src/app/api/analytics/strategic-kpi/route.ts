@@ -20,7 +20,7 @@ import { isStrategicKpiLogin } from '@/lib/feature-flags';
 import { supabase } from '@/lib/supabase';
 import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregateYTDMetrics, fetchKpiMetricsBatch, fetchKpiMetricsAveragedBatch, parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { aggregatePromos } from '@/lib/strategic-kpi/promos';
-import { getBrandClientCategories, type ClientCategories } from '@/lib/strategic-kpi/categories';
+import { getBrandClientCategories, getBrandChannelCategories, type ClientCategories, type ChannelCategoriesMap } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
 import { fetchEllanseRepSeminars, type RepSeminar } from '@/lib/strategic-kpi/rep-seminars';
 import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS, STRATEGIC_SEGMENTS, isSegment } from '@/lib/strategic-kpi/brands';
@@ -97,6 +97,7 @@ export async function GET(request: NextRequest) {
   // Категорії клієнтів + First-trained (Ellanse only) — рахуємо ТІЛЬКИ якщо
   // передано ?brand=X (для одного бренду швидко, для всіх — довго).
   let categories: ClientCategories | null = null;
+  let channelCategories: ChannelCategoriesMap | null = null;
   let firstTrained: { period: number; ytd: number } | null = null;
   let repSeminars: RepSeminar[] | null = null;
   // Річна зведена картина Ellanse-навчань:
@@ -123,6 +124,11 @@ export async function GET(request: NextRequest) {
       categories = await softRace(getBrandClientCategories(brandParam, from, to), 6000, 'categories');
     } catch (e) {
       console.warn('categories failed:', (e as Error).message);
+    }
+    try {
+      channelCategories = await softRace(getBrandChannelCategories(brandParam, from, to), 6000, 'channel-categories');
+    } catch (e) {
+      console.warn('channel-categories failed:', (e as Error).message);
     }
     if (brandParam === 'Ellanse') {
       try {
@@ -335,6 +341,7 @@ export async function GET(request: NextRequest) {
     monthPace: monthIndex / 12,
     blocks,
     categories,      // тільки коли ?brand=X переданий
+    channel_categories: channelCategories,  // per-channel розкладка для брендів з КЦ
     first_trained: firstTrained,  // тільки для brand=Ellanse
     rep_seminars: repSeminars,    // тільки для brand=Ellanse — семінари у представництвах
     ellanse_seminars_summary: ellanseSeminarsSummary,  // річний план + факт YTD

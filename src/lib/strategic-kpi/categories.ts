@@ -29,6 +29,61 @@ export interface ClientCategories {
   total: number;
 }
 
+/**
+ * Категорії клієнтів per (channel) для бренду. Використовує RPC 036.
+ * Класифікація — глобальна по бренду (за MAX sale_date < p_from),
+ * потім розгортається по каналах у яких клієнт купив у періоді.
+ */
+export type ChannelCategoriesMap = Record<string, ClientCategories>;
+
+const CHANNEL_CAT_CACHE = new AsyncCache<ChannelCategoriesMap>(5 * 60 * 1000, 'brand-channel-categories');
+
+export async function getBrandChannelCategories(
+  brand: string,
+  dateFromIso: string,
+  dateToIso: string,
+): Promise<ChannelCategoriesMap> {
+  const key = `${brand}|${dateFromIso}|${dateToIso}`;
+  return CHANNEL_CAT_CACHE.getOrLoad(key, () => computeChannelCategories(brand, dateFromIso, dateToIso));
+}
+
+async function computeChannelCategories(
+  brand: string,
+  dateFromIso: string,
+  dateToIso: string,
+): Promise<ChannelCategoriesMap> {
+  interface Row {
+    channel: string;
+    new_cnt: number;
+    active_cnt: number;
+    sleeping_cnt: number;
+    lost_cnt: number;
+    total_cnt: number;
+  }
+  const rpc = await supabase.rpc<Row[]>('get_brand_channel_categories', {
+    p_brand: brand,
+    p_from: dateFromIso,
+    p_to: dateToIso,
+  });
+  if (rpc.error || !Array.isArray(rpc.data)) {
+    // Тихий fallback — якщо RPC ще не задеплоєна, повертаємо порожній map.
+    // Compare каналів UI: якщо ключ відсутній — показуємо dash.
+    console.warn('[channel-categories] RPC failed:', rpc.error?.message);
+    return {};
+  }
+  const out: ChannelCategoriesMap = {};
+  for (const r of rpc.data) {
+    out[r.channel] = {
+      new: r.new_cnt || 0,
+      active: r.active_cnt || 0,
+      sleeping: r.sleeping_cnt || 0,
+      lost: r.lost_cnt || 0,
+      total: r.total_cnt || 0,
+    };
+  }
+  return out;
+}
+
 interface SaleRow {
   client_code: string;
   sale_date: string;

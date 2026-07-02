@@ -167,6 +167,42 @@ export function CategoryCard({ label, value, total, hint, accent }: {
 }
 
 // ============================================================================
+// ChannelCategoriesRow — розкладка Нові/Активні/Сплячі/Втрачені у channel-блоці
+// ============================================================================
+interface ChannelCatData { new: number; active: number; sleeping: number; lost: number; total: number }
+
+export function ChannelCategoriesRow({ data, channelLabel, periodLabel }: {
+  data: ChannelCatData; channelLabel: string; periodLabel: string;
+}) {
+  if (!data || data.total === 0) return null;
+  const items: Array<{ key: string; label: string; value: number; accent: 'mint' | 'good' | 'warn' | 'bad' }> = [
+    { key: 'new',      label: 'Нові',     value: data.new,      accent: 'mint' },
+    { key: 'active',   label: 'Активні',  value: data.active,   accent: 'good' },
+    { key: 'sleeping', label: 'Сплячі',   value: data.sleeping, accent: 'warn' },
+    { key: 'lost',     label: 'Втрачені', value: data.lost,     accent: 'bad'  },
+  ];
+  return (
+    <div className="pt-4 mt-3 border-t border-dashed border-[rgba(6,42,61,0.10)]">
+      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.55)] mb-2">
+        Категорії клієнтів у цьому каналі · Разом {data.total}
+      </p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {items.map(it => (
+          <CategoryCard
+            key={it.key}
+            label={it.label}
+            value={it.value}
+            total={data.total}
+            hint={`Клієнтів цієї категорії які купили у ${channelLabel} у ${periodLabel}`}
+            accent={it.accent}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // SeminarStatCard — для Ellanse блоку
 // ============================================================================
 export function SeminarStatCard({ label, period, ytd }: { label: string; period: number; ytd: number }) {

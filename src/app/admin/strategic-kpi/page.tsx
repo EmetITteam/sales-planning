@@ -38,7 +38,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import {
-  MetricCard, CategoryCard, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
+  MetricCard, CategoryCard, ChannelCategoriesRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
 } from './components';
 import { ReactivationBlock } from './reactivation-block';
 
@@ -94,6 +94,7 @@ interface ApiResponse {
   monthPace: number;
   blocks: Block[];
   categories: Categories | null;
+  channel_categories: Record<string, Categories> | null;
   first_trained: { period: number; ytd: number } | null;
   rep_seminars: Array<{ seminar: string; division: string; unique_clients: number }> | null;
   ellanse_seminars_summary: { plan: number; actual_ytd: number } | null;
@@ -486,6 +487,15 @@ export default function StrategicKpiPage() {
                     isUsd
                   />
                 </div>
+              )}
+
+              {/* Розкладка категорій клієнтів по цьому каналу (RPC 036) */}
+              {channel !== 'distributors' && data?.channel_categories?.[channel] && (
+                <ChannelCategoriesRow
+                  data={data.channel_categories[channel]}
+                  channelLabel={channel === 'representatives' ? 'Представництвах' : 'Колл-центрі'}
+                  periodLabel={periodLabel}
+                />
               )}
 
               {/* ELLANSE Представництва — «Впервые обучені» (клієнти зі списку sales
