@@ -192,19 +192,43 @@
     0 8px 32px rgba(6, 42, 61, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
+/* Об'ємна варіація soft-картки. Раніше була плоска (без тіні + hover) —
+   на всіх бордах здавалась «наклеєною плашкою». Додано двошарова тінь
+   (inset white top для highlight + drop shadow знизу) + hover translateY.
+   Тонший shadow ніж .glass-card щоб не конкурувати з парент-контейнером. */
 .glass-card-soft {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(6, 42, 61, 0.04),
+    0 6px 20px -6px rgba(6, 42, 61, 0.12);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-soft:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 4px rgba(6, 42, 61, 0.06),
+    0 12px 30px -8px rgba(6, 106, 171, 0.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-card-soft { transition: none; }
 }
 .glass-card-mini {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.62);
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(6, 42, 61, 0.04),
+    0 4px 14px -4px rgba(6, 42, 61, 0.10);
 }
 
 /* Варіант glass-card БЕЗ backdrop-filter — для довгих списків (десятки+

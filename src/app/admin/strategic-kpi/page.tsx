@@ -198,18 +198,11 @@ export default function StrategicKpiPage() {
 
   return (
     <>
-      {/* Google Fonts: Manrope 200/700 + JetBrains Mono */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
-      />
-
-      {/* Cinematic v3 styles — inline щоб не «протікали» на решту застосунку */}
+      {/* Використовуємо системні шрифти сайту (Plus Jakarta Sans + JetBrains Mono
+          через globals.css) щоб дизайн був консистентний з рештою бордів. */}
       <style jsx global>{`
-        .sk-page { font-family: 'Manrope', sans-serif; color: #062a3d; position: relative; min-height: 100vh; }
-        .sk-page .num, .sk-page .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+        .sk-page { font-family: var(--font-sans); color: #062a3d; position: relative; min-height: 100vh; }
+        .sk-page .num, .sk-page .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
         .sk-mesh { position: fixed; inset: 0; z-index: -2; pointer-events: none;
           background: radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
             radial-gradient(at 80% 30%, #f0fdfa 0%, transparent 55%),
@@ -224,10 +217,10 @@ export default function StrategicKpiPage() {
         @keyframes skDrift { 0%,100% { transform: translate(0,0) scale(1); } 25% { transform: translate(80px,-60px) scale(1.1); } 50% { transform: translate(-40px,100px) scale(0.95); } 75% { transform: translate(60px,40px) scale(1.05); } }
         .sk-glass { background: rgba(255,255,255,0.42); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); border: 1px solid rgba(255,255,255,0.85); border-radius: 24px; box-shadow: 0 8px 32px rgba(31,38,135,0.08), inset 0 1px 0 rgba(255,255,255,0.7); }
         .sk-glass-soft { background: rgba(255,255,255,0.32); backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); border: 1px solid rgba(255,255,255,0.75); border-radius: 18px; }
-        .sk-hero-title { font-family: 'Manrope', sans-serif; font-weight: 200; font-size: 30px; letter-spacing: -1px; line-height: 1.05; }
+        .sk-hero-title { font-family: var(--font-sans); font-weight: 200; font-size: 30px; letter-spacing: -1px; line-height: 1.05; }
         .sk-hero-title strong { font-weight: 700; }
-        .sk-mega-pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 52px; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
-        .sk-metric-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 26px; letter-spacing: -0.5px; line-height: 1; font-variant-numeric: tabular-nums; }
+        .sk-mega-pct { font-family: var(--font-mono); font-weight: 700; font-size: 52px; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
+        .sk-metric-num { font-family: var(--font-mono); font-weight: 700; font-size: 26px; letter-spacing: -0.5px; line-height: 1; font-variant-numeric: tabular-nums; }
         .sk-brand-pill { padding: 10px 16px; border-radius: 16px; font-weight: 700; font-size: 13px; letter-spacing: -0.2px; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(6,42,61,0.08); background: rgba(255,255,255,0.5); color: rgba(6,42,61,0.58); }
         .sk-brand-pill:hover { transform: translateY(-1px); background: rgba(255,255,255,0.75); color: #062a3d; }
         .sk-brand-pill.active { background: linear-gradient(135deg, #066aab 0%, #0284c7 100%); color: white; border-color: transparent; box-shadow: 0 4px 14px rgba(6,106,171,0.35); }
@@ -351,10 +344,8 @@ export default function StrategicKpiPage() {
                   <strong>{selectedBrand}</strong> <span className="sk-muted">·</span> <span className="sk-muted font-light">{periodLabel}</span>
                 </div>
                 {m > 0 && (
-                  <div className="text-[11.5px] sk-muted mt-1.5 flex items-center gap-2">
-                    <span>По {m}-му міс. з 12</span>
-                    <span className="text-[rgba(6,42,61,0.24)]">·</span>
-                    <span><span className="mono font-bold">{Math.round((m / 12) * 100)}%</span> року пройшло</span>
+                  <div className="text-[11.5px] sk-muted mt-1.5">
+                    По {m}-му міс. з 12
                   </div>
                 )}
               </div>
