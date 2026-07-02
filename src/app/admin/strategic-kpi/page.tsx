@@ -490,59 +490,61 @@ export default function StrategicKpiPage() {
                 </div>
               )}
 
-              {/* ELLANSE Дистриб'ютори — навчання (план + факт семінарів) */}
+              {/* ELLANSE Представництва — «Впервые обучені» (клієнти зі списку sales
+                  що вперше отримали Ellanse-семінарську покупку). Навчання йде
+                  через представництва, тому карточки тут а не у дистрів. */}
+              {selectedBrand === ELLANSE_BRAND && channel === 'representatives' && data?.first_trained && (
+                <div className="pt-5 border-t border-dashed border-[rgba(6,42,61,0.15)]">
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2 flex items-center gap-1.5">
+                    <GraduationCap className="h-3 w-3 text-amber-700" /> Впервые обучені · автоматично з sales
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div
+                      className="rounded-2xl p-4 border relative"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(91,213,188,0.18) 0%, rgba(20,184,166,0.08) 100%)',
+                        borderColor: 'rgba(91,213,188,0.4)',
+                      }}
+                      title="Клієнти для яких Ellanse-семінарська покупка у цьому періоді — перша в історії бази (з 2022)"
+                    >
+                      <div className="sk-lbl mb-1.5" style={{ color: '#0f766e', opacity: 0.85 }}>
+                        За період
+                      </div>
+                      <div className="mono font-bold text-[32px] leading-none tabular-nums" style={{ color: '#0f766e' }}>
+                        {data.first_trained.period}
+                      </div>
+                      <div className="text-[10.5px] mt-1.5" style={{ color: '#0f766e', opacity: 0.7 }}>
+                        новий клієнт з Ellanse-семінаром вперше
+                      </div>
+                    </div>
+                    <div
+                      className="rounded-2xl p-4 border relative"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(2,132,199,0.10) 0%, rgba(8,128,204,0.04) 100%)',
+                        borderColor: 'rgba(2,132,199,0.28)',
+                      }}
+                      title="Скільки нових обучених за YTD (з початку року по кінець періоду)"
+                    >
+                      <div className="sk-lbl mb-1.5" style={{ color: '#0284c7', opacity: 0.85 }}>
+                        YTD {data.year}
+                      </div>
+                      <div className="mono font-bold text-[32px] leading-none tabular-nums" style={{ color: '#0284c7' }}>
+                        {data.first_trained.ytd}
+                      </div>
+                      <div className="text-[10.5px] mt-1.5" style={{ color: '#0284c7', opacity: 0.7 }}>
+                        від січня по кінець періоду
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ELLANSE Дистриб'ютори — факт семінарів (Полтава + Чернівці) */}
               {selectedBrand === ELLANSE_BRAND && channel === 'distributors' && (
                 <div className="pt-5 border-t border-dashed border-[rgba(6,42,61,0.15)] space-y-4">
                   <p className="sk-lbl flex items-center gap-1.5 text-amber-700">
                     <GraduationCap className="h-3 w-3" /> Навчання Ellanse — Полтава + Чернівці
                   </p>
-
-                  {/* Впервые обучені (автоматично з sales — Ellanse+seminar рядки) */}
-                  {data?.first_trained && (
-                    <div>
-                      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2">
-                        Впервые обучені · автоматично з sales
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div
-                          className="rounded-2xl p-4 border relative"
-                          style={{
-                            background: 'linear-gradient(135deg, rgba(91,213,188,0.18) 0%, rgba(20,184,166,0.08) 100%)',
-                            borderColor: 'rgba(91,213,188,0.4)',
-                          }}
-                          title="Клієнти для яких Ellanse-семінарська покупка у цьому періоді — перша в історії бази (з 2022)"
-                        >
-                          <div className="sk-lbl mb-1.5" style={{ color: '#0f766e', opacity: 0.85 }}>
-                            За період
-                          </div>
-                          <div className="mono font-bold text-[32px] leading-none tabular-nums" style={{ color: '#0f766e' }}>
-                            {data.first_trained.period}
-                          </div>
-                          <div className="text-[10.5px] mt-1.5" style={{ color: '#0f766e', opacity: 0.7 }}>
-                            новий клієнт з Ellanse-семінаром вперше
-                          </div>
-                        </div>
-                        <div
-                          className="rounded-2xl p-4 border relative"
-                          style={{
-                            background: 'linear-gradient(135deg, rgba(2,132,199,0.10) 0%, rgba(8,128,204,0.04) 100%)',
-                            borderColor: 'rgba(2,132,199,0.28)',
-                          }}
-                          title="Скільки нових обучених за YTD (з початку року по кінець періоду)"
-                        >
-                          <div className="sk-lbl mb-1.5" style={{ color: '#0284c7', opacity: 0.85 }}>
-                            YTD {data.year}
-                          </div>
-                          <div className="mono font-bold text-[32px] leading-none tabular-nums" style={{ color: '#0284c7' }}>
-                            {data.first_trained.ytd}
-                          </div>
-                          <div className="text-[10.5px] mt-1.5" style={{ color: '#0284c7', opacity: 0.7 }}>
-                            від січня по кінець періоду
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Факт семінарів (з ellanse_seminars_actual) */}
                   {block.seminars_actual && (
