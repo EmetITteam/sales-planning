@@ -27,13 +27,13 @@ export interface Promo {
   total_sum_usd: number;
   is_gift: boolean;
   gift_brand: string | null;
-  // Overlap з іншим промо ТОГО ж бренду у ТОМУ ж періоді. Якщо промо А (знижка)
-  // і промо B (gift) мають високий overlap (>50%) — це фактично ОДНА акція
-  // розписана у 1С двома поводами. Показуємо це у UI.
+  // Реальний Set клієнтів — використовується для точного dedup у segment-агрегаціях.
+  // НЕ віддається у UI (route.ts не мапить це поле у відповідь).
+  client_codes?: string[];
   overlap_with?: {
-    name: string;         // текст пов'язаного повода
-    is_gift: boolean;     // чи то gift
-    clients: number;      // скільки унікальних клієнтів у overlap
+    name: string;
+    is_gift: boolean;
+    clients: number;
   };
 }
 
@@ -353,6 +353,9 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
       is_gift: b.is_gift_any,
       gift_brand: b.gift_brand,
       overlap_with: overlapInfo,
+      // Зберігаємо реальний client set (as Array) для точних dedup-агрегацій
+      // у segment-блоках. Не віддається у UI — фільтрується у route.ts.
+      client_codes: Array.from(b.clients),
     });
   }
   return result;

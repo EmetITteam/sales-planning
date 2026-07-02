@@ -409,35 +409,42 @@ export async function GET(request: NextRequest) {
 
       if (!hasAnyData) continue;
 
-      // Промо агрегуємо через combined-фільтр (клієнт може бути у 2 суб-брендах — dedup).
-      const clientSet = new Set<string>();
-      const segPromosMap = new Map<string, { name: string; clients: Set<string>; qty: number; sum: number; is_gift: boolean; gift_brand: string | null; overlap_with?: { name: string; is_gift: boolean; clients: number } }>();
+      // Промо агрегуємо для сегменту: один і той же промо-текст (наприклад
+      // «IUSE Skin Booster від 2х -47%») може існувати у SB / hair / Coll. —
+      // об'єднуємо у один рядок, а клієнтські множини мержимо через Set
+      // щоб отримати точний unique_clients без подвоєння.
+      const segPromosMap = new Map<string, {
+        name: string; clients: Set<string>; qty: number; sum: number;
+        is_gift: boolean; gift_brand: string | null;
+        overlap_with?: { name: string; is_gift: boolean; clients: number };
+      }>();
       for (const p of promos) {
         if (p.channel !== channel) continue;
         if (!segmentBrands.includes(p.brand)) continue;
-        const key = p.name;
-        let entry = segPromosMap.get(key);
+        let entry = segPromosMap.get(p.name);
         if (!entry) {
-          entry = { name: p.name, clients: new Set(), qty: 0, sum: 0, is_gift: p.is_gift, gift_brand: p.gift_brand, overlap_with: p.overlap_with };
-          segPromosMap.set(key, entry);
+          entry = {
+            name: p.name, clients: new Set(), qty: 0, sum: 0,
+            is_gift: p.is_gift, gift_brand: p.gift_brand,
+            overlap_with: p.overlap_with,
+          };
+          segPromosMap.set(p.name, entry);
         }
         entry.qty += p.total_qty;
         entry.sum += p.total_sum_usd;
-        // We don't have client set — take unique_clients (approx). For pure dedup would need
-        // client sets from promos.ts which we didn't expose. Best-effort: sum uc.
-        for (let i = 0; i < p.unique_clients; i++) clientSet.add(`${p.name}|${i}`);
+        if (p.client_codes) for (const c of p.client_codes) entry.clients.add(c);
       }
       const segPromos = Array.from(segPromosMap.values())
         .map(e => ({
           name: e.name,
-          unique_clients: 0,   // TODO: expose client sets from promos.ts for exact dedup
+          unique_clients: e.clients.size,
           total_qty: Math.round(e.qty * 100) / 100,
           total_sum_usd: Math.round(e.sum * 100) / 100,
           is_gift: e.is_gift,
           gift_brand: e.gift_brand,
           overlap_with: e.overlap_with,
         }))
-        .sort((a, b) => b.total_sum_usd - a.total_sum_usd);
+        .sort((a, b) => b.unique_clients - a.unique_clients);
 
       const monthAvgQty  = sumMonthUC > 0 ? sumMonthQty / sumMonthUC : 0;
       const monthAvgChk  = sumMonthUC > 0 ? sumMonthSum / sumMonthUC : 0;
