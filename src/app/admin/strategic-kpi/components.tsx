@@ -51,17 +51,17 @@ export function MetricCard({ label, Icon, monthValue, ytdValue, target, simplePc
   const barColor = { good: '#10b981', ok: '#5bd5bc', warn: '#fb923c', bad: '#e11d48', na: '#cbd5e1' }[status];
 
   return (
-    <div className="glass-card p-4 flex flex-col">
-      <div className="flex items-center gap-1.5 mb-2">
+    <div className="glass-card px-3.5 pt-3 pb-3 flex flex-col">
+      <div className="flex items-center gap-1.5 mb-1.5">
         <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
         <Icon size={12} />
-        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{label}</span>
+        <span className="text-[10.5px] uppercase tracking-wider font-bold text-muted-foreground">{label}</span>
       </div>
-      <p className="text-[28px] font-bold tabular-nums leading-none">
+      <p className="text-[26px] font-bold tabular-nums leading-none" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.5px' }}>
         {fmt(value)}
-        {target != null && <span className="text-[13px] text-muted-foreground font-medium ml-1">/ {fmt(target)}</span>}
+        {target != null && <span className="text-[12px] text-muted-foreground font-medium ml-1" style={{ fontFamily: 'var(--font-sans)' }}>/ {fmt(target)}</span>}
       </p>
-      <div className="h-1.5 rounded-full bg-black/5 mt-3 mb-2 overflow-hidden">
+      <div className="h-1 rounded-full bg-black/5 mt-2 mb-1.5 overflow-hidden">
         {simplePct != null && (
           <div className="h-full rounded-full transition-[width] duration-500"
             style={{ width: `${barPct}%`, background: barColor }} />
@@ -102,28 +102,42 @@ export function MetricCard({ label, Icon, monthValue, ytdValue, target, simplePc
 }
 
 // ============================================================================
-// CategoryCard — mini картка для категорій клієнтів у hero
+// CategoryCard — щільна плашка для категорій клієнтів у hero.
+// Layout: горизонтальний row — велике число зліва, label+% справа,
+// лівий кольоровий accent-край як статус-індикатор.
 // ============================================================================
 export function CategoryCard({ label, value, total, hint, accent }: {
   label: string; value: number; total: number; hint: string;
   accent: 'mint' | 'good' | 'warn' | 'bad';
 }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
-  // Стиль зі скріна «Огляд компанії»: glass-card + кольорова точка +
-  // uppercase label + великий tabular-nums + маленький %-descriptor.
   const dotColor = { mint: '#10b981', good: '#10b981', warn: '#fb923c', bad: '#94a3b8' }[accent];
+  const tintBg   = { mint: 'rgba(16,185,129,0.06)', good: 'rgba(16,185,129,0.06)', warn: 'rgba(251,146,60,0.07)', bad: 'rgba(148,163,184,0.06)' }[accent];
   return (
-    <div className="glass-card p-4 flex flex-col" title={hint}>
-      <div className="flex items-center gap-1.5 mb-2">
-        <span className="w-2 h-2 rounded-full" style={{ background: dotColor }} />
-        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">{label}</span>
-      </div>
-      <p className="text-[28px] font-bold tabular-nums leading-none">
+    <div
+      className="glass-card relative flex items-center gap-3 pl-3.5 pr-3 py-2.5 overflow-hidden"
+      title={hint}
+      style={{ background: tintBg }}
+    >
+      <span
+        className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
+        style={{ background: dotColor }}
+        aria-hidden="true"
+      />
+      <p
+        className="text-[26px] font-bold tabular-nums leading-none min-w-[2ch]"
+        style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.5px' }}
+      >
         {value}
       </p>
-      <p className="text-[10px] text-muted-foreground mt-1">
-        {total > 0 ? `${pct.toFixed(1)}% всіх` : 'клієнтів'}
-      </p>
+      <div className="flex flex-col leading-tight min-w-0">
+        <span className="text-[10.5px] uppercase tracking-[0.06em] font-bold text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-[10.5px] tabular-nums text-muted-foreground/90 mt-0.5">
+          {total > 0 ? `${pct.toFixed(1)}%` : '—'}
+        </span>
+      </div>
     </div>
   );
 }

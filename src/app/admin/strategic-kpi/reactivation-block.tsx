@@ -46,7 +46,6 @@ interface ApiResponse {
 
 interface Props {
   period: string;
-  selectedBrand: string;
 }
 
 function fmtUSD(n: number) { return `$${Math.round(n).toLocaleString('en-US')}`; }
@@ -57,20 +56,19 @@ const CATEGORY_META = {
   lost:     { label: 'Втрачені', dotColor: '#94a3b8', Icon: XCircle,    hint: 'Не купували більше 6 місяців (>180 днів), а тепер повернулись' },
 } as const;
 
-export function ReactivationBlock({ period, selectedBrand }: Props) {
+export function ReactivationBlock({ period }: Props) {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Toggle: коли true — блок ігнорує selectedBrand і показує агрегат по всіх
-  // брендах (dim=brand). Коли false — фільтр по selectedBrand + dim=channel.
-  const [allBrands, setAllBrands] = useState(false);
 
+  // Блок навмисно НЕ фільтрує по selectedBrand — це загальний віджет
+  // компанії. Показує розклад по брендах + по акціях, куди прийшли
+  // клієнти категорій за обраний період.
   useEffect(() => {
     const ctrl = new AbortController();
     setLoading(true);
     setError(null);
-    const brandParam = allBrands ? '' : `&brand=${encodeURIComponent(selectedBrand)}`;
-    fetch(`/api/analytics/reactivation?period=${encodeURIComponent(period)}${brandParam}`, {
+    fetch(`/api/analytics/reactivation?period=${encodeURIComponent(period)}`, {
       credentials: 'same-origin',
       signal: ctrl.signal,
     })
@@ -85,7 +83,7 @@ export function ReactivationBlock({ period, selectedBrand }: Props) {
       })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
     return () => ctrl.abort();
-  }, [period, selectedBrand, allBrands]);
+  }, [period]);
 
   if (loading) {
     return (
@@ -118,31 +116,15 @@ export function ReactivationBlock({ period, selectedBrand }: Props) {
 
   return (
     <div className="sk-glass p-6 space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <div className="sk-lbl flex items-center gap-1.5 text-amber-700">
-            <Tag className="h-3 w-3" /> Акції — реактивація категорій
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Куди прийшли клієнти категорії — по {dimHeader.toLowerCase()}у і акції.
-            Класифікація станом на 1-е {data.from.slice(0, 7)}.
-          </p>
+      <div>
+        <div className="sk-lbl flex items-center gap-1.5 text-amber-700">
+          <Tag className="h-3 w-3" /> Акції — реактивація категорій
         </div>
-        <button
-          type="button"
-          onClick={() => setAllBrands(v => !v)}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
-            allBrands
-              ? 'bg-[#066aab] border-[#066aab] text-white shadow-[0_2px_8px_rgba(6,106,171,0.28)]'
-              : 'bg-white/60 border-[rgba(6,42,61,0.15)] text-[#062a3d] hover:bg-white/80'
-          }`}
-          title={allBrands
-            ? 'Показати тільки клієнтів обраного бренду (розклад по каналах)'
-            : 'Показати клієнтів по ВСІХ брендах (розклад по брендах)'
-          }
-        >
-          {allBrands ? 'Всі бренди ✓' : 'Всі бренди'}
-        </button>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Клієнти по компанії у категоріях <b>Нові</b> / <b>Сплячі</b> / <b>Втрачені</b> —
+          через які бренди та акції прийшли за {data.from.slice(0, 7)}.
+          Класифікація станом на 1-е число обраного місяця.
+        </p>
       </div>
 
       {(['new', 'sleeping', 'lost'] as const).map(cat => {

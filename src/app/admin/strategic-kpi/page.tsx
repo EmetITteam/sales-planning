@@ -302,7 +302,7 @@ export default function StrategicKpiPage() {
 
         {/* Hero */}
         {!loading && brandBlocks.length > 0 && (
-          <div className="sk-glass p-5 relative overflow-hidden">
+          <div className="sk-glass px-5 pt-4 pb-4 relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none opacity-40" style={{
               background: 'radial-gradient(circle at 85% 20%, rgba(91,213,188,0.22) 0%, transparent 60%)',
             }} />
@@ -327,8 +327,8 @@ export default function StrategicKpiPage() {
 
             {/* Категорії клієнтів (для selected brand) */}
             {data?.categories && data.categories.total > 0 && (
-              <div className="relative mt-4 pt-3.5 border-t border-[rgba(6,42,61,0.08)]">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="relative mt-3 pt-3 border-t border-[rgba(6,42,61,0.08)]">
+                <div className="flex items-baseline gap-2 mb-2">
                   <div className="sk-lbl">Клієнти бренду у періоді</div>
                   <div className="text-[11px] sk-muted">
                     · Разом <span className="mono font-bold">{data.categories.total}</span>
@@ -388,13 +388,13 @@ export default function StrategicKpiPage() {
           const overallStatus = statusColor(overallPct);
 
           return (
-            <div key={block.channel} className="sk-glass p-6 space-y-5">
-              <div className="flex items-center gap-4 pb-4 border-b border-[rgba(6,42,61,0.08)]">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0284c7] text-white flex items-center justify-center shadow-lg shadow-[rgba(6,106,171,0.25)]">
-                  <Icon size={18} />
+            <div key={block.channel} className="sk-glass px-5 py-4 space-y-4">
+              <div className="flex items-center gap-3.5 pb-3 border-b border-[rgba(6,42,61,0.08)]">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#066aab] to-[#0284c7] text-white flex items-center justify-center shadow-lg shadow-[rgba(6,106,171,0.25)]">
+                  <Icon size={17} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-[16px] font-bold tracking-tight">{CHANNEL_LABEL[channel]}</h3>
+                  <h3 className="text-[15px] font-bold tracking-tight">{CHANNEL_LABEL[channel]}</h3>
                   {!block.target && (
                     <p className="text-[11px] text-amber-700 mt-0.5">
                       Таргети не введено · <Link href="/admin/strategic-targets" className="underline">Ввести</Link>
@@ -403,8 +403,8 @@ export default function StrategicKpiPage() {
                 </div>
                 {overallPct !== null && (
                   <div className="text-right">
-                    <div className={`num text-[28px] font-bold leading-none sk-text-${overallStatus}`}>{fmtPct(overallPct)}</div>
-                    <div className="sk-lbl mt-1">Виконання</div>
+                    <div className={`num text-[26px] font-bold leading-none sk-text-${overallStatus}`}>{fmtPct(overallPct)}</div>
+                    <div className="sk-lbl mt-0.5">Виконання</div>
                   </div>
                 )}
               </div>
@@ -678,7 +678,7 @@ export default function StrategicKpiPage() {
             Три категорії (Нові / Сплячі / Втрачені) × два розрізи
             (по каналу коли бренд обраний / по бренду коли ні + по акціях). */}
         {!loading && brandBlocks.length > 0 && (
-          <ReactivationBlock period={period} selectedBrand={selectedBrand} />
+          <ReactivationBlock period={period} />
         )}
       </main>
     </>
