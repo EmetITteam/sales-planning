@@ -19,9 +19,12 @@ import { useGlassHover } from '@/hooks/use-glass-hover';
 import { isStrategicKpiLogin } from '@/lib/feature-flags';
 import {
   STRATEGIC_BRANDS,
+  STRATEGIC_PICKER_ITEMS,
+  STRATEGIC_SEGMENTS,
   CHANNEL_LABEL,
   ELLANSE_BRAND,
   isChannelActive,
+  isSegment,
   type StrategicBrand,
   type StrategicChannel,
 } from '@/lib/strategic-kpi/brands';
@@ -38,7 +41,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import {
-  MetricCard, CategoryCard, ChannelCategoriesRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
+  MetricCard, CategoryCard, ChannelCategoriesRow, SubBrandRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
 } from './components';
 import { ReactivationBlock } from './reactivation-block';
 
@@ -72,6 +75,18 @@ interface Block {
     overlap_with?: { name: string; is_gift: boolean; clients: number };
   }>;
   seminars_actual?: SeminarActual;
+  sub_brands?: Array<{
+    brand: string;
+    month_uc: number;
+    month_qty: number;
+    month_sum: number;
+    month_avg_qty: number;
+    month_avg_check: number;
+    ytd_uc: number;
+    ytd_sum: number;
+    target_uc_annual: number | null;
+    target_buyers_monthly: number | null;
+  }>;
 }
 
 interface SeminarActual {
@@ -178,8 +193,6 @@ export default function StrategicKpiPage() {
 
   useEffect(() => {
     if (!user || !isStrategicKpiLogin(user.login)) return;
-    // AbortController — щоб при швидкому переключенні бренду/періоду старий
-    // запит скасовувався і його результат не перезаписував новіший стан.
     const ctrl = new AbortController();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load(ctrl.signal);
@@ -297,8 +310,8 @@ export default function StrategicKpiPage() {
           <div>
             <div className="sk-lbl mb-2">Бренд · Режим</div>
             <div className="flex flex-wrap gap-2 items-center">
-              {STRATEGIC_BRANDS.map(b => (
-                <button key={b} type="button" onClick={() => setSelectedBrand(b)}
+              {STRATEGIC_PICKER_ITEMS.map(b => (
+                <button key={b} type="button" onClick={() => setSelectedBrand(b as StrategicBrand)}
                   className={`sk-brand-pill ${b === selectedBrand ? 'active' : ''}`}>
                   {b}
                 </button>
@@ -408,8 +421,15 @@ export default function StrategicKpiPage() {
         {!isReactivationMode && !loading && brandBlocks.map(block => {
           const channel = block.channel as StrategicChannel;
           if (isReactivationMode) return null;
-          const brand = selectedBrand as StrategicBrand;
-          if (!isChannelActive(brand, channel)) return null;
+          const brand = selectedBrand as StrategicBrand | string;
+          // Для сегмента (напр. IUSE): канал активний якщо він активний
+          // хоч у одного sub-brand.
+          if (isSegment(brand)) {
+            const subs = STRATEGIC_SEGMENTS[brand as keyof typeof STRATEGIC_SEGMENTS];
+            if (!subs.some(sb => isChannelActive(sb, channel))) return null;
+          } else if (!isChannelActive(brand as StrategicBrand, channel)) {
+            return null;
+          }
           // Приховуємо канальний блок якщо у періоді для нього немає даних
           // AND нема таргетів AND нема семінарів (Ellanse) AND нема промо.
           // Тобто нема сенсу показувати порожній блок.
@@ -478,9 +498,6 @@ export default function StrategicKpiPage() {
                   <MetricCard
                     label="Середній чек"
                     Icon={DollarSign}
-                    // ⚠ Раніше було ytdValue (YTD-сума / YTD-унік клієнти)
-                    //   — це давало $2,054 замість реального $974 за червень.
-                    //   Тепер картка показує саме ЧЕК ЗА ПЕРІОД як «Купують у міс.» і «ср/уп».
                     monthValue={block.month?.avg_check_usd ?? null}
                     target={block.target?.avg_check_annual ?? null}
                     simplePct={block.execution.avg_check_annual_pct}
@@ -496,6 +513,11 @@ export default function StrategicKpiPage() {
                   channelLabel={channel === 'representatives' ? 'Представництвах' : 'Колл-центрі'}
                   periodLabel={periodLabel}
                 />
+              )}
+
+              {/* Segment mode: розкладка по підбрендах без % */}
+              {block.sub_brands && block.sub_brands.length > 0 && (
+                <SubBrandRow subBrands={block.sub_brands} />
               )}
 
               {/* ELLANSE Представництва — «Впервые обучені» (клієнти зі списку sales

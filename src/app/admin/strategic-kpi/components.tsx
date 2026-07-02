@@ -203,6 +203,65 @@ export function ChannelCategoriesRow({ data, channelLabel, periodLabel }: {
 }
 
 // ============================================================================
+// SubBrandRow — розкладка сегменту (напр. IUSE) по підбрендах.
+// Без %, тільки цифри: клієнти місяця, факт $, YTD клієнти, YTD $.
+// ============================================================================
+export function SubBrandRow({ subBrands }: {
+  subBrands: Array<{
+    brand: string;
+    month_uc: number;
+    month_sum: number;
+    month_avg_check: number;
+    ytd_uc: number;
+    ytd_sum: number;
+    target_buyers_monthly: number | null;
+  }>;
+}) {
+  if (!subBrands || subBrands.length === 0) return null;
+  return (
+    <div className="pt-4 mt-3 border-t border-dashed border-[rgba(6,42,61,0.10)]">
+      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.55)] mb-2">
+        Розкладка по брендах сегменту
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {subBrands.map(s => (
+          <div key={s.brand} className="glass-card p-4">
+            <div className="text-[13px] font-bold mb-2">{s.brand}</div>
+            <div className="space-y-1.5 text-[11.5px]">
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Купують у міс.</span>
+                <span className="mono font-bold text-[15px] tabular-nums">
+                  {s.month_uc}
+                  {s.target_buyers_monthly != null && (
+                    <span className="text-[11px] text-muted-foreground font-medium ml-0.5">/ {s.target_buyers_monthly}</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Факт місяця</span>
+                <span className="mono font-bold tabular-nums">{fmtUSD(s.month_sum)}</span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Середній чек</span>
+                <span className="mono font-bold tabular-nums">{fmtUSD(s.month_avg_check)}</span>
+              </div>
+              <div className="flex justify-between items-baseline pt-1 mt-1 border-t border-dashed border-[rgba(6,42,61,0.08)]">
+                <span className="text-muted-foreground">YTD унік. клієнтів</span>
+                <span className="mono font-bold tabular-nums">{s.ytd_uc}</span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">YTD факт</span>
+                <span className="mono font-bold tabular-nums">{fmtUSD(s.ytd_sum)}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // SeminarStatCard — для Ellanse блоку
 // ============================================================================
 export function SeminarStatCard({ label, period, ytd }: { label: string; period: number; ytd: number }) {

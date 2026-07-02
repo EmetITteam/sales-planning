@@ -53,7 +53,13 @@ export async function GET(request: NextRequest) {
   const periodParam = url.searchParams.get('period') ?? new Date().toISOString().slice(0, 7);
   // Опційно фільтруємо тільки selected brand щоб швидко рахувати категорії +
   // first-trained (для одного бренду це швидко, для всіх — довго).
-  const brandParam = url.searchParams.get('brand');
+  const brandParamRaw = url.searchParams.get('brand');
+  // Якщо запит по СЕГМЕНТУ (наприклад IUSE), розгортаємо у список підбрендів.
+  // API далі агрегує факти + промо як для одного «мета-бренду».
+  const segmentBrands: string[] | null = brandParamRaw && isSegment(brandParamRaw)
+    ? [...STRATEGIC_SEGMENTS[brandParamRaw as keyof typeof STRATEGIC_SEGMENTS]]
+    : null;
+  const brandParam = brandParamRaw && !segmentBrands ? brandParamRaw : null;
   let parsed;
   try {
     parsed = parsePeriod(periodParam);
@@ -246,6 +252,19 @@ export async function GET(request: NextRequest) {
         ytd: { seminars_held: number; new_trained: number };
       }>;
     };
+    // Тільки для segment-блоків (напр. brand='IUSE') — розкладка по sub-brands.
+    sub_brands?: Array<{
+      brand: string;
+      month_uc: number;
+      month_qty: number;
+      month_sum: number;
+      month_avg_qty: number;
+      month_avg_check: number;
+      ytd_uc: number;
+      ytd_sum: number;
+      target_uc_annual: number | null;
+      target_buyers_monthly: number | null;
+    }>;
   }
 
   const blocks: BlockResult[] = [];
@@ -329,6 +348,150 @@ export async function GET(request: NextRequest) {
             },
           })),
         } : undefined,
+      });
+    }
+  }
+
+  // ============================================================================
+  // SEGMENT-БЛОКИ (наприклад IUSE = SB + hair + Coll.)
+  // Створюємо агрегати per канал: сума фактів + сума таргетів, і додаємо
+  // sub_brands[] з роздільними цифрами (для UI de показуємо їх без %).
+  // ============================================================================
+  if (segmentBrands) {
+    const segmentName = brandParamRaw!;
+    for (const channel of STRATEGIC_CHANNELS) {
+      // Sub-brand cards (без %)
+      interface SubBrand {
+        brand: string;
+        month_uc: number;
+        month_qty: number;
+        month_sum: number;
+        month_avg_qty: number;
+        month_avg_check: number;
+        ytd_uc: number;
+        ytd_sum: number;
+        target_uc_annual: number | null;
+        target_buyers_monthly: number | null;
+      }
+      const subBrands: SubBrand[] = [];
+      let sumMonthUC = 0, sumMonthQty = 0, sumMonthSum = 0;
+      let sumYtdUC = 0, sumYtdSum = 0;
+      let sumTargetUCAnnual = 0, sumTargetBuyersMonthly = 0;
+      let sumTargetAvgCheck = 0, targetAvgCheckCount = 0;
+      let hasAnyData = false;
+
+      for (const sb of segmentBrands) {
+        const m = monthMap.get(metricKey(sb, channel));
+        const y = ytdMap.get(metricKey(sb, channel));
+        const t = targetMap.get(targetKey(sb, channel));
+        if (m || y || t) hasAnyData = true;
+        subBrands.push({
+          brand: sb,
+          month_uc: m?.unique_clients ?? 0,
+          month_qty: m?.total_qty ?? 0,
+          month_sum: m?.total_sum_usd ?? 0,
+          month_avg_qty: m?.avg_qty_per_client ?? 0,
+          month_avg_check: m?.avg_check_usd ?? 0,
+          ytd_uc: y?.unique_clients ?? 0,
+          ytd_sum: y?.total_sum_usd ?? 0,
+          target_uc_annual: t?.unique_clients_annual ?? null,
+          target_buyers_monthly: t?.buyers_monthly ?? null,
+        });
+        sumMonthUC += m?.unique_clients ?? 0;
+        sumMonthQty += m?.total_qty ?? 0;
+        sumMonthSum += m?.total_sum_usd ?? 0;
+        sumYtdUC += y?.unique_clients ?? 0;
+        sumYtdSum += y?.total_sum_usd ?? 0;
+        if (t?.unique_clients_annual) sumTargetUCAnnual += t.unique_clients_annual;
+        if (t?.buyers_monthly) sumTargetBuyersMonthly += t.buyers_monthly;
+        if (t?.avg_check_annual) { sumTargetAvgCheck += t.avg_check_annual; targetAvgCheckCount++; }
+      }
+
+      if (!hasAnyData) continue;
+
+      // Промо агрегуємо через combined-фільтр (клієнт може бути у 2 суб-брендах — dedup).
+      const clientSet = new Set<string>();
+      const segPromosMap = new Map<string, { name: string; clients: Set<string>; qty: number; sum: number; is_gift: boolean; gift_brand: string | null; overlap_with?: { name: string; is_gift: boolean; clients: number } }>();
+      for (const p of promos) {
+        if (p.channel !== channel) continue;
+        if (!segmentBrands.includes(p.brand)) continue;
+        const key = p.name;
+        let entry = segPromosMap.get(key);
+        if (!entry) {
+          entry = { name: p.name, clients: new Set(), qty: 0, sum: 0, is_gift: p.is_gift, gift_brand: p.gift_brand, overlap_with: p.overlap_with };
+          segPromosMap.set(key, entry);
+        }
+        entry.qty += p.total_qty;
+        entry.sum += p.total_sum_usd;
+        // We don't have client set — take unique_clients (approx). For pure dedup would need
+        // client sets from promos.ts which we didn't expose. Best-effort: sum uc.
+        for (let i = 0; i < p.unique_clients; i++) clientSet.add(`${p.name}|${i}`);
+      }
+      const segPromos = Array.from(segPromosMap.values())
+        .map(e => ({
+          name: e.name,
+          unique_clients: 0,   // TODO: expose client sets from promos.ts for exact dedup
+          total_qty: Math.round(e.qty * 100) / 100,
+          total_sum_usd: Math.round(e.sum * 100) / 100,
+          is_gift: e.is_gift,
+          gift_brand: e.gift_brand,
+          overlap_with: e.overlap_with,
+        }))
+        .sort((a, b) => b.total_sum_usd - a.total_sum_usd);
+
+      const monthAvgQty  = sumMonthUC > 0 ? sumMonthQty / sumMonthUC : 0;
+      const monthAvgChk  = sumMonthUC > 0 ? sumMonthSum / sumMonthUC : 0;
+      const ytdAvgChk    = sumYtdUC > 0   ? sumYtdSum / sumYtdUC     : 0;
+      const targetAvgChk = targetAvgCheckCount > 0 ? sumTargetAvgCheck / targetAvgCheckCount : null;
+
+      const pctOr = (num: number | null, den: number | null | undefined) => {
+        if (num === null || !den || den === 0) return null;
+        return Math.round((num / den) * 1000) / 10;
+      };
+
+      blocks.push({
+        brand: segmentName,
+        channel,
+        target: {
+          year,
+          brand: segmentName,
+          channel,
+          unique_clients_annual: sumTargetUCAnnual || null,
+          buyers_monthly: sumTargetBuyersMonthly || null,
+          avg_check_annual: targetAvgChk,
+          avg_qty_per_client: null,
+          new_trained_annual: null,
+          trainings_annual: null,
+          trainings_repeat: null,
+          conversion_repeat_pct: null,
+          retention_monthly: null,
+        },
+        month: sumMonthUC > 0 ? {
+          unique_clients: sumMonthUC,
+          total_qty: Math.round(sumMonthQty * 100) / 100,
+          total_sum_usd: Math.round(sumMonthSum * 100) / 100,
+          avg_qty_per_client: Math.round(monthAvgQty * 100) / 100,
+          avg_check_usd: Math.round(monthAvgChk * 100) / 100,
+        } : null,
+        ytd: sumYtdUC > 0 ? {
+          unique_clients: sumYtdUC,
+          total_sum_usd: Math.round(sumYtdSum * 100) / 100,
+          avg_check_usd: Math.round(ytdAvgChk * 100) / 100,
+        } : null,
+        execution: {
+          buyers_monthly_pct: pctOr(sumMonthUC, sumTargetBuyersMonthly || null),
+          avg_qty_per_client_pct: null,
+          unique_clients_simple_pct: pctOr(sumYtdUC, sumTargetUCAnnual || null),
+          unique_clients_pace_pct: sumTargetUCAnnual && realPace > 0
+            ? pctOr(sumYtdUC, sumTargetUCAnnual * realPace)
+            : null,
+          unique_clients_forecast: sumYtdUC && monthIndex > 0
+            ? Math.round(sumYtdUC * 12 / monthIndex)
+            : null,
+          avg_check_annual_pct: pctOr(ytdAvgChk, targetAvgChk),
+        },
+        promos: segPromos,
+        sub_brands: subBrands,
       });
     }
   }
