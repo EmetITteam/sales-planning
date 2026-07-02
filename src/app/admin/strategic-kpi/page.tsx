@@ -537,18 +537,20 @@ export default function StrategicKpiPage() {
                       </p>
                       <div className="space-y-1.5">
                         {data.rep_seminars.map((s, i) => (
-                          <div key={`${s.seminar}-${s.division}-${i}`} className="glass-card p-3 text-[12px]">
-                            <div className="flex items-center gap-3">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-teal-500/15 border border-teal-300/40 text-teal-800 whitespace-nowrap">
-                                {s.division}
-                              </span>
-                              <span className="flex-1 min-w-0 truncate" title={s.seminar}>
-                                {s.seminar}
-                              </span>
-                              <span className="mono font-bold text-[13px] text-[#0f766e] whitespace-nowrap">
-                                {s.unique_clients} <span className="text-[10px] font-medium text-muted-foreground">клієнтів</span>
-                              </span>
-                            </div>
+                          <div
+                            key={`${s.seminar}-${s.division}-${i}`}
+                            className="glass-card px-3 py-2.5 text-[12px] grid items-center gap-3"
+                            style={{ gridTemplateColumns: '90px 1fr auto' }}
+                          >
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-teal-500/15 border border-teal-300/40 text-teal-800 whitespace-nowrap">
+                              {s.division}
+                            </span>
+                            <span className="min-w-0 truncate" title={s.seminar}>
+                              {s.seminar}
+                            </span>
+                            <span className="mono font-bold text-[13px] text-[#0f766e] whitespace-nowrap tabular-nums text-right">
+                              {s.unique_clients} <span className="text-[10px] font-medium text-muted-foreground">кл.</span>
+                            </span>
                           </div>
                         ))}
                       </div>

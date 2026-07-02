@@ -61,10 +61,14 @@ export async function fetchEllanseRepSeminars(
     from += PAGE;
   }
 
-  // Групуємо (seminar, division) → Set<client_code>
+  // Групуємо (seminar, division) → Set<client_code>.
+  // Фільтр: тільки семінари з ELLANSE у назві (в базі є ще Анатомія,
+  // Black Sea Beauty тощо — вони не по Ellanse). Ми на дашборді Ellanse,
+  // тому інші контексти не цікавлять.
   const buckets = new Map<string, { seminar: string; division: string; clients: Set<string> }>();
   for (const r of all) {
     if (!r.seminar || !r.division) continue;
+    if (!/ELLANSE/i.test(r.seminar)) continue;
     const k = `${r.seminar}||${r.division}`;
     let b = buckets.get(k);
     if (!b) {

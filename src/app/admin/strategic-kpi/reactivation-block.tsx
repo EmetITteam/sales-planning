@@ -178,20 +178,29 @@ function RankTable({ title, rows, humanize }: { title: string; rows: DimRow[]; h
       </div>
     );
   }
+  // Grid із фіксованими колонками щоб рядки вирівнювались рівно між собою.
+  // 1fr | chip 60px | sum 68px | % 44px
+  const gridCols = '1fr 68px 72px 48px';
   return (
     <div>
       <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground mb-2">{title}</div>
       <div className="space-y-1">
         {rows.map(r => (
-          <div key={r.key} className="flex items-center gap-2 text-[12px]">
-            <div className="flex-1 min-w-0 truncate" title={r.key}>
+          <div
+            key={r.key}
+            className="grid items-center gap-2 text-[12px]"
+            style={{ gridTemplateColumns: gridCols }}
+          >
+            <div className="min-w-0 truncate" title={r.key}>
               {humanize ? (CHANNEL_LABEL[r.key as StrategicChannel] ?? r.key) : r.key}
             </div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-500/12 border border-amber-300/40 text-amber-800 whitespace-nowrap mono">
+            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-500/12 border border-amber-300/40 text-amber-800 whitespace-nowrap mono">
               {r.unique_clients} кл.
             </span>
-            <span className="mono text-[11px] text-muted-foreground whitespace-nowrap">{fmtUSD(r.total_sum_usd)}</span>
-            <span className="mono font-bold text-[11px] text-[#066aab] whitespace-nowrap w-11 text-right">
+            <span className="mono text-[11px] text-muted-foreground whitespace-nowrap tabular-nums text-right">
+              {fmtUSD(r.total_sum_usd)}
+            </span>
+            <span className="mono font-bold text-[11px] text-[#066aab] whitespace-nowrap tabular-nums text-right">
               {r.pct_of_category.toFixed(1)}%
             </span>
           </div>

@@ -136,15 +136,12 @@ export async function GET(request: NextRequest) {
   // треба окремий COUNT DISTINCT client_code per category, але для UI ~ok.
   for (const cat of ['new', 'sleeping', 'lost'] as const) {
     categories[cat].total_sum_usd = Math.round((categoryTotal[cat] ?? 0) * 100) / 100;
-    // Топ-5 у кожному розрізі щоб UI був компактним
+    // Всі бренди і всі акції — сортування від найбільшої частки до найменшої.
+    // (Раніше .slice(0,5) — але власник хоче повний список.)
     categories[cat].by_dim = categories[cat].by_dim
-      .sort((a, b) => b.total_sum_usd - a.total_sum_usd)
-      .slice(0, 5);
+      .sort((a, b) => b.pct_of_category - a.pct_of_category);
     categories[cat].by_promo = categories[cat].by_promo
-      .sort((a, b) => b.total_sum_usd - a.total_sum_usd)
-      .slice(0, 5);
-    // Загальна кількість клієнтів категорії = max від Set-суми по dim
-    // (Set не робимо у SQL з UNION ALL — тому беремо приблизно з max)
+      .sort((a, b) => b.pct_of_category - a.pct_of_category);
     const dimClients = categoryTotalClients[cat];
     categories[cat].total_clients = dimClients;
   }
