@@ -223,11 +223,14 @@ export default function StrategicKpiPage() {
     let factSum = 0, planSum = 0;
     const seen = new Set<string>();
     for (const b of brandBlocks) {
+      // distributors — семінари, грошового факту немає → у % не рахуємо
+      // (інакше план дистрів роздуває знаменник і % падає — bug 77.7% для Ellanse).
+      if (b.channel === 'distributors') continue;
       if (b.month?.total_sum_usd) factSum += b.month.total_sum_usd;
       if (!seen.has(b.channel)) { planSum += planMap[b.channel] ?? 0; seen.add(b.channel); }
     }
     if (planSum > 0) return (factSum / planSum) * 100;
-    const pcts = brandBlocks.filter(b => b.month?.unique_clients && b.execution.buyers_monthly_pct != null).map(b => b.execution.buyers_monthly_pct!);
+    const pcts = brandBlocks.filter(b => b.channel !== 'distributors' && b.month?.unique_clients && b.execution.buyers_monthly_pct != null).map(b => b.execution.buyers_monthly_pct!);
     return pcts.length ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
   }, [brandBlocks, data, planBrandKey]);
 
