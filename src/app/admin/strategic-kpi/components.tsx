@@ -41,40 +41,55 @@ export interface MetricCardProps {
   isDecimal?: boolean;
 }
 
-export function MetricCard({ label, Icon, monthValue, ytdValue, target, simplePct, pacePct, forecast, isUsd, isDecimal }: MetricCardProps) {
+export function MetricCard({ label, Icon: _Icon, monthValue, ytdValue, target, simplePct, pacePct, forecast, isUsd, isDecimal }: MetricCardProps) {
   const value = ytdValue ?? monthValue ?? null;
   const status = statusColor(simplePct);
   const fmt = (n: number | null | undefined) => (n == null ? '—' : isUsd ? fmtUSD(n) : fmtNum(n, isDecimal));
   const barPct = simplePct == null ? 0 : Math.max(0, Math.min(100, simplePct));
-  // Кольори статусу (у стилі «Огляд компанії»)
-  const dot = { good: '#10b981', ok: '#5bd5bc', warn: '#fb923c', bad: '#e11d48', na: '#94a3b8' }[status];
-  const barColor = { good: '#10b981', ok: '#5bd5bc', warn: '#fb923c', bad: '#e11d48', na: '#cbd5e1' }[status];
+  // Кольори статусу — узгоджено з CategoryCard і «Огляд компанії».
+  // Bg = subtle color-tint замість плоского білого glass — це те що робить
+  // картки на Клієнтах виглядати «преміально» а не «порожньо».
+  const palette = {
+    good: { dot: '#10b981', label: '#0f766e', bar: '#10b981', tint: 'rgba(16,185,129,0.06)' },
+    ok:   { dot: '#5bd5bc', label: '#0f766e', bar: '#5bd5bc', tint: 'rgba(91,213,188,0.06)' },
+    warn: { dot: '#fb923c', label: '#c2410c', bar: '#fb923c', tint: 'rgba(251,146,60,0.06)' },
+    bad:  { dot: '#e11d48', label: '#be123c', bar: '#e11d48', tint: 'rgba(225,29,72,0.05)' },
+    na:   { dot: '#94a3b8', label: '#64748b', bar: '#cbd5e1', tint: 'rgba(148,163,184,0.05)' },
+  }[status];
 
   return (
-    <div className="glass-card px-3.5 pt-3 pb-3 flex flex-col">
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
-        <Icon size={12} />
-        <span className="text-[10.5px] uppercase tracking-wider font-bold text-muted-foreground">{label}</span>
+    <div className="glass-card p-4 flex flex-col" style={{ background: palette.tint }}>
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="w-2 h-2 rounded-full" style={{ background: palette.dot }} />
+        <span
+          className="text-[11px] uppercase tracking-[0.06em] font-bold"
+          style={{ color: palette.label }}
+        >
+          {label}
+        </span>
       </div>
-      <p className="text-[26px] font-bold tabular-nums leading-none" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.5px' }}>
+      <p className="text-[28px] font-bold tabular-nums leading-none" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.5px' }}>
         {fmt(value)}
-        {target != null && <span className="text-[12px] text-muted-foreground font-medium ml-1" style={{ fontFamily: 'var(--font-sans)' }}>/ {fmt(target)}</span>}
+        {target != null && (
+          <span className="text-[13px] text-muted-foreground font-medium ml-1" style={{ fontFamily: 'var(--font-sans)' }}>
+            / {fmt(target)}
+          </span>
+        )}
       </p>
-      <div className="h-1 rounded-full bg-black/5 mt-2 mb-1.5 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-black/5 mt-3 mb-2 overflow-hidden">
         {simplePct != null && (
           <div className="h-full rounded-full transition-[width] duration-500"
-            style={{ width: `${barPct}%`, background: barColor }} />
+            style={{ width: `${barPct}%`, background: palette.bar }} />
         )}
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-[10.5px]">
         {simplePct != null ? (
           <span
-            className="inline-flex items-center px-2 py-0.5 rounded-full font-bold backdrop-blur-sm border"
+            className="inline-flex items-center px-2 py-0.5 rounded-full font-bold border"
             style={{
-              background: `${barColor}20`,
-              borderColor: `${barColor}66`,
-              color: barColor === '#5bd5bc' ? '#0f766e' : barColor,
+              background: `${palette.bar}18`,
+              borderColor: `${palette.bar}55`,
+              color: palette.label,
             }}
             title="Факт / ціль"
           >
