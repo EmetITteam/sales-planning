@@ -317,7 +317,7 @@ export default function StrategicKpiPage() {
             </div>
 
             {/* Категорії клієнтів (для selected brand) */}
-            {data?.categories && (
+            {data?.categories && data.categories.total > 0 && (
               <div className="relative mt-4 pt-3.5 border-t border-[rgba(6,42,61,0.08)]">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="sk-lbl">Клієнти бренду у періоді</div>
@@ -337,6 +337,26 @@ export default function StrategicKpiPage() {
                 </div>
               </div>
             )}
+
+            {/* Warning якщо категорії пусті (немає даних за період) */}
+            {data?.categories && data.categories.total === 0 && (
+              <div className="relative mt-4 pt-3.5 border-t border-[rgba(6,42,61,0.08)]">
+                <div className="flex items-start gap-2.5 rounded-xl px-3 py-2.5"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(251,146,60,0.10) 0%, rgba(251,146,60,0.03) 100%)',
+                    border: '1px solid rgba(251,146,60,0.25)',
+                  }}>
+                  <div className="text-[16px] leading-none text-amber-600 mt-0.5">⚠</div>
+                  <div>
+                    <div className="text-[12px] font-bold text-amber-800">Немає даних за цей період</div>
+                    <div className="text-[11px] text-amber-700/80 mt-0.5">
+                      У БД немає продажів <strong>{selectedBrand}</strong> у {periodLabel}. Останні дані — по {' '}
+                      <span className="mono font-bold">30.06.2026</span>. Виберіть інший період.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -344,6 +364,16 @@ export default function StrategicKpiPage() {
         {!loading && brandBlocks.map(block => {
           const channel = block.channel as StrategicChannel;
           if (!isChannelActive(selectedBrand, channel)) return null;
+          // Приховуємо канальний блок якщо у періоді для нього немає даних
+          // AND нема таргетів AND нема семінарів (Ellanse) AND нема промо.
+          // Тобто нема сенсу показувати порожній блок.
+          const hasMonth = block.month && block.month.unique_clients > 0;
+          const hasYtd = block.ytd && block.ytd.unique_clients > 0;
+          const hasSeminars = block.seminars_actual && (
+            block.seminars_actual.ytd.seminars_held > 0 || block.seminars_actual.period.seminars_held > 0
+          );
+          const hasPromos = block.promos.length > 0;
+          if (!hasMonth && !hasYtd && !hasSeminars && !hasPromos && !block.target) return null;
           const Icon = CHANNEL_ICON[channel];
           const overallPct = block.execution.buyers_monthly_pct;
           const overallStatus = statusColor(overallPct);
