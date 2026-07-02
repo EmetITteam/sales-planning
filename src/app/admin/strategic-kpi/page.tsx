@@ -1,14 +1,6 @@
 'use client';
 
-/**
- * /admin/strategic-kpi — стратегічний дашборд KPI на живих даних Supabase sales.
- *
- * Портовано з public/analytics-wireframe-v3.html — cinematic glass стиль:
- * mesh background + drift blobs + Manrope 200/700 hero + JetBrains Mono numbers
- * + radial ring progress + ambient glow за статусом.
- *
- * Admin only. Створено 2026-07-02.
- */
+/** /admin/strategic-kpi — стратегічний дашборд KPI (admin + sdu). */
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -41,7 +33,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import {
-  MetricCard, CategoryCard, ChannelCategoriesRow, SubBrandRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
+  MetricCard, CategoryCard, ChannelCategoriesRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
 } from './components';
 import { ReactivationBlock } from './reactivation-block';
 
@@ -113,6 +105,16 @@ interface ApiResponse {
   first_trained: { period: number; ytd: number } | null;
   rep_seminars: Array<{ seminar: string; division: string; unique_clients: number }> | null;
   ellanse_seminars_summary: { plan: number; actual_ytd: number } | null;
+  segment_summary: {
+    brand: string;
+    month_uc: number;
+    month_sum: number;
+    ytd_uc: number;
+    ytd_sum: number;
+    plan_month_uc: number;
+    plan_month_sum_derived: number;
+    plan_ytd_uc: number;
+  } | null;
 }
 
 const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number }>> = {
@@ -123,11 +125,7 @@ const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number
 const MONTHS_UA = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 
 function statusColor(pct: number | null): 'good' | 'ok' | 'warn' | 'bad' | 'na' {
-  // ITD 2026-07-02: пороги пересмотрены
-  //   ≥ 100 → зелений (виконано план)
-  //   60..99 → жовтий (в роботі)
-  //   < 60 → червоний (відстає)
-  //   null → сірий
+  // Пороги: ≥100 зел · 60-99 жовт · <60 черв · null сірий
   if (pct == null) return 'na';
   if (pct >= 100) return 'good';
   if (pct >= 60) return 'warn';
@@ -152,8 +150,6 @@ export default function StrategicKpiPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }, []);
   const [period, setPeriod] = useState(defaultPeriod);
-  // 'reactivation' — окремий mode «Акції»: замість бренд-даних показуємо
-  // блок реактивації (2 таблиці по категоріях × брендах + × акціях).
   const [selectedBrand, setSelectedBrand] = useState<StrategicBrand | 'reactivation'>('Vitaran');
   const isReactivationMode = selectedBrand === 'reactivation';
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -165,9 +161,7 @@ export default function StrategicKpiPage() {
   const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    // У режимі «Акції» показуємо тільки ReactivationBlock (він має власний fetch),
-    // тому дорогий strategic-kpi запит НЕ потрібен.
-    if (selectedBrand === 'reactivation') {
+    if (selectedBrand === 'reactivation') {  // Акції — власний fetch
       setData(null);
       setLoading(false);
       return;
@@ -199,12 +193,16 @@ export default function StrategicKpiPage() {
     return () => ctrl.abort();
   }, [user, load]);
 
-  const brandBlocks = useMemo(
-    () => data?.blocks.filter(b => b.brand === selectedBrand) ?? [],
-    [data, selectedBrand],
-  );
+  const brandBlocks = useMemo(() => {
+    if (!data) return [];
+    // Для сегмента (IUSE) показуємо блоки всіх його підбрендів як окремі бренди.
+    if (isSegment(selectedBrand)) {
+      const subs = STRATEGIC_SEGMENTS[selectedBrand as keyof typeof STRATEGIC_SEGMENTS];
+      return data.blocks.filter(b => subs.includes(b.brand as StrategicBrand));
+    }
+    return data.blocks.filter(b => b.brand === selectedBrand);
+  }, [data, selectedBrand]);
 
-  // Гарний label періоду з урахуванням kind
   const periodLabel = useMemo(() => {
     const monthMatch = period.match(/^(\d{4})-(\d{2})$/);
     if (monthMatch) {
@@ -222,31 +220,25 @@ export default function StrategicKpiPage() {
   }, [period]);
   const m = data?.monthIndex ?? 0;
 
-  // % виконання плану бренду:
-  //   Ключова метрика — «Купують у місяць» (buyers_monthly_pct). Це те що
-  //   найкраще відображає «як ми виконуємо план по бренду за період».
-  //   Якщо monthly даних для періоду немає (напр. майбутній місяць) — null.
-  //
-  //   Раніше усереднювали 4 метрики — але це давало 3179% коли одна з них
-  //   була нерепрезентативна (напр. ср/уп для 0 клієнтів → NaN → сумарно
-  //   абсурдно).
+  // Грошовий % (fact_$ / sum(buyers_monthly × avg_check)). Fallback — клієнтський.
   const brandExecution = useMemo(() => {
-    const pcts: number[] = [];
-    for (const b of brandBlocks) {
-      // Тільки якщо є факт і ціль — beремо buyers_monthly_pct
-      if (b.month?.unique_clients && b.execution.buyers_monthly_pct != null) {
-        pcts.push(b.execution.buyers_monthly_pct);
-      }
+    if (isSegment(selectedBrand) && data?.segment_summary?.plan_month_sum_derived) {
+      return (data.segment_summary.month_sum / data.segment_summary.plan_month_sum_derived) * 100;
     }
+    let factSum = 0, planSum = 0;
+    for (const b of brandBlocks) {
+      if (b.month?.total_sum_usd) factSum += b.month.total_sum_usd;
+      if (b.target?.buyers_monthly && b.target.avg_check_annual) planSum += b.target.buyers_monthly * b.target.avg_check_annual;
+    }
+    if (planSum > 0) return (factSum / planSum) * 100;
+    const pcts = brandBlocks.filter(b => b.month?.unique_clients && b.execution.buyers_monthly_pct != null).map(b => b.execution.buyers_monthly_pct!);
     return pcts.length ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
-  }, [brandBlocks]);
+  }, [brandBlocks, data, selectedBrand]);
 
   if (!user || !isStrategicKpiLogin(user.login)) return null;
 
   return (
     <>
-      {/* Використовуємо системні шрифти сайту (Plus Jakarta Sans + JetBrains Mono
-          через globals.css) щоб дизайн був консистентний з рештою бордів. */}
       <style jsx global>{`
         .sk-page { font-family: var(--font-sans); color: #062a3d; position: relative; min-height: 100vh; }
         .sk-page .num, .sk-page .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
@@ -267,14 +259,10 @@ export default function StrategicKpiPage() {
         .sk-hero-title { font-family: var(--font-sans); font-weight: 200; font-size: 30px; letter-spacing: -1px; line-height: 1.05; }
         .sk-hero-title strong { font-weight: 700; }
         .sk-mega-pct { font-family: var(--font-mono); font-weight: 700; font-size: 52px; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
-        /* Фіксована мін-ширина щоб рядок брендів не «стрибав» коли активний
-           бренд з коротшим/довшим ім'ям. text-align:center щоб текст був
-           по центру в комірках рівної ширини. */
         .sk-brand-pill { padding: 10px 16px; border-radius: 16px; font-weight: 700; font-size: 13px; letter-spacing: -0.2px; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(6,42,61,0.08); background: rgba(255,255,255,0.5); color: rgba(6,42,61,0.58); min-width: 118px; text-align: center; }
         .sk-brand-pill:hover { transform: translateY(-1px); background: rgba(255,255,255,0.75); color: #062a3d; }
         .sk-brand-pill.active { background: linear-gradient(135deg, #066aab 0%, #0284c7 100%); color: white; border-color: transparent; box-shadow: 0 4px 14px rgba(6,106,171,0.35); }
         .sk-brand-pill.active:hover { transform: translateY(-1px); }
-        /* Акції-режим: warn/amber gradient щоб візуально відрізнявся від брендів */
         .sk-brand-pill.active-warn { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); color: white; border-color: transparent; box-shadow: 0 4px 14px rgba(217,119,6,0.35); }
         .sk-brand-pill.active-warn:hover { transform: translateY(-1px); }
         .sk-text-good { color: #0f766e; } .sk-text-ok { color: #0284c7; } .sk-text-warn { color: #c2410c; } .sk-text-bad { color: #be123c; }
@@ -441,7 +429,11 @@ export default function StrategicKpiPage() {
           const hasPromos = block.promos.length > 0;
           if (!hasMonth && !hasYtd && !hasSeminars && !hasPromos && !block.target) return null;
           const Icon = CHANNEL_ICON[channel];
-          const overallPct = block.execution.buyers_monthly_pct;
+          // Грошовий % per канал: fact_$ / (target.buyers_monthly × target.avg_check_annual)
+          const planDollar = (block.target?.buyers_monthly ?? 0) * (block.target?.avg_check_annual ?? 0);
+          const overallPct = planDollar > 0 && block.month?.total_sum_usd
+            ? (block.month.total_sum_usd / planDollar) * 100
+            : block.execution.buyers_monthly_pct;
           const overallStatus = statusColor(overallPct);
 
           return (
@@ -451,7 +443,12 @@ export default function StrategicKpiPage() {
                   <Icon size={17} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-[15px] font-bold tracking-tight">{CHANNEL_LABEL[channel]}</h3>
+                  <h3 className="text-[15px] font-bold tracking-tight">
+                    {CHANNEL_LABEL[channel]}
+                    {isSegment(selectedBrand) && (
+                      <span className="text-muted-foreground font-medium"> · <span className="text-[#066aab]">{block.brand}</span></span>
+                    )}
+                  </h3>
                   {!block.target && (
                     <p className="text-[11px] text-amber-700 mt-0.5">
                       Таргети не введено · <Link href="/admin/strategic-targets" className="underline">Ввести</Link>
@@ -506,23 +503,27 @@ export default function StrategicKpiPage() {
                 </div>
               )}
 
-              {/* Розкладка категорій клієнтів по цьому каналу (RPC 036) */}
-              {channel !== 'distributors' && data?.channel_categories?.[channel] && (
-                <ChannelCategoriesRow
-                  data={data.channel_categories[channel]}
-                  channelLabel={channel === 'representatives' ? 'Представництвах' : 'Колл-центрі'}
-                  periodLabel={periodLabel}
-                />
-              )}
+              {/* Розкладка категорій клієнтів по цьому каналу (RPC 036).
+                  Показуємо ТІЛЬКИ коли у бренду є КЦ (представництва + КЦ).
+                  Для дистрибуторів (Ellanse Полтава/Чернівці) даних per-client
+                  немає — і так пусто. Для лише-Представництва — дубль hero. */}
+              {channel !== 'distributors' && data?.channel_categories?.[channel] && (() => {
+                const brand = selectedBrand as StrategicBrand | string;
+                const hasKC = isSegment(brand)
+                  ? STRATEGIC_SEGMENTS[brand as keyof typeof STRATEGIC_SEGMENTS].some(s => isChannelActive(s, 'call_center'))
+                  : isChannelActive(brand as StrategicBrand, 'call_center');
+                if (!hasKC) return null;
+                return (
+                  <ChannelCategoriesRow
+                    data={data.channel_categories[channel]}
+                    channelLabel={channel === 'representatives' ? 'Представництвах' : 'Колл-центрі'}
+                    periodLabel={periodLabel}
+                  />
+                );
+              })()}
 
-              {/* Segment mode: розкладка по підбрендах без % */}
-              {block.sub_brands && block.sub_brands.length > 0 && (
-                <SubBrandRow subBrands={block.sub_brands} />
-              )}
 
-              {/* ELLANSE Представництва — «Впервые обучені» (клієнти зі списку sales
-                  що вперше отримали Ellanse-семінарську покупку). Навчання йде
-                  через представництва, тому карточки тут а не у дистрів. */}
+              {/* ELLANSE Представництва — «Впервые обучені» + факт семінарів */}
               {selectedBrand === ELLANSE_BRAND && channel === 'representatives' && data?.first_trained && (
                 <div className="pt-5 border-t border-dashed border-[rgba(6,42,61,0.15)]">
                   {/* Річна зведена картина: план vs факт YTD семінарів */}
@@ -788,12 +789,7 @@ export default function StrategicKpiPage() {
           );
         })}
 
-        {/* Блок «Акції — Реактивація категорій» тепер показується виключно
-            через pill «Акції» у ряду брендів (рядок ~322). Тут його не рендеримо
-            щоб не було дублювання. */}
       </main>
     </>
   );
 }
-
-// UI-компоненти винесено у ./components.tsx щоб не порушувати LOC hard cap
