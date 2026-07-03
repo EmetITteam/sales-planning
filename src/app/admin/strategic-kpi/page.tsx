@@ -51,7 +51,7 @@ interface Block {
     conversion_repeat_pct: number | null;
     retention_monthly: number | null;
   } | null;
-  month: { unique_clients: number; total_qty: number; total_sum_usd: number; avg_qty_per_client: number; avg_check_usd: number } | null;
+  month: { unique_clients: number; total_qty: number; total_sum_usd: number; avg_qty_per_client: number; avg_check_usd: number; period_total_sum_usd?: number } | null;
   ytd: { unique_clients: number; total_sum_usd: number; avg_check_usd: number } | null;
   execution: {
     buyers_monthly_pct: number | null;
@@ -718,7 +718,9 @@ export default function StrategicKpiPage() {
                                 // Частка від загального факту бренд × канал у періоді.
                                 // Для gift-акцій p.total_sum_usd = сума trigger-покупок у тих
                                 // документах (див. fetchTriggerSums). Ділимо на факт каналу.
-                                const brandFact = block.month?.total_sum_usd ?? 0;
+                                // ТОТАЛ за період (не усереднений) — інакше на квартал/рік частка
+                                // роздувалась ×N (промо-сума тотал ÷ середньомісячний факт = 248%).
+                                const brandFact = block.month?.period_total_sum_usd ?? block.month?.total_sum_usd ?? 0;
                                 if (brandFact <= 0 || p.total_sum_usd <= 0) {
                                   return <span className="sk-muted">—</span>;
                                 }

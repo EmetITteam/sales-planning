@@ -35,6 +35,10 @@ export interface BrandChannelMetrics {
   avg_qty_per_client: number;
   avg_check_usd: number;
   rows: number;
+  // ТОТАЛ суми за весь період (не усереднений). Для 1 місяця = total_sum_usd;
+  // для квартал/рік total_sum_usd усереднений, а це — реальна сума за період.
+  // Використовується як знаменник частки промо (інакше доля роздувалась ×N).
+  period_total_sum_usd?: number;
 }
 
 interface SalesRow {
@@ -461,6 +465,7 @@ export async function aggregatePeriodMetricsAveraged(
       unique_clients: mc > 0 ? Math.round(p.clientsSum / mc) : 0,
       total_qty: Math.round((p.qtySum / mc) * 100) / 100,       // середня qty за місяць
       total_sum_usd: Math.round((p.sumSum / mc) * 100) / 100,   // середня сума за місяць
+      period_total_sum_usd: Math.round(p.sumSum * 100) / 100,    // ТОТАЛ за період (для частки промо)
       avg_qty_per_client: mc > 0 ? Math.round((p.avgQtyPerClientSum / mc) * 100) / 100 : 0,
       avg_check_usd: mc > 0 ? Math.round((p.avgCheckSum / mc) * 100) / 100 : 0,
       rows: p.rowsSum,
