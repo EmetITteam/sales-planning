@@ -33,7 +33,7 @@
 
 ### Бізнес-функція
 
-Система виросла з інструмента місячного планування у **операційну платформу відділу продажів** із **шести модулів**:
+Система виросла з інструмента місячного планування у **операційну платформу відділу продажів** із **семи модулів**:
 
 **1. Планування (прогноз + розрив)** — менеджери щомісяця планують:
 - **Прогноз** — кого з активних клієнтів обзвонять/зустрінуться для повторної покупки + орієнтовна сума
@@ -54,6 +54,8 @@
 **5. Рекламації (Sprint 2B, 2026-06)** (`/claims`) — модуль претензій клієнтів інтегрований з Bitrix24 SPA 1038. Менеджер подає рекламацію на якість препарату/упаковки з прикріпленими фото/відео, мед-відділ відповідає у чаті всередині sales-planning. Замінює окремий застосунок «reclamation-app». Файли тягнуться через server-proxy (обхід Bitrix-сесії). Filter «Непрочитані» + badge «Нове» на картці = server-side detect через regex на текст останнього коментаря.
 
 **6. Notification Center (2026-06)** — колокольчик у шапці з лічильником непрочитаних, dropdown зі списком. Поточно показує тільки нові коментарі мед-відділу у рекламаціях, розширюваний на майбутнє (нагадування зустрічей, ДН клієнтів, системні події). Інтегрований з `reclamation-app` Python webhook через shared secret.
+
+**7. Стратегічний KPI «Стратегія» (2026-07)** (`/admin/strategic-kpi`, вкладка «Стратегія») — дашборд виконання стратег-цілей по 11 брендах × 3 каналах (представництва / колл-центр / дистриб'ютори) для `itd@` (admin) + `sdu@` (директор). Грошовий **% виконання плану береться з «Огляд компанії»** (той самий 1С Action 4 план + Action 5 факт, що в Плануванні — єдине джерело істини, ADR-19), рахується лише по каналах зі стратег-тригерами (`isChannelActive`). Hero з розбивкою по підрозділах + категорії клієнтів; сегмент IUSE — 3 повні блоки підбрендів. Деталі: [docs/planning/strategic-kpi-spec.md](./docs/planning/strategic-kpi-spec.md).
 
 ### Ключові механіки
 
@@ -719,6 +721,8 @@ Playwright headed-mode скрипт [scripts/qa-review.mjs](./scripts/qa-review.
 | [docs/BACKUPS.md](./docs/BACKUPS.md) | стратегія резервного копіювання |
 | [docs/CHECKLIST_NEXT_PROJECT.md](./docs/CHECKLIST_NEXT_PROJECT.md) | чек-ліст для наступних схожих проектів |
 | [docs/BACKLOG.md](./docs/BACKLOG.md) | поточний backlog (P0/P1/P2/P3) — тех-борг, баги, нові фічі |
+| [docs/planning/strategic-kpi-spec.md](./docs/planning/strategic-kpi-spec.md) | специфікація дашборду «Стратегія» (%-джерело, канали, IUSE, файли, RPC) |
+| [docs/planning/decisions.md](./docs/planning/decisions.md) | ADR (ADR-19: % зі «Огляд компанії» як єдине джерело) |
 | [docs/SPEC_PENDING_1C_ITEMS.md](./docs/SPEC_PENDING_1C_ITEMS.md) | специфікації до 1С — усі pending закриті (Action B доставлено 28.05) |
 | [docs/SPEC_CLIENTSTATS_DISCREPANCY.md](./docs/SPEC_CLIENTSTATS_DISCREPANCY.md) | open question Action 5 clientStats |
 | [docs/ARCHIVE_PLANS.md](./docs/ARCHIVE_PLANS.md) | архів виконаних планів (PLAN V2 + clients-page) |
@@ -734,6 +738,7 @@ git tag --list 'etalon-*'
 # etalon-2026-05-13          — Adminrole + finalize + window-lock + redesign
 # etalon-glass-prod-2026-05-29 — glass-редизайн + /clients CRM + Огляд компанії (PROD)
 # prod-pre-glass-merge       — стан master ДО glass-merge (rollback-якір)
+# etalon-strategic-kpi-2026-07-03 — дашборд «Стратегія» у проді (% зі «Огляд компанії», ADR-19)
 ```
 
 Щоб повернутись на еталон: `git checkout etalon-glass-prod-2026-05-29`.
