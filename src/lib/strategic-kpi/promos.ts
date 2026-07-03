@@ -221,6 +221,7 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
     channel: string;
     clients: Set<string>;
     doc_ids: Set<string>;
+    pairs: Set<string>;        // `${client_code}|${doc_id}` — для overlap по документу
     qty: number;
     sum: number;
     is_gift_any: boolean;
@@ -245,6 +246,7 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
         channel: r.channel,
         clients: new Set(),
         doc_ids: new Set(),
+        pairs: new Set(),
         qty: 0,
         sum: 0,
         is_gift_any: false,
@@ -255,6 +257,7 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
     if (MONTH_SUFFIX_RE.test(r.discount)) bucket.had_suffix = true;
     bucket.clients.add(r.client_code);
     bucket.doc_ids.add(r.doc_id);
+    bucket.pairs.add(`${r.client_code}|${r.doc_id}`);
     bucket.qty += Number(r.qty);
     bucket.sum += Number(r.sum_usd);
     if (r.is_gift) bucket.is_gift_any = true;
@@ -262,56 +265,59 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
   }
 
   // ============================================================================
-  // OVERLAP: для кожного промо рахуємо перекриття з АГРЕГАТОМ усіх промо
-  // ПРОТИЛЕЖНОЇ сторони (discount ↔ gift) того ж бренду × каналу.
+  // OVERLAP по ДОКУМЕНТУ (не по клієнту за місяць!).
   //
-  // Приклад: клієнт отримав «Vitaran+Marine Collagen» (gift) АЛЕ його знижка
-  // це «Vitaran -15% (05.26)» або «Амбассадор Vitaran» — інший рядок discount.
-  // Pair-wise порівняння того не побачить, тому агрегуємо всі discount-промо
-  // бренду в одну множину клієнтів і рахуємо overlap проти неї.
+  // Подарок зараховуємо промо ТІЛЬКИ якщо gift-рядок у ТІЙ САМІЙ реалізації
+  // (doc_id), що й повод-знижка. Інакше клієнт з окремою покупкою «від 4х +
+  // Подарок» помилково додавав подарунок до непов'язаної «-3,5% від 2х»
+  // (баг ITD 2026-07-03: щоб отримати коллаген треба $700 = 4+ уп., це НЕ
+  // може бути в -3,5%-від-2х покупці).
   //
-  // Для UI overlap_with.name показує НАЙБІЛЬШИЙ окремий пов'язаний повод —
-  // це найінформативніше, але clients рахуємо проти ВСЬОГО агрегату.
+  // Тому: overlap = клієнти цього промо, у яких документ цього промо є ТАКОЖ
+  // документом протилежної сторони (gift). Партнер для label — gift-промо з
+  // найбільшим числом спільних документів.
   // ============================================================================
   const buckets = Array.from(promoMap.values());
   const overlapMap = new Map<string, { name: string; is_gift: boolean; clients: number }>();
 
-  // Ключ агрегата: brand||channel||side (side='gift' | 'disc')
-  const sideAggregates = new Map<string, Set<string>>();
-  const brandChannelSet = new Set<string>();
+  // Ключ агрегата: brand||channel||side — множина doc_id тієї сторони.
+  const sideDocs = new Map<string, Set<string>>();
   for (const b of buckets) {
     if (!b.trigger_brand) continue;
-    const bcKey = `${b.trigger_brand}||${b.channel}`;
-    brandChannelSet.add(bcKey);
     const side = b.is_gift_any ? 'gift' : 'disc';
-    const aggKey = `${bcKey}||${side}`;
-    let agg = sideAggregates.get(aggKey);
-    if (!agg) { agg = new Set(); sideAggregates.set(aggKey, agg); }
-    for (const c of b.clients) agg.add(c);
+    const aggKey = `${b.trigger_brand}||${b.channel}||${side}`;
+    let agg = sideDocs.get(aggKey);
+    if (!agg) { agg = new Set(); sideDocs.set(aggKey, agg); }
+    for (const d of b.doc_ids) agg.add(d);
   }
 
   for (const b of buckets) {
     if (!b.trigger_brand) continue;
     const bcKey = `${b.trigger_brand}||${b.channel}`;
     const oppositeSide = b.is_gift_any ? 'disc' : 'gift';
-    const opposite = sideAggregates.get(`${bcKey}||${oppositeSide}`);
-    if (!opposite || opposite.size === 0) continue;
+    const oppositeDocs = sideDocs.get(`${bcKey}||${oppositeSide}`);
+    if (!oppositeDocs || oppositeDocs.size === 0) continue;
 
-    // Overlap проти всього агрегату протилежної сторони
-    let overlapTotal = 0;
-    for (const c of b.clients) if (opposite.has(c)) overlapTotal++;
+    // Overlap-клієнти: чий документ цього промо є і документом протилежної сторони.
+    const overlapClients = new Set<string>();
+    for (const pair of b.pairs) {
+      const sep = pair.lastIndexOf('|');
+      const doc = pair.slice(sep + 1);
+      if (oppositeDocs.has(doc)) overlapClients.add(pair.slice(0, sep));
+    }
+    const overlapTotal = overlapClients.size;
     if (overlapTotal === 0) continue;
 
-    // Найбільший окремий партнер (для label у UI)
+    // Найбільший партнер протилежної сторони — за числом СПІЛЬНИХ документів.
     let bestPartner: { name: string; is_gift: boolean; clients: number } | null = null;
     for (const other of buckets) {
       if (other === b) continue;
       if (other.trigger_brand !== b.trigger_brand || other.channel !== b.channel) continue;
       if (other.is_gift_any === b.is_gift_any) continue;
-      let pairOverlap = 0;
-      for (const c of b.clients) if (other.clients.has(c)) pairOverlap++;
-      if (pairOverlap > 0 && (!bestPartner || pairOverlap > bestPartner.clients)) {
-        bestPartner = { name: other.name, is_gift: other.is_gift_any, clients: pairOverlap };
+      let sharedDocs = 0;
+      for (const d of b.doc_ids) if (other.doc_ids.has(d)) sharedDocs++;
+      if (sharedDocs > 0 && (!bestPartner || sharedDocs > bestPartner.clients)) {
+        bestPartner = { name: other.name, is_gift: other.is_gift_any, clients: sharedDocs };
       }
     }
 
