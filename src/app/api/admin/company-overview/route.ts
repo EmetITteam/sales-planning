@@ -35,6 +35,10 @@ import {
 // віддає Vercel-кеш і дані «затухають» — фак не міняється весь день).
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+// 1С company-wide Action 4+5 — «живі» виклики по 30-40с. Без maxDuration Vercel
+// (Pro default ~15с) вбивав функцію → hero-% на strategic-kpi мовчки падав на
+// клієнтський fallback. Даємо достатньо часу.
+export const maxDuration = 60;
 
 // === Мапінг 1С divisionName → наша group категорія ===
 // Назви беремо ТОЧНО як 1С повертає у Action 4 (перевірено diag-divisions.mjs).
@@ -150,6 +154,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const periodParam = searchParams.get('period');
   const asOfDateParam = searchParams.get('asOfDate');
+  // light=1 (strategic-kpi): пропускаємо вигрузку факту за ПОПЕРЕДНІЙ місяць —
+  // вона потрібна лише «Огляду» для delta clientStats, а дашборд «Стратегія»
+  // бере тільки divisions[].segments.{plan,fact}. Мінус один важкий 1С-виклик.
+  const light = searchParams.get('light') === '1';
   let period: string;
   if (periodParam && /^\d{4}-\d{2}$/.test(periodParam)) {
     period = periodParam;
@@ -196,9 +204,12 @@ export async function GET(request: NextRequest) {
       callOnec('getRegistryPlans', { dateFrom, dateTo, login: DIRECTOR_PROXY_LOGIN }),
       callOnec('getRegionData', currentPayload),
       // Попередній місяць — лише для порівняння clientStats. Якщо впаде —
-      // продовжуємо без prev (картка просто не покаже delta).
-      callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period: prevPeriod, includeAll: true })
-        .catch(() => ({ status: 'error' as const, message: 'prev month fetch failed' })),
+      // продовжуємо без prev (картка просто не покаже delta). У light-режимі
+      // (strategic-kpi) взагалі не тягнемо — економимо важкий 1С-виклик.
+      light
+        ? Promise.resolve({ status: 'error' as const, message: 'skipped (light)' })
+        : callOnec('getRegionData', { login: DIRECTOR_PROXY_LOGIN, period: prevPeriod, includeAll: true })
+            .catch(() => ({ status: 'error' as const, message: 'prev month fetch failed' })),
     ]);
 
     if (a4.status !== 'success') throw new Error(`Action 4: ${a4.message || 'unknown error'}`);

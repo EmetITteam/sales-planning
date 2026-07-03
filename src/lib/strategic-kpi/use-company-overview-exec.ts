@@ -85,7 +85,7 @@ export function useCompanyOverviewExec(period: string, enabled: boolean): ExecMa
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setExec(null);
     if (!enabled || !/^\d{4}-\d{2}$/.test(period)) return;
-    fetch(`/api/admin/company-overview?period=${period}`, { credentials: 'same-origin', signal: ctrl.signal })
+    fetch(`/api/admin/company-overview?period=${period}&light=1`, { credentials: 'same-origin', signal: ctrl.signal })
       .then(r => (r.ok ? r.json() : null))
       .then((co: CompanyOverviewResponse | null) => {
         if (ctrl.signal.aborted) return;
