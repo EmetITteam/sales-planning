@@ -14,6 +14,7 @@
 import { supabase } from '@/lib/supabase';
 import type { StrategicBrand, StrategicChannel } from './brands';
 import { AsyncCache } from './cache-helper';
+import { detectPromoTriggerBrand } from './sales-classifier';
 
 // 5-хв кеш з дедуплікацією in-flight запитів + LRU eviction + frozen return
 const PROMOS_CACHE = new AsyncCache<Promo[]>(5 * 60 * 1000, 'promos');
@@ -58,31 +59,10 @@ interface DocSums {
   [docId: string]: { brand: string; sum: number; qty: number };
 }
 
-// ============================================================================
-// Brand detection на тексті поводу — той самий набір що у backfill/scripts
-// ============================================================================
-const BRAND_RULES: [StrategicBrand | 'НЕ_МАПНУТО', RegExp][] = [
-  ['Neuronox',   /Neuronox|Ботулотоксин/i],
-  ['Petaran',    /PETARAN/i],
-  ['Ellanse',    /ELLANSE/i],
-  ['Vitaran',    /HP\s*CELL\s*VITARAN|VITARAN\s*(?:i\b|Tox|Whitening|Cosm|а\s*ассор)/i],
-  ['EXOXE',      /\bEXOXE\b(?!-)/i],
-  ['Neuramis',   /NEURAMIS/i],
-  ['IUSE SB',    /IUSE.*Skin\s*Booster|Skin\s*Booster/i],
-  ['IUSE hair',  /IUSE.*(?:hair|волос)|IUSE\s+H\b/i],
-  ['IUSE Coll.', /IUSE.*Collagen|Marine\s*Collagen|Collagen/i],
-  ['ESSE',       /\.?ESSE\b|C5\.ESSE|SkinTrial|Skin\s*Trial|ESSE\s*(?:Gel|Cream|Serum|Emulsion|Tonic|Cleanser|Skin|Dry|Set|Bakuchiol|Biome|Concealer|tube|Sensitive)/i],
-  ['БАД',        /MAGNOX|Дієтична\s*добавк|Диетическая\s*добавк|БАД/i],
-];
-
-function detectPromoTriggerBrand(discount: string): StrategicBrand | 'НЕ_МАПНУТО' | null {
-  if (!discount) return null;
-  const triggerPart = discount.split(/Подар(?:ок|унок)/i)[0];
-  for (const [brand, pat] of BRAND_RULES) {
-    if (pat.test(triggerPart)) return brand;
-  }
-  return null;
-}
+// Тригер-бренд поводу — КАНОНІЧНИЙ detectPromoTriggerBrand з класифікатора
+// (single source). Раніше promos.ts мав свою копію BRAND_RULES, що розійшлася
+// (IUSE Coll. з голим «Collagen», ESSE без «Gift set 2026») → тригер у ТОП-5
+// не збігався з колонкою promo_trigger_brand у Реактивації. Тепер один набір.
 
 // Суфікс місяця у назві промо: «... -47% (05.26)». Одну й ту саму акцію 1С
 // маркує різними місяцями (05.26 / 06.26) — це фактично одне промо, тому при
