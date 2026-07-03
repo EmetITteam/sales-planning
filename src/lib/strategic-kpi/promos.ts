@@ -169,16 +169,27 @@ async function fetchTriggerSumsBatch(
   // що може обрізуватись PostgREST мовчки. 100 × 12-char ≈ 1.2KB — безпечний
   // запас під більшість URL-лімітів (Vercel/Cloudflare 4-8KB).
   const CHUNK = 100;
+  const PAGE = 1000;
   for (let i = 0; i < allDocs.length; i += CHUNK) {
     const chunk = allDocs.slice(i, i + CHUNK);
-    const res = await supabase
-      .from('sales')
-      .select('doc_id,brand,sum_usd,qty')
-      .in('doc_id', chunk)
-      .eq('is_ignored', false)
-      .eq('is_gift', false);
-    if (res.error || !res.data) continue;
-    allRows.push(...(res.data as unknown as Row[]));
+    // Пагінація з .order('id') — 100 мультипозиційних B2B-документів можуть дати
+    // >1000 рядків, і PostgREST мовчки обрізав би на 1000-му → недосчёт trigger-сум.
+    let off = 0;
+    for (;;) {
+      const res = await supabase
+        .from('sales')
+        .select('doc_id,brand,sum_usd,qty')
+        .in('doc_id', chunk)
+        .eq('is_ignored', false)
+        .eq('is_gift', false)
+        .order('id')
+        .range(off, off + PAGE - 1);
+      if (res.error || !res.data) break;
+      const rows = res.data as unknown as Row[];
+      allRows.push(...rows);
+      if (rows.length < PAGE) break;
+      off += PAGE;
+    }
   }
 
   // Індекс: (doc_id, brand) → aggregated { sum, qty }
