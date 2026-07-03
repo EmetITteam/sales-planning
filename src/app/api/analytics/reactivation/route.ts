@@ -20,6 +20,11 @@ import { parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { STRATEGIC_BRANDS } from '@/lib/strategic-kpi/brands';
 import { AsyncCache } from '@/lib/strategic-kpi/cache-helper';
 
+// RPC get_reactivation_analytics за багатомісячний період (H1/рік) з p_brand=NULL
+// (режим «Акції») сканує sales кілька разів + self-join — на холодну може бути
+// >15с (Vercel default) → HTTP 500. Даємо запас. AsyncCache 5хв гріє наступні.
+export const maxDuration = 60;
+
 interface RpcRow {
   category: 'new' | 'sleeping' | 'lost';
   // '__cat_total__' — новий тип рядка з migration 035: справжній COUNT DISTINCT
