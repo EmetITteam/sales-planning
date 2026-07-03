@@ -18,7 +18,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { isStrategicKpiLogin } from '@/lib/feature-flags';
 import { supabase } from '@/lib/supabase';
-import { aggregateBrandChannelMetrics, aggregatePeriodMetricsAveraged, aggregateYTDMetrics, fetchKpiMetricsBatch, fetchKpiMetricsAveragedBatch, parsePeriod } from '@/lib/strategic-kpi/aggregate';
+import { fetchKpiMetricsBatch, fetchKpiMetricsAveragedBatch, parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { getBrandClientCategories, getBrandChannelCategories, type ClientCategories, type ChannelCategoriesMap } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
@@ -380,50 +380,8 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ============================================================================
-  // SEGMENT MODE (наприклад IUSE = SB + hair + Coll.)
-  // UI показує 3 sub-brand-блоки як окремі бренди зі СВОЇМИ таргетами і %.
-  // На hero — зведений грошовий % по сегменту (fact_$ / plan_$_derived).
-  // ============================================================================
-  interface SegmentSummary {
-    brand: string;
-    month_uc: number;
-    month_sum: number;
-    ytd_uc: number;
-    ytd_sum: number;
-    plan_month_uc: number;
-    plan_month_sum_derived: number;   // sum(target.buyers_monthly × target.avg_check)
-    plan_ytd_uc: number;
-  }
-  let segmentSummary: SegmentSummary | null = null;
-  if (segmentBrands) {
-    let mUC = 0, mSum = 0, yUC = 0, ySum = 0;
-    let pUC = 0, pYearUC = 0, pMonthSum = 0;
-    for (const sb of segmentBrands) {
-      for (const channel of STRATEGIC_CHANNELS) {
-        const m = monthMap.get(metricKey(sb, channel));
-        const y = ytdMap.get(metricKey(sb, channel));
-        const t = targetMap.get(targetKey(sb, channel));
-        if (m) { mUC += m.unique_clients; mSum += m.total_sum_usd; }
-        if (y) { yUC += y.unique_clients; ySum += y.total_sum_usd; }
-        if (t?.buyers_monthly) {
-          pUC += t.buyers_monthly;
-          if (t.avg_check_annual) pMonthSum += t.buyers_monthly * t.avg_check_annual;
-        }
-        if (t?.unique_clients_annual) pYearUC += t.unique_clients_annual;
-      }
-    }
-    segmentSummary = {
-      brand: brandParamRaw!,
-      month_uc: mUC,
-      month_sum: Math.round(mSum * 100) / 100,
-      ytd_uc: yUC,
-      ytd_sum: Math.round(ySum * 100) / 100,
-      plan_month_uc: pUC,
-      plan_month_sum_derived: Math.round(pMonthSum * 100) / 100,
-      plan_ytd_uc: pYearUC,
-    };
-  }
+  // SEGMENT MODE (IUSE = SB + hair + Coll.): UI показує 3 sub-brand-блоки як
+  // окремі бренди; hero-% рахує фронт із «Огляд компанії» (грошовий по сегменту).
 
   return Response.json({
     period: monthKey,
@@ -438,6 +396,5 @@ export async function GET(request: NextRequest) {
     first_trained: firstTrained,  // тільки для brand=Ellanse
     rep_seminars: repSeminars,    // тільки для brand=Ellanse — семінари у представництвах
     ellanse_seminars_summary: ellanseSeminarsSummary,  // річний план + факт YTD
-    segment_summary: segmentSummary,   // zvedeni cifri po IUSE-tipu segmentu
   });
 }
