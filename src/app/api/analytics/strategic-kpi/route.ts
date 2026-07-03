@@ -136,6 +136,13 @@ export async function GET(request: NextRequest) {
   // % виконання плану рахує фронт із «Огляд компанії» (той самий 1С план+факт,
   // що в Плануванні) — тут 1С більше не зовемо, щоб не гальмувати ендпоінт.
 
+  // Місяці періоду startM..endM — оголошуємо ДО Ellanse-блоку (він читає endM
+  // на рядку ellanseSeminarsSummary). Раніше const був нижче → TDZ ReferenceError
+  // ловився catch-ом і річна зведена картина семінарів мовчки не рахувалась.
+  const startM = new Date(from).getUTCMonth() + 1;
+  const endM = new Date(to).getUTCMonth();  // to — початок наступного місяця, endM inclusive
+  const endMFixed = endM === 0 ? 12 : endM;
+
   if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
     try {
       categories = await softRace(getBrandClientCategories(brandParam, from, to), 6000, 'categories');
@@ -203,10 +210,7 @@ export async function GET(request: NextRequest) {
       console.warn('sub-brand-categories failed:', (e as Error).message);
     }
   }
-  // Період покриває місяці startM..endM
-  const startM = new Date(from).getUTCMonth() + 1;
-  const endM = new Date(to).getUTCMonth();  // to — початок наступного місяця, тобто endM inclusive
-  const endMFixed = endM === 0 ? 12 : endM;
+  // Період покриває місяці startM..endM (оголошено вище, до Ellanse-блоку)
   const seminarsInPeriod = seminars.filter(s => s.month >= startM && s.month <= endMFixed);
   const seminarsYTD = seminars.filter(s => s.month <= endMFixed);
   const sumSeminars = (rows: SeminarActualRow[], field: 'seminars_held' | 'new_trained') =>
