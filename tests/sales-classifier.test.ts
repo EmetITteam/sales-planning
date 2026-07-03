@@ -135,6 +135,14 @@ test('classifySale — амбассадор безкоштовно = excluded; �
   assert.equal(classifySale({ product: 'Ellanse S', discount: 'Амбассадор', division: 'Киев', sumUsd: 200 }).isExcluded, false);
 });
 
+test('classifySale — $0 саше = роздача (excluded), платне саше = продаж', () => {
+  const free = classifySale({ product: 'M5.ESSE Light Moisturiser 1мл sachet', discount: null, division: 'Киев', sumUsd: 0 });
+  assert.equal(free.isExcluded, true);
+  assert.equal(free.brand, 'ESSE'); // бренд лишається, але excluded
+  const paid = classifySale({ product: 'ESSE Serum саше 2ml', discount: null, division: 'Киев', sumUsd: 3 });
+  assert.equal(paid.isExcluded, false); // платне міні = продаж
+});
+
 test('classifySale — розхідник без бренду → ignored + UNMAPPED', () => {
   const c = classifySale({ product: 'Канюля 25G', discount: null, division: 'Одесса', sumUsd: 5 });
   assert.equal(c.brand, UNMAPPED_BRAND);
