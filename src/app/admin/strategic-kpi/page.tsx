@@ -103,6 +103,7 @@ interface ApiResponse {
   blocks: Block[];
   categories: Categories | null;
   channel_categories: Record<string, Categories> | null;
+  sub_brand_channel_categories: Record<string, Record<string, Categories>> | null;  // сегмент: суб-бренд×канал
   first_trained: { period: number; ytd: number } | null;
   rep_seminars: Array<{ seminar: string; division: string; unique_clients: number }> | null;
   ellanse_seminars_summary: { plan: number; actual_ytd: number } | null;
@@ -508,15 +509,18 @@ export default function StrategicKpiPage() {
                   Показуємо ТІЛЬКИ коли у бренду є КЦ (представництва + КЦ).
                   Для дистрибуторів (Ellanse Полтава/Чернівці) даних per-client
                   немає — і так пусто. Для лише-Представництва — дубль hero. */}
-              {channel !== 'distributors' && data?.channel_categories?.[channel] && (() => {
+              {channel !== 'distributors' && (() => {
                 const brand = selectedBrand as StrategicBrand | string;
-                const hasKC = isSegment(brand)
-                  ? STRATEGIC_SEGMENTS[brand as keyof typeof STRATEGIC_SEGMENTS].some(s => isChannelActive(s, 'call_center'))
-                  : isChannelActive(brand as StrategicBrand, 'call_center');
-                if (!hasKC) return null;
+                // Сегмент → per суб-бренд×канал у кожному блоці; звичайний бренд →
+                // per-channel, лише коли є КЦ (інакше дубль hero).
+                const catData = isSegment(brand)
+                  ? data?.sub_brand_channel_categories?.[block.brand]?.[channel]
+                  : data?.channel_categories?.[channel];
+                if (!catData) return null;
+                if (!isSegment(brand) && !isChannelActive(brand as StrategicBrand, 'call_center')) return null;
                 return (
                   <ChannelCategoriesRow
-                    data={data.channel_categories[channel]}
+                    data={catData}
                     channelLabel={channel === 'representatives' ? 'Представництвах' : 'Колл-центрі'}
                     periodLabel={periodLabel}
                   />

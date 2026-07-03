@@ -109,6 +109,9 @@ export async function GET(request: NextRequest) {
   // передано ?brand=X (для одного бренду швидко, для всіх — довго).
   let categories: ClientCategories | null = null;
   let channelCategories: ChannelCategoriesMap | null = null;
+  // Для сегмента (IUSE): категорії клієнтів per суб-бренд × канал — щоб показати
+  // розбивку у кожному блоці суб-бренда.
+  let subBrandChannelCategories: Record<string, ChannelCategoriesMap> | null = null;
   let firstTrained: { period: number; ytd: number } | null = null;
   let repSeminars: RepSeminar[] | null = null;
   // Річна зведена картина Ellanse-навчань:
@@ -181,6 +184,23 @@ export async function GET(request: NextRequest) {
       } catch (e) {
         console.warn('ellanse-seminars-summary failed:', (e as Error).message);
       }
+    }
+  }
+
+  // СЕГМЕНТ (IUSE): категорії клієнтів per суб-бренд × канал — для розбивки у
+  // кожному блоці суб-бренда. Три суб-бренди рахуємо паралельно.
+  if (segmentBrands) {
+    try {
+      const pairs = await Promise.all(
+        segmentBrands.map(sb =>
+          softRace(getBrandChannelCategories(sb, from, to), 6000, `sub-cat:${sb}`)
+            .then(m => [sb, m] as const),
+        ),
+      );
+      subBrandChannelCategories = {};
+      for (const [sb, m] of pairs) if (m) subBrandChannelCategories[sb] = m;
+    } catch (e) {
+      console.warn('sub-brand-categories failed:', (e as Error).message);
     }
   }
   // Період покриває місяці startM..endM
@@ -414,6 +434,7 @@ export async function GET(request: NextRequest) {
     blocks,
     categories,      // тільки коли ?brand=X переданий
     channel_categories: channelCategories,  // per-channel розкладка для брендів з КЦ
+    sub_brand_channel_categories: subBrandChannelCategories,  // сегмент: per суб-бренд×канал
     first_trained: firstTrained,  // тільки для brand=Ellanse
     rep_seminars: repSeminars,    // тільки для brand=Ellanse — семінари у представництвах
     ellanse_seminars_summary: ellanseSeminarsSummary,  // річний план + факт YTD
