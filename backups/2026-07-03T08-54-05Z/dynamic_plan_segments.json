@@ -1,0 +1,12 @@
+[
+  {
+    "id": "7abe55da-2f1e-42b4-a08b-7fbd549f3164",
+    "segment_code": "NEURONOX",
+    "enabled_from": "2026-07-01",
+    "enabled_to": "2026-07-31",
+    "strategy": "mirror_fact",
+    "reason": null,
+    "created_by": "itd@emet.in.ua",
+    "created_at": "2026-07-01T11:44:41.297449+00:00"
+  }
+]
