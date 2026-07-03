@@ -73,12 +73,14 @@ export function isAmbassador(discount?: string | null): boolean {
   return !!discount && /Амбассадор/i.test(discount);
 }
 
-// $0-саше = роздача семплів (пробники), НЕ продаж. Раніше не виключались, бо
-// у них розпізнаний бренд (ESSE Foundation саше) → !brand=false, тож і IGNORE
-// не спрацьовував. Правило узгоджено з ITD 2026-07-03: $0 саше → excluded.
-// Тільки $0 — платні міні-продукти лишаються продажами.
-export function isSachetGiveaway(product: string, sumUsd: number): boolean {
-  return sumUsd === 0 && /саше|sachet/i.test(product);
+// $0-роздача семплів (пробники): саше (ESSE Foundation) + шоти (IUSE Collagen
+// «1 шот» дарували до покупки) — це НЕ продаж. Раніше не виключались, бо мали
+// розпізнаний бренд → !brand=false, тож IGNORE не спрацьовував. Клієнт, що
+// отримав лише безкоштовний семпл, помилково рахувався покупцем.
+// Правило (ITD 2026-07-03): $0 + саше/sachet/шот → excluded.
+// ТІЛЬКИ $0 — платні міні-продукти (упаковки «30 шотів» $75+) лишаються продажами.
+export function isZeroPriceGiveaway(product: string, sumUsd: number): boolean {
+  return sumUsd === 0 && /саше|sachet|шот/i.test(product);
 }
 
 export function isGiftInDiscount(discount?: string | null): boolean {
@@ -141,7 +143,7 @@ export function classifySale(r: RawSaleFields): SaleClassification {
   const isGift = isGiftInDiscount(r.discount) && r.sumUsd === 0;
   const isExcluded = isExcludedDiscount(r.discount)
     || (isAmbassador(r.discount) && r.sumUsd === 0)
-    || (!isGift && isSachetGiveaway(r.product, r.sumUsd));  // $0-саше = роздача
+    || (!isGift && isZeroPriceGiveaway(r.product, r.sumUsd));  // $0 саше/шот = роздача
   return {
     brand: brand || UNMAPPED_BRAND,
     channel,

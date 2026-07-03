@@ -135,12 +135,16 @@ test('classifySale — амбассадор безкоштовно = excluded; �
   assert.equal(classifySale({ product: 'Ellanse S', discount: 'Амбассадор', division: 'Киев', sumUsd: 200 }).isExcluded, false);
 });
 
-test('classifySale — $0 саше = роздача (excluded), платне саше = продаж', () => {
-  const free = classifySale({ product: 'M5.ESSE Light Moisturiser 1мл sachet', discount: null, division: 'Киев', sumUsd: 0 });
-  assert.equal(free.isExcluded, true);
-  assert.equal(free.brand, 'ESSE'); // бренд лишається, але excluded
-  const paid = classifySale({ product: 'ESSE Serum саше 2ml', discount: null, division: 'Киев', sumUsd: 3 });
-  assert.equal(paid.isExcluded, false); // платне міні = продаж
+test('classifySale — $0 саше/шот = роздача (excluded), платне = продаж', () => {
+  const sachet = classifySale({ product: 'M5.ESSE Light Moisturiser 1мл sachet', discount: null, division: 'Киев', sumUsd: 0 });
+  assert.equal(sachet.isExcluded, true);
+  assert.equal(sachet.brand, 'ESSE'); // бренд лишається, але excluded
+  const shot = classifySale({ product: 'IUSE Marine Collagen - 1 шот', discount: '1 $ + 1 шот IUSE Collagen', division: 'Коллцентр', sumUsd: 0 });
+  assert.equal(shot.isExcluded, true); // $0 шот = роздача
+  const paidSachet = classifySale({ product: 'ESSE Serum саше 2ml', discount: null, division: 'Киев', sumUsd: 3 });
+  assert.equal(paidSachet.isExcluded, false); // платне міні = продаж
+  const pkg = classifySale({ product: 'IUSE Marine Collagen - Морський колаген, упаковка 30 шотів', discount: null, division: 'Коллцентр', sumUsd: 76 });
+  assert.equal(pkg.isExcluded, false); // упаковка (платна) = продаж
 });
 
 test('classifySale — розхідник без бренду → ignored + UNMAPPED', () => {
