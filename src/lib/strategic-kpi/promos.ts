@@ -91,8 +91,14 @@ const MONTH_SUFFIX_RE = /\s*\(\d{2}\.\d{2}\)\s*$/;
 function stripPromoMonthSuffix(name: string): string {
   return name.replace(MONTH_SUFFIX_RE, '').trim();
 }
-// dateFrom 'YYYY-MM-...' → 'MM.YY' (напр. '2026-06-01' → '06.26').
-function periodMonthSuffix(dateFromIso: string): string {
+// Суфікс місяця для показу — ТІЛЬКИ якщо період рівно 1 місяць (напр. '06.26').
+// Для періодів > 1 місяця (квартал/півріччя/рік) повертаємо null: акції все одно
+// схлопуються за базовою назвою, але БЕЗ конкретного місяця — інакше червневий
+// «Collagen» у піврічному звіті показувався б як «(01.26)» (підміна місяця).
+function periodMonthSuffix(dateFromIso: string, dateToIso: string): string | null {
+  const f = new Date(dateFromIso), t = new Date(dateToIso);
+  const span = (t.getUTCFullYear() - f.getUTCFullYear()) * 12 + (t.getUTCMonth() - f.getUTCMonth());
+  if (span !== 1) return null;
   return `${dateFromIso.slice(5, 7)}.${dateFromIso.slice(2, 4)}`;
 }
 
@@ -212,7 +218,7 @@ export async function aggregatePromos(dateFrom: string, dateTo: string): Promise
 async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]> {
   const rows = await fetchPromoRows(dateFrom, dateTo);
 
-  const periodSuffix = periodMonthSuffix(dateFrom);
+  const periodSuffix = periodMonthSuffix(dateFrom, dateTo);
 
   const promoMap = new Map<string, {
     name: string;              // базова назва БЕЗ суфікса місяця
@@ -222,6 +228,8 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
     clients: Set<string>;
     doc_ids: Set<string>;
     pairs: Set<string>;        // `${client_code}|${doc_id}` — для overlap по документу
+    clientSum: Map<string, number>;  // сума per клієнт — щоб вирахувати gift-earners
+    clientQty: Map<string, number>;
     qty: number;
     sum: number;
     is_gift_any: boolean;
@@ -247,6 +255,8 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
         clients: new Set(),
         doc_ids: new Set(),
         pairs: new Set(),
+        clientSum: new Map(),
+        clientQty: new Map(),
         qty: 0,
         sum: 0,
         is_gift_any: false,
@@ -258,6 +268,8 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
     bucket.clients.add(r.client_code);
     bucket.doc_ids.add(r.doc_id);
     bucket.pairs.add(`${r.client_code}|${r.doc_id}`);
+    bucket.clientSum.set(r.client_code, (bucket.clientSum.get(r.client_code) ?? 0) + Number(r.sum_usd));
+    bucket.clientQty.set(r.client_code, (bucket.clientQty.get(r.client_code) ?? 0) + Number(r.qty));
     bucket.qty += Number(r.qty);
     bucket.sum += Number(r.sum_usd);
     if (r.is_gift) bucket.is_gift_any = true;
@@ -278,7 +290,7 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
   // найбільшим числом спільних документів.
   // ============================================================================
   const buckets = Array.from(promoMap.values());
-  const overlapMap = new Map<string, { name: string; is_gift: boolean; clients: number }>();
+  const overlapMap = new Map<string, { name: string; is_gift: boolean; clients: number; clientSet: Set<string> }>();
 
   // Ключ агрегата: brand||channel||side — множина doc_id тієї сторони.
   const sideDocs = new Map<string, Set<string>>();
@@ -331,6 +343,7 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
         name: bestPartner.name,
         is_gift: !b.is_gift_any,
         clients: overlapTotal,
+        clientSet: overlapClients,
       });
     }
   }
@@ -351,13 +364,23 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
 
   const result: Promo[] = [];
   for (const b of promoMap.values()) {
-    const qty = b.qty;
+    let qty = b.qty;
     let sum = b.sum;
     if (sum === 0 && b.trigger_brand) {
       const trigger = triggerSums.get(`${b.name}||${b.channel}`);
       if (trigger) sum = trigger.sum;
     }
     const overlapInfo = overlapMap.get(`${b.name}||${b.channel}`);
+    // Client-level: у ЗНИЖКОВОГО промо, що перекликається з подарунком, гроші
+    // gift-earners відносимо у подарунок → з знижки віднімаємо ЇХНІ суми/шт
+    // (як лічильник клієнтів). Інакше «-15%» показувала 295 кл, але 92% факту
+    // (гроші всіх 493). Тепер сума/шт узгоджені з чистими 295 клієнтами.
+    if (!b.is_gift_any && overlapInfo && overlapInfo.is_gift) {
+      for (const c of overlapInfo.clientSet) {
+        sum -= b.clientSum.get(c) ?? 0;
+        qty -= b.clientQty.get(c) ?? 0;
+      }
+    }
     // Dedup правило (ITD 2026-07-02): якщо discount-промо перекликається з
     // gift-промо у тому ж бренді/каналі, то overlap-клієнти зараховуємо у gift
     // (це «сплеск» продажу — тригер акції). У discount-рядку показуємо тільки
@@ -370,7 +393,7 @@ async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]>
     }
     // Показуємо базову назву + суфікс ВИБРАНОГО періоду (напр. «06.26»), якщо
     // акція взагалі маркувалась місяцем. Так злиті 05+06 показуються як «06».
-    const displayName = b.had_suffix ? `${b.name} (${periodSuffix})` : b.name;
+    const displayName = (periodSuffix && b.had_suffix) ? `${b.name} (${periodSuffix})` : b.name;
     result.push({
       name: displayName,
       brand: b.trigger_brand as Promo['brand'],
