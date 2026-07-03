@@ -11,6 +11,7 @@ import {
   isAmbassador,
   isGiftInDiscount,
   detectGiftBrand,
+  detectPromoTriggerBrand,
   classifySale,
   UNMAPPED_BRAND,
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -98,7 +99,24 @@ test('classifySale — звичайний продаж', () => {
   assert.deepEqual(c, {
     brand: 'Neuronox', channel: 'representatives',
     isIgnored: false, isGift: false, isExcluded: false, giftBrand: null,
+    promoTriggerBrand: null,
   });
+});
+
+test('detectPromoTriggerBrand — бренд-тригер до слова «Подарок»', () => {
+  assert.equal(detectPromoTriggerBrand('VITARAN а ассор.на 700дол+Подарок 1уп Marine Collagen'), 'Vitaran');
+  assert.equal(detectPromoTriggerBrand('Petaran 2шт+Подарунок VITARAN Tox'), 'Petaran');
+  assert.equal(detectPromoTriggerBrand('ESSE 5000грн+Tube K5, M5'), 'ESSE'); // без подарунка → весь текст
+  assert.equal(detectPromoTriggerBrand('звичайна знижка -10%'), null);
+  assert.equal(detectPromoTriggerBrand(null), null);
+});
+
+test('classifySale — тригер лише на gift-рядку', () => {
+  const gift = classifySale({ product: 'IUSE Marine Collagen', discount: 'VITARAN а ассор.на 700дол+Подарок Marine Collagen', division: 'Киев', sumUsd: 0 });
+  assert.equal(gift.isGift, true);
+  assert.equal(gift.promoTriggerBrand, 'Vitaran');
+  const disc = classifySale({ product: 'HP CELL VITARAN i II', discount: 'Vitaran від 4х уп. -15%', division: 'Киев', sumUsd: 720 });
+  assert.equal(disc.promoTriggerBrand, null); // не gift → тригер не проставляємо
 });
 
 test('classifySale — подарунковий рядок (sum=0 + повод «Подарок»)', () => {

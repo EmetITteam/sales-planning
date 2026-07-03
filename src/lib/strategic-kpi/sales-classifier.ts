@@ -92,6 +92,17 @@ export function detectChannel(division?: string | null): SalesChannel {
   return 'representatives';
 }
 
+// Бренд-ТРИГЕР промо: бренд, який треба було купити щоб отримати подарунок.
+// Береться з тексту поводу ДО слова «Подарок/Подарунок».
+// Приклад: «VITARAN а ассор.на 700дол+Подарок Marine Collagen» → 'Vitaran'.
+// Використовується щоб віднести гроші покупки до подарункового промо (а не до
+// звичайної знижки того ж документа) — без подвоєння.
+export function detectPromoTriggerBrand(discount?: string | null): string | null {
+  if (!discount) return null;
+  const triggerPart = discount.split(/Подар(?:ок|унок)/i)[0];
+  return detectBrand(triggerPart);
+}
+
 export interface RawSaleFields {
   product: string;
   discount?: string | null;
@@ -106,6 +117,7 @@ export interface SaleClassification {
   isGift: boolean;          // подарунковий рядок (sumUsd=0 + повод «Подарок»)
   isExcluded: boolean;      // Реклама/ДР/Гонорар/Амбассадор-free
   giftBrand: string | null; // бренд подарунка (для промо-агрегації)
+  promoTriggerBrand: string | null; // бренд-тригер подарунка (тільки для gift-рядків)
 }
 
 /**
@@ -127,5 +139,7 @@ export function classifySale(r: RawSaleFields): SaleClassification {
     isGift,
     isExcluded,
     giftBrand: detectGiftBrand(r.discount),
+    // Тригер потрібен лише для подарункових рядків (щоб віднести гроші покупки).
+    promoTriggerBrand: isGift ? detectPromoTriggerBrand(r.discount) : null,
   };
 }
