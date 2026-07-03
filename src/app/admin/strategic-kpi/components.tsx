@@ -7,6 +7,7 @@
 
 import Link from 'next/link';
 import type { ComponentType } from 'react';
+import { TriangleAlert } from 'lucide-react';
 
 // ============================================================================
 // Утиліти (продубльовано для independence — page.tsx має свої версії)
@@ -196,6 +197,50 @@ export function ChannelCategoriesRow({ data, channelLabel, periodLabel }: {
             hint={`Клієнтів цієї категорії які купили у ${channelLabel} у ${periodLabel}`}
             accent={it.accent}
           />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Hero-блок категорій клієнтів вибраного бренду (+ warning коли даних нема).
+export function HeroCategories({ categories, selectedBrand, periodLabel }: {
+  categories: ChannelCatData | null; selectedBrand: string; periodLabel: string;
+}) {
+  if (!categories) return null;
+  if (categories.total === 0) {
+    return (
+      <div className="relative mt-4 pt-3.5 border-t border-[rgba(6,42,61,0.08)]">
+        <div className="flex items-start gap-2.5 rounded-xl px-3 py-2.5"
+          style={{ background: 'linear-gradient(135deg, rgba(251,146,60,0.10) 0%, rgba(251,146,60,0.03) 100%)', border: '1px solid rgba(251,146,60,0.25)' }}>
+          <TriangleAlert className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <div>
+            <div className="text-[12px] font-bold text-amber-800">Немає даних за цей період</div>
+            <div className="text-[11px] text-amber-700/80 mt-0.5">
+              У БД немає продажів <strong>{selectedBrand}</strong> у {periodLabel}. Останні дані — по{' '}
+              <span className="mono font-bold">30.06.2026</span>. Виберіть інший період.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  const items: Array<{ key: string; label: string; value: number; hint: string; accent: 'mint' | 'good' | 'warn' | 'bad' }> = [
+    { key: 'new', label: 'Нові', value: categories.new, hint: 'Ніколи не купували цей бренд до цього періоду', accent: 'mint' },
+    { key: 'active', label: 'Активні', value: categories.active, hint: 'Купували цей бренд ≤ 4 міс. до періоду', accent: 'good' },
+    { key: 'sleeping', label: 'Сплячі', value: categories.sleeping, hint: 'Купували 4-6 міс. тому', accent: 'warn' },
+    { key: 'lost', label: 'Втрачені', value: categories.lost, hint: 'Не купували > 6 міс.', accent: 'bad' },
+  ];
+  return (
+    <div className="relative mt-3 pt-3 border-t border-[rgba(6,42,61,0.08)]">
+      <div className="flex items-baseline gap-2 mb-2">
+        <div className="sk-lbl">Клієнти бренду у періоді</div>
+        <div className="text-[11px] sk-muted">· Разом <span className="mono font-bold">{categories.total}</span></div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {items.map(it => (
+          <CategoryCard key={it.key} label={it.label} value={it.value} total={categories.total} hint={it.hint} accent={it.accent} />
         ))}
       </div>
     </div>

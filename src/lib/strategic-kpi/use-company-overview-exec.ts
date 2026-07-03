@@ -58,6 +58,22 @@ function buildExec(co: CompanyOverviewResponse): ExecMap {
   return out;
 }
 
+/** Розбивка % по каналах бренду (план+факт з Огляду) — для hero-підпису.
+ *  allow — предикат: рахуємо тільки канали зі стратег-тригерами (isChannelActive). */
+export function channelBreakdown(
+  exec: ExecMap | null,
+  key: string,
+  allow: (ch: string) => boolean,
+): Array<{ channel: string; pct: number }> {
+  const cells = exec?.[key];
+  if (!cells) return [];
+  const out: Array<{ channel: string; pct: number }> = [];
+  for (const [ch, c] of Object.entries(cells)) {
+    if (allow(ch) && c.plan > 0) out.push({ channel: ch, pct: (c.fact / c.plan) * 100 });
+  }
+  return out;
+}
+
 /**
  * @param period 'YYYY-MM' (Огляд приймає лише місяць; для квартал/рік вертаємо null)
  * @param enabled чи можна фетчити (юзер авторизований на дашборд)

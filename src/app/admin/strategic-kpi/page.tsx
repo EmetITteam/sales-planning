@@ -10,7 +10,6 @@ import { AppHeader } from '@/components/layout/app-header';
 import { useGlassHover } from '@/hooks/use-glass-hover';
 import { isStrategicKpiLogin } from '@/lib/feature-flags';
 import {
-  STRATEGIC_BRANDS,
   STRATEGIC_PICKER_ITEMS,
   STRATEGIC_SEGMENTS,
   CHANNEL_LABEL,
@@ -20,7 +19,7 @@ import {
   type StrategicBrand,
   type StrategicChannel,
 } from '@/lib/strategic-kpi/brands';
-import { useCompanyOverviewExec } from '@/lib/strategic-kpi/use-company-overview-exec';
+import { useCompanyOverviewExec, channelBreakdown } from '@/lib/strategic-kpi/use-company-overview-exec';
 import {
   ArrowLeft,
   Users,
@@ -34,7 +33,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import {
-  MetricCard, CategoryCard, ChannelCategoriesRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
+  MetricCard, HeroCategories, ChannelCategoriesRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
 } from './components';
 import { ReactivationBlock } from './reactivation-block';
 
@@ -123,12 +122,15 @@ function statusColor(pct: number | null): 'good' | 'ok' | 'warn' | 'bad' | 'na' 
   if (pct >= 60) return 'warn';
   return 'bad';
 }
-function fmtUSD(n: number) { return `$${Math.round(n).toLocaleString('en-US')}`; }
-function fmtPct(n: number | null | undefined) { return n == null ? '—' : `${n.toFixed(1)}%`; }
-function fmtNum(n: number | null | undefined, decimal = false) {
-  if (n == null) return '—';
-  return decimal ? n.toFixed(1) : Math.round(n).toLocaleString('en-US');
+// Предикат: чи має канал стратег-тригери для вибраного бренду/сегмента.
+// Дистри → лише Ellanse; КЦ → лише ESSE/IUSE Coll./БАД; представництва → всі.
+function channelsForSelection(brand: string): (ch: string) => boolean {
+  const subs = isSegment(brand) ? STRATEGIC_SEGMENTS[brand as keyof typeof STRATEGIC_SEGMENTS] : null;
+  return (ch: string) => subs
+    ? subs.some(sb => isChannelActive(sb, ch as StrategicChannel))
+    : isChannelActive(brand as StrategicBrand, ch as StrategicChannel);
 }
+function fmtPct(n: number | null | undefined) { return n == null ? '—' : `${n.toFixed(1)}%`; }
 
 export default function StrategicKpiPage() {
   const router = useRouter();
@@ -219,19 +221,24 @@ export default function StrategicKpiPage() {
   // план+факт, що в Плануванні) — щоб цифра збігалась 1-в-1. Тільки місяць.
   const coExec = useCompanyOverviewExec(period, !!user && isStrategicKpiLogin(user.login));
 
-  // Грошовий % бренду = Σ факт / Σ план по всіх каналах Огляду (вкл. дистрів).
+  // Грошовий % бренду = Σ факт / Σ план по каналах ЗІ СТРАТЕГ-ТРИГЕРАМИ
+  // (Vitaran — лише представництва, без дистрів; КЦ лише ESSE/Coll./БАД тощо).
   // Немає даних Огляду (квартал/рік) → відкат на клієнтський %.
   const brandExecution = useMemo(() => {
     if (!data) return null;
     const cells = coExec?.[planBrandKey];
     if (cells) {
+      const allow = channelsForSelection(selectedBrand);
       let planSum = 0, factSum = 0;
-      for (const c of Object.values(cells)) { planSum += c.plan; factSum += c.fact; }
+      for (const [ch, c] of Object.entries(cells)) if (allow(ch)) { planSum += c.plan; factSum += c.fact; }
       if (planSum > 0) return (factSum / planSum) * 100;
     }
     const pcts = brandBlocks.filter(b => b.month?.unique_clients && b.execution.buyers_monthly_pct != null).map(b => b.execution.buyers_monthly_pct!);
     return pcts.length ? pcts.reduce((s, p) => s + p, 0) / pcts.length : null;
-  }, [brandBlocks, data, planBrandKey, coExec]);
+  }, [brandBlocks, data, planBrandKey, coExec, selectedBrand]);
+
+  // Розбивка hero-% по підрозділах (каналах) — показуємо коли каналів ≥ 2.
+  const channelBreakdownList = useMemo(() => channelBreakdown(coExec, planBrandKey, channelsForSelection(selectedBrand)), [coExec, planBrandKey, selectedBrand]);
 
   if (!user || !isStrategicKpiLogin(user.login)) return null;
 
@@ -355,51 +362,22 @@ export default function StrategicKpiPage() {
                 <div className="text-right">
                   <div className={`sk-mega-pct sk-text-${statusColor(brandExecution)}`}>{brandExecution.toFixed(1)}%</div>
                   <div className="sk-lbl mt-1">% виконання плану</div>
+                  {channelBreakdownList.length >= 2 && (
+                    <div className="mt-2 flex flex-wrap justify-end gap-x-3 gap-y-1">
+                      {channelBreakdownList.map(b => (
+                        <span key={b.channel} className="text-[11px] sk-muted whitespace-nowrap">
+                          {CHANNEL_LABEL[b.channel as StrategicChannel]}{' '}
+                          <b className={`mono sk-text-${statusColor(b.pct)}`}>{b.pct.toFixed(1)}%</b>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Категорії клієнтів (для selected brand) */}
-            {data?.categories && data.categories.total > 0 && (
-              <div className="relative mt-3 pt-3 border-t border-[rgba(6,42,61,0.08)]">
-                <div className="flex items-baseline gap-2 mb-2">
-                  <div className="sk-lbl">Клієнти бренду у періоді</div>
-                  <div className="text-[11px] sk-muted">
-                    · Разом <span className="mono font-bold">{data.categories.total}</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <CategoryCard label="Нові" value={data.categories.new} total={data.categories.total}
-                    hint="Ніколи не купували цей бренд до цього періоду" accent="mint" />
-                  <CategoryCard label="Активні" value={data.categories.active} total={data.categories.total}
-                    hint="Купували цей бренд ≤ 4 міс. до періоду" accent="good" />
-                  <CategoryCard label="Сплячі" value={data.categories.sleeping} total={data.categories.total}
-                    hint="Купували 4-6 міс. тому" accent="warn" />
-                  <CategoryCard label="Втрачені" value={data.categories.lost} total={data.categories.total}
-                    hint="Не купували > 6 міс." accent="bad" />
-                </div>
-              </div>
-            )}
-
-            {/* Warning якщо категорії пусті (немає даних за період) */}
-            {data?.categories && data.categories.total === 0 && (
-              <div className="relative mt-4 pt-3.5 border-t border-[rgba(6,42,61,0.08)]">
-                <div className="flex items-start gap-2.5 rounded-xl px-3 py-2.5"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(251,146,60,0.10) 0%, rgba(251,146,60,0.03) 100%)',
-                    border: '1px solid rgba(251,146,60,0.25)',
-                  }}>
-                  <div className="text-[16px] leading-none text-amber-600 mt-0.5">⚠</div>
-                  <div>
-                    <div className="text-[12px] font-bold text-amber-800">Немає даних за цей період</div>
-                    <div className="text-[11px] text-amber-700/80 mt-0.5">
-                      У БД немає продажів <strong>{selectedBrand}</strong> у {periodLabel}. Останні дані — по {' '}
-                      <span className="mono font-bold">30.06.2026</span>. Виберіть інший період.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Категорії клієнтів вибраного бренду (+ warning коли пусто) */}
+            <HeroCategories categories={data?.categories ?? null} selectedBrand={selectedBrand} periodLabel={periodLabel} />
           </div>
         )}
 
@@ -449,12 +427,6 @@ export default function StrategicKpiPage() {
                       <span className="text-muted-foreground font-medium"> · <span className="text-[#066aab]">{block.brand}</span></span>
                     )}
                   </h3>
-                  {planUsd > 0 && !isSegment(selectedBrand) && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      План <b className="mono text-[#062a3d]">{fmtUSD(planUsd)}</b>
-                      {factUsd != null && <> · Факт <b className="mono text-[#062a3d]">{fmtUSD(factUsd)}</b></>}
-                    </p>
-                  )}
                 </div>
                 {/* % ховаємо на підбренд-блоках сегмента (плану на sub-brand немає). */}
                 {overallPct !== null && !isSegment(selectedBrand) && (
