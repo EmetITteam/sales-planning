@@ -104,7 +104,7 @@ interface ApiResponse {
   channel_categories: Record<string, Categories> | null;
   sub_brand_channel_categories: Record<string, Record<string, Categories>> | null;  // сегмент: суб-бренд×канал
   first_trained: { period: number; ytd: number } | null;
-  rep_seminars: Array<{ seminar: string; division: string; unique_clients: number }> | null;
+  rep_seminars: Array<{ seminar: string; division: string; seminar_date: string | null; unique_clients: number }> | null;
   ellanse_seminars_summary: { plan: number; actual_ytd: number } | null;
 }
 
@@ -588,12 +588,15 @@ export default function StrategicKpiPage() {
                       <div className="space-y-1.5">
                         {data.rep_seminars.map((s, i) => (
                           <div
-                            key={`${s.seminar}-${s.division}-${i}`}
+                            key={`${s.seminar}-${s.division}-${s.seminar_date ?? ''}-${i}`}
                             className="glass-card px-3 py-2.5 text-[12px] grid items-center gap-3"
-                            style={{ gridTemplateColumns: '90px 1fr auto' }}
+                            style={{ gridTemplateColumns: '90px auto 1fr auto' }}
                           >
                             <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-teal-500/15 border border-teal-300/40 text-teal-800 whitespace-nowrap">
                               {s.division}
+                            </span>
+                            <span className="mono text-[10.5px] text-muted-foreground whitespace-nowrap tabular-nums">
+                              {s.seminar_date ? s.seminar_date.slice(8, 10) + '.' + s.seminar_date.slice(5, 7) : '—'}
                             </span>
                             <span className="min-w-0 truncate" title={s.seminar}>
                               {s.seminar}

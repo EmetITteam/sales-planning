@@ -1,8 +1,11 @@
 /**
  * Ellanse семінари у представництвах — автоматично зі sales.
  *
- * Кожна унікальна пара (seminar, division) у Ellanse+seminar рядках = 1 семінар.
- * Учасники = COUNT DISTINCT client_code для цієї пари у періоді.
+ * Кожна унікальна трійка (seminar, division, seminar_date) = 1 ПОДІЯ семінару.
+ * Один семінар у місті може проходити кілька разів різними датами — рахуємо
+ * кожну окремо (migration 044 додала seminar_date). Доки дата не заповнена
+ * (стара вигрузка) — групуємо як раніше по (seminar, division).
+ * Учасники = COUNT DISTINCT client_code для події у періоді.
  *
  * Створено 2026-07-02.
  */
@@ -12,13 +15,15 @@ import { AsyncCache } from './cache-helper';
 
 export interface RepSeminar {
   seminar: string;
-  division: string;         // Місто (Київ, Одеса, Дніпро, ...)
+  division: string;              // Місто (Київ, Одеса, Дніпро, ...)
+  seminar_date: string | null;   // Дата проведення (YYYY-MM-DD) — подія
   unique_clients: number;
 }
 
 interface Row {
   division: string;
   seminar: string;
+  seminar_date: string | null;
   client_code: string;
 }
 
@@ -41,7 +46,7 @@ async function doFetchRepSeminars(
   while (true) {
     const res = await supabase
       .from('sales')
-      .select('division,seminar,client_code')
+      .select('division,seminar,seminar_date,client_code')
       .eq('brand', 'Ellanse')
       .eq('channel', 'representatives')
       .not('seminar', 'is', null)
@@ -64,14 +69,16 @@ async function doFetchRepSeminars(
   // Фільтр: тільки семінари з ELLANSE у назві (в базі є ще Анатомія,
   // Black Sea Beauty тощо — вони не по Ellanse). Ми на дашборді Ellanse,
   // тому інші контексти не цікавлять.
-  const buckets = new Map<string, { seminar: string; division: string; clients: Set<string> }>();
+  const buckets = new Map<string, { seminar: string; division: string; seminar_date: string | null; clients: Set<string> }>();
   for (const r of all) {
     if (!r.seminar || !r.division) continue;
     if (!/ELLANSE/i.test(r.seminar)) continue;
-    const k = `${r.seminar}||${r.division}`;
+    const date = r.seminar_date ?? null;
+    // Ключ включає ДАТУ — кожна дата проведення = окрема подія.
+    const k = `${r.seminar}||${r.division}||${date ?? ''}`;
     let b = buckets.get(k);
     if (!b) {
-      b = { seminar: r.seminar, division: r.division, clients: new Set() };
+      b = { seminar: r.seminar, division: r.division, seminar_date: date, clients: new Set() };
       buckets.set(k, b);
     }
     b.clients.add(r.client_code);
@@ -82,10 +89,14 @@ async function doFetchRepSeminars(
     result.push({
       seminar: b.seminar,
       division: b.division,
+      seminar_date: b.seminar_date,
       unique_clients: b.clients.size,
     });
   }
-  // Сортуємо: спочатку по division, потім за спаданням клієнтів
-  result.sort((a, b) => a.division.localeCompare(b.division) || b.unique_clients - a.unique_clients);
+  // Сортуємо: по division, потім за датою, потім за спаданням клієнтів
+  result.sort((a, b) =>
+    a.division.localeCompare(b.division)
+    || (a.seminar_date ?? '').localeCompare(b.seminar_date ?? '')
+    || b.unique_clients - a.unique_clients);
   return result;
 }
