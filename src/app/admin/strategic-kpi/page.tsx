@@ -9,6 +9,7 @@ import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import { useGlassHover } from '@/hooks/use-glass-hover';
 import { isStrategicKpiLogin } from '@/lib/feature-flags';
+import { pluralUkr } from '@/lib/format';
 import {
   STRATEGIC_PICKER_ITEMS,
   STRATEGIC_SEGMENTS,
@@ -576,39 +577,52 @@ export default function StrategicKpiPage() {
                     </div>
                   </div>
 
-                  {/* Семінари у представництвах — автоматично зі sales
-                      Групуємо (seminar, division) → 1 подія, count-distinct client
-                      = учасники. */}
-                  {data.rep_seminars && data.rep_seminars.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2 flex items-center gap-1.5">
-                        <GraduationCap className="h-3 w-3 text-amber-700" />
-                        Семінари у представництвах · {data.rep_seminars.length} подій, {new Set(data.rep_seminars.map(s => s.division)).size} міст
-                      </p>
-                      <div className="space-y-1.5">
-                        {data.rep_seminars.map((s, i) => (
-                          <div
-                            key={`${s.seminar}-${s.division}-${s.seminar_date ?? ''}-${i}`}
-                            className="glass-card px-3 py-2.5 text-[12px] grid items-center gap-3"
-                            style={{ gridTemplateColumns: '90px auto 1fr auto' }}
-                          >
-                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-teal-500/15 border border-teal-300/40 text-teal-800 whitespace-nowrap">
-                              {s.division}
-                            </span>
-                            <span className="mono text-[10.5px] text-muted-foreground whitespace-nowrap tabular-nums">
-                              {s.seminar_date ? s.seminar_date.slice(8, 10) + '.' + s.seminar_date.slice(5, 7) : '—'}
-                            </span>
-                            <span className="min-w-0 truncate" title={s.seminar}>
-                              {s.seminar}
-                            </span>
-                            <span className="mono font-bold text-[13px] text-[#0f766e] whitespace-nowrap tabular-nums text-right">
-                              {s.unique_clients} <span className="text-[10px] font-medium text-muted-foreground">кл.</span>
-                            </span>
-                          </div>
-                        ))}
+                  {/* Семінари у представництвах — автоматично зі sales.
+                      Кожна (seminar, division, date) = 1 подія. Для огляду
+                      групуємо по МІСТУ: скільки подій + скільки учасників,
+                      щоб не показувати десятки окремих рядків. */}
+                  {data.rep_seminars && data.rep_seminars.length > 0 && (() => {
+                    const byCity = new Map<string, { seminars: number; clients: number }>();
+                    for (const s of data.rep_seminars) {
+                      const c = byCity.get(s.division) ?? { seminars: 0, clients: 0 };
+                      c.seminars += 1;
+                      c.clients += s.unique_clients;
+                      byCity.set(s.division, c);
+                    }
+                    const cities = [...byCity.entries()].sort(
+                      (a, b) => b[1].seminars - a[1].seminars || b[1].clients - a[1].clients,
+                    );
+                    return (
+                      <div className="mt-4">
+                        <p className="text-[10.5px] font-bold uppercase tracking-wider text-[rgba(6,42,61,0.65)] mb-2 flex items-center gap-1.5">
+                          <GraduationCap className="h-3 w-3 text-amber-700" />
+                          Семінари у представництвах · {data.rep_seminars.length} подій, {cities.length} міст
+                        </p>
+                        <div
+                          className="grid gap-2"
+                          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(136px, 1fr))' }}
+                        >
+                          {cities.map(([city, v]) => (
+                            <div key={city} className="glass-card px-3 py-2.5">
+                              <div className="inline-flex items-center px-2 py-0.5 mb-2 rounded-full text-[10.5px] font-bold bg-teal-500/15 border border-teal-300/40 text-teal-800 whitespace-nowrap">
+                                {city}
+                              </div>
+                              <div className="flex items-baseline gap-4">
+                                <div>
+                                  <div className="mono font-bold text-[17px] leading-none text-[#0f766e] tabular-nums">{v.seminars}</div>
+                                  <div className="text-[10px] text-muted-foreground mt-0.5">{pluralUkr(v.seminars, 'семінар', 'семінари', 'семінарів')}</div>
+                                </div>
+                                <div>
+                                  <div className="mono font-bold text-[17px] leading-none text-[#062a3d] tabular-nums">{v.clients}</div>
+                                  <div className="text-[10px] text-muted-foreground mt-0.5">{pluralUkr(v.clients, 'клієнт', 'клієнти', 'клієнтів')}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               )}
 
