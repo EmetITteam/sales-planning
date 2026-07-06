@@ -111,6 +111,26 @@ class SupabaseTable {
     this.queryParts.push(`${column}=not.in.(${escaped})`);
     return this;
   }
+  // ilike — case-insensitive LIKE (PostgREST `ilike.pattern`, `*` = wildcard).
+  // encodeURIComponent зберігає `*`, кодує кирилицю.
+  ilike(column: string, pattern: string): this {
+    this.queryParts.push(`${column}=ilike.${encodeURIComponent(pattern)}`);
+    return this;
+  }
+  // or — логічне АБО кількох умов PostgREST (топ-рівневі params — це AND).
+  // Кожна умова у форматі "col.op.value"; кодуємо лише value-частину (після
+  // 2-ї крапки), структуру лишаємо. Приклад:
+  //   .or(['product.ilike.*petaran*', 'discount.ilike.*фокус*'])
+  or(conditions: string[]): this {
+    const enc = conditions.map(c => {
+      const i1 = c.indexOf('.');
+      const i2 = i1 >= 0 ? c.indexOf('.', i1 + 1) : -1;
+      if (i2 < 0) return c;
+      return c.slice(0, i2 + 1) + encodeURIComponent(c.slice(i2 + 1));
+    });
+    this.queryParts.push(`or=(${enc.join(',')})`);
+    return this;
+  }
 
   order(column: string, opts?: { ascending?: boolean }): this {
     this.orderClauses.push(`${column}.${opts?.ascending === false ? 'desc' : 'asc'}`);

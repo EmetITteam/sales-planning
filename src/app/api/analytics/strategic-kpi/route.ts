@@ -23,6 +23,7 @@ import { aggregatePromos } from '@/lib/strategic-kpi/promos';
 import { getBrandClientCategories, getBrandChannelCategories, type ClientCategories, type ChannelCategoriesMap } from '@/lib/strategic-kpi/categories';
 import { buildFirstTrainedMap, countFirstTrainedInRange } from '@/lib/strategic-kpi/first-trained';
 import { fetchEllanseRepSeminars, type RepSeminar } from '@/lib/strategic-kpi/rep-seminars';
+import { fetchPetaranLoyalty, type PetaranLoyalty } from '@/lib/strategic-kpi/petaran-loyalty';
 import { STRATEGIC_BRANDS, STRATEGIC_CHANNELS, STRATEGIC_SEGMENTS, isSegment } from '@/lib/strategic-kpi/brands';
 
 // 1С company-wide екшени (план+факт) можуть тривати 30-40с на першу загрузку —
@@ -214,6 +215,26 @@ export async function GET(request: NextRequest) {
   const seminarsYTD = seminars.filter(s => s.month <= endMFixed);
   const sumSeminars = (rows: SeminarActualRow[], field: 'seminars_held' | 'new_trained') =>
     rows.reduce((s, r) => s + (r[field] ?? 0), 0);
+
+  // ── PETARAN «Фокуси / програма лояльності» ──────────────────────────────
+  // Блок помісячний (тижні М1-М4). Для періоду беремо ОСТАННІЙ місяць діапазону,
+  // обмежений поточним. Факт із sales + план із petaran_loyalty_targets.
+  let petaranLoyalty: PetaranLoyaltyResponse | null = null;
+  if (brandParam === 'Petaran') {
+    try {
+      const lm = loyaltyMonthRange(from, to);
+      const [L, tgts] = await Promise.all([
+        softRace(fetchPetaranLoyalty(lm.from, lm.to), 15000, 'petaran-loyalty'),
+        supabase.from('petaran_loyalty_targets').select('*').eq('year', lm.year).eq('month', lm.month),
+      ]);
+      if (L) {
+        const targets = (tgts.data as unknown as PetaranTargetRow[]) ?? [];
+        petaranLoyalty = buildPetaranLoyalty(L, targets, `${lm.year}-${String(lm.month).padStart(2, '0')}`);
+      }
+    } catch (e) {
+      console.warn('petaran-loyalty failed:', (e as Error).message);
+    }
+  }
 
   const targetKey = (b: string, c: string) => `${b}|${c}`;
   const targetMap = new Map<string, StrategicTargetRow>();
@@ -407,5 +428,51 @@ export async function GET(request: NextRequest) {
     first_trained: firstTrained,  // тільки для brand=Ellanse
     rep_seminars: repSeminars,    // тільки для brand=Ellanse — семінари у представництвах
     ellanse_seminars_summary: ellanseSeminarsSummary,  // річний план + факт YTD
+    petaran_loyalty: petaranLoyalty,  // тільки для brand=Petaran — фокуси + рівні
   });
+}
+
+// ── PETARAN loyalty helpers ────────────────────────────────────────────────
+interface PetaranTargetRow {
+  block: string; indicator_key: string; indicator_label: string; row_order: number;
+  goal: number | null; conversion_pct: number | null; reactivation_base: number | null;
+  year: number; month: number; target: number;
+}
+interface PetaranLoyaltyResponse {
+  month: string;
+  funnel: PetaranLoyalty['funnel'];
+  levels: PetaranLoyalty['levels'];
+  plan: Array<{
+    block: string; key: string; label: string; order: number;
+    goal: number | null; conversion_pct: number | null; reactivation_base: number | null;
+    target: number; fact: number | null; pct: number | null;
+  }>;
+}
+
+/** Останній місяць періоду (обмежений поточним) — блок лояльності помісячний. */
+function loyaltyMonthRange(fromIso: string, toIso: string): { from: string; to: string; year: number; month: number } {
+  const toD = new Date(toIso);           // ексклюзивний кінець періоду
+  let y = toD.getUTCFullYear();
+  let m0 = toD.getUTCMonth() - 1;        // останній місяць періоду (0-based)
+  if (m0 < 0) { m0 = 11; y -= 1; }
+  const now = new Date();
+  const cy = now.getUTCFullYear(), cm = now.getUTCMonth();
+  if (y > cy || (y === cy && m0 > cm)) { y = cy; m0 = cm; }  // не в майбутнє
+  const from = `${y}-${String(m0 + 1).padStart(2, '0')}-01T00:00:00Z`;
+  const to = new Date(Date.UTC(y, m0 + 1, 1)).toISOString();
+  return { from, to, year: y, month: m0 + 1 };
+}
+
+/** Об'єднує факт (per indicator_key) з планом на місяць. */
+function buildPetaranLoyalty(L: PetaranLoyalty, targets: PetaranTargetRow[], month: string): PetaranLoyaltyResponse {
+  const plan = targets.map(t => {
+    const fact = t.indicator_key in L.factByKey ? L.factByKey[t.indicator_key] : null;
+    const pct = fact != null && t.target > 0 ? Math.round((fact / t.target) * 1000) / 10 : null;
+    return {
+      block: t.block, key: t.indicator_key, label: t.indicator_label, order: t.row_order,
+      goal: t.goal, conversion_pct: t.conversion_pct, reactivation_base: t.reactivation_base,
+      target: t.target, fact, pct,
+    };
+  }).sort((a, b) => a.block.localeCompare(b.block) || a.order - b.order);
+  return { month, funnel: L.funnel, levels: L.levels, plan };
 }

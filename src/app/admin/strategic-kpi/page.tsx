@@ -37,6 +37,7 @@ import {
   MetricCard, HeroCategories, ChannelCategoriesRow, SeminarStatCard, StaticRow, PeriodPicker, SkeletonHero,
 } from './components';
 import { ReactivationBlock } from './reactivation-block';
+import { PetaranLoyaltyBlock, type PetaranLoyalty } from './petaran-loyalty-block';
 
 interface Block {
   brand: string;
@@ -107,6 +108,7 @@ interface ApiResponse {
   first_trained: { period: number; ytd: number } | null;
   rep_seminars: Array<{ seminar: string; division: string; seminar_date: string | null; unique_clients: number }> | null;
   ellanse_seminars_summary: { plan: number; actual_ytd: number } | null;
+  petaran_loyalty: PetaranLoyalty | null;
 }
 
 const CHANNEL_ICON: Record<StrategicChannel, React.ComponentType<{ size?: number }>> = {
@@ -690,6 +692,11 @@ export default function StrategicKpiPage() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* PETARAN — Фокуси / програма лояльності */}
+              {selectedBrand === 'Petaran' && block.channel === 'representatives' && data?.petaran_loyalty && (
+                <PetaranLoyaltyBlock pl={data.petaran_loyalty} />
               )}
 
               {/* Промо */}
