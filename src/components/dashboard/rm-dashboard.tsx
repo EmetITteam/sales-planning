@@ -243,6 +243,25 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   // Сирий 1С-план (для інформативного рядка «З 1С: $X» коли є dynamic).
   const rawTotalPlan1c = aggregate?.totalPlan ?? 0;
   const hasDynamicDiff = dynamicSegments.size > 0 && Math.abs(rawTotalPlan1c - totalPlan) > 0.5;
+  // «Заплановано»/«Запланований %»: для dynamic-сегментів (NEURONOX) внесок =
+  // факт (дзеркало plan=fact), а не введений менеджерами фіналізований forecast+gap.
+  // Без цього фіналізація NEURONOX роздувала суму й % (баг ITD 2026-07-06).
+  const finalizedExpected = useMemo(() => {
+    if (!planAgg) return 0;
+    if (dynamicSegments.size === 0 || !aggregate) {
+      return planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized;
+    }
+    let acc = 0;
+    for (const seg of aggregate.segments) {
+      if (dynamicSegments.has(seg.segmentCode)) {
+        acc += seg.factAmount; // дзеркало
+      } else {
+        const s = planAgg.bySegment[seg.segmentCode];
+        acc += (s?.forecastFinalized ?? 0) + (s?.gapFinalized ?? 0);
+      }
+    }
+    return acc;
+  }, [planAgg, dynamicSegments, aggregate]);
 
   // === Sub-views ===
   if (view === 'myPlanning') {
@@ -300,9 +319,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   const totalPrevPct = pctOf(totalPrevFact, totalPrevPlan);
   // Б.2: динаміка — заплановане vs минулий факт (forward-looking).
   // ТІЛЬКИ finalized — порівнюємо проти зафіксованих планів менеджерів регіону.
-  const totalExpectedAmount = planAgg
-    ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized
-    : 0;
+  const totalExpectedAmount = finalizedExpected;
   // ЗАВЖДИ заплановане vs минулий — без fallback на totalFact. Якщо план=$0,
   // dyn = -prevFact, що наочно показує «у плані нічого нема».
   const dynAmount = totalExpectedAmount - totalPrevFact;
@@ -312,7 +329,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   // «Запланований %» — ТІЛЬКИ з фіналізованих планів (не чернеток).
   // Семантика: реальне зобов'язання менеджерів регіону, на яке РМ покладається.
   const totalExpectedPct = planAgg && totalPlan > 0
-    ? ((planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized) / totalPlan) * 100
+    ? (finalizedExpected / totalPlan) * 100
     : null;
 
   return (
@@ -421,7 +438,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               caption={(() => {
                 // ТІЛЬКИ finalized — чернетки до натискання «Фінальне збереження»
                 // не йдуть у звітність.
-                const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
+                const totalFin = finalizedExpected;
                 return (
                   <span className="space-y-0.5 block">
                     <span className="text-muted-foreground block">{periodLabel} · {workingDaysLabel(totalWD)}</span>

@@ -358,11 +358,33 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   const totalForecastPct = isTrial ? 0 : (summaries.length > 0
     ? summaries.reduce((s, t) => s + t.forecastPercent * t.planAmount, 0) / Math.max(totalPlan, 1)
     : 0);
+  // Динамічні сегменти (NEURONOX): менеджер їх не планує — plan=fact дзеркально.
+  // Тому у «Заплановано» та «Запланований %» їхній внесок = факт (дзеркало), а не
+  // введений менеджером фіналізований forecast+gap. Без цього фіналізація NEURONOX
+  // роздувала заплановану суму та % (баг ITD 2026-07-06).
+  const finalizedExpected = useMemo(() => {
+    if (!planAgg) return 0;
+    if (dynamicSegments.size === 0) {
+      return planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized;
+    }
+    let acc = 0;
+    for (const t of summaries) {
+      if (t.isDynamicPlan) {
+        acc += t.factAmount; // дзеркало plan=fact
+      } else {
+        const s = planAgg.bySegment[t.segmentCode];
+        acc += (s?.forecastFinalized ?? 0) + (s?.gapFinalized ?? 0);
+      }
+    }
+    return acc;
+  }, [planAgg, dynamicSegments, summaries]);
+
   // ⚠️ «Запланований %» — пряма формула як у RM/Director:
   //   (Σ finalized forecast + Σ finalized gap) / totalPlan × 100, БЕЗ факту.
   // ТІЛЬКИ ФІНАЛІЗОВАНІ — чернетки до фінального збереження у звітність не йдуть.
+  // finalizedExpected вже виключає «сирий» фіналізований план dynamic-сегментів.
   const totalExpectedPct = isTrial ? 0 : (planAgg && totalPlan > 0
-    ? ((planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized) / totalPlan) * 100
+    ? (finalizedExpected / totalPlan) * 100
     : 0);
 
   if (view === 'plan' && selectedSegment) {
@@ -499,7 +521,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
             }
             // ТІЛЬКИ finalized — чернетки до натискання «Фінальне збереження»
             // не йдуть у звітність.
-            const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
+            const totalFin = finalizedExpected;
             return (
               <span className="space-y-0.5 block">
                 <span className="text-muted-foreground block">{periodMonthLabel} · {workingDaysLabel(totalWorkingDaysInMonth)}</span>
@@ -527,9 +549,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           caption={totalPrevFact > 0 && (() => {
             // Б.2: ЗАВЖДИ заплановане vs минулий факт (ТІЛЬКИ finalized).
             // Якщо план=$0 — dyn = -prevFact, наочно показує «у плані нічого нема».
-            const totalExpected = planAgg
-              ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized
-              : 0;
+            const totalExpected = finalizedExpected;
             const dyn = totalExpected - totalPrevFact;
             const better = dyn >= 0;
             const Arrow = better ? TrendingUp : TrendingDown;

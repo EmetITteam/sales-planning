@@ -215,6 +215,25 @@ export function DirectorDashboard() {
   }, [company, dynamicSegments]);
   const rawTotalPlan1c = company?.totalPlan ?? 0;
   const hasDynamicDiff = dynamicSegments.size > 0 && Math.abs(rawTotalPlan1c - totalPlan) > 0.5;
+  // «Заплановано»/«Запланований %»: для dynamic-сегментів (NEURONOX) внесок =
+  // факт (дзеркало plan=fact), а не введений менеджерами фіналізований forecast+gap.
+  // Без цього фіналізація NEURONOX роздувала суму й % (баг ITD 2026-07-06).
+  const finalizedExpected = useMemo(() => {
+    if (!planAgg) return 0;
+    if (dynamicSegments.size === 0 || !company) {
+      return planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized;
+    }
+    let acc = 0;
+    for (const seg of company.segments) {
+      if (dynamicSegments.has(seg.segmentCode)) {
+        acc += seg.factAmount; // дзеркало
+      } else {
+        const s = planAgg.bySegment[seg.segmentCode];
+        acc += (s?.forecastFinalized ?? 0) + (s?.gapFinalized ?? 0);
+      }
+    }
+    return acc;
+  }, [planAgg, dynamicSegments, company]);
 
   // === Sub-views ===
   if (view === 'viewRegion') {
@@ -286,9 +305,7 @@ export function DirectorDashboard() {
   // ТІЛЬКИ finalized. ЗАВЖДИ порівнюємо план vs минулий факт — навіть коли
   // план = $0 (тоді dyn = -prevFact, показує наочно «у плані нічого нема»).
   // Без fallback на totalFact щоб label «заплан. vs мин. факт» був стабільний.
-  const totalExpectedAmountForDyn = planAgg
-    ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized
-    : 0;
+  const totalExpectedAmountForDyn = finalizedExpected;
   const dynAmount = totalExpectedAmountForDyn - totalPrevFact;
   const dynBetter = dynAmount >= 0;
   const DynArrow = dynBetter ? TrendingUp : TrendingDown;
@@ -297,7 +314,7 @@ export function DirectorDashboard() {
   // Семантика: реальне зобов'язання менеджерів, на яке керівник має покладатись.
   // Чернетки можуть змінюватись до останнього дня — їх у звітність не пускаємо.
   const totalExpectedPct = planAgg && totalPlan > 0
-    ? ((planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized) / totalPlan) * 100
+    ? (finalizedExpected / totalPlan) * 100
     : null;
   // Унікальні логіни — менеджер у 2 регіонах (приклад: Пашковська) не лічиться двічі.
   // ⚠️ БЕЗ useMemo бо early returns вище (loading guard на line 249) роблять
@@ -381,7 +398,7 @@ export function DirectorDashboard() {
               caption={(() => {
                 // ТІЛЬКИ finalized — це реальне зобов'язання менеджерів.
                 // Чернетки до натискання «Фінальне збереження» не йдуть у звітність.
-                const totalFin = planAgg ? planAgg.totalForecastFinalized + planAgg.totalGapPotentialFinalized : 0;
+                const totalFin = finalizedExpected;
                 return (
                   <span className="space-y-0.5 block">
                     <span className="text-muted-foreground block">{periodLabel} · {workingDaysLabel(totalWD)}</span>
