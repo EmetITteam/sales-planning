@@ -73,6 +73,9 @@ export interface OneCPlanningClient {
    * Адаптер `mapClientCategory` нормалізує і UA, і RU варіанти.
    */
   category: string;
+  /** 🆕 Проставляється сервером (/api/onec) з getManagerClients по clientId —
+   *  getClientsForPlanning сам його не віддає. true = клієнт у Резерві. */
+  isReserved?: boolean;
   /** Тільки бренди де були закупки (порожній масив якщо клієнт не купував) */
   purchases: OneCClientPurchase[];
 }

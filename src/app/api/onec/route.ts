@@ -281,6 +281,37 @@ export async function POST(request: NextRequest) {
       console.error(`[ШАГ 2] Помилка від 1С "${action}" (${callDuration}ms, HTTP ${upstream.status}):`, truncated);
     }
 
+    // Резерв-статус живе ЛИШЕ у getManagerClients (Action 8, isReserved), а
+    // планинг тягне getClientsForPlanning (Action 2), де його немає — категорія
+    // приходить базова ("Потерянный" тощо). Збагачуємо відповідь Action 2:
+    // додаємо isReserved по clientId, щоб фронт виключив резерв зі списків
+    // планування. Guard: якщо додатковий виклик впав — повертаємо як є (без
+    // регресії, просто резерв не виключиться).
+    if (action === 'getClientsForPlanning' && upstream.ok && json?.status === 'success' && Array.isArray(json?.data?.clients)) {
+      try {
+        const mgrRes = await fetch(baseUrl, {
+          method: 'POST', headers, cache: 'no-store',
+          body: JSON.stringify({ action: 'getManagerClients', payload: safePayload }),
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (mgrRes.ok) {
+          const mgrJson = await mgrRes.json();
+          const list = mgrJson?.data?.clients ?? mgrJson?.data ?? [];
+          if (Array.isArray(list)) {
+            const reserved = new Set<string>();
+            for (const m of list) if (m?.isReserved === true && m?.ClientID != null) reserved.add(String(m.ClientID));
+            let n = 0;
+            for (const c of json.data.clients) {
+              if (reserved.has(String(c.clientId))) { c.isReserved = true; n++; }
+            }
+            console.log(`[getClientsForPlanning] reserve-enrich: ${n}/${json.data.clients.length} позначено резервом`);
+          }
+        }
+      } catch (e) {
+        console.warn('[getClientsForPlanning] reserve-enrich failed:', (e as Error).message);
+      }
+    }
+
     // Передаємо відповідь 1С як є — клієнт сам розбере success/error
     return Response.json(json, { status: upstream.ok ? 200 : upstream.status });
   } catch (err) {
