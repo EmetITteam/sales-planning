@@ -84,12 +84,30 @@ export async function GET(request: NextRequest) {
     ? fetchKpiMetricsBatch(from, to, ytdFrom)
     : fetchKpiMetricsAveragedBatch(from, to, ytdFrom);
 
-  const [batch, promos, targetsResult, seminarsResult] = await Promise.all([
+  // Soft-timeout helper — щоб важкі опційні операції не завалювали весь ендпоінт
+  // Vercel-таймаутом (порожня відповідь → «Unexpected end of JSON» на фронті).
+  async function softRace<T>(op: Promise<T>, ms: number, label: string): Promise<T | null> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>(resolve => {
+      timer = setTimeout(() => {
+        console.warn(`[strategic-kpi] ${label} exceeded ${ms}ms, returning null`);
+        resolve(null);
+      }, ms);
+    });
+    try { return await Promise.race([op, timeout]); }
+    finally { if (timer) clearTimeout(timer); }
+  }
+
+  // aggregatePromos для квартал/рік важкий (тисячі рядків + overlap + trigger-sums)
+  // — обгортаємо softRace, щоб він не вішав увесь ендпоінт. Якщо не встиг —
+  // ТОП-5 промо просто не покажеться, решта (метрики, категорії, hero) прийде.
+  const [batch, promosRaw, targetsResult, seminarsResult] = await Promise.all([
     batchP,
-    aggregatePromos(from, to),
+    softRace(aggregatePromos(from, to), 25000, 'promos'),
     supabase.from('strategic_targets').select('*').eq('year', year),
     supabase.from('ellanse_seminars_actual').select('*').eq('year', year),
   ]);
+  const promos = promosRaw ?? [];
   const monthMetrics = batch.period;
   const ytdMetrics = batch.ytd;
 
@@ -118,20 +136,6 @@ export async function GET(request: NextRequest) {
   //   plan  = сума trainings_annual по всіх Ellanse × channel таргетах
   //   actual_ytd = уник. пари (seminar, division) у представництвах + семінари у дистрів
   let ellanseSeminarsSummary: { plan: number; actual_ytd: number } | null = null;
-  // Soft-timeout helper для оптіональних важких операцій. Якщо запит YT+Ellanse
-  // може затягнутись до 10-15 сек — Vercel вбʼє процес. Краще повернути null для
-  // оптіональних полів ніж всю відповідь провалити.
-  async function softRace<T>(op: Promise<T>, ms: number, label: string): Promise<T | null> {
-    let timer: NodeJS.Timeout | undefined;
-    const timeout = new Promise<null>(resolve => {
-      timer = setTimeout(() => {
-        console.warn(`[strategic-kpi] ${label} exceeded ${ms}ms, returning null`);
-        resolve(null);
-      }, ms);
-    });
-    try { return await Promise.race([op, timeout]); }
-    finally { if (timer) clearTimeout(timer); }
-  }
 
   // % виконання плану рахує фронт із «Огляд компанії» (той самий 1С план+факт,
   // що в Плануванні) — тут 1С більше не зовемо, щоб не гальмувати ендпоінт.
