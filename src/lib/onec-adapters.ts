@@ -53,6 +53,13 @@ export function mapClientCategory(category: string | null | undefined): Client1C
   return CATEGORY_MAP[category.trim().toLowerCase()] ?? 'none';
 }
 
+/** Чи клієнт у категорії «Резерв» (1С). Резерв виключений з планування.
+ *  getClientsForPlanning не має boolean-прапорця, лише category-рядок. */
+export function isReservedCategory(category: string | null | undefined): boolean {
+  const s = (category ?? '').trim().toLowerCase();
+  return s === 'резерв' || s === 'reserve' || s === 'reserved';
+}
+
 /** 1С повертає суми як рядок ("360.00") — приводимо до number. */
 function toNumber(v: number | string | null | undefined): number {
   if (v === null || v === undefined) return 0;
@@ -152,6 +159,7 @@ function adaptPlanningClient(c: OneCPlanningClient): Client1C {
     clientId: c.clientId,
     clientName: c.clientName,
     category: mapClientCategory(c.category),
+    isReserved: isReservedCategory(c.category),
     lastPurchaseDate: latestDate,
     lastPurchaseAmount: latestAmount,
     totalYTD: c.purchases.reduce((s, p) => s + toNumber(p.lastPurchaseAmount), 0),
@@ -178,6 +186,7 @@ export function adaptClientsForSegment(
       clientId: c.clientId,
       clientName: c.clientName,
       category: mapClientCategory(c.category),
+      isReserved: isReservedCategory(c.category),
       lastPurchaseDate: purchase?.lastPurchaseDate ?? null,
       lastPurchaseAmount: amount,
       totalYTD: amount,

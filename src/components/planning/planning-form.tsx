@@ -352,7 +352,7 @@ export function PlanningForm({
     // хто не купував цей бренд. Фільтруємо — тут потрібні тільки реальні клієнти
     // цього сегменту (з ненульовою датою останньої покупки).
     return adaptClientsForSegment(clientsResponse, segmentCode)
-      .filter(c => c.lastPurchaseDate !== null);
+      .filter(c => c.lastPurchaseDate !== null && !c.isReserved);  // Резерв — не у плануванні
   }, [clientsResponse, segmentCode]);
 
   // Усі клієнти менеджера — для пошукового модала «Закриття розриву»,

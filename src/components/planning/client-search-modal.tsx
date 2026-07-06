@@ -31,7 +31,8 @@ const CATEGORY_COLOR: Record<Client1C['category'], string> = {
 export function ClientSearchModal({ open, onClose, onSelect, excludeIds, clients, loading }: ClientSearchModalProps) {
   const [query, setQuery] = useState('');
 
-  const available = clients.filter(c => !excludeIds.includes(c.clientId));
+  // Резерв-клієнтів не показуємо у планувальному пошуку (виключені з планування).
+  const available = clients.filter(c => !excludeIds.includes(c.clientId) && !c.isReserved);
   const filtered = query.length >= 2
     ? available.filter(c => c.clientName.toLowerCase().includes(query.toLowerCase()))
     : available;

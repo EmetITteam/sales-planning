@@ -104,6 +104,10 @@ export interface Client1C {
   clientId: string;
   clientName: string;
   category: 'active' | 'sleeping' | 'lost' | 'new' | 'none';
+  /** Клієнт у категорії «Резерв» у 1С — виключений з планування (не показуємо
+   *  у списках активних / закриття розриву). getClientsForPlanning віддає це
+   *  рядком category='Резерв'; getManagerClients — окремим полем isReserved. */
+  isReserved?: boolean;
   lastPurchaseDate: string | null;
   lastPurchaseAmount: number;
   totalYTD: number;

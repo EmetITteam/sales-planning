@@ -48,13 +48,18 @@ export function getUnplannedBuyersForSegment(
     ? plannedClientIds
     : new Set(plannedClientIds);
 
-  // Швидкий доступ до категорії за clientId.
+  // Швидкий доступ до категорії за clientId + набір резерв-клієнтів.
   const categoryById = new Map<string, Client1C['category']>();
-  for (const c of clients) categoryById.set(c.clientId, c.category);
+  const reserved = new Set<string>();
+  for (const c of clients) {
+    categoryById.set(c.clientId, c.category);
+    if (c.isReserved) reserved.add(c.clientId);
+  }
 
   const out: UnplannedBuyer[] = [];
   for (const buyer of factSegment.clients) {
     if (planned.has(buyer.clientId)) continue;
+    if (reserved.has(buyer.clientId)) continue; // Резерв — виключений з планування
     if (buyer.amount <= 0) continue; // нуль/від'ємне — не показуємо
     out.push({
       clientId: buyer.clientId,
