@@ -603,18 +603,18 @@ export default function StrategicKpiPage() {
                           style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(136px, 1fr))' }}
                         >
                           {cities.map(([city, v]) => (
-                            <div key={city} className="glass-card px-3 py-2.5">
-                              <div className="inline-flex items-center px-2 py-0.5 mb-2 rounded-full text-[10.5px] font-bold bg-teal-500/15 border border-teal-300/40 text-teal-800 whitespace-nowrap">
+                            <div key={city} className="glass-card p-3 flex flex-col">
+                              <span className="self-start inline-flex items-center px-2.5 py-1 mb-3 rounded-full text-[11px] font-bold bg-teal-500/15 border border-teal-300/40 text-teal-800 whitespace-nowrap">
                                 {city}
-                              </div>
-                              <div className="flex items-baseline gap-4">
-                                <div>
-                                  <div className="mono font-bold text-[17px] leading-none text-[#0f766e] tabular-nums">{v.seminars}</div>
-                                  <div className="text-[10px] text-muted-foreground mt-0.5">{pluralUkr(v.seminars, 'семінар', 'семінари', 'семінарів')}</div>
+                              </span>
+                              <div className="grid grid-cols-2 text-center mt-auto">
+                                <div className="border-r border-[rgba(6,42,61,0.1)]">
+                                  <div className="mono font-bold text-[19px] leading-none text-[#0f766e] tabular-nums">{v.seminars}</div>
+                                  <div className="text-[10px] text-muted-foreground mt-1">{pluralUkr(v.seminars, 'семінар', 'семінари', 'семінарів')}</div>
                                 </div>
                                 <div>
-                                  <div className="mono font-bold text-[17px] leading-none text-[#062a3d] tabular-nums">{v.clients}</div>
-                                  <div className="text-[10px] text-muted-foreground mt-0.5">{pluralUkr(v.clients, 'клієнт', 'клієнти', 'клієнтів')}</div>
+                                  <div className="mono font-bold text-[19px] leading-none text-[#062a3d] tabular-nums">{v.clients}</div>
+                                  <div className="text-[10px] text-muted-foreground mt-1">{pluralUkr(v.clients, 'клієнт', 'клієнти', 'клієнтів')}</div>
                                 </div>
                               </div>
                             </div>
