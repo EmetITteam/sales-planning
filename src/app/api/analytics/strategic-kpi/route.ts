@@ -148,40 +148,35 @@ export async function GET(request: NextRequest) {
   const endMFixed = endM === 0 ? 12 : endM;
 
   if (brandParam && STRATEGIC_BRANDS.includes(brandParam as (typeof STRATEGIC_BRANDS)[number])) {
+    const isEll = brandParam === 'Ellanse';
+    const yearStartIso = `${year}-01-01T00:00:00Z`;
+    // Усі незалежні важкі виклики — ПАРАЛЕЛЬНО (раніше йшли послідовно: для
+    // Ellanse+рік це 6+6+6+4с + один взагалі без softRace → поверх промо-race
+    // 25с могло пробити maxDuration=60 → пустий body → «Unexpected end of JSON».
+    // Тепер worst-case хвіст ≈ max(6с) паралельно, а не сума. Кожен під softRace,
+    // тому один повільний не валить решту (повертає null → блок просто не показ.).
     try {
-      categories = await softRace(getBrandClientCategories(brandParam, from, to), 6000, 'categories');
-    } catch (e) {
-      console.warn('categories failed:', (e as Error).message);
-    }
-    try {
-      channelCategories = await softRace(getBrandChannelCategories(brandParam, from, to), 6000, 'channel-categories');
-    } catch (e) {
-      console.warn('channel-categories failed:', (e as Error).message);
-    }
-    if (brandParam === 'Ellanse') {
-      try {
-        const map = await softRace(buildFirstTrainedMap(), 6000, 'first-trained-map');
-        if (map) {
-          const yearStart = new Date(`${year}-01-01T00:00:00Z`);
+      const [cats, chCats, ftMap, repSem, ytdRepSem] = await Promise.all([
+        softRace(getBrandClientCategories(brandParam, from, to), 6000, 'categories'),
+        softRace(getBrandChannelCategories(brandParam, from, to), 6000, 'channel-categories'),
+        isEll ? softRace(buildFirstTrainedMap(), 6000, 'first-trained-map') : Promise.resolve(null),
+        isEll ? softRace(fetchEllanseRepSeminars(from, to), 4000, 'rep-seminars') : Promise.resolve(null),
+        isEll ? softRace(fetchEllanseRepSeminars(yearStartIso, to), 4000, 'ytd-rep-seminars') : Promise.resolve(null),
+      ]);
+      categories = cats;
+      channelCategories = chCats;
+      if (isEll) {
+        if (ftMap) {
+          const yearStart = new Date(yearStartIso);
           const periodStart = new Date(from);
           const periodEnd = new Date(to);
           firstTrained = {
-            period: countFirstTrainedInRange(map, periodStart, periodEnd),
-            ytd: countFirstTrainedInRange(map, yearStart, periodEnd),
+            period: countFirstTrainedInRange(ftMap, periodStart, periodEnd),
+            ytd: countFirstTrainedInRange(ftMap, yearStart, periodEnd),
           };
         }
-      } catch (e) {
-        console.warn('first-trained failed:', (e as Error).message);
-      }
-      try {
-        repSeminars = await softRace(fetchEllanseRepSeminars(from, to), 4000, 'rep-seminars');
-      } catch (e) {
-        console.warn('rep-seminars failed:', (e as Error).message);
-      }
-      // Річна зведена картина
-      try {
-        const yearStartIso = `${year}-01-01T00:00:00Z`;
-        const ytdRepSeminars = await fetchEllanseRepSeminars(yearStartIso, to);
+        repSeminars = repSem;
+        // Річна зведена картина (ytdRepSem вже під softRace — null якщо не встиг).
         const distSeminarsYTD = seminars
           .filter(s => s.month <= (endM === 0 ? 12 : endM))
           .reduce((sum, s) => sum + (s.seminars_held ?? 0), 0);
@@ -190,11 +185,11 @@ export async function GET(request: NextRequest) {
           .reduce((sum, t) => sum + (t.trainings_annual ?? 0), 0);
         ellanseSeminarsSummary = {
           plan: planTotal,
-          actual_ytd: ytdRepSeminars.length + distSeminarsYTD,
+          actual_ytd: (ytdRepSem?.length ?? 0) + distSeminarsYTD,
         };
-      } catch (e) {
-        console.warn('ellanse-seminars-summary failed:', (e as Error).message);
       }
+    } catch (e) {
+      console.warn('brand-detail block failed:', (e as Error).message);
     }
   }
 
@@ -251,6 +246,7 @@ export async function GET(request: NextRequest) {
       unique_clients: number;
       total_qty: number;
       total_sum_usd: number;
+      period_total_sum_usd?: number;   // 047: знаменник частки промо (реальна сума періоду)
       avg_qty_per_client: number;
       avg_check_usd: number;
     } | null;
@@ -334,6 +330,9 @@ export async function GET(request: NextRequest) {
           unique_clients: m.unique_clients,
           total_qty: m.total_qty,
           total_sum_usd: m.total_sum_usd,
+          // 047: реальна сума періоду (знаменник частки промо на квартал/рік).
+          // undefined для 1 місяця / до міграції → фронт падає на total_sum_usd.
+          period_total_sum_usd: m.period_total_sum_usd,
           avg_qty_per_client: m.avg_qty_per_client,
           avg_check_usd: m.avg_check_usd,
         } : null,

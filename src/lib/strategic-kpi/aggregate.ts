@@ -123,6 +123,10 @@ function toMetric(row: KpiBatchRow, side: 'period' | 'ytd'): BrandChannelMetrics
 interface KpiAveragedRow {
   brand: string; channel: string;
   period_uc: number; period_qty: number | string; period_sum: number | string;
+  /** 047: реальна (НЕ усереднена) сума за весь період — знаменник частки промо.
+   *  Optional — до застосування міграції 047 RPC її не повертає (fallback на
+   *  total_sum_usd у фронті, як раніше). */
+  period_sum_total?: number | string;
   period_avg_qc: number | string; period_avg_chk: number | string; period_rows: number;
   ytd_uc: number; ytd_qty: number | string; ytd_sum: number | string; ytd_rows: number;
 }
@@ -133,12 +137,16 @@ function toAveragedMetric(row: KpiAveragedRow): BrandChannelMetrics {
   const sum = Number(row.period_sum);
   const avgQc  = Number(row.period_avg_qc);
   const avgChk = Number(row.period_avg_chk);
+  // Guard: якщо колонки ще нема (міграція 047 не застосована) — лишаємо undefined,
+  // щоб фронт коректно впав на total_sum_usd, а не на NaN.
+  const sumTotal = row.period_sum_total != null ? Number(row.period_sum_total) : NaN;
   return {
     brand: row.brand as BrandChannelMetrics['brand'],
     channel: row.channel as StrategicChannel,
     unique_clients: uc,
     total_qty: Math.round(qty * 100) / 100,
     total_sum_usd: Math.round(sum * 100) / 100,
+    period_total_sum_usd: Number.isFinite(sumTotal) ? Math.round(sumTotal * 100) / 100 : undefined,
     avg_qty_per_client: Math.round(avgQc * 100) / 100,
     avg_check_usd: Math.round(avgChk * 100) / 100,
     rows: row.period_rows,
