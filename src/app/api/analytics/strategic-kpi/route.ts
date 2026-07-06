@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
   // ТОП-5 промо просто не покажеться, решта (метрики, категорії, hero) прийде.
   const [batch, promosRaw, targetsResult, seminarsResult] = await Promise.all([
     batchP,
-    softRace(aggregatePromos(from, to), 25000, 'promos'),
+    softRace(aggregatePromos(from, to), 35000, 'promos'),
     supabase.from('strategic_targets').select('*').eq('year', year),
     supabase.from('ellanse_seminars_actual').select('*').eq('year', year),
   ]);
@@ -348,8 +348,12 @@ export async function GET(request: NextRequest) {
           unique_clients_pace_pct: t?.unique_clients_annual && monthPace > 0
             ? pctOr(y?.unique_clients ?? null, t.unique_clients_annual * monthPace)
             : null,
-          unique_clients_forecast: y?.unique_clients && monthIndex > 0
-            ? Math.round(y.unique_clients * 12 / monthIndex)
+          // Прогноз = екстраполяція YTD на весь рік за РЕАЛЬНО пройденою часткою
+          // року (realPace, min(to, now)). Раніше було ×12/monthIndex — для року,
+          // обраного в середині (monthIndex=12, а пройшло ~7 міс.), давало forecast
+          // = ytd без екстраполяції (занижено). realPace це прибирає для всіх періодів.
+          unique_clients_forecast: y?.unique_clients && realPace > 0
+            ? Math.round(y.unique_clients / realPace)
             : null,
           avg_check_annual_pct: pctOr(y?.avg_check_usd ?? null, t?.avg_check_annual),
         },

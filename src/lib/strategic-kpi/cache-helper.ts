@@ -43,11 +43,14 @@ export class AsyncCache<T> {
    * Отримати значення з кешу або запустити fetcher (дедуплікація race).
    * Fetcher викликається ЛИШЕ якщо cache miss І немає in-flight запиту.
    */
-  async getOrLoad(key: string, fetcher: () => Promise<T>): Promise<T> {
+  async getOrLoad(key: string, fetcher: () => Promise<T>, ttlOverrideMs?: number): Promise<T> {
     const now = Date.now();
     const entry = this.map.get(key);
+    // ttlOverride — коротший TTL для періодів, що задівають поточний (ще
+    // догружуваний) місяць, щоб після синку 1С не показувати старі числа до 5 хв.
+    const ttl = ttlOverrideMs ?? this.ttlMs;
 
-    if (entry && now - entry.at < this.ttlMs) {
+    if (entry && now - entry.at < ttl) {
       // Cache hit (свіжий)
       if (entry.ready !== undefined) return entry.ready;
       if (entry.pending) return entry.pending;
@@ -71,11 +74,12 @@ export class AsyncCache<T> {
     return promise;
   }
 
-  /** Sync API для legacy місць. Повертає frozen ready value або null. */
-  get(key: string): T | null {
+  /** Sync API для legacy місць. Повертає frozen ready value або null.
+   *  ttlOverrideMs — коротший TTL для періодів з поточним місяцем. */
+  get(key: string, ttlOverrideMs?: number): T | null {
     const entry = this.map.get(key);
     if (!entry) return null;
-    if (Date.now() - entry.at >= this.ttlMs) return null;
+    if (Date.now() - entry.at >= (ttlOverrideMs ?? this.ttlMs)) return null;
     return entry.ready ?? null;
   }
 
@@ -96,6 +100,20 @@ export class AsyncCache<T> {
     }
   }
 }
+
+/**
+ * Чи період (з ексклюзивним кінцем dateToIso) задіває поточний місяць. Тоді
+ * кеш має короткий TTL — дані місяця ще догружаються синком 1С, і 5-хв кеш
+ * показував би старі числа після синку.
+ */
+export function periodTouchesCurrentMonth(dateToIso: string): boolean {
+  const now = new Date();
+  const curMonthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  return new Date(dateToIso).getTime() > curMonthStart;
+}
+
+/** Короткий TTL (90 с) для періодів, що включають поточний місяць. */
+export const CURRENT_MONTH_TTL_MS = 90_000;
 
 /**
  * Рекурсивно замортожує об'єкт. Set/Map не заморожуються (їх не використовуємо

@@ -13,14 +13,14 @@
 
 import { supabase } from '@/lib/supabase';
 import type { StrategicBrand, StrategicChannel } from './brands';
-import { AsyncCache } from './cache-helper';
+import { AsyncCache, periodTouchesCurrentMonth, CURRENT_MONTH_TTL_MS } from './cache-helper';
 
 // AsyncCache: дедуплікує race при cache miss + LRU eviction + frozen return.
 const METRICS_CACHE = new AsyncCache<BrandChannelMetrics[]>(5 * 60 * 1000, 'metrics');
 
 // Обгортки для legacy викликів у цьому файлі.
-function cacheGet(key: string): BrandChannelMetrics[] | null {
-  return METRICS_CACHE.get(key);
+function cacheGet(key: string, ttlOverrideMs?: number): BrandChannelMetrics[] | null {
+  return METRICS_CACHE.get(key, ttlOverrideMs);
 }
 function cacheSet(key: string, data: BrandChannelMetrics[]) {
   METRICS_CACHE.set(key, data);
@@ -165,9 +165,10 @@ export async function fetchKpiMetricsAveragedBatch(
 ): Promise<{ period: BrandChannelMetrics[]; ytd: BrandChannelMetrics[] }> {
   const periodKey = `avg|${periodFrom}|${periodTo}`;
   const ytdKey    = `single|${ytdFrom}|${periodTo}`;
+  const ttl = periodTouchesCurrentMonth(periodTo) ? CURRENT_MONTH_TTL_MS : undefined;
 
-  const cP = cacheGet(periodKey);
-  const cY = cacheGet(ytdKey);
+  const cP = cacheGet(periodKey, ttl);
+  const cY = cacheGet(ytdKey, ttl);
   if (cP && cY) return { period: cP, ytd: cY };
 
   const rpc = await supabase.rpc<KpiAveragedRow[]>('get_kpi_metrics_averaged', {
@@ -225,9 +226,10 @@ export async function fetchKpiMetricsBatch(
 ): Promise<{ period: BrandChannelMetrics[]; ytd: BrandChannelMetrics[] }> {
   const periodKey = `single|${periodFrom}|${periodTo}`;
   const ytdKey    = `single|${ytdFrom}|${periodTo}`;
+  const ttl = periodTouchesCurrentMonth(periodTo) ? CURRENT_MONTH_TTL_MS : undefined;
 
-  const cP = cacheGet(periodKey);
-  const cY = cacheGet(ytdKey);
+  const cP = cacheGet(periodKey, ttl);
+  const cY = cacheGet(ytdKey, ttl);
   if (cP && cY) return { period: cP, ytd: cY };
 
   const rpc = await supabase.rpc<KpiBatchRow[]>('get_kpi_metrics_batch', {

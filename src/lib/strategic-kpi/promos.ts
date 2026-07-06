@@ -13,7 +13,7 @@
 
 import { supabase } from '@/lib/supabase';
 import type { StrategicBrand, StrategicChannel } from './brands';
-import { AsyncCache } from './cache-helper';
+import { AsyncCache, periodTouchesCurrentMonth, CURRENT_MONTH_TTL_MS } from './cache-helper';
 import { detectPromoTriggerBrand } from './sales-classifier';
 
 // 5-хв кеш з дедуплікацією in-flight запитів + LRU eviction + frozen return
@@ -203,7 +203,8 @@ async function fetchTriggerSumsBatch(
  * щоб отримати подарунок».
  */
 export async function aggregatePromos(dateFrom: string, dateTo: string): Promise<Promo[]> {
-  return PROMOS_CACHE.getOrLoad(`${dateFrom}|${dateTo}`, () => computePromos(dateFrom, dateTo));
+  const ttl = periodTouchesCurrentMonth(dateTo) ? CURRENT_MONTH_TTL_MS : undefined;
+  return PROMOS_CACHE.getOrLoad(`${dateFrom}|${dateTo}`, () => computePromos(dateFrom, dateTo), ttl);
 }
 
 async function computePromos(dateFrom: string, dateTo: string): Promise<Promo[]> {
