@@ -240,6 +240,19 @@ export async function POST(request: NextRequest) {
   console.log(`[ШАГ 1] Відправка в 1С: action="${action}" user="${session.login}"`);
 
   const callStarted = Date.now();
+
+  // Резерв-збагачення getClientsForPlanning: getManagerClients (isReserved) —
+  // стартуємо ПАРАЛЕЛЬНО з основним запитом, НЕ послідовно після нього. Раніше
+  // послідовний виклик додавав свій час зверху → сумарно перевищував 15с
+  // клієнтський таймаут → clientsResponse падав → порожні плани/факт до reload.
+  const enrichPromise = action === 'getClientsForPlanning'
+    ? fetch(baseUrl, {
+        method: 'POST', headers, cache: 'no-store',
+        body: JSON.stringify({ action: 'getManagerClients', payload: safePayload }),
+        signal: AbortSignal.timeout(12_000),
+      }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+    : null;
+
   try {
     // Server-side timeout — інакше Vercel function висить до killу платформи (~10-60с).
     // Клієнт окремо має свій 15с timeout у onec-client.ts; цей — підстраховка.
@@ -287,28 +300,23 @@ export async function POST(request: NextRequest) {
     // додаємо isReserved по clientId, щоб фронт виключив резерв зі списків
     // планування. Guard: якщо додатковий виклик впав — повертаємо як є (без
     // регресії, просто резерв не виключиться).
-    if (action === 'getClientsForPlanning' && upstream.ok && json?.status === 'success' && Array.isArray(json?.data?.clients)) {
-      try {
-        const mgrRes = await fetch(baseUrl, {
-          method: 'POST', headers, cache: 'no-store',
-          body: JSON.stringify({ action: 'getManagerClients', payload: safePayload }),
-          signal: AbortSignal.timeout(15_000),
-        });
-        if (mgrRes.ok) {
-          const mgrJson = await mgrRes.json();
-          const list = mgrJson?.data?.clients ?? mgrJson?.data ?? [];
-          if (Array.isArray(list)) {
-            const reserved = new Set<string>();
-            for (const m of list) if (m?.isReserved === true && m?.ClientID != null) reserved.add(String(m.ClientID));
-            let n = 0;
-            for (const c of json.data.clients) {
-              if (reserved.has(String(c.clientId))) { c.isReserved = true; n++; }
-            }
-            console.log(`[getClientsForPlanning] reserve-enrich: ${n}/${json.data.clients.length} позначено резервом`);
-          }
+    if (enrichPromise && upstream.ok && json?.status === 'success' && Array.isArray(json?.data?.clients)) {
+      // getManagerClients уже крутиться паралельно; даємо максимум 3с на догін —
+      // інакше повертаємо БЕЗ резерв-збагачення (плани важливіші за резерв, він
+      // виключиться на наступному завантаженні). Так відповідь не затримується.
+      const mgrJson = await Promise.race([
+        enrichPromise,
+        new Promise<null>(res => setTimeout(() => res(null), 3000)),
+      ]);
+      const list = mgrJson?.data?.clients ?? mgrJson?.data ?? [];
+      if (Array.isArray(list) && list.length > 0) {
+        const reserved = new Set<string>();
+        for (const m of list) if (m?.isReserved === true && m?.ClientID != null) reserved.add(String(m.ClientID));
+        let n = 0;
+        for (const c of json.data.clients) {
+          if (reserved.has(String(c.clientId))) { c.isReserved = true; n++; }
         }
-      } catch (e) {
-        console.warn('[getClientsForPlanning] reserve-enrich failed:', (e as Error).message);
+        console.log(`[getClientsForPlanning] reserve-enrich: ${n}/${json.data.clients.length} позначено резервом`);
       }
     }
 
