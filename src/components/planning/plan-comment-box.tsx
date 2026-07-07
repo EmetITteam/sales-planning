@@ -80,7 +80,7 @@ export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, seg
   }
 
   return (
-    <div className="mt-1.5 ml-1">
+    <div className="mt-1">
       {/* Тред — картки у стилі борду (glass-card-soft + amber row-accent) */}
       {comments.length > 0 && (
         <div className="space-y-1.5 mb-1.5">
@@ -113,13 +113,14 @@ export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, seg
         </div>
       )}
 
-      {/* Кнопка (лише директор/адмін у перегляді) — chip у стилі статус-чипів борду */}
+      {/* Кнопка (лише директор/адмін у перегляді) — привʼязаний футер блоку бренда
+          (повна ширина картки), а не «плаваючий» чип. */}
       {canComment && (
         <button
           onClick={() => { setErr(null); setOpen(true); }}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/12 border border-amber-300/50 text-amber-700 backdrop-blur-sm hover:bg-amber-500/20 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-amber-300/50 bg-amber-500/[0.05] text-amber-700 text-[10.5px] font-bold uppercase tracking-wider hover:bg-amber-500/12 hover:border-solid transition-colors"
         >
-          <MessageSquare className="h-3 w-3" /> Коментар директора
+          <MessageSquare className="h-3.5 w-3.5" /> Коментар директора
         </button>
       )}
 
