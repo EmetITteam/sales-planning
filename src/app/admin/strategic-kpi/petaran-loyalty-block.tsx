@@ -63,7 +63,7 @@ function IndicatorCard({ label, fact, target, pct, weekly }: {
           <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${barPct}%`, background: p.bar }} />
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] mt-auto">
+      <div className="mt-auto text-[10.5px]">
         {pct != null ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold border"
             style={{ background: `${p.bar}18`, borderColor: `${p.bar}55`, color: p.label }} title="Факт / план">
@@ -73,9 +73,14 @@ function IndicatorCard({ label, fact, target, pct, weekly }: {
           <span className="text-muted-foreground italic">факт ще не рахується</span>
         )}
         {showWeekly && (
-          <span className="text-muted-foreground text-[10px] tabular-nums" title="Розподіл по тижнях М1–М4">
-            тижні: {weekly!.map(w => (w > 0 ? w : '·')).join(' · ')}
-          </span>
+          <div className="flex gap-3 mt-2 pt-2 border-t border-[rgba(6,42,61,0.07)]" title="Розподіл нових клієнтів по тижнях місяця">
+            {(['М1', 'М2', 'М3', 'М4'] as const).map((w, i) => (
+              <span key={w} className="flex flex-col items-center leading-none">
+                <span className="text-[8.5px] uppercase tracking-wide text-muted-foreground/70">{w}</span>
+                <span className="text-[12px] font-bold tabular-nums mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: weekly![i] > 0 ? '#062a3d' : 'rgba(6,42,61,0.25)' }}>{weekly![i]}</span>
+              </span>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -97,7 +102,8 @@ export function PetaranLoyaltyBlock({ pl }: { pl: PetaranLoyalty }) {
       </p>
 
       {(['funnel', 'levels', 'reactivation'] as const).map(blk => {
-        const rows = pl.plan.filter(p => p.block === blk);
+        // Ховаємо порожні картки — де немає ні факту, ні плану на цей місяць.
+        const rows = pl.plan.filter(p => p.block === blk && !(p.target === 0 && p.fact == null));
         if (rows.length === 0) return null;
         const base = rows.find(r => r.reactivation_base)?.reactivation_base;
         return (
