@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { MessageSquare, RotateCcw, Send } from 'lucide-react';
+import { MessageSquare, RotateCcw, Send, Check } from 'lucide-react';
 import type { PlanComment } from '@/lib/use-plan-comments';
 
 function fmtWhen(iso: string): string {
@@ -28,17 +28,34 @@ interface Props {
   segmentCode: string;
   segmentName: string;
   canComment: boolean;           // director/admin у режимі перегляду
+  canResolve: boolean;           // сам менеджер на своєму плані — може «Виконано»
   comments: PlanComment[];
   onChanged: (didUnfinalize: boolean) => void;
 }
 
-export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, segmentName, canComment, comments, onChanged }: Props) {
+export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, segmentName, canComment, canResolve, comments, onChanged }: Props) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [resolvingId, setResolvingId] = useState<number | null>(null);
 
   if (comments.length === 0 && !canComment) return null;
+
+  async function resolve(commentId: number) {
+    setResolvingId(commentId);
+    try {
+      const r = await fetch('/api/planning/plan-comment', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ commentId }),
+      });
+      if (r.ok) onChanged(false);
+    } finally {
+      setResolvingId(null);
+    }
+  }
 
   async function submit(unfinalize: boolean) {
     const body = text.trim();
@@ -80,6 +97,16 @@ export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, seg
                 </div>
                 <div className="text-foreground/90 whitespace-pre-wrap break-words">{c.text}</div>
               </div>
+              {canResolve && (
+                <button
+                  onClick={() => resolve(c.id)}
+                  disabled={resolvingId === c.id}
+                  title="Позначити виконаним — коментар зникне, директор отримає сповіщення"
+                  className="shrink-0 inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold disabled:opacity-50 active:scale-[0.98] transition-transform"
+                >
+                  <Check className="h-3.5 w-3.5" /> Готово
+                </button>
+              )}
             </div>
           ))}
         </div>

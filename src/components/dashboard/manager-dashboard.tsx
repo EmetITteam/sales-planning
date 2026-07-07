@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   SEGMENTS, type ClientCategoryStats,
   isDemoLogin, getDemoTMSummaries, getDemoClientStats, getDemoClientsForPlanningResponse,
@@ -337,6 +337,18 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   }, [isDemo, asOfDate, factResponse, myPlansBySegment, planAgg, prevMyPlansBySegment, prevFactsBySegment, dynamicSegments]);
   const totalPlan = summaries.reduce((s, t) => s + t.planAmount, 0);
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
+
+  // Deep-link з колокольчика (/?brand=CODE) — розкрити бренд + доскролити.
+  const [deepLinkDone, setDeepLinkDone] = useState(false);
+  useEffect(() => {
+    if (deepLinkDone || summaries.length === 0) return;
+    const brand = new URLSearchParams(window.location.search).get('brand');
+    if (!brand) { setDeepLinkDone(true); return; }
+    if (!summaries.some(s => s.segmentCode === brand)) return;
+    setExpandedSegment(brand);
+    setDeepLinkDone(true);
+    setTimeout(() => document.getElementById(`brand-${brand}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+  }, [summaries, deepLinkDone, setExpandedSegment]);
   // Сирий 1С-план (для інформативного рядка «З 1С: $X» коли є dynamic).
   const rawTotalPlan1c = useMemo(() => {
     let acc = 0;
@@ -631,7 +643,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
             const isExpanded = expandedSegment === tm.segmentCode;
             const adaptedFact = factResponse ? adaptSalesFact(factResponse) : null;
             return (
-              <div key={tm.segmentCode}>
+              <div key={tm.segmentCode} id={`brand-${tm.segmentCode}`}>
                 <BrandRow
                   segmentName={tm.segmentName}
                   planAmount={tm.planAmount}
@@ -668,6 +680,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
                   segmentCode={tm.segmentCode}
                   segmentName={tm.segmentName}
                   canComment={canComment}
+                  canResolve={!isViewing}
                   comments={commentsBySegment[tm.segmentCode] ?? []}
                   onChanged={(didUnfinalize) => { refetchComments(); if (didUnfinalize) { refetchPlans(); refetchFact(); } }}
                 />
