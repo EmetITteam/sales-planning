@@ -36,6 +36,7 @@ const LOGIN_LABEL_OVERRIDES: Record<string, string> = {
   'owner@emet.in.ua': 'Власник компанії',
   'ceo@emet.in.ua': 'CEO компанії',
   'headofproduct@emet.in.ua': 'Керівник відділу продукта',
+  'headofsd@emet.in.ua': 'Керівник відділу продажів власних представництв',
 };
 
 function getRoleLabel(login: string, role: string): string {
