@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   SEGMENTS, type ClientCategoryStats,
   isDemoLogin, getDemoTMSummaries, getDemoClientStats, getDemoClientsForPlanningResponse,
@@ -341,16 +342,24 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   const totalFact = summaries.reduce((s, t) => s + t.factAmount, 0);
 
   // Deep-link з колокольчика (/?brand=CODE) — розкрити бренд + доскролити.
-  const [deepLinkDone, setDeepLinkDone] = useState(false);
+  // Реактивно на зміну query (useSearchParams у Next 16), а не лише на mount —
+  // бо менеджер зазвичай уже на дашборді, і router.push лише міняє query.
+  // Після переходу чистимо query (router.replace), щоб повторний клік того ж
+  // бренда знову спрацював.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const brandParam = searchParams.get('brand');
   useEffect(() => {
-    if (deepLinkDone || summaries.length === 0) return;
-    const brand = new URLSearchParams(window.location.search).get('brand');
-    if (!brand) { setDeepLinkDone(true); return; }
-    if (!summaries.some(s => s.segmentCode === brand)) return;
-    setExpandedSegment(brand);
-    setDeepLinkDone(true);
-    setTimeout(() => document.getElementById(`brand-${brand}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-  }, [summaries, deepLinkDone, setExpandedSegment]);
+    if (!brandParam || summaries.length === 0) return;
+    if (!summaries.some(s => s.segmentCode === brandParam)) return;
+    const target = brandParam;
+    setExpandedSegment(target);
+    const t = setTimeout(() => {
+      document.getElementById(`brand-${target}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      router.replace(window.location.pathname, { scroll: false });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [brandParam, summaries, setExpandedSegment, router]);
   // Сирий 1С-план (для інформативного рядка «З 1С: $X» коли є dynamic).
   const rawTotalPlan1c = useMemo(() => {
     let acc = 0;
