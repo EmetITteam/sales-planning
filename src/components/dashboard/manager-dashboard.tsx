@@ -27,6 +27,7 @@ import { ClientControlView } from '../control/client-control-view';
 import { BrandRow } from './brand-row';
 import { usePlanComments } from '@/lib/use-plan-comments';
 import { PlanCommentBox } from '@/components/planning/plan-comment-box';
+import { canAuthorPlanComment } from '@/lib/feature-flags';
 import { BrandExpandedDetails } from './brand-expanded-details';
 import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
@@ -266,10 +267,11 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   // Динамічні сегменти для поточного місяця (NEURONOX тощо) — планaAmount = factAmount.
   const { dynamicSegments } = useDynamicPlanSegments(currentPeriod.month);
 
-  // Коментарі директора до плану (по бренду). canComment — директор/адмін у
-  // режимі перегляду чужого плану. Тред бачать усі; кнопку — лише director/admin.
+  // Коментарі директора до плану (по бренду). canComment — ТІЛЬКИ реальний
+  // директор продажів (sdu) + admin у режимі перегляду чужого плану. Проксі-
+  // директори (ceo/headofproduct/owner) кнопку не бачать. Тред бачать усі.
   const { commentsBySegment, refetch: refetchComments } = usePlanComments(effectiveLogin, currentPeriod.id, currentPeriod.month);
-  const canComment = isViewing && (user?.role === 'director' || user?.role === 'admin');
+  const canComment = isViewing && canAuthorPlanComment(user?.login);
 
   // Будуємо summaries з реальних даних 1С — без mock fallback.
   // Action 4 → план, Action 3 → факт + кількість покупців.

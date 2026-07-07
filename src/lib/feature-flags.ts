@@ -132,8 +132,22 @@ export function isAdminLogin(login: string | null | undefined): boolean {
 const STRATEGIC_KPI_LOGINS: readonly string[] = [
   ...ADMIN_LOGINS,
   DIRECTOR_PROXY_LOGIN,     // sdu@emet.in.ua
+  'headofproduct@emet.in.ua',
+  'ceo@emet.in.ua',
+  // 'owner@emet.in.ua' — у BLOCKED_LOGINS (заблокований від входу). Дати доступ
+  //   до стратегії можна лише РАЗОМ із розблокуванням (прибрати з ban-list).
 ];
 export function isStrategicKpiLogin(login: string | null | undefined): boolean {
   if (!login) return false;
   return STRATEGIC_KPI_LOGINS.includes(login.toLowerCase().trim());
+}
+
+/**
+ * Хто може ЗАЛИШАТИ коментар директора до плану менеджера — ТІЛЬКИ реальний
+ * директор продажів (sdu) + admin. Проксі-директори (ceo/headofproduct/owner)
+ * мають роль director лише для перегляду і коментувати план НЕ можуть.
+ */
+export function canAuthorPlanComment(login: string | null | undefined): boolean {
+  if (!login) return false;
+  return login.toLowerCase().trim() === DIRECTOR_PROXY_LOGIN || isAdminLogin(login);
 }

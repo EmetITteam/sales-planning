@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
+import { canAuthorPlanComment } from '@/lib/feature-flags';
 import { SEGMENTS } from '@/lib/mock-data';
 
 const MAX_TEXT = 2000;
@@ -45,9 +46,10 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Фіча — лише для директора по продажах / адміна.
-  if (session.role !== 'director' && session.role !== 'admin') {
-    return Response.json({ error: 'Forbidden: тільки директор або адмін' }, { status: 403 });
+  // Фіча — ТІЛЬКИ реальний директор продажів (sdu) + admin. Проксі-директори
+  // (ceo/headofproduct/owner) роль director мають лише для перегляду.
+  if (!canAuthorPlanComment(session.login)) {
+    return Response.json({ error: 'Forbidden: коментувати план може лише директор продажів' }, { status: 403 });
   }
 
   let body: PostBody;
