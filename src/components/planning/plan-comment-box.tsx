@@ -124,15 +124,15 @@ export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, seg
           onClick={() => { setErr(null); setOpen(true); }}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-amber-800 bg-amber-500/12 border border-amber-300/50 hover:bg-amber-500/20 transition-colors"
         >
-          <MessageSquare className="h-3.5 w-3.5" /> {comments.length > 0 ? 'Додати коментар' : 'Написати коментар'}
+          <MessageSquare className="h-3.5 w-3.5" /> {comments.length > 0 ? 'Додати зауваження' : 'Зауваження до планування'}
         </button>
       )}
 
       <Dialog open={open} onOpenChange={(v) => { if (!v && !busy) setOpen(false); }}>
         <DialogContent className="max-w-md">
-          <DialogTitle className="text-[15px]">Коментар до плану · {segmentName}</DialogTitle>
+          <DialogTitle className="text-[15px]">Зауваження до планування · {segmentName}</DialogTitle>
           <p className="text-[12px] text-muted-foreground -mt-1">
-            Коментар прилетить менеджеру у колокольчик. «Розфіналізувати» — відкриє цей бренд менеджеру на переробку.
+            Зауваження прилетить менеджеру у колокольчик. «Розфіналізувати» — відкриє цей бренд менеджеру на переробку.
           </p>
           <textarea
             value={text}
