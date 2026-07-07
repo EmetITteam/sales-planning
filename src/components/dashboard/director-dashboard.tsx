@@ -533,8 +533,17 @@ export function DirectorDashboard() {
                 if (planAgg) {
                   for (const login of regionLogins) {
                     const segs = planAgg.byLogin[login.toLowerCase().trim()] || {};
-                    for (const s of Object.values(segs)) {
+                    for (const [segCode, s] of Object.entries(segs)) {
+                      // Динамічні сегменти (NEURONOX): їх внесок = факт (дзеркало),
+                      // а не введений forecast+gap — щоб «Запл.» регіону збігалась
+                      // з hero РМ (finalizedExpected). Факт додаємо нижче.
+                      if (dynamicSegments.has(segCode)) continue;
                       if (s.finalized) regionExpectedAmount += s.forecast + s.gap;
+                    }
+                  }
+                  if (dynamicSegments.size > 0) {
+                    for (const seg of r.segments ?? []) {
+                      if (dynamicSegments.has(seg.segmentCode)) regionExpectedAmount += seg.factAmount;
                     }
                   }
                 }
