@@ -87,11 +87,7 @@ export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, seg
     : 'mt-1.5 rounded-2xl border border-[rgba(6,42,61,0.10)]';
 
   return (
-    <div className={`${panelClass} bg-white/45 backdrop-blur-md px-3.5 py-2.5`}>
-      <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-amber-700/80 mb-2">
-        <MessageSquare className="h-3 w-3" /> Коментар директора
-      </div>
-
+    <div className={`${panelClass} bg-white/45 backdrop-blur-md px-3.5 py-2`}>
       {/* Тред */}
       {comments.length > 0 && (
         <div className="space-y-1.5 mb-2">
