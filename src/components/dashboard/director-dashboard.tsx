@@ -529,24 +529,25 @@ export function DirectorDashboard() {
                 // (з planAgg.byLogin). ТІЛЬКИ ФІНАЛІЗОВАНІ — чернетки не входять
                 // у «Запл.» прогрес-лінію регіону (мають враховуватись тільки
                 // зафіксовані плани, не draft).
-                let regionExpectedAmount = 0;
+                // «Заплановано» БЕЗ dynamic — Σ(forecast+gap) фіналіз. по звичайних
+                // сегментах. Головний рядок = це + факт dynamic-сегментів (дзеркало).
+                let regionExpectedNonDyn = 0;
                 if (planAgg) {
                   for (const login of regionLogins) {
                     const segs = planAgg.byLogin[login.toLowerCase().trim()] || {};
                     for (const [segCode, s] of Object.entries(segs)) {
-                      // Динамічні сегменти (NEURONOX): їх внесок = факт (дзеркало),
-                      // а не введений forecast+gap — щоб «Запл.» регіону збігалась
-                      // з hero РМ (finalizedExpected). Факт додаємо нижче.
                       if (dynamicSegments.has(segCode)) continue;
-                      if (s.finalized) regionExpectedAmount += s.forecast + s.gap;
-                    }
-                  }
-                  if (dynamicSegments.size > 0) {
-                    for (const seg of r.segments ?? []) {
-                      if (dynamicSegments.has(seg.segmentCode)) regionExpectedAmount += seg.factAmount;
+                      if (s.finalized) regionExpectedNonDyn += s.forecast + s.gap;
                     }
                   }
                 }
+                let regionDynFact = 0;
+                if (dynamicSegments.size > 0) {
+                  for (const seg of r.segments ?? []) {
+                    if (dynamicSegments.has(seg.segmentCode)) regionDynFact += seg.factAmount;
+                  }
+                }
+                const regionExpectedAmount = regionExpectedNonDyn + regionDynFact;
                 return (
                   <RegionAccordion
                     key={r.regionCode || r.regionName}
@@ -556,6 +557,7 @@ export function DirectorDashboard() {
                     asOfDate={asOfDate}
                     regionLogins={regionLogins}
                     regionExpectedAmount={regionExpectedAmount}
+                    regionExpectedNonDyn={regionExpectedNonDyn}
                     dynamicSegments={dynamicSegments}
                     onDrillDown={() => goToRegion(r.regionCode)}
                     onManagerClick={(login) => goToManager(login)}

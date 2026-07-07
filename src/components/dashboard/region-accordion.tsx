@@ -23,6 +23,9 @@ interface Props {
    *  Передається з parent щоб не fetch-ити planAgg per region у header
    *  (поки expand не відкритий). Для progress-лінії з насічкою «Запл.». */
   regionExpectedAmount?: number;
+  /** «Заплановано» БЕЗ dynamic-сегментів (тільки звичайні бренди) — для рядка
+   *  «Без динамічного бренду». */
+  regionExpectedNonDyn?: number;
   /** Drill-down у RMDashboard цього регіону. */
   onDrillDown: () => void;
   /**
@@ -48,7 +51,7 @@ function shortName(fullName: string): string {
  * Drill-down у RMDashboard — окрема <ChevronRight> кнопка справа з
  * stopPropagation. Mini-list менеджерів між назвою і Факт/План.
  */
-export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, regionLogins, regionExpectedAmount = 0, onDrillDown, onManagerClick, dynamicSegments }: Props) {
+export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, regionLogins, regionExpectedAmount = 0, regionExpectedNonDyn = 0, onDrillDown, onManagerClick, dynamicSegments }: Props) {
   const [expanded, setExpanded] = useState(false);
   // Effective totalPlan — для dynamic-сегментів беремо факт замість 1С-плану.
   const effectiveTotalPlan = (() => {
@@ -79,6 +82,34 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
     ? (regionExpectedAmount / effectiveTotalPlan) * 100
     : 0;
   const hasRegionPlan = regionExpectedAmount > 0;
+
+  // «Без динамічного бренду» — план і заплановане повністю БЕЗ dynamic-сегментів
+  // (тільки звичайні бренди, сирі значення без дзеркала NEURONOX).
+  const planWithoutDynamic = (() => {
+    if (!dynamicSegments || dynamicSegments.size === 0) return effectiveTotalPlan;
+    let acc = 0;
+    for (const seg of aggregate.segments) {
+      if (!dynamicSegments.has(seg.segmentCode)) acc += seg.planAmount;
+    }
+    return acc;
+  })();
+  const expectedNonDynPct = planWithoutDynamic > 0 ? (regionExpectedNonDyn / planWithoutDynamic) * 100 : 0;
+  // Показуємо рядок лише коли dynamic реально впливає на регіон (інакше = головні числа).
+  const hasDynamicInRegion = !!dynamicSegments && dynamicSegments.size > 0 && Math.abs(planWithoutDynamic - effectiveTotalPlan) > 0.5;
+
+  // Рядок «Без динамічного бренду» — той самий формат Запл.%·сума / План.
+  const withoutDynamicRow = hasDynamicInRegion ? (
+    <div className="flex items-center gap-2 text-[10px] flex-wrap">
+      <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground/70">Без динамічного бренду</span>
+      <span>
+        <span className="text-emet-blue">●</span> Запл.:{' '}
+        <span className="font-bold text-emet-blue">{formatPct(expectedNonDynPct)}</span>
+        <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedNonDyn)}</span></span>
+        <span className="text-muted-foreground/50"> / План </span>
+        <span className="amount font-semibold text-muted-foreground">{formatUSD(planWithoutDynamic)}</span>
+      </span>
+    </div>
+  ) : null;
 
   // Lazy-load: тягнемо план + факт по категоріях ТІЛЬКИ коли expanded.
   // Чому lazy: 8 регіонів × 2 запити одразу = багато викликів 1С. Користувач
@@ -315,6 +346,10 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           </button>
         </div>
 
+        {/* Рядок «Без динамічного бренду» — перед mini-list менеджерів */}
+        {withoutDynamicRow && (
+          <div className="mt-2.5 pt-2.5 border-t border-dashed border-[#e2e6ef]">{withoutDynamicRow}</div>
+        )}
         {/* Row 2: mini-list менеджерів */}
         {managersBrief.length > 0 && (
           <div className="mt-3 pt-3 border-t border-[#f0f2f8]">{miniList}</div>
@@ -388,6 +423,9 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
           )}
         </div>
 
+        {withoutDynamicRow && (
+          <div className="mt-2 pt-2 border-t border-dashed border-[#e2e6ef]">{withoutDynamicRow}</div>
+        )}
         {managersBrief.length > 0 && (
           <div className="pt-2 border-t border-[#f0f2f8]">{miniList}</div>
         )}
