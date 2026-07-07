@@ -155,6 +155,13 @@ interface UseClientsTotalsResult {
   planByClient: Record<string, ClientPlanTotal>;
   /** factByClient[clientId] → { factTotal, brands: {segCode: amount} } */
   factByClient: Record<string, ClientFactTotal>;
+  /**
+   * Загальний факт менеджера = Σ totalFactUSD по сегментах (по ВСІХ його
+   * клієнтах, не тільки в clientIds). Збігається з планинг-дашбордом. Для
+   * hero-картки «Виконання» — НЕ сума factByClient (та рахує лише деталізовані
+   * clients[] і суттєво недооцінює факт).
+   */
+  factTotalAgg: number;
   /** Клієнти у яких stage='Зустріч' хоч в одному forecast/gap row поточного періоду. */
   meetingStageClientIds: Set<string>;
   loading: boolean;
@@ -234,9 +241,25 @@ export function useClientsTotals(
   // Об'єднуємо segments з усіх чанків і денормалізуємо у factByClient.
   const factByClient = useMemo(() => mergeFactBreakdown([f1, f2, f3]), [f1, f2, f3]);
 
+  // Загальний факт = Σ totalFactUSD по сегментах. totalFactUSD — факт сегменту
+  // по ВСІХ клієнтах менеджера (не залежить від clientIds), тож у різних чанках
+  // значення сегмента ОДНАКОВЕ → dedupe по segmentCode (інакше 3 чанки утроять).
+  const factTotalAgg = useMemo(() => {
+    const bySeg = new Map<string, number>();
+    for (const part of [f1, f2, f3]) {
+      for (const seg of part?.segments ?? []) {
+        bySeg.set(seg.segmentCode, Number(seg.totalFactUSD) || 0);
+      }
+    }
+    let sum = 0;
+    for (const v of bySeg.values()) sum += v;
+    return sum;
+  }, [f1, f2, f3]);
+
   return {
     planByClient: planRes?.totals ?? {},
     factByClient,
+    factTotalAgg,
     meetingStageClientIds: new Set(planRes?.meetingStageClientIds ?? []),
     loading: planLoading || factLoading,
     error: planErr?.message || factErr || null,

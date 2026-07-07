@@ -123,7 +123,7 @@ export function ClientsPage() {
 
   // План (Supabase) + Факт (1С getSalesFact) по всіх клієнтах менеджера
   const clientIds = useMemo(() => clients.map(c => c.ClientID).filter(Boolean), [clients]);
-  const { planByClient, factByClient, meetingStageClientIds, loading: totalsLoading } = useClientsTotals(
+  const { planByClient, factByClient, factTotalAgg, meetingStageClientIds, loading: totalsLoading } = useClientsTotals(
     sessionUser?.login ?? null,
     clientIds,
     selectedMonth,
@@ -284,10 +284,11 @@ export function ClientsPage() {
     // Раніше брали суму planByClient (forecasts+gap_closures менеджера, що
     // концептуально інше — це його прогноз, не офіційний план від керівника).
     const planTotal = registryPlan.total;
-    let factTotal = 0;
-    for (const c of baseClients) {
-      factTotal += factByClient[c.ClientID]?.factTotal ?? 0;
-    }
+    // Факт для картки «Виконання» — АГРЕГАТ по сегментах (Σ totalFactUSD),
+    // збігається з планинг-дашбордом. НЕ сума factByClient: та рахує лише
+    // деталізовані clients[] з відповіді і суттєво недооцінює (напр. $896
+    // замість $66,220), бо 1С не деталізує всіх покупців у clients[].
+    const factTotal = factTotalAgg;
     const pct = planTotal > 0 ? (factTotal / planTotal) * 100 : 0;
     const forecastPct = (planTotal > 0 && wd.passedWD > 0)
       ? (factTotal * wd.totalWD) / (planTotal * wd.passedWD) * 100
@@ -340,7 +341,7 @@ export function ClientsPage() {
       clientsWithCall, clientsWithMeeting, clientsWithAnyEvent,
       coveragePct, noContacts, noContactsWithPlan, noContactsWithoutPlan,
     };
-  }, [baseClients, planByClient, factByClient, activityByClient, wd.passedWD, wd.totalWD, registryPlan.total]);
+  }, [baseClients, planByClient, factByClient, factTotalAgg, activityByClient, wd.passedWD, wd.totalWD, registryPlan.total]);
 
   // Counts для clickable hero-counters
   const focusedCount = useMemo(() =>
