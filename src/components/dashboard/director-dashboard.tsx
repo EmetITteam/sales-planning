@@ -235,6 +235,15 @@ export function DirectorDashboard() {
     return acc;
   }, [planAgg, dynamicSegments, company]);
 
+  // Σ факт по dynamic-сегментах (NEURONOX) — для рядка «Без динамічного бренду»
+  // (той самий елемент що у картках регіонів). Головні числа НЕ чіпаємо.
+  const dynFact = useMemo(() => {
+    if (!company || dynamicSegments.size === 0) return 0;
+    let acc = 0;
+    for (const seg of company.segments) if (dynamicSegments.has(seg.segmentCode)) acc += seg.factAmount;
+    return acc;
+  }, [company, dynamicSegments]);
+
   // === Sub-views ===
   if (view === 'viewRegion') {
     return (
@@ -408,6 +417,14 @@ export function DirectorDashboard() {
                     {hasDynamicDiff && (
                       <span className="text-muted-foreground/70 block text-[10.5px]" title="1С-план по dynamic-сегментах замінено на факт (plan=fact). Тут — оригінальна сума з 1С.">
                         Повний план з 1С: <span className="amount">{formatUSD(rawTotalPlan1c)}</span>
+                      </span>
+                    )}
+                    {dynFact > 0.5 && (
+                      <span className="block text-[10.5px] mt-0.5" title="Без dynamic-бренду (NEURONOX) — тільки звичайні бренди">
+                        <span className="uppercase tracking-wider font-bold text-muted-foreground/70">Без динамічного</span>{' '}
+                        <span className="text-emet-blue">●</span> Запл.:{' '}
+                        <span className="font-bold text-emet-blue">{formatPct((totalPlan - dynFact) > 0 ? ((finalizedExpected - dynFact) / (totalPlan - dynFact)) * 100 : 0)}</span>
+                        <span className="text-muted-foreground"> · <span className="amount font-semibold text-foreground">{formatUSD(finalizedExpected - dynFact)}</span> / План <span className="amount">{formatUSD(totalPlan - dynFact)}</span></span>
                       </span>
                     )}
                   </span>
