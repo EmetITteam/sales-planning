@@ -55,7 +55,7 @@ export const ADMIN_LOGINS: readonly string[] = ['itd@emet.in.ua'];
  *
  * Доданий 2026-06-26.
  */
-export const BLOCKED_LOGINS: readonly string[] = ['owner@emet.in.ua'];
+export const BLOCKED_LOGINS: readonly string[] = [];  // owner@ розблоковано 2026-07-07
 
 /**
  * Helper: чи цей логін заблоковано (banlist).
@@ -134,8 +134,7 @@ const STRATEGIC_KPI_LOGINS: readonly string[] = [
   DIRECTOR_PROXY_LOGIN,     // sdu@emet.in.ua
   'headofproduct@emet.in.ua',
   'ceo@emet.in.ua',
-  // 'owner@emet.in.ua' — у BLOCKED_LOGINS (заблокований від входу). Дати доступ
-  //   до стратегії можна лише РАЗОМ із розблокуванням (прибрати з ban-list).
+  'owner@emet.in.ua',      // розблоковано з ban-list 2026-07-07
 ];
 export function isStrategicKpiLogin(login: string | null | undefined): boolean {
   if (!login) return false;
