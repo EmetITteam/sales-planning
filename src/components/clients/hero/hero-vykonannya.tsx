@@ -32,12 +32,12 @@ export function HeroVykonannya({
   loading?: boolean;
   onRefetchPlan?: () => void;
 }) {
-  // Loading skeleton — поки 1С getRegistryPlans тягнеться АБО план=0 і це не
-  // trial. Background polling + auto-reload у parent оновлять дані без участі
-  // користувача. Раніше після вичерпання fast retry (~21с) UI переходив у
-  // false-0% rose — користувач бачив «відставання» хоча план просто ще не
-  // завантажився з 1С.
-  const showLoading = loading || (!isTrial && planTotal === 0);
+  // Loading skeleton — ТІЛЬКИ поки 1С getRegistryPlans реально тягнеться/ретраїть
+  // (хук тримає loading=true під час cold-start retry). Раніше сюди входило ще
+  // `planTotal === 0`, тож картка вічно висіла скелетоном для місяця, де плану
+  // просто НЕМАЄ (напр. поточний місяць ще без плану, або новий логін) — і
+  // ховала факт. Тепер «немає плану» — окремий термінальний стан нижче.
+  const showLoading = loading;
   if (showLoading) {
     return (
       <div className={`${heroCardCls} ambient-accent`} style={{ ['--i' as string]: index }}>
@@ -56,6 +56,24 @@ export function HeroVykonannya({
     );
   }
   void onRefetchPlan;
+  // План на місяць не встановлено (1С не повернула план під цим логіном за
+  // обраний місяць). % виконання без плану беззмістовний → показуємо факт і
+  // нейтральну помітку замість оманливого «Завантаження» чи false-0%.
+  if (!isTrial && planTotal === 0) {
+    return (
+      <div className={`${heroCardCls} ambient-accent`} style={{ ['--i' as string]: index }}>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Виконання</p>
+        </div>
+        <p className="text-[36px] font-bold tracking-[-1px] leading-none text-slate-400">—</p>
+        <div className="flex flex-col gap-1">
+          <span className="inline-flex self-start px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-400/12 border border-slate-300/50 text-slate-600 backdrop-blur-sm">План не встановлено</span>
+          <p className="text-[11px] text-muted-foreground leading-snug">На цей місяць план з 1С відсутній. Факт: <span className="amount font-semibold text-foreground">{fmtUSD(factTotal)}</span></p>
+        </div>
+      </div>
+    );
+  }
   if (isTrial) {
     return (
       <div className={`${heroCardCls} ambient-accent`} style={{ ['--i' as string]: index }}>

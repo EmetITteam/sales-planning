@@ -188,19 +188,23 @@ export function ClientsPage() {
 
   // Working-days metrics + Registry Plan для Card 1 (Виконання).
   // Реєстровий план тягнемо тим самим способом що manager-dashboard —
-  // щоб цифри на /clients ↔ /planning збігались (не сума forecasts менеджера,
-  // а офіційний план з 1С Action 4).
-  const currentPeriod = useAppStore(s => s.currentPeriod);
+  // офіційний план з 1С Action 4 (не сума forecasts менеджера).
+  // ⚠️ Період беремо з ЛОКАЛЬНОГО таба місяця (selectedMonth), а НЕ з
+  // currentPeriod планинг-борду — кожен борд має свої дати. Раніше план
+  // тягнувся для currentPeriod: при перегляді минулого місяця в табах
+  // «Виконання» рахувало інший місяць, а якщо у currentPeriod плану 0
+  // (напр. поточний місяць ще без плану) — картка вічно висіла скелетоном
+  // і ховала і план, і факт.
   const sessionLoginLower = (sessionUser?.login ?? '').toLowerCase().trim();
   const { dateFrom, dateTo } = useMemo(() => {
-    const monthParts = currentPeriod.month.split('-').map(Number);
+    const monthParts = selectedMonth.split('-').map(Number);
     const py = Number.isFinite(monthParts[0]) && monthParts[0] > 0 ? monthParts[0] : new Date().getFullYear();
     const pm = Number.isFinite(monthParts[1]) && monthParts[1] > 0 ? monthParts[1] : new Date().getMonth() + 1;
     const dateFrom = `${py}-${String(pm).padStart(2, '0')}-01`;
     const lastDay = new Date(py, pm, 0).getDate();
     const dateTo = `${py}-${String(pm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     return { dateFrom, dateTo };
-  }, [currentPeriod.month]);
+  }, [selectedMonth]);
   // Cold-start 1С обробляє сам хук: передаємо login → isEmptyResponse рахує
   // «порожньо» = немає плану для ЦЬОГО менеджера, тож вбудований retry
   // (3× з backoff, тримає loading=true) відновлює план без блимання $0.
@@ -251,12 +255,12 @@ export function ClientsPage() {
   // План активації бази (Action B) — login-bound, 1 документ на менеджера+місяць.
   const { plan: activationPlan } = useClientActivationPlan(
     sessionUser?.login ?? null,
-    currentPeriod.month?.slice(0, 7) ?? null,
+    selectedMonth,
   );
 
   const wd = useMemo(() => {
     const now = new Date();
-    const m = currentPeriod.month?.slice(0, 7);
+    const m = selectedMonth;
     let year: number;
     let month: number;
     if (m && /^\d{4}-\d{2}$/.test(m)) {
@@ -271,7 +275,7 @@ export function ClientsPage() {
     const passedWD = getPassedWorkingDays(year, month, now);
     const calcPct = getMonthProgressPct(year, month, now);
     return { totalWD, passedWD, calcPct };
-  }, [currentPeriod.month]);
+  }, [selectedMonth]);
 
   // === Hero metrics обчислюємо по базі ===
   const heroMetrics = useMemo(() => {
