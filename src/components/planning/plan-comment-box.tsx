@@ -29,11 +29,12 @@ interface Props {
   segmentName: string;
   canComment: boolean;           // director/admin у режимі перегляду
   canResolve: boolean;           // сам менеджер на своєму плані — може «Виконано»
+  attached: boolean;             // прикріплено впритул до картки (згорнутий бренд)
   comments: PlanComment[];
   onChanged: (didUnfinalize: boolean) => void;
 }
 
-export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, segmentName, canComment, canResolve, comments, onChanged }: Props) {
+export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, segmentName, canComment, canResolve, attached, comments, onChanged }: Props) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -79,21 +80,29 @@ export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, seg
     }
   }
 
+  // attached — нижня частина ТІЄЇ Ж картки бренда (без верхнього скруглення,
+  // впритул). Інакше (розгорнутий бренд) — окрема панель з невеликим відступом.
+  const panelClass = attached
+    ? '-mt-px rounded-t-none rounded-b-[20px] border border-t-0 border-white/70 shadow-[0_8px_32px_rgba(6,42,61,0.04)]'
+    : 'mt-1.5 rounded-2xl border border-[rgba(6,42,61,0.10)]';
+
   return (
-    <div className="mt-1">
-      {/* Тред — картки у стилі борду (glass-card-soft + amber row-accent) */}
+    <div className={`${panelClass} bg-white/45 backdrop-blur-md px-3.5 py-2.5`}>
+      <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-amber-700/80 mb-2">
+        <MessageSquare className="h-3 w-3" /> Коментар директора
+      </div>
+
+      {/* Тред */}
       {comments.length > 0 && (
-        <div className="space-y-1.5 mb-1.5">
+        <div className="space-y-1.5 mb-2">
           {comments.map(c => (
-            <div key={c.id} className="glass-card-soft flex items-start gap-2.5 text-[12px] rounded-2xl px-3.5 py-2.5"
-              style={{ background: 'linear-gradient(90deg, rgba(245,158,11,0.10), rgba(255,255,255,0.55) 16%)' }}>
-              <MessageSquare className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <div key={c.id} className="flex items-start gap-2.5 text-[12px] rounded-xl bg-amber-500/[0.07] border border-amber-300/40 px-3 py-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold text-amber-800">{c.author_name || c.author_login}</span>
                   <span className="text-[10px] text-muted-foreground tabular-nums">{fmtWhen(c.created_at)}</span>
                   {c.action === 'comment_unfinalize' && (
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-500/12 border border-rose-300/50 text-rose-700 backdrop-blur-sm">на переробку</span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-500/12 border border-rose-300/50 text-rose-700">на переробку</span>
                   )}
                 </div>
                 <div className="text-foreground/90 whitespace-pre-wrap break-words">{c.text}</div>
@@ -103,7 +112,7 @@ export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, seg
                   onClick={() => resolve(c.id)}
                   disabled={resolvingId === c.id}
                   title="Позначити виконаним — коментар зникне, директор отримає сповіщення"
-                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/12 border border-emerald-300/50 text-emerald-700 backdrop-blur-sm hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/12 border border-emerald-300/50 text-emerald-700 hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
                 >
                   <Check className="h-3 w-3" /> Готово
                 </button>
@@ -113,14 +122,13 @@ export function PlanCommentBox({ managerLogin, periodId, month, segmentCode, seg
         </div>
       )}
 
-      {/* Кнопка (лише директор/адмін у перегляді) — привʼязаний футер блоку бренда
-          (повна ширина картки), а не «плаваючий» чип. */}
+      {/* Кнопка додати (лише директор/адмін у перегляді) */}
       {canComment && (
         <button
           onClick={() => { setErr(null); setOpen(true); }}
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-amber-300/50 bg-amber-500/[0.05] text-amber-700 text-[10.5px] font-bold uppercase tracking-wider hover:bg-amber-500/12 hover:border-solid transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-amber-800 bg-amber-500/12 border border-amber-300/50 hover:bg-amber-500/20 transition-colors"
         >
-          <MessageSquare className="h-3.5 w-3.5" /> Коментар директора
+          <MessageSquare className="h-3.5 w-3.5" /> {comments.length > 0 ? 'Додати коментар' : 'Написати коментар'}
         </button>
       )}
 

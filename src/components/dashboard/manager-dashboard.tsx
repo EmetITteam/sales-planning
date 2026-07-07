@@ -644,6 +644,10 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
           {summaries.map((tm) => {
             const isExpanded = expandedSegment === tm.segmentCode;
             const adaptedFact = factResponse ? adaptSalesFact(factResponse) : null;
+            const brandComments = commentsBySegment[tm.segmentCode] ?? [];
+            // Футер-коментар прикріплюємо до картки лише коли вона згорнута
+            // (у розгорнутому між ними — деталі сегмента).
+            const footerAttached = (canComment || brandComments.length > 0) && !isExpanded;
             return (
               <div key={tm.segmentCode} id={`brand-${tm.segmentCode}`}>
                 <BrandRow
@@ -663,6 +667,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
                   readOnly={liveMode}
                   expandable
                   expanded={isExpanded}
+                  attachedFooter={footerAttached}
                 />
                 {isExpanded && (
                   <BrandExpandedDetails
@@ -683,7 +688,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
                   segmentName={tm.segmentName}
                   canComment={canComment}
                   canResolve={!isViewing}
-                  comments={commentsBySegment[tm.segmentCode] ?? []}
+                  attached={footerAttached}
+                  comments={brandComments}
                   onChanged={(didUnfinalize) => { refetchComments(); if (didUnfinalize) { refetchPlans(); refetchFact(); } }}
                 />
               </div>

@@ -46,6 +46,9 @@ export interface BrandRowProps {
    * відхилення від норми) для нього не мають сенсу.
    */
   isDynamicPlan?: boolean;
+  /** Якщо true — знизу впритул йде прикріплена панель (напр. коментар директора).
+   *  Прибираємо нижнє скруглення, щоб картка + панель читались як один блок. */
+  attachedFooter?: boolean;
 }
 
 export function BrandRow({
@@ -65,6 +68,7 @@ export function BrandRow({
   expandable,
   expanded,
   isDynamicPlan,
+  attachedFooter,
 }: BrandRowProps) {
   // Trial-менеджер (1С виставила $1 sentinel замість реального плану):
   // factу/$1 = тисячі %, дашборд вибухає. Не показуємо % взагалі.
@@ -112,6 +116,8 @@ export function BrandRow({
       onClick={onClick}
       {...buttonProps}
       className={`group w-full text-left glass-card ${ambient} p-3 md:p-4 ${
+        attachedFooter ? '!rounded-b-none' : ''
+      } ${
         onClick && !readOnly ? 'hover:shadow-[0_8px_30px_rgba(6,42,61,0.08)] cursor-pointer hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/50' : ''
       } transition-all duration-200 ${isInactive ? 'opacity-50' : ''}`}
     >
