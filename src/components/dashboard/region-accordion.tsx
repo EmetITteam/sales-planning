@@ -97,17 +97,11 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
   // Показуємо рядок лише коли dynamic реально впливає на регіон (інакше = головні числа).
   const hasDynamicInRegion = !!dynamicSegments && dynamicSegments.size > 0 && Math.abs(planWithoutDynamic - effectiveTotalPlan) > 0.5;
 
-  // Рядок «Без динамічного бренду» — той самий формат Запл.%·сума / План.
+  // Рядок «Без динамічного бренду» — той самий muted-формат що у hero-картках.
   const withoutDynamicRow = hasDynamicInRegion ? (
-    <div className="flex items-center gap-2 text-[10px] flex-wrap">
-      <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground/70">Без динамічного бренду</span>
-      <span>
-        <span className="text-emet-blue">●</span> Запл.:{' '}
-        <span className="font-bold text-emet-blue">{formatPct(expectedNonDynPct)}</span>
-        <span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(regionExpectedNonDyn)}</span></span>
-        <span className="text-muted-foreground/50"> / План </span>
-        <span className="amount font-semibold text-muted-foreground">{formatUSD(planWithoutDynamic)}</span>
-      </span>
+    <div className="text-[10.5px] text-muted-foreground">
+      <span className="uppercase tracking-wider font-bold text-muted-foreground/70">Без динамічного бренду</span>{' '}
+      Запл.: <span className="amount font-semibold text-foreground">{formatPct(expectedNonDynPct)}</span> · <span className="amount font-semibold text-foreground">{formatUSD(regionExpectedNonDyn)}</span> / План <span className="amount font-semibold text-foreground">{formatUSD(planWithoutDynamic)}</span>
     </div>
   ) : null;
 
