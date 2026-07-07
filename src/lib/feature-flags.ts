@@ -136,10 +136,24 @@ const STRATEGIC_KPI_LOGINS: readonly string[] = [
   'ceo@emet.in.ua',
   'owner@emet.in.ua',      // розблоковано з ban-list 2026-07-07
   'cmo@emet.in.ua',        // маркетинг-директор, read-only (роль director у 1С)
+  'headofsd@emet.in.ua',   // РОП власних представництв (менеджер + огляд + стратегія)
 ];
 export function isStrategicKpiLogin(login: string | null | undefined): boolean {
   if (!login) return false;
   return STRATEGIC_KPI_LOGINS.includes(login.toLowerCase().trim());
+}
+
+/**
+ * Логіни, що бачать менеджерські вкладки (Клієнти / Зустрічі) НЕЗАЛЕЖНО від ролі.
+ * Кейс: РОП headofsd — планування ПОВНЕ як у директора (роль director), але при
+ * цьому має власних клієнтів / зустрічі / рекламації як менеджер. Огляд компанії
+ * та Стратегію їй НЕ показуємо (немає can_view_company_overview + не у strategic).
+ */
+const HYBRID_MANAGER_TAB_LOGINS: readonly string[] = ['headofsd@emet.in.ua'];
+export function hasManagerTabs(login: string | null | undefined, role: string): boolean {
+  if (role === 'manager' || role === 'rm') return true;
+  if (!login) return false;
+  return HYBRID_MANAGER_TAB_LOGINS.includes(login.toLowerCase().trim());
 }
 
 /**

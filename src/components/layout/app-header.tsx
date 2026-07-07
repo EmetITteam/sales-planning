@@ -18,7 +18,7 @@ import {
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar, TrendingUp } from 'lucide-react';
 import { NotificationsBell } from '@/components/notifications/notifications-bell';
-import { isStrategicKpiLogin } from '@/lib/feature-flags';
+import { isStrategicKpiLogin, hasManagerTabs } from '@/lib/feature-flags';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -35,6 +35,7 @@ const LOGIN_LABEL_OVERRIDES: Record<string, string> = {
   'assistant.sdu@emet.in.ua': 'Асистент директора з продажу',
   'owner@emet.in.ua': 'Власник компанії',
   'ceo@emet.in.ua': 'CEO компанії',
+  'cmo@emet.in.ua': 'Маркетинг директор',
   'headofproduct@emet.in.ua': 'Керівник відділу продукта',
   'headofsd@emet.in.ua': 'Керівник відділу продажів власних представництв',
 };
@@ -138,7 +139,7 @@ export function AppHeader() {
             Період-фільтр і LIVE винесені в окремі блок-панелі (PlanningPeriodBar,
             client/dashboard local filters) бо кожен блок має свою природну
             одиницю часу. Шапка лишається тонкою — тільки навігація. */}
-        {(user.role === 'manager' || user.role === 'rm') && (
+        {hasManagerTabs(user.login, user.role) && (
           <div className="hidden md:inline-flex items-center gap-1 h-9 bg-white/60 backdrop-blur-md p-1 rounded-full border border-white/50 shrink-0">
             <button
               onClick={() => router.push('/')}
