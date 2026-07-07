@@ -329,14 +329,14 @@ export function AppHeader() {
         </div>
       )}
 
-      {(user.role === 'admin' || user.canViewCompanyOverview === true) && (
+      {(user.role === 'admin' || user.canViewCompanyOverview === true || isStrategicKpiLogin(user.login)) && (
         <div className="md:hidden flex gap-1 mx-4 mb-2 p-1 rounded-full bg-white/60 backdrop-blur-md border border-white/50">
           <button
             onClick={() => {
               setActiveView('planning');
               if (!isOnPlanningPage) router.push('/');
             }}
-            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
+            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
               isOnPlanningPage && activeView === 'planning'
                 ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                 : 'text-muted-foreground'
@@ -349,14 +349,27 @@ export function AppHeader() {
               setActiveView('company-overview');
               if (!isOnPlanningPage) router.push('/');
             }}
-            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[13px] font-semibold transition-all cursor-pointer ${
+            className={`flex-1 inline-flex items-center justify-center h-9 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
               isOnPlanningPage && activeView === 'company-overview'
                 ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
                 : 'text-muted-foreground'
             }`}
           >
-            Огляд компанії
+            Огляд
           </button>
+          {isStrategicKpiLogin(user.login) && (
+            <button
+              onClick={() => router.push('/admin/strategic-kpi')}
+              className={`flex-1 inline-flex items-center justify-center gap-1 h-9 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                isOnStrategicKpiPage
+                  ? 'bg-gradient-to-r from-emet-blue to-emet-blue-light text-white shadow-md shadow-emet-blue/25'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              <TrendingUp className="h-3 w-3" />
+              Стратегія
+            </button>
+          )}
         </div>
       )}
     </header>

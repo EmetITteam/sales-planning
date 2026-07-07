@@ -287,6 +287,8 @@ export default function StrategicKpiPage() {
         .sk-progress-fill.bad  { background: linear-gradient(90deg, #e11d48, #fb7185); }
         .sk-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; color: rgba(6,42,61,0.58); font-weight: 700; }
         .sk-muted { color: rgba(6,42,61,0.58); }
+        /* Мобільна адаптація — зменшуємо великі фікс-розміри + пігулки. */
+        @media (max-width: 640px) { .sk-hero-title { font-size: 22px; letter-spacing: -0.6px; } .sk-mega-pct { font-size: 38px; letter-spacing: -1.5px; } .sk-brand-pill { min-width: 0; padding: 8px 13px; font-size: 12.5px; } .sk-glass { border-radius: 18px; } }
       `}</style>
 
       <div className="sk-mesh" />
@@ -295,13 +297,13 @@ export default function StrategicKpiPage() {
       <div className="sk-blob c" />
 
       <AppHeader />
-      <main className="sk-page p-5 max-w-6xl mx-auto space-y-6">
+      <main className="sk-page p-3.5 sm:p-5 max-w-6xl mx-auto space-y-5 sm:space-y-6">
         <Link href="/admin" className="inline-flex items-center gap-1.5 text-[13px] sk-muted hover:text-foreground cursor-pointer">
           <ArrowLeft className="h-4 w-4" /> Адмін-панель
         </Link>
 
         {/* Toolbar */}
-        <div className="sk-glass p-5 space-y-4">
+        <div className="sk-glass p-3.5 sm:p-5 space-y-4">
           <PeriodPicker period={period} onChange={setPeriod} />
           <div>
             <div className="sk-lbl mb-2">Бренд · Режим</div>
@@ -346,7 +348,7 @@ export default function StrategicKpiPage() {
 
         {/* Hero */}
         {!isReactivationMode && !loading && brandBlocks.length > 0 && (
-          <div className="sk-glass px-5 pt-4 pb-4 relative overflow-hidden">
+          <div className="sk-glass px-3.5 sm:px-5 pt-4 pb-4 relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none opacity-40" style={{
               background: 'radial-gradient(circle at 85% 20%, rgba(91,213,188,0.22) 0%, transparent 60%)',
             }} />
