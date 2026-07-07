@@ -136,7 +136,6 @@ const STRATEGIC_KPI_LOGINS: readonly string[] = [
   'ceo@emet.in.ua',
   'owner@emet.in.ua',      // розблоковано з ban-list 2026-07-07
   'cmo@emet.in.ua',        // маркетинг-директор, read-only (роль director у 1С)
-  'headofsd@emet.in.ua',   // РОП власних представництв (менеджер + огляд + стратегія)
 ];
 export function isStrategicKpiLogin(login: string | null | undefined): boolean {
   if (!login) return false;
