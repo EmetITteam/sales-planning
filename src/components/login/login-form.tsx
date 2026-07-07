@@ -1,14 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAppStore } from '@/lib/store';
 import { apiLogin, LoginError } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowRight, AlertTriangle, ShieldAlert, Lock } from 'lucide-react';
 
 export function LoginForm() {
-  const setUser = useAppStore((s) => s.setUser);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<{ msg: string; isInfra: boolean } | null>(null);
@@ -34,8 +32,13 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      const user = await apiLogin({ login, password });
-      setUser(user);
+      await apiLogin({ login, password });
+      // Повний reload замість setUser: SessionBootstrap перечитає /api/auth/me
+      // (нова cookie) і ВСІ фетчі стартують з чистого стану. SPA-перехід при
+      // зміні користувача лишав порожні дані/сповіщення до ручного оновлення
+      // (re-login гонка: стара SWR/сесія/nav). Reload це прибирає.
+      window.location.assign('/');
+      return;
     } catch (err) {
       // 502 (1С недоступний) показуємо інакше ніж 401 — щоб менеджер не думав що
       // він невірно ввів пароль і не повторював 10 разів.
@@ -53,8 +56,9 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      const user = await apiLogin({ login: loginKey, demo: true });
-      setUser(user);
+      await apiLogin({ login: loginKey, demo: true });
+      window.location.assign('/');
+      return;
     } catch (err) {
       const isInfra = err instanceof LoginError && err.status === 502;
       setError({ msg: err instanceof Error ? err.message : 'Demo login failed', isInfra });
