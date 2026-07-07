@@ -25,6 +25,8 @@ import type { TMSummaryCard } from '@/lib/types';
 import { PlanningForm } from '../planning/planning-form';
 import { ClientControlView } from '../control/client-control-view';
 import { BrandRow } from './brand-row';
+import { usePlanComments } from '@/lib/use-plan-comments';
+import { PlanCommentBox } from '@/components/planning/plan-comment-box';
 import { BrandExpandedDetails } from './brand-expanded-details';
 import { MetricCard } from './metric-card';
 import { ClientStatsCard } from './client-stats-card';
@@ -263,6 +265,11 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
 
   // Динамічні сегменти для поточного місяця (NEURONOX тощо) — планaAmount = factAmount.
   const { dynamicSegments } = useDynamicPlanSegments(currentPeriod.month);
+
+  // Коментарі директора до плану (по бренду). canComment — директор/адмін у
+  // режимі перегляду чужого плану. Тред бачать усі; кнопку — лише director/admin.
+  const { commentsBySegment, refetch: refetchComments } = usePlanComments(effectiveLogin, currentPeriod.id, currentPeriod.month);
+  const canComment = isViewing && (user?.role === 'director' || user?.role === 'admin');
 
   // Будуємо summaries з реальних даних 1С — без mock fallback.
   // Action 4 → план, Action 3 → факт + кількість покупців.
@@ -654,6 +661,16 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
                     onPlan={() => goToPlan(tm.segmentCode)}
                   />
                 )}
+                <PlanCommentBox
+                  managerLogin={effectiveLogin}
+                  periodId={currentPeriod.id}
+                  month={currentPeriod.month}
+                  segmentCode={tm.segmentCode}
+                  segmentName={tm.segmentName}
+                  canComment={canComment}
+                  comments={commentsBySegment[tm.segmentCode] ?? []}
+                  onChanged={(didUnfinalize) => { refetchComments(); if (didUnfinalize) { refetchPlans(); refetchFact(); } }}
+                />
               </div>
             );
           })}
