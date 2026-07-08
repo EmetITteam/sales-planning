@@ -23,6 +23,7 @@ import type { ClientFromOneC, ClientReport } from './mityng-types';
 import {
   chunkClientIds,
   mergeFactBreakdown,
+  sumSegmentFact,
   mergeFocuses,
   mergeActivities,
   type ClientPlanTotal,
@@ -241,20 +242,9 @@ export function useClientsTotals(
   // Об'єднуємо segments з усіх чанків і денормалізуємо у factByClient.
   const factByClient = useMemo(() => mergeFactBreakdown([f1, f2, f3]), [f1, f2, f3]);
 
-  // Загальний факт = Σ totalFactUSD по сегментах. totalFactUSD — факт сегменту
-  // по ВСІХ клієнтах менеджера (не залежить від clientIds), тож у різних чанках
-  // значення сегмента ОДНАКОВЕ → dedupe по segmentCode (інакше 3 чанки утроять).
-  const factTotalAgg = useMemo(() => {
-    const bySeg = new Map<string, number>();
-    for (const part of [f1, f2, f3]) {
-      for (const seg of part?.segments ?? []) {
-        bySeg.set(seg.segmentCode, Number(seg.totalFactUSD) || 0);
-      }
-    }
-    let sum = 0;
-    for (const v of bySeg.values()) sum += v;
-    return sum;
-  }, [f1, f2, f3]);
+  // Загальний факт = Σ totalFactUSD по сегментах (чиста функція + dedupe по
+  // segmentCode щоб чанки не утроїли). Збігається з планинг-дашбордом.
+  const factTotalAgg = useMemo(() => sumSegmentFact([f1, f2, f3]), [f1, f2, f3]);
 
   return {
     planByClient: planRes?.totals ?? {},

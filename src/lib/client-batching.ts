@@ -73,6 +73,31 @@ export function mergeFactBreakdown(
 }
 
 /**
+ * Загальний факт менеджера = Σ totalFactUSD по УНІКАЛЬНИХ сегментах.
+ *
+ * ⚠️ totalFactUSD — факт сегменту по ВСІХ клієнтах менеджера, НЕ залежить від
+ * переданих clientIds (див. OneCFactSegment.totalFactUSD). Тому в кожному
+ * чанку значення того самого сегмента ОДНАКОВЕ → дедупимо по segmentCode,
+ * інакше 2-3 чанки утроять суму. Це — «офіційний» факт (збігається з
+ * планинг-дашбордом), на відміну від mergeFactBreakdown, що сумує лише
+ * деталізовані clients[] і суттєво недооцінює факт.
+ */
+export function sumSegmentFact(
+  parts: Array<OneCActionMap['getSalesFact']['response'] | null | undefined>,
+): number {
+  const bySeg = new Map<string, number>();
+  for (const part of parts) {
+    if (!part?.segments) continue;
+    for (const seg of part.segments) {
+      bySeg.set(seg.segmentCode, Number(seg.totalFactUSD) || 0);
+    }
+  }
+  let sum = 0;
+  for (const v of bySeg.values()) sum += v;
+  return sum;
+}
+
+/**
  * Об'єднує focuses[] з кількох getClientFocus-чанків → map по clientId.
  * Пропускає безідішні записи; items нормалізує у масив.
  */

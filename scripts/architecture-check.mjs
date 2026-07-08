@@ -102,6 +102,9 @@ const REQUIRED_USAGES = [
   ['src/components/dashboard/manager-dashboard.tsx', 'BrandExpandedDetails', 'Manager має використовувати BrandExpandedDetails для Variant A'],
   ['src/components/dashboard/rm-dashboard.tsx', 'ClientStatsCard', 'РМ має ClientStatsCard як 4-ту hero-картку'],
   ['src/components/dashboard/director-dashboard.tsx', 'ClientStatsCard', 'Director має ClientStatsCard як 4-ту hero-картку'],
+  // /clients картка «Виконання»: факт мусить бути АГРЕГАТ сегментів (=планинг),
+  // а не сума per-client (недооцінювала до $896 замість $66,220). 2026-07-08.
+  ['src/components/clients/clients-page.tsx', 'factTotalAgg', '/clients «Виконання» мусить брати факт з агрегату сегментів (factTotalAgg), не суму per-client factByClient'],
 ];
 
 for (const [file, usage, desc] of REQUIRED_USAGES) {
@@ -128,6 +131,15 @@ const ANTI_PATTERNS = [
     pattern: /\.filter\(c => c\.category === 'active'\)/g,
     message: '1С category для active/inactive у формі — використовувати lastPurchaseDate (3 місяці)',
     files: ['src/components/planning/planning-form.tsx'],
+  },
+  // /clients: план/факт/норма мусять йти за ЛОКАЛЬНИМ табом місяця (selectedMonth),
+  // НЕ за currentPeriod планинг-борду. Кожен борд має свої дати. Регресія тут →
+  // при перегляді минулих місяців картка «Виконання» рахує чужий місяць і застрягає
+  // скелетоном (баг headofsd 2026-07-08).
+  {
+    pattern: /s\.currentPeriod/g,
+    message: '/clients мусить використовувати локальний selectedMonth для плану/факту/норми, НЕ currentPeriod планинг-борду',
+    files: ['src/components/clients/clients-page.tsx'],
   },
 ];
 
