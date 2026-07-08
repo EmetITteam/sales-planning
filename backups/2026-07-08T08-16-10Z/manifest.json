@@ -1,0 +1,78 @@
+{
+  "stamp": "2026-07-08T08-16-10Z",
+  "takenAt": "2026-07-08T08:16:10.119Z",
+  "tables": {
+    "users": {
+      "rows": 32,
+      "totalReported": 32
+    },
+    "periods": {
+      "rows": 4,
+      "totalReported": 4
+    },
+    "forecasts": {
+      "rows": 10226,
+      "totalReported": 10226
+    },
+    "gap_closures": {
+      "rows": 16728,
+      "totalReported": 16728
+    },
+    "period_summaries": {
+      "rows": 509,
+      "totalReported": 509
+    },
+    "planning_snapshots": {
+      "rows": 54146,
+      "totalReported": 54146
+    },
+    "archive_forecasts": {
+      "rows": 0,
+      "totalReported": 0
+    },
+    "archive_gap_closures": {
+      "rows": 0,
+      "totalReported": 0
+    },
+    "archive_period_summaries": {
+      "rows": 0,
+      "totalReported": 0
+    },
+    "planning_locks": {
+      "rows": 1,
+      "totalReported": 1
+    },
+    "planning_settings": {
+      "rows": 1,
+      "totalReported": 1
+    },
+    "system_settings": {
+      "rows": 1,
+      "totalReported": 1
+    },
+    "meetings": {
+      "rows": 500,
+      "totalReported": 500
+    },
+    "meeting_syncs": {
+      "rows": 12,
+      "totalReported": 12
+    },
+    "client_verifications": {
+      "rows": 4,
+      "totalReported": 4
+    },
+    "client_comments": {
+      "rows": 14,
+      "totalReported": 14
+    },
+    "notifications": {
+      "rows": 18,
+      "totalReported": 18
+    },
+    "dynamic_plan_segments": {
+      "rows": 1,
+      "totalReported": 1
+    }
+  }
+}
