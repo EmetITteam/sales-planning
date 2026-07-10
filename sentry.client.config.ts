@@ -22,7 +22,10 @@ if (dsn) {
     tracesSampleRate: 0.1,
     // Session Replay тільки для помилок — економія тier.
     replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 1.0,
+    // 0.2 = ~1 з 5 помилок отримує replay. Free tier дає 50 replays/міс;
+    // при 1.0 ми вибирали ліміт за днів (120 помилок → 50 replays → «dropped»).
+    // 0.2 тримає під лімітом (~250 помилок до cap) і зберігає replay для дебагу.
+    replaysOnErrorSampleRate: 0.2,
     // Дебаг тільки локально, у проді мовчимо.
     debug: false,
     environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? 'development',
