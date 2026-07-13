@@ -1,0 +1,12 @@
+[
+  {
+    "id": 12,
+    "scope": "user",
+    "user_login": "sm.zp@emet.in.ua",
+    "month": "2026-07-01",
+    "type": "allow",
+    "reason": null,
+    "created_by": "itd@emet.in.ua",
+    "created_at": "2026-07-08T07:00:21.953+00:00"
+  }
+]

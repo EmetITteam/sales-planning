@@ -1,0 +1,13 @@
+[
+  {
+    "key": "system_locked",
+    "value": {
+      "locked": false,
+      "reason": null,
+      "locked_at": null,
+      "locked_by": null
+    },
+    "updated_at": "2026-06-29T06:23:52.047+00:00",
+    "updated_by": "itd@emet.in.ua"
+  }
+]
