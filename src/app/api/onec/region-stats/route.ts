@@ -21,7 +21,7 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { aggregateRegionStats } from '@/lib/region-stats-aggregate';
-import { MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
+import { resolveRegionOverrides } from '@/lib/region-access';
 
 // Vercel: дай функції до 60с — 21 менеджер × 2 виклики 1С (Action 2 + Action 3)
 // з timeout 20с кожен. Без цього Vercel killed function на 10с (Hobby default)
@@ -115,7 +115,7 @@ async function handlePost(request: NextRequest) {
   // Security: scope-перевірка як у /api/onec
   const sessionLogin = session.login.toLowerCase().trim();
   const allowed = new Set<string>([sessionLogin]);
-  const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLogin];
+  const isMultiRegionRM = !!(await resolveRegionOverrides(sessionLogin));
   if (session.role === 'director' || session.role === 'admin' || isMultiRegionRM) {
     for (const l of logins) allowed.add(String(l).toLowerCase().trim());
   } else {

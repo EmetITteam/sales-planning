@@ -14,6 +14,7 @@ import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
+import { getActiveRegionGrants } from '@/lib/region-access';
 
 export async function GET(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -43,6 +44,10 @@ export async function GET(request: NextRequest) {
     // Колонки не існують — мовчки лишаємо false.
   }
 
+  // Активні тимчасові гранти на перегляд регіону (планёрки). Read fresh — грант
+  // може бути виданий/відкликаний без re-login.
+  const activeGrants = await getActiveRegionGrants(session.login);
+
   return Response.json({
     user: {
       login: session.login,
@@ -54,6 +59,11 @@ export async function GET(request: NextRequest) {
       canEditStagesAfterFinalize,
       canViewCompanyOverview,
       canUnfinalizePlans,
+      regionGrants: activeGrants.map(g => ({
+        regionCode: g.region_code,
+        regionName: g.region_name,
+        validTo: g.valid_to,
+      })),
     },
   });
 }

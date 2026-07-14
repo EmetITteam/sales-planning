@@ -62,6 +62,13 @@ export interface UserSession {
    * /admin/unfinalize-permissions. Fetch fresh з /api/auth/me.
    */
   canUnfinalizePlans?: boolean;
+  /**
+   * Активні тимчасові гранти на перегляд усього регіону (планёрки) — видані
+   * директором/асистентом у /region-access. Даються менеджеру на період; на цей
+   * час у шапці зʼявляється перемикач «Моє планування / Регіон». Read-only.
+   * Fetch fresh з /api/auth/me (може бути виданий/відкликаний без re-login).
+   */
+  regionGrants?: { regionCode: string; regionName: string | null; validTo: string }[];
 }
 
 // === Сегменти (ТМ) ===

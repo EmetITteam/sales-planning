@@ -22,7 +22,8 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { checkSystemLockForUser, systemLockedResponse } from '@/lib/system-lock';
-import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
+import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
+import { resolveRegionOverrides } from '@/lib/region-access';
 
 /**
  * Actions де admin прокситься через DIRECTOR_PROXY_LOGIN бо admin не
@@ -172,7 +173,9 @@ export async function POST(request: NextRequest) {
     const requestedLogin = (safePayload as { login?: string }).login;
     const isAdminOrDirector = session.role === 'admin' || session.role === 'director';
     const sessionLoginLower = session.login.toLowerCase().trim();
-    const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLoginLower];
+    // Multi-region RM (хардкод) АБО активний тимчасовий грант на регіон (read-only,
+    // планёрки) — обидва дозволяють proxy-виклик getRegionData через директора.
+    const isMultiRegionRM = !!(await resolveRegionOverrides(sessionLoginLower));
     const adminNeedsProxy =
       session.role === 'admin'
       && ADMIN_PROXY_ACTIONS.has(action)

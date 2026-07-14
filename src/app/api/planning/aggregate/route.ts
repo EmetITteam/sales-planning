@@ -31,7 +31,7 @@ import { monthlyPidFromMonth, monthlyPidFromAnyPid } from '@/lib/periods';
 import { loadSettingsAndLocks } from '@/lib/load-window-state';
 import { canPlanForMonth } from '@/lib/planning-window';
 import { isPassiveAmount } from '@/lib/passive-rows';
-import { MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
+import { resolveRegionOverrides } from '@/lib/region-access';
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
   // Manager → тільки свій login.
   const sessionLogin = session.login.toLowerCase().trim();
   const allowed = new Set<string>([sessionLogin]);
-  const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[sessionLogin];
+  const isMultiRegionRM = !!(await resolveRegionOverrides(sessionLogin));
   if (session.role === 'director' || session.role === 'admin' || isMultiRegionRM) {
     // Director / Admin / мульти-регіональний РМ (Пашковська) — всі logins.
     // Multi-region RM має бачити менеджерів інших регіонів де він теж РМ.
