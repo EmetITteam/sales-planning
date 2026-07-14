@@ -90,7 +90,12 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
   // як менеджер з historic хвостом — але без інших менеджерів регіону.
   // Якщо логін у MULTI_REGION_RM_OVERRIDES — викликаємо Action 5 через
   // DIRECTOR_PROXY (повна картина), потім фільтруємо до її regionCodes.
-  const overrideRegions = user ? MULTI_REGION_RM_OVERRIDES[user.login] : undefined;
+  // Так само для менеджера з тимчасовим грантом на регіон (планёрки): регіон
+  // беремо з user.regionGrants → той самий proxy+filter механізм.
+  const grantedCodes = user?.regionGrants?.map(g => g.regionCode).filter(Boolean) ?? [];
+  const overrideRegions = user
+    ? (MULTI_REGION_RM_OVERRIDES[user.login] ?? (grantedCodes.length > 0 ? grantedCodes : undefined))
+    : undefined;
   const a5Login = overrideRegions ? DIRECTOR_PROXY_LOGIN : user?.login;
   const { data: regionResp, loading, error, refetch } = useOneCData(
     'getRegionData',
