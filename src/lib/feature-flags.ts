@@ -173,9 +173,14 @@ export const ASSISTANT_DIRECTOR_LOGIN = 'assistant.sdu@emet.in.ua';
 
 /**
  * Хто керує тимчасовим доступом до регіону (видає/відкликає гранти на планёрки):
- * директор продажів (sdu) + асистент директора + admin. Гейт по логіну.
+ * директор продажів (sdu) + асистент директора + РОП Мігашко (headofsd) + admin.
+ * Гейт по логіну.
  */
-const REGION_ACCESS_MANAGERS: readonly string[] = [DIRECTOR_PROXY_LOGIN, ASSISTANT_DIRECTOR_LOGIN];
+const REGION_ACCESS_MANAGERS: readonly string[] = [
+  DIRECTOR_PROXY_LOGIN,        // sdu@emet.in.ua — директор продажів
+  ASSISTANT_DIRECTOR_LOGIN,    // assistant.sdu@emet.in.ua — асистент директора
+  'headofsd@emet.in.ua',       // Мігашко Анна — РОП власних представництв
+];
 export function canManageRegionAccess(login: string | null | undefined): boolean {
   if (!login) return false;
   const l = login.toLowerCase().trim();
