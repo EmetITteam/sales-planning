@@ -106,6 +106,7 @@ export function BrandManagerGroup({ brand, calcPct, asOfDate, onManagerClick, pl
               plan={planCategoriesForBrand ?? null}
               fact={factCategoriesForBrand ?? null}
               unplanned={unplannedForBrand ?? null}
+              plan1C={isDynamicPlan ? brand.totalFact : brand.totalPlan}
               title={`${brand.segmentName} · ${brand.managers.length} ${brand.managers.length === 1 ? 'менеджер' : 'менеджерів'}`}
               loading={!!categoriesLoading && !factCategoriesForBrand}
             />

@@ -25,6 +25,12 @@ interface Props {
   unplanned?: { factCount: number; factSum: number } | null;
   /** Заголовок-контекст: «Регіон Дніпро» або «Petaran · 8 регіонів». */
   title?: string;
+  /**
+   * Офіційний план 1С для контексту таблиці (регіон / компанія / бренд —
+   * той самий, що ПЛАН МІСЯЦЯ у hero). Для колонки «% факт 1С» = скільки факт
+   * цієї категорії займає від офіційного плану. 0/undefined → колонка показує 0.
+   */
+  plan1C?: number;
   loading?: boolean;
 }
 
@@ -60,13 +66,13 @@ const CAT_META: Array<{
   iconClass: string;
   bgClass: string;
 }> = [
-  { key: 'active',     label: 'Активні клієнти',          icon: Users,       iconClass: 'text-emet-blue', bgClass: 'bg-emet-50' },
-  { key: 'activation', label: 'Активізація (Сплячі/Втрачені/БЗ)', icon: RefreshCw, iconClass: 'text-amber-600',  bgClass: 'bg-amber-50' },
+  { key: 'active',     label: 'Активні клієнти (не унікальні)', icon: Users,       iconClass: 'text-emet-blue', bgClass: 'bg-emet-50' },
+  { key: 'activation', label: 'Активізація (Сплячі/Втрачені/БЗ, не унікальні)', icon: RefreshCw, iconClass: 'text-amber-600',  bgClass: 'bg-amber-50' },
   { key: 'unplanned',  label: 'Незаплановані', icon: AlertCircle, iconClass: 'text-fuchsia-600', bgClass: 'bg-fuchsia-50' },
   { key: 'new',        label: 'Нові клієнти (категорія 1С)', icon: UserPlus, iconClass: 'text-emerald-600', bgClass: 'bg-emerald-50' },
 ];
 
-export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Props) {
+export function CategoryStatsTable({ plan, fact, unplanned, title, plan1C, loading }: Props) {
   // Агрегуємо у 4 групи що показуються:
   // active = active
   // new = new
@@ -104,7 +110,6 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
     rows.unplanned.factCount = unplanned.factCount;
     rows.unplanned.factSum   = unplanned.factSum;
   }
-  const totalFactSum = rows.active.factSum + rows.new.factSum + rows.activation.factSum + rows.unplanned.factSum;
   const totalPlannedSum = rows.active.plannedSum + rows.new.plannedSum + rows.activation.plannedSum;
 
   // % факт = виконання плану цієї категорії = factSum / plannedSum × 100
@@ -112,6 +117,10 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
   // % план = частка категорії від ЗАГАЛЬНОГО планування (структура плану по категоріях)
   const totalPlanForShare = totalPlannedSum;
   const pctPlan = (r: RowStat) => totalPlanForShare > 0 ? Math.round((r.plannedSum / totalPlanForShare) * 1000) / 10 : 0;
+  // % факт 1С = скільки факт цієї категорії займає від ОФІЦІЙНОГО плану 1С
+  // (регіон/компанія/бренд). Сума по рядках = загальне виконання плану 1С.
+  const plan1cVal = plan1C ?? 0;
+  const pctFact1C = (r: RowStat) => plan1cVal > 0 ? Math.round((r.factSum / plan1cVal) * 1000) / 10 : 0;
 
   if (loading) {
     return (
@@ -139,7 +148,7 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
           <span className="text-[11px] text-muted-foreground">{title}</span>
         </div>
       )}
-      <div className="hidden md:grid md:grid-cols-[32px_minmax(160px,1.4fr)_repeat(3,1fr)_60px_60px] gap-3 px-5 py-2 border-b border-[#f0f2f8] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="hidden md:grid md:grid-cols-[32px_minmax(150px,1.2fr)_repeat(3,1fr)_56px_56px_64px] gap-3 px-5 py-2 border-b border-[#f0f2f8] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
         <div />
         <div>Категорія</div>
         <div className="text-right">Заплановано</div>
@@ -147,16 +156,18 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
         <div className="text-right">Факт</div>
         <div className="text-right" title="Частка категорії від загальної планової суми">% план</div>
         <div className="text-right" title="Виконання плану цієї категорії = факт / план">% факт</div>
+        <div className="text-right" title="Факт цієї категорії від офіційного плану 1С (сума рядків = загальне виконання плану)">% факт 1С</div>
       </div>
       {CAT_META.map(cat => {
         const Icon = cat.icon;
         const r = rows[cat.key as keyof typeof rows];
         const pPlan = pctPlan(r);
         const pFact = pctFact(r);
+        const pFact1C = pctFact1C(r);
         return (
           <div key={cat.key} className="border-t border-[#f0f2f8] px-4 md:px-5 py-3">
             {/* Desktop — одна grid-рядок (як було). */}
-            <div className="hidden md:grid md:grid-cols-[32px_minmax(160px,1.4fr)_repeat(3,1fr)_60px_60px] gap-3 items-center">
+            <div className="hidden md:grid md:grid-cols-[32px_minmax(150px,1.2fr)_repeat(3,1fr)_56px_56px_64px] gap-3 items-center">
               <div className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${cat.bgClass}`}>
                 <Icon className={`h-4 w-4 ${cat.iconClass}`} />
               </div>
@@ -171,6 +182,7 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
               <p className={`text-right text-[14px] font-bold tabular-nums ${pFact >= 100 ? 'text-emerald-600' : pFact >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
                 {pFact.toFixed(1)}%
               </p>
+              <p className="text-right text-[13px] font-bold text-emet-blue tabular-nums">{pFact1C.toFixed(1)}%</p>
             </div>
 
             {/* Mobile — header (іконка + назва) + 2×3 grid метрик з підписами. */}
@@ -191,6 +203,7 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, loading }: Pr
                   value={`${pFact.toFixed(1)}%`}
                   valueClass={pFact >= 100 ? 'text-emerald-600' : pFact >= 50 ? 'text-amber-600' : 'text-rose-600'}
                 />
+                <Stat label="% факт 1С" value={`${pFact1C.toFixed(1)}%`} valueClass="text-emet-blue" />
               </div>
             </div>
           </div>

@@ -503,6 +503,7 @@ export function DirectorDashboard() {
             plan={aggregatedPlan}
             fact={aggregatedFact}
             unplanned={aggregatedUnplanned}
+            plan1C={totalPlan}
             title={`Компанія · ${totalManagers} менеджерів · ${company.regionAggregates.length} регіонів`}
             loading={companyStatsLoading && !aggregatedFact}
           />

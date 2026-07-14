@@ -491,6 +491,7 @@ export function RegionAccordion({ aggregate, managersBrief, calcPct, asOfDate, r
             plan={aggregatedPlan}
             fact={aggregatedFact}
             unplanned={aggregatedUnplanned}
+            plan1C={effectiveTotalPlan}
             title={`${aggregate.regionName} · ${managersBrief.length} ${managersBrief.length === 1 ? 'менеджер' : 'менеджерів'}`}
             loading={statsLoading && !aggregatedFact}
           />

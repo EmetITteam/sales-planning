@@ -547,6 +547,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
             plan={aggregatedPlan}
             fact={aggregatedFact}
             unplanned={aggregatedUnplanned}
+            plan1C={totalPlan}
             title={`Регіон ${region.regionName} · ${managerList.length} ${managerList.length === 1 ? 'менеджер' : 'менеджерів'}`}
             loading={statsLoading && !aggregatedFact}
           />

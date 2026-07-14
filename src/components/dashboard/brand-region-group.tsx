@@ -121,6 +121,7 @@ export function BrandRegionGroup({ brand, calcPct, asOfDate, onRegionClick, onMa
               plan={planCategoriesForBrand ?? null}
               fact={factCategoriesForBrand ?? null}
               unplanned={unplannedForBrand ?? null}
+              plan1C={brandPlanShown}
               title={`${brand.segmentName} · ${brand.regions.length} ${brand.regions.length === 1 ? 'регіон' : 'регіонів'}`}
               loading={!!categoriesLoading && !factCategoriesForBrand}
             />
