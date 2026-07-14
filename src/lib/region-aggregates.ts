@@ -17,6 +17,7 @@ function emptyClientStats(): ClientCategoryStats {
   return {
     active: { total: 0, bought: 0 },
     sleeping: { total: 0, bought: 0 },
+    lost: { total: 0, bought: 0 },
     newClients: { total: 0, bought: 0 },
     totalBought: 0,
     totalClients: 0,
@@ -38,6 +39,8 @@ export function aggregateRegionClientStats(region: RegionData): ClientCategorySt
     out.active.bought += m.clientStats.active.bought;
     out.sleeping.total += m.clientStats.sleeping.total;
     out.sleeping.bought += m.clientStats.sleeping.bought;
+    out.lost.total += m.clientStats.lost.total;
+    out.lost.bought += m.clientStats.lost.bought;
     out.newClients.total += m.clientStats.newClients.total;
     out.newClients.bought += m.clientStats.newClients.bought;
     out.totalBought += m.clientStats.totalBought;
@@ -56,6 +59,8 @@ export function aggregateCompanyClientStats(regions: RegionData[]): ClientCatego
     out.active.bought += reg.active.bought;
     out.sleeping.total += reg.sleeping.total;
     out.sleeping.bought += reg.sleeping.bought;
+    out.lost.total += reg.lost.total;
+    out.lost.bought += reg.lost.bought;
     out.newClients.total += reg.newClients.total;
     out.newClients.bought += reg.newClients.bought;
     out.totalBought += reg.totalBought;

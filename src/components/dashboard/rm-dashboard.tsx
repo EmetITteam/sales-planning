@@ -533,6 +533,7 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
               stats={clientStats ?? {
                 active: { total: 0, bought: 0 },
                 sleeping: { total: 0, bought: 0 },
+                lost: { total: 0, bought: 0 },
                 newClients: { total: 0, bought: 0 },
                 totalBought: 0,
                 totalClients: 0,

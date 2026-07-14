@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, RefreshCw, UserPlus } from 'lucide-react';
+import { Users, RefreshCw, UserPlus, UserMinus } from 'lucide-react';
 import type { ClientCategoryStats } from '@/lib/mock-data';
 
 interface ClientStatsCardProps {
@@ -20,7 +20,7 @@ export function ClientStatsCard({ stats, loading = false, index = 3 }: ClientSta
       <div className="glass-card ambient-mint p-3 md:p-4 fade-stagger" style={{ ['--i' as string]: index }}>
         <div className="h-3 w-32 bg-[#f0f2f8] rounded animate-pulse mb-3" />
         <div className="space-y-2">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3, 4].map(i => (
             <div key={i} className="flex items-center justify-between">
               <div className="h-3.5 w-20 bg-[#f0f2f8] rounded animate-pulse" />
               <div className="h-3.5 w-12 bg-[#f0f2f8] rounded animate-pulse" />
@@ -57,6 +57,16 @@ export function ClientStatsCard({ stats, loading = false, index = 3 }: ClientSta
           <span className="font-bold">
             <span className="text-emerald-600">{stats.sleeping.bought}</span>
             <span className="text-muted-foreground/60 font-normal"> / {stats.sleeping.total}</span>
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-[12px]">
+          <div className="flex items-center gap-1.5">
+            <UserMinus className="h-3.5 w-3.5 text-slate-400" />
+            <span className="font-medium">Втрачені</span>
+          </div>
+          <span className="font-bold">
+            <span className="text-emerald-600">{stats.lost.bought}</span>
+            <span className="text-muted-foreground/60 font-normal"> / {stats.lost.total}</span>
           </span>
         </div>
         <div className="flex items-center justify-between text-[12px]">

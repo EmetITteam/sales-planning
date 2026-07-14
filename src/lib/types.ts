@@ -143,6 +143,8 @@ export interface ManagerSegmentData {
 export interface ClientCategoryStats {
   active: { total: number; bought: number };
   sleeping: { total: number; bought: number };
+  /** Потерянные (втрачені) — окрема категорія, НЕ складається зі сплячими. */
+  lost: { total: number; bought: number };
   newClients: { total: number; bought: number };
   totalBought: number;
   totalClients: number;

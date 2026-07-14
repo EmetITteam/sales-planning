@@ -69,11 +69,10 @@ function toNumber(v: number | string | null | undefined): number {
 }
 
 /**
- * 🆕 v2.5: 5 категорій 1С → 3-картка UI.
- *  active   = active
- *  sleeping = sleeping + lost  (втрачений показується у тій самій картці)
- *  new      = new
- *  none     — у totalClients, але без власної картки
+ * 🆕 v2.5: 5 категорій 1С → картка UI.
+ *  active / sleeping / lost / new — кожна окремою рядком (sleeping і lost
+ *  БІЛЬШЕ НЕ складаються — див. ClientStatsCard).
+ *  none — у totalClients, але без власної картки.
  */
 function mapManagerClientStats(raw: OneCManagerClientStats): ClientCategoryStats {
   return {
@@ -82,8 +81,12 @@ function mapManagerClientStats(raw: OneCManagerClientStats): ClientCategoryStats
       bought: toNumber(raw.active.bought),
     },
     sleeping: {
-      total: toNumber(raw.sleeping.total) + toNumber(raw.lost.total),
-      bought: toNumber(raw.sleeping.bought) + toNumber(raw.lost.bought),
+      total: toNumber(raw.sleeping.total),
+      bought: toNumber(raw.sleeping.bought),
+    },
+    lost: {
+      total: toNumber(raw.lost.total),
+      bought: toNumber(raw.lost.bought),
     },
     newClients: {
       total: toNumber(raw.new.total),

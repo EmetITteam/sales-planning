@@ -139,6 +139,7 @@ export function getDemoClientStats(): ClientCategoryStats {
   return {
     active: { total: 19, bought: 4 },
     sleeping: { total: 9, bought: 1 },
+    lost: { total: 6, bought: 0 },
     newClients: { total: 2, bought: 0 },
     totalBought: 5,
     totalClients: 30,

@@ -240,7 +240,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     }
 
     const active = all.filter(c => c.category === 'active');
-    const sleeping = all.filter(c => c.category === 'sleeping' || c.category === 'lost');
+    const sleeping = all.filter(c => c.category === 'sleeping');
+    const lost = all.filter(c => c.category === 'lost');
     const newClients = all.filter(c => c.category === 'new');
 
     const countBought = (clients: typeof all) =>
@@ -249,6 +250,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     return {
       active: { total: active.length, bought: countBought(active) },
       sleeping: { total: sleeping.length, bought: countBought(sleeping) },
+      lost: { total: lost.length, bought: countBought(lost) },
       newClients: { total: newClients.length, bought: countBought(newClients) },
       totalBought: boughtIds.size,
       totalClients: all.length,
@@ -640,7 +642,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
             </div>
           )}
         />
-        <ClientStatsCard stats={clientStats ?? { active: { total: 0, bought: 0 }, sleeping: { total: 0, bought: 0 }, newClients: { total: 0, bought: 0 }, totalBought: 0, totalClients: 0 }} />
+        <ClientStatsCard stats={clientStats ?? { active: { total: 0, bought: 0 }, sleeping: { total: 0, bought: 0 }, lost: { total: 0, bought: 0 }, newClients: { total: 0, bought: 0 }, totalBought: 0, totalClients: 0 }} />
       </div>
 
       {/* Control banner — приховано до часу коли вирішимо дизайн (потижневий план?
