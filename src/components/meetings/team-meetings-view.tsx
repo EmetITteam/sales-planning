@@ -27,12 +27,14 @@ import { ClientDossierDialog } from './client-dossier-dialog';
 import { useMeetings } from '@/lib/meetings/use-meetings';
 import { useMyClients } from '@/lib/use-my-clients';
 import { useOneCData } from '@/lib/use-onec-data';
+import { adaptRegionData } from '@/lib/onec-adapters';
+import { MULTI_REGION_RM_OVERRIDES, DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
 import {
   calcDateRange,
   DEFAULT_PRESET,
   type DatePreset,
 } from '@/lib/meetings/date-presets';
-import { groupMeetingsByDate, type MeetingWithSync } from '@/lib/meetings/mock-data';
+import { groupMeetingsByDate } from '@/lib/meetings/mock-data';
 import { getClientName } from '@/lib/mityng-types';
 import { UsersRound, Loader2 } from 'lucide-react';
 
@@ -55,21 +57,64 @@ function loginToDisplay(login: string): string {
 
 export function TeamMeetingsView() {
   const sessionUser = useAppStore(s => s.user);
-  const managedUsers = sessionUser?.managedUsers ?? [];
+  const managedUsers = useMemo(() => sessionUser?.managedUsers ?? [], [sessionUser]);
   const namesByLogin = useManagedUserNames();
+
+  // Мульти-регіон РМ (Пашковська: Одеса+Миколаїв) — 1С у managedUsers дає лише
+  // домашній регіон. Тягнемо менеджерів усіх її регіонів через getRegionData
+  // (director-proxy + фільтр по її regionCodes) + перемикач регіонів. Одно-
+  // регіон РМ — без змін (managedUsers).
+  const overrideRegions = sessionUser ? MULTI_REGION_RM_OVERRIDES[sessionUser.login] : undefined;
+  const isMultiRegion = !!overrideRegions;
+  const teamRegions = useMultiRegionTeams(isMultiRegion, overrideRegions);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [datePreset, setDatePreset] = useState<DatePreset>(DEFAULT_PRESET);
   const [customRange, setCustomRange] = useState(() => calcDateRange(DEFAULT_PRESET));
   const [search, setSearch] = useState('');
   const [managerFilter, setManagerFilter] = useState<'all' | string>('all');
+  const [selectedRegion, setSelectedRegion] = useState<'all' | string>('all');
 
   const activeRange = useMemo(
     () => (datePreset === 'custom' ? customRange : calcDateRange(datePreset)),
     [datePreset, customRange],
   );
 
-  const { meetings, loading, error } = useMeetings(activeRange, 'managed');
+  // Логіни для фетчу: мульти-регіон → ВСІ менеджери всіх її регіонів (перемикач
+  // фільтрує на клієнті, без ре-фетчу). Одно-регіон → null (сервер бере managedUsers).
+  const allTeamLogins = useMemo<string[] | null>(() => {
+    if (!isMultiRegion) return null;
+    const s = new Set<string>();
+    for (const r of teamRegions) for (const m of r.managers) if (m.login) s.add(m.login);
+    return [...s];
+  }, [isMultiRegion, teamRegions]);
+
+  const { meetings, loading, error } = useMeetings(activeRange, 'managed', allTeamLogins);
+
+  // Пілюлі-менеджери для поточного вибору регіону (одно-регіон → managedUsers).
+  const pillManagers = useMemo<{ login: string; name: string }[]>(() => {
+    if (!isMultiRegion) {
+      return managedUsers.map(l => ({
+        login: l.toLowerCase().trim(),
+        name: namesByLogin.get(l.toLowerCase().trim()) ?? loginToDisplay(l),
+      }));
+    }
+    const regs = selectedRegion === 'all' ? teamRegions : teamRegions.filter(r => r.code === selectedRegion);
+    const seen = new Set<string>();
+    const out: { login: string; name: string }[] = [];
+    for (const r of regs) for (const m of r.managers) {
+      if (m.login && !seen.has(m.login)) { seen.add(m.login); out.push(m); }
+    }
+    return out;
+  }, [isMultiRegion, managedUsers, namesByLogin, selectedRegion, teamRegions]);
+
+  // Set логінів обраного регіону (клієнт-фільтр зустрічей). null = усі регіони.
+  const selectedRegionLogins = useMemo<Set<string> | null>(() => {
+    if (!isMultiRegion || selectedRegion === 'all') return null;
+    const s = new Set<string>();
+    for (const r of teamRegions.filter(r => r.code === selectedRegion)) for (const m of r.managers) s.add(m.login);
+    return s;
+  }, [isMultiRegion, selectedRegion, teamRegions]);
 
   // Map клієнтів — потрібен для display name у досьє. Для команди тягнемо
   // тільки СВОЇХ клієнтів РМ — досьє відкривається у read-only-режимі.
@@ -84,6 +129,7 @@ export function TeamMeetingsView() {
 
   const filtered = useMemo(() => {
     let result = meetings;
+    if (selectedRegionLogins) result = result.filter(m => selectedRegionLogins.has(m.managerLogin.toLowerCase().trim()));
     if (managerFilter !== 'all') result = result.filter(m => m.managerLogin === managerFilter);
     if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
     const q = search.trim().toLowerCase();
@@ -101,7 +147,7 @@ export function TeamMeetingsView() {
       const bk = `${b.date}T${b.time}`;
       return ak.localeCompare(bk);
     });
-  }, [meetings, managerFilter, statusFilter, search, clientsByID]);
+  }, [meetings, managerFilter, statusFilter, search, clientsByID, selectedRegionLogins]);
 
   const groups = useMemo(() => groupMeetingsByDate(filtered, 'asc'), [filtered]);
 
@@ -109,16 +155,17 @@ export function TeamMeetingsView() {
     setDossierClient({ id: clientId, name: fallbackName, phone: fallbackPhone });
   };
 
-  // Лічильники по менеджеру (для значка біля pill).
+  // Лічильники по менеджеру (для значка біля pill). Ключ — lower-case login.
   const countsByManager = useMemo(() => {
     const m = new Map<string, number>();
     for (const x of meetings) {
-      m.set(x.managerLogin, (m.get(x.managerLogin) ?? 0) + 1);
+      const l = x.managerLogin.toLowerCase().trim();
+      m.set(l, (m.get(l) ?? 0) + 1);
     }
     return m;
   }, [meetings]);
 
-  if (managedUsers.length === 0) {
+  if (!isMultiRegion && managedUsers.length === 0) {
     return (
       <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-8 text-center space-y-2 shadow-[0_4px_14px_rgba(6,42,61,0.04)]">
         <UsersRound className="w-10 h-10 mx-auto text-muted-foreground/40" />
@@ -139,9 +186,9 @@ export function TeamMeetingsView() {
         <div className="flex-1 min-w-0">
           <h2 className="text-[18px] font-bold tracking-tight text-emet-ink">Зустрічі команди</h2>
           <p className="text-[12px] text-muted-foreground">
-            Read-only: перегляд зустрічей підлеглих {managedUsers.length === 1
+            Read-only: перегляд зустрічей підлеглих {pillManagers.length === 1
               ? '1 менеджера'
-              : `${managedUsers.length} менеджерів`}
+              : `${pillManagers.length} менеджерів`}
           </p>
         </div>
       </div>
@@ -158,6 +205,36 @@ export function TeamMeetingsView() {
         onSearchChange={setSearch}
       />
 
+      {/* Перемикач регіонів — тільки для мульти-регіон РМ (Пашковська) */}
+      {isMultiRegion && teamRegions.length > 1 && (
+        <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-3 md:p-4 shadow-[0_4px_14px_rgba(6,42,61,0.04)]">
+          <div className="text-[10px] font-bold uppercase tracking-[0.7px] text-slate-500 mb-2">
+            Регіон
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <ManagerPill
+              active={selectedRegion === 'all'}
+              label="Усі регіони"
+              count={meetings.length}
+              onClick={() => { setSelectedRegion('all'); setManagerFilter('all'); }}
+            />
+            {teamRegions.map(r => {
+              const regionLogins = new Set(r.managers.map(m => m.login));
+              const cnt = meetings.filter(m => regionLogins.has(m.managerLogin.toLowerCase().trim())).length;
+              return (
+                <ManagerPill
+                  key={r.code}
+                  active={selectedRegion === r.code}
+                  label={r.name}
+                  count={cnt}
+                  onClick={() => { setSelectedRegion(r.code); setManagerFilter('all'); }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Manager filter — pill row, тільки у TeamMeetingsView */}
       <div className="bg-white/60 backdrop-blur-xl backdrop-saturate-150 border border-white/55 rounded-2xl p-3 md:p-4 shadow-[0_4px_14px_rgba(6,42,61,0.04)]">
         <div className="text-[10px] font-bold uppercase tracking-[0.7px] text-slate-500 mb-2">
@@ -167,16 +244,16 @@ export function TeamMeetingsView() {
           <ManagerPill
             active={managerFilter === 'all'}
             label="Усі"
-            count={meetings.length}
+            count={pillManagers.reduce((s, m) => s + (countsByManager.get(m.login) ?? 0), 0)}
             onClick={() => setManagerFilter('all')}
           />
-          {managedUsers.map(login => (
+          {pillManagers.map(m => (
             <ManagerPill
-              key={login}
-              active={managerFilter === login}
-              label={namesByLogin.get(login.toLowerCase().trim()) ?? loginToDisplay(login)}
-              count={countsByManager.get(login) ?? 0}
-              onClick={() => setManagerFilter(login)}
+              key={m.login}
+              active={managerFilter === m.login}
+              label={m.name}
+              count={countsByManager.get(m.login) ?? 0}
+              onClick={() => setManagerFilter(m.login)}
             />
           ))}
         </div>
@@ -305,4 +382,37 @@ function useManagedUserNames(): Map<string, string> {
     }
     return map;
   }, [data]);
+}
+
+/**
+ * Hook: для мульти-регіон РМ (Пашковська — MULTI_REGION_RM_OVERRIDES) повертає
+ * менеджерів УСІХ її регіонів через `getRegionData` director-proxy + фільтр по
+ * її regionCodes. adaptRegionData коректно розрулює regionCode/regionName.
+ * Одно-регіон РМ (isMulti=false) → [] (зайвий 1С-виклик не робимо).
+ */
+function useMultiRegionTeams(
+  isMulti: boolean,
+  overrideRegions: readonly string[] | undefined,
+): { code: string; name: string; managers: { login: string; name: string }[] }[] {
+  const period = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+  const { data } = useOneCData(
+    'getRegionData',
+    isMulti ? { login: DIRECTOR_PROXY_LOGIN, period } : null,
+  );
+  return useMemo(() => {
+    if (!isMulti || !data) return [];
+    const codes = overrideRegions ?? [];
+    return adaptRegionData(data).regions
+      .filter(r => codes.includes(r.regionCode))
+      .map(r => ({
+        code: r.regionCode,
+        name: r.regionName,
+        managers: r.managers
+          .map(m => ({ login: m.login.toLowerCase().trim(), name: m.name || m.login }))
+          .filter(m => m.login),
+      }));
+  }, [isMulti, data, overrideRegions]);
 }

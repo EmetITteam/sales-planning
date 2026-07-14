@@ -19,6 +19,7 @@ import { callOneCServer } from '@/lib/onec-server';
 import { supabase } from '@/lib/supabase';
 import { adaptOneCMeeting, normalizeDate, type OneCMeetingRow } from '@/lib/meetings/onec-adapter';
 import { toMeetingRowDb } from '@/lib/meetings/types';
+import { MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 
 /** Детермінований UUID з legacy 1С-ID (md5-based). Той самий ID завжди
  *  дає той самий UUID між запусками — щоб ID меetings у фронт-кеші був стабільний. */
@@ -213,7 +214,26 @@ export async function GET(request: NextRequest) {
   // тільки свої зустрічі — раніше тут було автоматичне розширення на
   // managedUsers, що показувало РМ-у чужі зустрічі без позначки і ламало
   // refresh клієнтів (getManagerClients тягне тільки свої).
-  const targetLogins = scope === 'managed' ? session.managedUsers : [session.login];
+  //
+  // Мульти-регіон РМ (Пашковська: Одеса+Миколаїв): 1С у managedUsers дає лише
+  // домашній регіон. Тож для scope=managed приймаємо явний `logins` (менеджери
+  // обраного регіону, що клієнт бере з getRegionData) — але ТІЛЬКИ якщо
+  // requester має мульти-регіон override / admin / director (option B: довіряємо
+  // мульти-регіон флагу, як onec/aggregate-роути). Cap 60 щоб не зловживали.
+  const isMultiRegionRM = !!MULTI_REGION_RM_OVERRIDES[session.login.toLowerCase().trim()];
+  const canUseCustomLogins =
+    isMultiRegionRM || session.role === 'admin' || session.role === 'director';
+  const rawLogins = searchParams.get('logins');
+  let targetLogins: string[];
+  if (scope === 'managed' && rawLogins && canUseCustomLogins) {
+    targetLogins = rawLogins
+      .split(',')
+      .map(l => l.toLowerCase().trim())
+      .filter(Boolean)
+      .slice(0, 60);
+  } else {
+    targetLogins = scope === 'managed' ? session.managedUsers : [session.login];
+  }
 
   if (targetLogins.length === 0) {
     return Response.json({ meetings: [] });

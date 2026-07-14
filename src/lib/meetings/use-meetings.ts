@@ -94,24 +94,33 @@ function toMeetingWithSync(
  * `scope='own'` (default) — повертає тільки зустрічі поточного login.
  * `scope='managed'` — тільки зустрічі підлеглих (без своїх). Доступно
  * для admin/director/rm. Інакше API повертає 403.
+ * `logins` (опц.) — явний перелік менеджерів для scope=managed. Використовує
+ * мульти-регіон РМ (Пашковська), щоб бачити менеджерів іншого регіону, яких
+ * нема у session.managedUsers. Сервер приймає лише від мульти-регіон/admin/director.
  */
-export function useMeetings(range?: DateRange, scope: 'own' | 'managed' = 'own'): UseMeetingsApi {
+export function useMeetings(
+  range?: DateRange,
+  scope: 'own' | 'managed' = 'own',
+  logins?: string[] | null,
+): UseMeetingsApi {
   const sessionUser = useAppStore(s => s.user);
   // Default — Сьогодні (як у meeting-app), якщо caller не передав range.
   const effectiveRange = useMemo<DateRange>(
     () => range ?? calcDateRange(DEFAULT_PRESET),
     [range],
   );
+  const loginsKey = logins && logins.length > 0 ? [...logins].sort().join(',') : '';
 
   // === READ через наш endpoint (БД як кеш + bulk-import з 1С background) ===
   const swrKey = sessionUser
-    ? `our-meetings|${sessionUser.login}|${scope}|${effectiveRange.startDateString}|${effectiveRange.endDateString}`
+    ? `our-meetings|${sessionUser.login}|${scope}|${loginsKey}|${effectiveRange.startDateString}|${effectiveRange.endDateString}`
     : null;
   const { data: meetingsResp, error: fetchError, isLoading: fetchLoading, mutate: swrMutate } = useSWR(
     swrKey,
     async () => {
       const scopeQs = scope === 'managed' ? '&scope=managed' : '';
-      const url = `/api/meetings?from=${effectiveRange.startDateString}&to=${effectiveRange.endDateString}${scopeQs}`;
+      const loginsQs = scope === 'managed' && loginsKey ? `&logins=${encodeURIComponent(loginsKey)}` : '';
+      const url = `/api/meetings?from=${effectiveRange.startDateString}&to=${effectiveRange.endDateString}${scopeQs}${loginsQs}`;
       const r = await fetch(url, { credentials: 'same-origin' });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
