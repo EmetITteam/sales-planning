@@ -138,26 +138,26 @@ export function CategoryCard({ label, value, total, hint, accent }: {
   const dotColor = { mint: '#10b981', good: '#10b981', warn: '#fb923c', bad: '#e11d48' }[accent];
   return (
     <div
-      className="glass-card flex items-center gap-3 px-3.5 py-2.5"
+      className="glass-card flex items-center gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-2.5 min-w-0 overflow-hidden"
       title={hint}
     >
       <p
-        className="text-[26px] font-bold tabular-nums leading-none min-w-[2ch]"
+        className="text-[22px] sm:text-[26px] font-bold tabular-nums leading-none shrink-0"
         style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.5px' }}
       >
         {value}
       </p>
       <div className="flex flex-col leading-tight min-w-0">
         <span
-          className="text-[11.5px] uppercase tracking-[0.06em] font-bold flex items-center gap-1.5"
+          className="text-[11.5px] uppercase tracking-[0.06em] font-bold flex items-center gap-1.5 min-w-0"
           style={{ color: labelColor }}
         >
           <span
-            className="inline-block w-1.5 h-1.5 rounded-full"
+            className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
             style={{ background: dotColor }}
             aria-hidden="true"
           />
-          {label}
+          <span className="truncate">{label}</span>
         </span>
         <span className="text-[10.5px] tabular-nums text-muted-foreground mt-0.5">
           {total > 0 ? `${pct.toFixed(1)}% всіх` : '—'}

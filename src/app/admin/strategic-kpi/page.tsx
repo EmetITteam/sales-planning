@@ -248,7 +248,7 @@ export default function StrategicKpiPage() {
   return (
     <>
       <style jsx global>{`
-        .sk-page { font-family: var(--font-sans); color: #062a3d; position: relative; min-height: 100vh; }
+        .sk-page { font-family: var(--font-sans); color: #062a3d; position: relative; min-height: 100vh; overflow-x: clip; }
         .sk-page .num, .sk-page .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
         .sk-mesh { position: fixed; inset: 0; z-index: -2; pointer-events: none;
           background: radial-gradient(at 20% 20%, #ecfeff 0%, transparent 55%),
