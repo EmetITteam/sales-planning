@@ -94,6 +94,13 @@ export default function AdminPage() {
             ready
           />
           <AdminCard
+            href="/region-access"
+            icon={<Building2 className="h-4 w-4 text-blue-600" />}
+            title="Тимчасовий доступ до регіону"
+            description="Надати менеджеру перегляд усього регіону (планування) на час планёрки: регіон → менеджер → період. Read-only. Директор/асистент керують цим зі свого меню акаунта."
+            ready
+          />
+          <AdminCard
             href="/admin/analytics-preview"
             icon={<FlaskConical className="h-4 w-4 text-amber-600" />}
             title="B2B-метрики · draft"
