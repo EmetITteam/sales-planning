@@ -295,6 +295,7 @@ async function main() {
   let header = null;
   let idx = {};
   const docLineCounters = new Map(); // doc_id → next line number
+  const yearsTouched = new Set();    // роки у файлі → рефрешимо rollup по них
   let buffer = [];
   let flushCount = 0;
   const startTime = Date.now();
@@ -345,6 +346,7 @@ async function main() {
       const docId = parseDocId(docText);
       const saleDate = parseDate(parts[idx.date]);
       if (!docId || !saleDate) continue;
+      yearsTouched.add(saleDate.slice(0, 4));
 
       const discount = parts[idx.discount]?.trim() || '';
       const qty = parseNum(parts[idx.qty]);
@@ -413,6 +415,18 @@ async function main() {
     }
 
     await finishBatch(counters);
+
+    // Оновлюємо strategic-kpi rollup для торкнутих років (борд читає rollup).
+    if (!DRY_RUN) {
+      for (const yr of yearsTouched) {
+        try {
+          await supaFetch('rpc/refresh_kpi_rollup', { method: 'POST', body: { p_year: Number(yr) } });
+          console.log(`  Rollup refreshed for ${yr}`);
+        } catch (e) {
+          console.warn(`  Rollup refresh FAILED for ${yr}: ${e.message} (запусти вручну: SELECT refresh_kpi_rollup(${yr});)`);
+        }
+      }
+    }
 
     const elapsed = (Date.now() - startTime) / 1000;
     console.log('---');

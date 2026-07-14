@@ -232,6 +232,32 @@ export async function fetchKpiMetricsBatch(
   const cY = cacheGet(ytdKey, ttl);
   if (cP && cY) return { period: cP, ytd: cY };
 
+  // ── Швидкий шлях: rollup (передпорахований, ~80мс замість ~2-5с скану 150K).
+  // Ті самі колонки що live RPC. periodFrom = початок місяця 'YYYY-MM-01T…Z',
+  // ytdFrom завжди = початок року → rollup.uc_ytd (Jan..month) збігається.
+  // Якщо місяць ще не у rollup (не перерахований) — падаємо на live RPC нижче.
+  // Свіжість: rollup оновлюється refresh_kpi_rollup() після кожного доливу sales
+  // (backfill). Live sales-екшен у майбутньому — просто рефрешити частіше.
+  const ry = parseInt(periodFrom.slice(0, 4), 10);
+  const rm = parseInt(periodFrom.slice(5, 7), 10);
+  if (Number.isFinite(ry) && Number.isFinite(rm)) {
+    const roll = await supabase.rpc<KpiBatchRow[]>('get_kpi_metrics_batch_rollup', {
+      p_year: ry,
+      p_month: rm,
+    });
+    if (!roll.error && Array.isArray(roll.data) && roll.data.length > 0) {
+      const period: BrandChannelMetrics[] = [];
+      const ytd: BrandChannelMetrics[] = [];
+      for (const row of roll.data) {
+        if (row.period_rows > 0) period.push(toMetric(row, 'period'));
+        if (row.ytd_rows > 0)    ytd.push(toMetric(row, 'ytd'));
+      }
+      cacheSet(periodKey, period);
+      cacheSet(ytdKey, ytd);
+      return { period, ytd };
+    }
+  }
+
   const rpc = await supabase.rpc<KpiBatchRow[]>('get_kpi_metrics_batch', {
     p_from: periodFrom,
     p_to: periodTo,
