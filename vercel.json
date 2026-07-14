@@ -5,6 +5,10 @@
     {
       "path": "/api/cron/sync-meetings",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/warm-1c",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
