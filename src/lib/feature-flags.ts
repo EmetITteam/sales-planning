@@ -164,3 +164,20 @@ export function canAuthorPlanComment(login: string | null | undefined): boolean 
   if (!login) return false;
   return login.toLowerCase().trim() === DIRECTOR_PROXY_LOGIN || isAdminLogin(login);
 }
+
+/**
+ * Логін асистента директора з продажу. Роль прокидається через директора з боку
+ * 1С (у нас `role: r.roleCode` без окремого proxy), тож гейтимо по ЛОГІНУ.
+ */
+export const ASSISTANT_DIRECTOR_LOGIN = 'assistant.sdu@emet.in.ua';
+
+/**
+ * Хто керує тимчасовим доступом до регіону (видає/відкликає гранти на планёрки):
+ * директор продажів (sdu) + асистент директора + admin. Гейт по логіну.
+ */
+const REGION_ACCESS_MANAGERS: readonly string[] = [DIRECTOR_PROXY_LOGIN, ASSISTANT_DIRECTOR_LOGIN];
+export function canManageRegionAccess(login: string | null | undefined): boolean {
+  if (!login) return false;
+  const l = login.toLowerCase().trim();
+  return REGION_ACCESS_MANAGERS.includes(l) || isAdminLogin(login);
+}
