@@ -257,7 +257,9 @@ export default function StrategicKpiPage() {
             radial-gradient(at 20% 90%, #e0f7fa 0%, transparent 55%),
             linear-gradient(135deg, #f8fbfd 0%, #f0fdfa 50%, #ecfeff 100%);
         }
-        .sk-blob { position: fixed; border-radius: 50%; filter: blur(90px); z-index: -1; pointer-events: none; opacity: 0.32; animation: skDrift 25s ease-in-out infinite; }
+        /* Фон-слой клипає блоби вьюпортом (fixed-блоби давали h-скрол на мобільному). */
+        .sk-bg { position: fixed; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
+        .sk-blob { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; opacity: 0.32; animation: skDrift 25s ease-in-out infinite; }
         .sk-blob.a { width: 520px; height: 520px; background: rgba(6,106,171,0.35); top: -100px; left: -100px; }
         .sk-blob.b { width: 440px; height: 440px; background: rgba(91,213,188,0.4); top: 30%; right: -80px; animation-delay: -8s; }
         .sk-blob.c { width: 380px; height: 380px; background: rgba(8,128,204,0.3); bottom: -100px; left: 30%; animation-delay: -16s; }
@@ -292,9 +294,11 @@ export default function StrategicKpiPage() {
       `}</style>
 
       <div className="sk-mesh" />
-      <div className="sk-blob a" />
-      <div className="sk-blob b" />
-      <div className="sk-blob c" />
+      <div className="sk-bg" aria-hidden="true">
+        <div className="sk-blob a" />
+        <div className="sk-blob b" />
+        <div className="sk-blob c" />
+      </div>
 
       <AppHeader />
       <main className="sk-page p-3.5 sm:p-5 max-w-6xl mx-auto space-y-5 sm:space-y-6">
@@ -314,7 +318,6 @@ export default function StrategicKpiPage() {
                   {b}
                 </button>
               ))}
-              {/* Роздільник */}
               <span className="mx-1 h-6 w-px bg-[rgba(6,42,61,0.15)]" aria-hidden="true" />
               {/* Спеціальний mode — показує ReactivationBlock замість брендового дашборду */}
               <button
@@ -738,11 +741,8 @@ export default function StrategicKpiPage() {
                               <span className="sk-chip sk-chip-warn">{p.unique_clients} кл.</span>
                               <span className="sk-muted">{p.total_qty.toFixed(0)} шт</span>
                               {(() => {
-                                // Частка від загального факту бренд × канал у періоді.
-                                // Для gift-акцій p.total_sum_usd = сума trigger-покупок у тих
-                                // документах (див. fetchTriggerSums). Ділимо на факт каналу.
-                                // ТОТАЛ за період (не усереднений) — інакше на квартал/рік частка
-                                // роздувалась ×N (промо-сума тотал ÷ середньомісячний факт = 248%).
+                                // Частка промо від факту каналу за період (ТОТАЛ, не усереднений
+                                // — інакше на квартал/рік роздувалось ×N). Gift: сума trigger-покупок.
                                 const brandFact = block.month?.period_total_sum_usd ?? block.month?.total_sum_usd ?? 0;
                                 if (brandFact <= 0 || p.total_sum_usd <= 0) {
                                   return <span className="sk-muted">—</span>;
