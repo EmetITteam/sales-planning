@@ -68,6 +68,16 @@ export function TeamMeetingsView() {
   const isMultiRegion = !!overrideRegions;
   const teamRegions = useMultiRegionTeams(isMultiRegion, overrideRegions);
 
+  // Імена для карток: namesByLogin (домашній регіон) + усі менеджери teamRegions
+  // (інші регіони мульти-РМ). Інакше картки чужого регіону показують логін.
+  const allNamesByLogin = useMemo(() => {
+    const map = new Map(namesByLogin);
+    for (const r of teamRegions) for (const m of r.managers) {
+      if (m.login && m.name) map.set(m.login, m.name);
+    }
+    return map;
+  }, [namesByLogin, teamRegions]);
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [datePreset, setDatePreset] = useState<DatePreset>(DEFAULT_PRESET);
   const [customRange, setCustomRange] = useState(() => calcDateRange(DEFAULT_PRESET));
@@ -292,7 +302,7 @@ export function TeamMeetingsView() {
                     onClientClick={handleClientClick}
                     readOnly
                     managerLabel={
-                      namesByLogin.get(m.managerLogin.toLowerCase().trim())
+                      allNamesByLogin.get(m.managerLogin.toLowerCase().trim())
                         ?? loginToDisplay(m.managerLogin)
                     }
                   />
