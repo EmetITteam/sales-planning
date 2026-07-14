@@ -171,16 +171,11 @@ export async function fetchKpiMetricsAveragedBatch(
   const cY = cacheGet(ytdKey, ttl);
   if (cP && cY) return { period: cP, ytd: cY };
 
-  const rpc = await supabase.rpc<KpiAveragedRow[]>('get_kpi_metrics_averaged', {
-    p_from: periodFrom,
-    p_to: periodTo,
-    p_ytd_from: ytdFrom,
-  });
-
-  if (!rpc.error && Array.isArray(rpc.data)) {
+  // Будує {period, ytd} з рядків RPC (однакова форма у rollup і live).
+  const build = (rows: KpiAveragedRow[]) => {
     const period: BrandChannelMetrics[] = [];
     const ytd: BrandChannelMetrics[] = [];
-    for (const row of rpc.data) {
+    for (const row of rows) {
       if (row.period_rows > 0) period.push(toAveragedMetric(row));
       if (row.ytd_rows > 0) {
         const uc  = row.ytd_uc;
@@ -198,6 +193,38 @@ export async function fetchKpiMetricsAveragedBatch(
         });
       }
     }
+    return { period, ytd };
+  };
+
+  // ── Швидкий шлях: rollup (averaged — ~80мс замість ~0.3-6с). periodFrom =
+  // початок місяця, periodTo = 1-й день місяця ПІСЛЯ періоду. Діапазон у межах
+  // одного року (ytdFrom = Jan того ж року). Якщо не в rollup — live RPC нижче.
+  const avY     = parseInt(periodFrom.slice(0, 4), 10);
+  const avFromM = parseInt(periodFrom.slice(5, 7), 10);
+  const toY     = parseInt(periodTo.slice(0, 4), 10);
+  const toMraw  = parseInt(periodTo.slice(5, 7), 10);
+  const avToM   = toMraw === 1 ? 12 : toMraw - 1;
+  if (Number.isFinite(avY) && Number.isFinite(avFromM) && Number.isFinite(avToM)
+      && (toY === avY || (toY === avY + 1 && avToM === 12))) {
+    const roll = await supabase.rpc<KpiAveragedRow[]>('get_kpi_metrics_averaged_rollup', {
+      p_year: avY, p_from_month: avFromM, p_to_month: avToM,
+    });
+    if (!roll.error && Array.isArray(roll.data) && roll.data.length > 0) {
+      const { period, ytd } = build(roll.data);
+      cacheSet(periodKey, period);
+      cacheSet(ytdKey, ytd);
+      return { period, ytd };
+    }
+  }
+
+  const rpc = await supabase.rpc<KpiAveragedRow[]>('get_kpi_metrics_averaged', {
+    p_from: periodFrom,
+    p_to: periodTo,
+    p_ytd_from: ytdFrom,
+  });
+
+  if (!rpc.error && Array.isArray(rpc.data)) {
+    const { period, ytd } = build(rpc.data);
     cacheSet(periodKey, period);
     cacheSet(ytdKey, ytd);
     return { period, ytd };
