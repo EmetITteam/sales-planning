@@ -319,7 +319,7 @@ export default function WeeklyReportPage() {
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Під брендом — клієнти по категоріях: <b>заплановано → купили</b>.</p>
               </div>
-              <div className="hidden md:grid grid-cols-[1.6fr_1fr_1fr_1fr_1.2fr] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
+              <div className="hidden md:grid grid-cols-[1fr_96px_96px_64px_116px] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
                 <span>Бренд</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Мітка</span>
               </div>
               {brandRows.map(b => {
@@ -337,15 +337,15 @@ export default function WeeklyReportPage() {
                   b.forecastPct < 100 ? `відставання −${Math.max(0, pace * 100 - b.pct).toFixed(1)}%` : 'в плані',
                 ].join(' · ');
                 return (
-                  <div key={b.code} className="px-4 py-3 border-b border-[#f0f2f8] last:border-b-0">
-                    {/* Шапка: назва (+ купило кл.) | план | факт | % | мітка + відставання */}
-                    <div className="grid grid-cols-2 md:grid-cols-[1.6fr_1fr_1fr_1fr_1.2fr] gap-x-3 gap-y-1 items-center text-[13px]">
+                  <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
+                    {/* Ряд 1 — жорсткий grid: Бренд | ПЛАН | ФАКТ | % | МІТКА (числа фікс. ширина, tabular-nums) */}
+                    <div className="grid grid-cols-2 md:grid-cols-[1fr_96px_96px_64px_116px] gap-x-3 gap-y-1 items-center text-[13px]">
                       <span className="col-span-2 md:col-span-1 min-w-0">
                         <span className="font-bold text-[15px] leading-tight truncate block">{b.name}</span>
                         <span className="text-[10px] text-muted-foreground tabular-nums">{brandBuyers} клієнтів купили</span>
                       </span>
-                      <span className="text-right font-mono amount text-[13px]">{formatUSD(b.plan)}</span>
-                      <span className="text-right font-mono amount text-[13px] text-emerald-700">{formatUSD(b.fact)}</span>
+                      <span className="text-right font-mono amount tabular-nums text-[13px]">{formatUSD(b.plan)}</span>
+                      <span className="text-right font-mono amount tabular-nums text-[13px] text-emerald-700">{formatUSD(b.fact)}</span>
                       <span className={`text-right font-bold tabular-nums text-[14px] ${b.pct >= 100 ? 'text-emerald-600' : b.pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(b.pct)}</span>
                       <span className="text-right flex flex-col items-end gap-0.5">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
@@ -357,39 +357,31 @@ export default function WeeklyReportPage() {
                       </span>
                     </div>
 
-                    {/* Розділювач + допоміжний блок: метрики + клієнти-чіпи одним рядком, кнопки зліва */}
-                    <div className="mt-2.5 pt-2.5 border-t border-[#f4f6fb] space-y-2">
-                      <div className="text-[10.5px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-2">
-                        {/* Блок 1 — проценти (темп / запл / мин.міс) */}
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
-                          {b.plan > 0 && (
-                            <>
-                              <span className="text-muted-foreground/40">·</span>
-                              <span><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span>
-                            </>
-                          )}
-                          <span className="text-muted-foreground/40">·</span>
-                          <span>Мин. міс. <span className="amount font-semibold">{formatUSD(b.prevFact)}</span> / {b.prevPct.toFixed(1)}%</span>
-                        </div>
-                        {/* Розділювач між блоками */}
-                        <span className="hidden md:block h-4 w-px bg-[#dfe4ee] shrink-0" />
-                        {/* Блок 2 — клієнти по категоріях (чіпи) */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {cats.map(c => (
-                            <span key={c.label} className="inline-flex items-center gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-1.5 py-0.5">
-                              <span>{c.label}</span>
-                              <span className="tabular-nums font-semibold text-foreground/80">
-                                {c.planned}
-                                <span className="mx-0.5 text-muted-foreground font-normal">→</span>
-                                <span className={c.planned > 0 && c.bought >= c.planned ? 'text-emerald-600' : c.bought > 0 ? 'text-foreground' : 'text-rose-500'}>{c.bought}</span>
-                              </span>
-                              {c.planned > 0 && <span className="tabular-nums text-muted-foreground/70">· {pctOf(c.bought, c.planned).toFixed(0)}%</span>}
-                            </span>
-                          ))}
-                        </div>
+                    {/* Ряд 2 — один компактний рядок: метрики зліва · чіпи + кнопки справа (h-6, ghost) */}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-[10.5px] text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
+                        {b.plan > 0 && (
+                          <>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span>
+                          </>
+                        )}
+                        <span className="text-muted-foreground/40">·</span>
+                        <span>Мин. міс. <span className="amount font-semibold">{formatUSD(b.prevFact)}</span> / {b.prevPct.toFixed(1)}%</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+                        {cats.map(c => (
+                          <span key={c.label} className="inline-flex items-center h-6 gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-2">
+                            <span>{c.label}</span>
+                            <span className="tabular-nums font-semibold text-foreground/80">
+                              {c.planned}
+                              <span className="mx-0.5 text-muted-foreground font-normal">→</span>
+                              <span className={c.planned > 0 && c.bought >= c.planned ? 'text-emerald-600' : c.bought > 0 ? 'text-foreground' : 'text-rose-500'}>{c.bought}</span>
+                            </span>
+                            {c.planned > 0 && <span className="tabular-nums text-muted-foreground/70">· {pctOf(c.bought, c.planned).toFixed(0)}%</span>}
+                          </span>
+                        ))}
                         <BrandNote segmentName={b.name} label="Дія" placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
                         <BrandNote segmentName={b.name} label="Причина" draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
                       </div>
@@ -455,9 +447,9 @@ function BrandNote({ segmentName, label, placeholder, hint, draft, className = '
       <button
         onClick={openDialog}
         title={saved || label}
-        className={`inline-flex items-center gap-1.5 max-w-[200px] px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${saved ? 'text-emet-blue bg-emet-blue/10 border-emet-blue/25 hover:bg-emet-blue/15' : 'text-slate-600 bg-slate-500/10 border-slate-300/50 hover:bg-slate-500/15'} ${className}`}
+        className={`inline-flex items-center h-6 gap-1 max-w-[180px] px-2 rounded-md text-[10.5px] font-semibold border transition-colors ${saved ? 'text-emet-blue bg-emet-blue/10 border-emet-blue/25 hover:bg-emet-blue/15' : 'text-slate-600 bg-transparent border-[#e2e7ef] hover:bg-[#f5f7fb]'} ${className}`}
       >
-        <PenLine className="h-3.5 w-3.5 shrink-0" />
+        <PenLine className="h-3 w-3 shrink-0" />
         <span className="truncate">{saved ? `${label}: ${saved}` : label}</span>
       </button>
 
