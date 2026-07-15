@@ -306,29 +306,29 @@ export default function WeeklyReportPage() {
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Під брендом — клієнти по категоріях: <b>заплановано → купили</b>.</p>
               </div>
-              <div className="hidden md:grid grid-cols-[1.3fr_1fr_1fr_70px_170px] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
-                <span>Бренд</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Темп · мітка</span>
+              <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_80px_130px] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
+                <span>Бренд</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Мітка</span>
               </div>
               {brandRows.map(b => {
                 const mk = markOf(b.forecastPct);
                 const cats = brandCats(b.code);
                 return (
                   <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
-                    <div className="grid grid-cols-2 md:grid-cols-[1.3fr_1fr_1fr_70px_170px] gap-x-3 gap-y-1 items-center text-[13px]">
-                      <span className="font-bold col-span-2 md:col-span-1">{b.name}</span>
+                    <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_80px_130px] gap-x-3 gap-y-1 items-center text-[13px]">
+                      <span className="col-span-2 md:col-span-1">
+                        <span className="font-bold block leading-tight">{b.name}</span>
+                        <span className="text-[10.5px] text-muted-foreground leading-tight">
+                          <span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span>
+                          {b.forecastPct < 100 && (
+                            <span className="font-bold text-rose-600 tabular-nums" title="Відставання від норми на дату (у відсоткових пунктах плану)"> · −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%</span>
+                          )}
+                        </span>
+                      </span>
                       <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
                       <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(b.fact)}</span>
                       <span className={`text-right font-bold tabular-nums ${b.pct >= 100 ? 'text-emerald-600' : b.pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(b.pct)}</span>
-                      <span className="flex flex-col items-end gap-0.5">
-                        <span className="flex items-center justify-end gap-1.5 flex-wrap">
-                          <span className={`tabular-nums font-bold text-[12px] ${b.forecastPct >= 100 ? 'text-emerald-600' : b.forecastPct >= 80 ? 'text-amber-600' : 'text-rose-600'}`} title="Прогноз темпу (факт vs норма на дату)">{formatPct(b.forecastPct)}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
-                        </span>
-                        {b.forecastPct < 100 && (
-                          <span className="text-[10px] font-bold text-rose-600 tabular-nums" title="Відставання від норми на дату (у відсоткових пунктах плану)">
-                            −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
-                          </span>
-                        )}
+                      <span className="text-right">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
                       </span>
                     </div>
                     {cats.length > 0 && (
