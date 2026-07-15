@@ -369,7 +369,7 @@ export default function WeeklyReportPage() {
                     <span className="text-right font-mono amount text-[12px]">{formatUSD(m.totalPlan)}</span>
                     <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(m.totalFact)}</span>
                     <span className={`text-right font-bold tabular-nums ${m.factPercent >= 100 ? 'text-emerald-600' : m.factPercent >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(m.factPercent)}</span>
-                    <span className={`text-right font-mono amount text-[12px] font-semibold ${gap > 0.5 ? 'text-rose-600' : 'text-emerald-600'}`}>{gap > 0.5 ? `−${formatUSD(gap)}` : 'в темпі'}</span>
+                    <span className={`text-right font-mono text-[12px] font-semibold ${gap > 0.5 ? 'amount text-rose-600' : 'text-emerald-600'}`}>{gap > 0.5 ? `−${formatUSD(gap)}` : 'в темпі'}</span>
                   </div>
                 );
               })}
