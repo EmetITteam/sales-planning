@@ -301,7 +301,7 @@ export default function StrategicKpiPage() {
       </div>
 
       <AppHeader />
-      <main className="sk-page p-3.5 sm:p-5 max-w-6xl mx-auto space-y-5 sm:space-y-6">
+      <main className="sk-page w-full min-w-0 p-3.5 sm:p-5 max-w-6xl mx-auto space-y-5 sm:space-y-6">
         <Link href="/admin" className="inline-flex items-center gap-1.5 text-[13px] sk-muted hover:text-foreground cursor-pointer">
           <ArrowLeft className="h-4 w-4" /> Адмін-панель
         </Link>
