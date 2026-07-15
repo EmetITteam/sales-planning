@@ -31,7 +31,8 @@ import { CategoryStatsTable } from '@/components/dashboard/category-stats-table'
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { pctOf, calcForecastPercent, formatUSD, formatPct } from '@/lib/format';
 import { isStrategicKpiLogin } from '@/lib/feature-flags';
-import { ArrowLeft, ClipboardList } from 'lucide-react';
+import { ArrowLeft, ClipboardList, PenLine, Check } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -316,6 +317,12 @@ export default function WeeklyReportPage() {
                 const pseg = planSegNorm[b.code];
                 const plannedSum = (pseg?.forecastFinalized ?? 0) + (pseg?.gapFinalized ?? 0);
                 const expectedPct = b.plan > 0 ? (plannedSum / b.plan) * 100 : 0;
+                // Болванка з числами для діалогу «Причина за стандартом».
+                const reasonDraft = [
+                  ...cats.map(c => `${c.label} ${c.planned}→${c.bought}`),
+                  `темп ${formatPct(b.forecastPct)}`,
+                  b.forecastPct < 100 ? `відставання −${Math.max(0, pace * 100 - b.pct).toFixed(1)}%` : 'в темпі',
+                ].join(' · ');
                 return (
                   <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
                     <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_80px_130px] gap-x-3 gap-y-1 items-center text-[13px]">
@@ -357,6 +364,7 @@ export default function WeeklyReportPage() {
                         Відставання: −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
                       </p>
                     )}
+                    <BrandReason segmentName={b.name} draft={reasonDraft} />
                   </div>
                 );
               })}
@@ -415,12 +423,80 @@ function Amt({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * «Причина за стандартом» по бренду — кнопка → діалог (стиль як у
+ * «Зауваження до планування»). ЛОКАЛЬНИЙ стан (тестова сторінка, без
+ * збереження — зберігання додамо після виверки борду). `draft` — болванка
+ * з числами для кнопки «Підставити числа».
+ */
+function BrandReason({ segmentName, draft }: { segmentName: string; draft: string }) {
+  const [open, setOpen] = useState(false);
+  const [saved, setSaved] = useState('');
+  const [text, setText] = useState('');
+  const ta = 'w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white/70 px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
+  const openDialog = () => { setText(saved); setOpen(true); };
+  return (
+    <div className="mt-1.5">
+      {saved ? (
+        <div className="rounded-lg bg-[#f7f9fc] border border-[#e8ecf5] px-3 py-2 flex items-start justify-between gap-2">
+          <p className="text-[12px] text-foreground/90 whitespace-pre-wrap break-words min-w-0">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold block mb-0.5">Причина за стандартом</span>
+            {saved}
+          </p>
+          <button onClick={openDialog} className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-600 hover:bg-slate-500/10 transition-colors">
+            <PenLine className="h-3 w-3" /> Редагувати
+          </button>
+        </div>
+      ) : (
+        <button onClick={openDialog} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-500/10 border border-slate-300/50 hover:bg-slate-500/15 transition-colors">
+          <PenLine className="h-3.5 w-3.5" /> Причина за стандартом
+        </button>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogTitle className="text-[15px]">Причина за стандартом · {segmentName}</DialogTitle>
+          <p className="text-[12px] text-muted-foreground -mt-1">
+            категорія → N із M → факт → <i>висновок</i> (числа з борду, висновок словами).
+          </p>
+          <button
+            type="button"
+            onClick={() => setText(t => (t.trim() ? t : `${draft}. Висновок: `))}
+            className="self-start inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emet-blue bg-emet-blue/10 border border-emet-blue/25 hover:bg-emet-blue/15 transition-colors"
+          >
+            Підставити числа
+          </button>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            autoFocus
+            rows={4}
+            maxLength={2000}
+            placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…"
+            className={ta}
+          />
+          <div className="flex flex-col gap-2 pt-1">
+            <button
+              onClick={() => { setSaved(text.trim()); setOpen(false); }}
+              className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-emet-blue text-white font-semibold text-[13px] active:scale-[0.98] transition-transform"
+            >
+              <Check className="h-4 w-4" /> Зберегти
+            </button>
+            <button onClick={() => setOpen(false)} className="h-10 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-foreground">
+              Скасувати
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/**
  * Ручні поля звіту — вводить РМ під час наради. Локальний стан (тестова
  * сторінка, без збереження на бекенд). Три поля за пунктами регламенту +
  * загальний «Висновок».
  */
 function ManualFields() {
-  const [cause, setCause] = useState('');
   const [action, setAction] = useState('');
   const [promise, setPromise] = useState('');
   const [conclusion, setConclusion] = useState('');
@@ -428,12 +504,7 @@ function ManualFields() {
   return (
     <div className="glass-card p-4 md:p-5 space-y-4">
       <h2 className="text-[13px] font-bold">Заповнюється РМ вручну (не з борду)</h2>
-
-      <div className="space-y-1.5">
-        <label className="text-[12px] font-semibold">Причина за стандартом</label>
-        <p className="text-[11px] text-muted-foreground -mt-0.5">категорія → N із M → факт → <i>висновок</i> (числа вище, висновок словами)</p>
-        <textarea value={cause} onChange={e => setCause(e.target.value)} rows={3} maxLength={2000} placeholder="Напр.: Активні 78 запл., купили 32 (36%) — просів Petaran, 4 з 12 не відвантажили замовлення…" className={ta} />
-      </div>
+      <p className="text-[11px] text-muted-foreground -mt-2">«Причина за стандартом» — під кожним брендом вище (по кнопці).</p>
 
       <div className="space-y-1.5">
         <label className="text-[12px] font-semibold">Дія на тиждень / фокус</label>
