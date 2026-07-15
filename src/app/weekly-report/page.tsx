@@ -382,9 +382,13 @@ export default function WeeklyReportPage() {
                             {c.planned > 0 && <span className="tabular-nums text-muted-foreground/70">· {pctOf(c.bought, c.planned).toFixed(0)}%</span>}
                           </span>
                         ))}
-                        <BrandNote segmentName={b.name} label="Дія" placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
-                        <BrandNote segmentName={b.name} label="Причина" draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
                       </div>
+                    </div>
+
+                    {/* Кнопки — окремий рядок, вирівняні праворуч */}
+                    <div className="mt-2 flex items-center justify-end gap-1.5">
+                      <BrandNote segmentName={b.name} label="Дія" placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
+                      <BrandNote segmentName={b.name} label="Причина" draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
                     </div>
                   </div>
                 );
