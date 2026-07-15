@@ -185,6 +185,8 @@ export default function WeeklyReportPage() {
       fact: s.factAmount,
       pct: pctOf(s.factAmount, s.planAmount),
       forecastPct: calcForecastPercent(s.factAmount, s.planAmount, passedWD, totalWD),
+      prevFact: s.prevMonthFactAmount,
+      prevPct: pctOf(s.prevMonthFactAmount, s.prevMonthPlanAmount),
     }))
     .sort((a, b) => b.plan - a.plan);
 
@@ -336,6 +338,8 @@ export default function WeeklyReportPage() {
                               <span><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span><span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span></span>
                             </>
                           )}
+                          <span className="text-muted-foreground/40">·</span>
+                          <span className="text-muted-foreground">Мин. міс. <span className="amount font-semibold">{formatUSD(b.prevFact)}</span> / {b.prevPct.toFixed(1)}%</span>
                         </span>
                       </span>
                       <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
