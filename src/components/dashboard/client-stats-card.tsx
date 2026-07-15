@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, RefreshCw, UserPlus, UserMinus } from 'lucide-react';
+import { Users, RefreshCw, UserPlus, UserMinus, CircleSlash } from 'lucide-react';
 import type { ClientCategoryStats } from '@/lib/mock-data';
 import { pctOf, formatPct } from '@/lib/format';
 
@@ -21,7 +21,7 @@ export function ClientStatsCard({ stats, loading = false, index = 3 }: ClientSta
       <div className="glass-card ambient-mint p-3 md:p-4 fade-stagger" style={{ ['--i' as string]: index }}>
         <div className="h-3 w-32 bg-[#f0f2f8] rounded animate-pulse mb-3" />
         <div className="space-y-2">
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="flex items-center justify-between">
               <div className="h-3.5 w-20 bg-[#f0f2f8] rounded animate-pulse" />
               <div className="h-3.5 w-12 bg-[#f0f2f8] rounded animate-pulse" />
@@ -43,6 +43,7 @@ export function ClientStatsCard({ stats, loading = false, index = 3 }: ClientSta
     { icon: RefreshCw, color: 'text-amber-500', label: 'Сплячі', cat: stats.sleeping },
     { icon: UserMinus, color: 'text-slate-400', label: 'Втрачені', cat: stats.lost },
     { icon: UserPlus, color: 'text-emerald-500', label: 'Нові', cat: stats.newClients },
+    { icon: CircleSlash, color: 'text-slate-400', label: 'Без закупок', cat: stats.none },
   ];
   const totalPct = pctOf(stats.totalBought, stats.totalClients);
   return (

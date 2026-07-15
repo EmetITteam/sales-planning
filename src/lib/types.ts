@@ -146,6 +146,8 @@ export interface ClientCategoryStats {
   /** Потерянные (втрачені) — окрема категорія, НЕ складається зі сплячими. */
   lost: { total: number; bought: number };
   newClients: { total: number; bought: number };
+  /** Без закупок (1С «Без закупок» → none) — клієнти без активної історії. */
+  none: { total: number; bought: number };
   totalBought: number;
   totalClients: number;
 }

@@ -243,6 +243,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
     const sleeping = all.filter(c => c.category === 'sleeping');
     const lost = all.filter(c => c.category === 'lost');
     const newClients = all.filter(c => c.category === 'new');
+    const none = all.filter(c => c.category === 'none');
 
     const countBought = (clients: typeof all) =>
       clients.filter(c => boughtIds.has(c.clientId)).length;
@@ -252,6 +253,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       sleeping: { total: sleeping.length, bought: countBought(sleeping) },
       lost: { total: lost.length, bought: countBought(lost) },
       newClients: { total: newClients.length, bought: countBought(newClients) },
+      none: { total: none.length, bought: countBought(none) },
       totalBought: boughtIds.size,
       totalClients: all.length,
     };
@@ -642,7 +644,7 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
             </div>
           )}
         />
-        <ClientStatsCard stats={clientStats ?? { active: { total: 0, bought: 0 }, sleeping: { total: 0, bought: 0 }, lost: { total: 0, bought: 0 }, newClients: { total: 0, bought: 0 }, totalBought: 0, totalClients: 0 }} />
+        <ClientStatsCard stats={clientStats ?? { active: { total: 0, bought: 0 }, sleeping: { total: 0, bought: 0 }, lost: { total: 0, bought: 0 }, newClients: { total: 0, bought: 0 }, none: { total: 0, bought: 0 }, totalBought: 0, totalClients: 0 }} />
       </div>
 
       {/* Control banner — приховано до часу коли вирішимо дизайн (потижневий план?
