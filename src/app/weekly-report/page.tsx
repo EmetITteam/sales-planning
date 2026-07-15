@@ -319,9 +319,6 @@ export default function WeeklyReportPage() {
                         <span className="font-bold block leading-tight">{b.name}</span>
                         <span className="text-[10.5px] text-muted-foreground leading-tight">
                           <span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span>
-                          {b.forecastPct < 100 && (
-                            <span className="font-bold text-rose-600 tabular-nums" title="Відставання від норми на дату (у відсоткових пунктах плану)"> · −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%</span>
-                          )}
                         </span>
                       </span>
                       <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
@@ -344,6 +341,11 @@ export default function WeeklyReportPage() {
                           </span>
                         ))}
                       </div>
+                    )}
+                    {b.forecastPct < 100 && (
+                      <p className="text-[10.5px] font-bold text-rose-600 tabular-nums mt-1" title="Відставання від норми на дату (у відсоткових пунктах плану)">
+                        Відставання: −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
+                      </p>
                     )}
                   </div>
                 );
