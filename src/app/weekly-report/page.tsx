@@ -161,7 +161,7 @@ export default function WeeklyReportPage() {
 
   // === Розрив НА СЬОГОДНІ (а не за весь місяць) ===
   // Норма-на-дату = план × пройдені_роб.дні / усі_роб.дні. Розрив = норма − факт.
-  // Якщо факт ≥ норми → розриву немає («в темпі»); інакше відставання на різницю.
+  // Якщо факт ≥ норми → розриву немає («в плані»); інакше відставання на різницю.
   const pace = totalWD > 0 ? passedWD / totalWD : 0;
   const regionNormToDate = totalPlan * pace;
   const regionGapNow = regionNormToDate - totalFact; // >0 = відставання від темпу
@@ -263,7 +263,7 @@ export default function WeeklyReportPage() {
                   <PassportCell label="Виконання" value={formatPct(pct1)} sub={<><Amt>{formatUSD(totalFact)}</Amt> / <Amt>{formatUSD(totalPlan)}</Amt></>} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
                   <PassportCell
                     label="Розрив на сьогодні"
-                    value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в темпі'}
+                    value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в плані'}
                     sub={<>має бути {Math.round(pace * 100)}% · норма <Amt>{formatUSD(regionNormToDate)}</Amt></>}
                     color={regionGapNow > 0.5 ? 'bad' : 'good'}
                   />
@@ -297,7 +297,7 @@ export default function WeeklyReportPage() {
               fact={aggregatedFact}
               unplanned={aggregatedUnplanned}
               plan1C={totalPlan}
-              title={region.regionName}
+              title={`${region.regionName} (планування)`}
               loading={statsLoading && !aggregatedFact}
             />
 
@@ -324,7 +324,7 @@ export default function WeeklyReportPage() {
                 const reasonDraft = [
                   ...cats.map(c => `${c.label} ${c.planned}→${c.bought}`),
                   `темп ${formatPct(b.forecastPct)}`,
-                  b.forecastPct < 100 ? `відставання −${Math.max(0, pace * 100 - b.pct).toFixed(1)}%` : 'в темпі',
+                  b.forecastPct < 100 ? `відставання −${Math.max(0, pace * 100 - b.pct).toFixed(1)}%` : 'в плані',
                 ].join(' · ');
                 return (
                   <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
@@ -383,7 +383,7 @@ export default function WeeklyReportPage() {
             <div className="glass-card overflow-hidden">
               <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
                 <h2 className="text-[13px] font-bold">Розріз по менеджерах · розрив = тригер подвійних візитів</h2>
-                <p className="text-[11px] text-muted-foreground mt-0.5">«Розрив зараз» = норма на дату ({Math.round(pace * 100)}% плану) − факт. «в темпі» = факт ≥ норми.</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">«Розрив зараз» = норма на дату ({Math.round(pace * 100)}% плану) − факт. «в плані» = факт ≥ норми.</p>
               </div>
               <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_80px_1fr] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
                 <span>Менеджер</span><span className="text-right">План міс.</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Розрив зараз</span>
@@ -396,7 +396,7 @@ export default function WeeklyReportPage() {
                     <span className="text-right font-mono amount text-[12px]">{formatUSD(m.totalPlan)}</span>
                     <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(m.totalFact)}</span>
                     <span className={`text-right font-bold tabular-nums ${m.factPercent >= 100 ? 'text-emerald-600' : m.factPercent >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(m.factPercent)}</span>
-                    <span className={`text-right font-mono text-[12px] font-semibold ${gap > 0.5 ? 'amount text-rose-600' : 'text-emerald-600'}`}>{gap > 0.5 ? `−${formatUSD(gap)}` : 'в темпі'}</span>
+                    <span className={`text-right font-mono text-[12px] font-semibold ${gap > 0.5 ? 'amount text-rose-600' : 'text-emerald-600'}`}>{gap > 0.5 ? `−${formatUSD(gap)}` : 'в плані'}</span>
                   </div>
                 );
               })}
