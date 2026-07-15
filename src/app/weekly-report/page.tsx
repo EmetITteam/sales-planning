@@ -257,18 +257,18 @@ export default function WeeklyReportPage() {
                   Пройдено {passedWD} з {totalWD} роб. днів місяця ({Math.round(pace * 100)}%). Розрив рахується <b>на сьогодні</b> (норма на дату), а не за весь місяць.
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <PassportCell label="№1 Виконання" value={formatPct(pct1)} sub={<><Amt>{formatUSD(totalFact)}</Amt> / <Amt>{formatUSD(totalPlan)}</Amt></>} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
+                  <PassportCell label="Виконання" value={formatPct(pct1)} sub={<><Amt>{formatUSD(totalFact)}</Amt> / <Amt>{formatUSD(totalPlan)}</Amt></>} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
                   <PassportCell
                     label="Розрив на сьогодні"
                     value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в темпі'}
                     sub={<>має бути {Math.round(pace * 100)}% · норма <Amt>{formatUSD(regionNormToDate)}</Amt></>}
                     color={regionGapNow > 0.5 ? 'bad' : 'good'}
                   />
-                  <PassportCell label="№3 Прогноз темпу" value={formatPct(pct3)} sub="факт на кінець міс. при темпі" color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
-                  <PassportCell label="№7 Минулий місяць" value={<Amt>{delta7 >= 0 ? '+' : ''}{formatUSD(delta7)}</Amt>} sub={<>факт мин.: <Amt>{formatUSD(prevFact)}</Amt></>} color={delta7 >= 0 ? 'good' : 'bad'} />
+                  <PassportCell label="Прогноз темпу" value={formatPct(pct3)} sub="факт на кінець міс. при темпі" color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
+                  <PassportCell label="Минулий місяць" value={<Amt>{delta7 >= 0 ? '+' : ''}{formatUSD(delta7)}</Amt>} sub={<>факт мин.: <Amt>{formatUSD(prevFact)}</Amt></>} color={delta7 >= 0 ? 'good' : 'bad'} />
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-2">
-                  №4 Заплановано (фіналізовано): <b className="text-foreground">{formatPct(plannedPct)}</b> · <Amt>{formatUSD(plannedFinalized)}</Amt>
+                  Заплановано (фіналізовано): <b className="text-foreground">{formatPct(plannedPct)}</b> · <Amt>{formatUSD(plannedFinalized)}</Amt>
                 </p>
               </div>
 
@@ -293,7 +293,7 @@ export default function WeeklyReportPage() {
               fact={aggregatedFact}
               unplanned={aggregatedUnplanned}
               plan1C={totalPlan}
-              title={`№5 · ${region.regionName}`}
+              title={region.regionName}
               loading={statsLoading && !aggregatedFact}
             />
 
@@ -301,7 +301,7 @@ export default function WeeklyReportPage() {
             <div className="glass-card overflow-hidden">
               <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-[13px] font-bold">№2 По брендах · % + мітка</h2>
+                  <h2 className="text-[13px] font-bold">По брендах · % + мітка</h2>
                   <span className="text-[11px] text-muted-foreground">{brandRows.length} брендів</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Під брендом — клієнти по категоріях: <b>заплановано → купили</b>.</p>
@@ -365,7 +365,7 @@ export default function WeeklyReportPage() {
             {/* №6 Розріз по менеджерах (розрив = тригер подвійних візитів) */}
             <div className="glass-card overflow-hidden">
               <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
-                <h2 className="text-[13px] font-bold">№6 Розріз по менеджерах · розрив = тригер подвійних візитів</h2>
+                <h2 className="text-[13px] font-bold">Розріз по менеджерах · розрив = тригер подвійних візитів</h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">«Розрив зараз» = норма на дату ({Math.round(pace * 100)}% плану) − факт. «в темпі» = факт ≥ норми.</p>
               </div>
               <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_80px_1fr] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
@@ -441,7 +441,7 @@ function ManualFields() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[12px] font-semibold">№8 Обіцяв минулого тижня → факт</label>
+        <label className="text-[12px] font-semibold">Обіцяв минулого тижня → факт</label>
         <p className="text-[11px] text-muted-foreground -mt-0.5">виконано / ні, чому</p>
         <textarea value={promise} onChange={e => setPromise(e.target.value)} rows={3} maxLength={2000} placeholder="Що обіцяв минулого тижня і що з того по факту сталося…" className={ta} />
       </div>
