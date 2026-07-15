@@ -229,18 +229,18 @@ export default function WeeklyReportPage() {
                 Пройдено {passedWD} з {totalWD} роб. днів місяця ({Math.round(pace * 100)}%). Розрив рахується <b>на сьогодні</b> (норма на дату), а не за весь місяць.
               </p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <PassportCell label="№1 Виконання" value={formatPct(pct1)} sub={`${formatUSD(totalFact)} / ${formatUSD(totalPlan)}`} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
+                <PassportCell label="№1 Виконання" value={formatPct(pct1)} sub={<><Amt>{formatUSD(totalFact)}</Amt> / <Amt>{formatUSD(totalPlan)}</Amt></>} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
                 <PassportCell
                   label="Розрив на сьогодні"
-                  value={regionGapNow > 0.5 ? `−${formatUSD(regionGapNow)}` : 'в темпі'}
-                  sub={`має бути ${Math.round(pace * 100)}% · норма ${formatUSD(regionNormToDate)}`}
+                  value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в темпі'}
+                  sub={<>має бути {Math.round(pace * 100)}% · норма <Amt>{formatUSD(regionNormToDate)}</Amt></>}
                   color={regionGapNow > 0.5 ? 'bad' : 'good'}
                 />
                 <PassportCell label="№3 Прогноз темпу" value={formatPct(pct3)} sub="факт на кінець міс. при темпі" color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
-                <PassportCell label="№7 Минулий місяць" value={`${delta7 >= 0 ? '+' : ''}${formatUSD(delta7)}`} sub={`факт мин.: ${formatUSD(prevFact)}`} color={delta7 >= 0 ? 'good' : 'bad'} />
+                <PassportCell label="№7 Минулий місяць" value={<Amt>{delta7 >= 0 ? '+' : ''}{formatUSD(delta7)}</Amt>} sub={<>факт мин.: <Amt>{formatUSD(prevFact)}</Amt></>} color={delta7 >= 0 ? 'good' : 'bad'} />
               </div>
               <p className="text-[11px] text-muted-foreground mt-2">
-                №4 Заплановано (фіналізовано): <b className="text-foreground">{formatPct(plannedPct)}</b> · {formatUSD(plannedFinalized)}
+                №4 Заплановано (фіналізовано): <b className="text-foreground">{formatPct(plannedPct)}</b> · <Amt>{formatUSD(plannedFinalized)}</Amt>
               </p>
             </div>
 
@@ -322,7 +322,7 @@ export default function WeeklyReportPage() {
 }
 
 function PassportCell({ label, value, sub, color }: {
-  label: string; value: string; sub?: string; color: 'good' | 'warn' | 'bad' | 'neutral';
+  label: string; value: React.ReactNode; sub?: React.ReactNode; color: 'good' | 'warn' | 'bad' | 'neutral';
 }) {
   const c = {
     good: 'text-emerald-600', warn: 'text-amber-600', bad: 'text-rose-600', neutral: 'text-foreground',
@@ -331,7 +331,12 @@ function PassportCell({ label, value, sub, color }: {
     <div className="rounded-xl border border-[#eef1f7] bg-[#fafbfe] px-3 py-2.5">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
       <p className={`text-[22px] font-bold tabular-nums leading-tight mt-0.5 ${c}`}>{value}</p>
-      {sub && <p className="text-[10.5px] text-muted-foreground mt-0.5 truncate" title={sub}>{sub}</p>}
+      {sub && <p className="text-[10.5px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
     </div>
   );
+}
+
+/** Грошове значення, що ховається у режимі «Сховати суми» (клас .amount). */
+function Amt({ children }: { children: React.ReactNode }) {
+  return <span className="amount">{children}</span>;
 }
