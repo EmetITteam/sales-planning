@@ -329,7 +329,7 @@ export default function WeeklyReportPage() {
                   <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
                     <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_80px_130px] gap-x-3 gap-y-1 items-center text-[13px]">
                       <span className="col-span-2 md:col-span-1">
-                        <span className="font-bold block leading-tight">{b.name}</span>
+                        <span className="font-bold block leading-tight text-[15px]">{b.name}</span>
                         <span className="text-[10.5px] text-muted-foreground leading-tight flex items-center gap-2 flex-wrap">
                           <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
                           {b.plan > 0 && (
