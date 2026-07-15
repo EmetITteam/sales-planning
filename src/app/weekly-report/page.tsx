@@ -312,13 +312,23 @@ export default function WeeklyReportPage() {
               {brandRows.map(b => {
                 const mk = markOf(b.forecastPct);
                 const cats = brandCats(b.code);
+                // «Запл.» — Σ фіналізованих forecast+gap по бренду / план 1С (як у планінгу).
+                const pseg = planSegNorm[b.code];
+                const plannedSum = (pseg?.forecastFinalized ?? 0) + (pseg?.gapFinalized ?? 0);
+                const expectedPct = b.plan > 0 ? (plannedSum / b.plan) * 100 : 0;
                 return (
                   <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
                     <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_80px_130px] gap-x-3 gap-y-1 items-center text-[13px]">
                       <span className="col-span-2 md:col-span-1">
                         <span className="font-bold block leading-tight">{b.name}</span>
-                        <span className="text-[10.5px] text-muted-foreground leading-tight">
-                          <span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span>
+                        <span className="text-[10.5px] text-muted-foreground leading-tight flex items-center gap-2 flex-wrap">
+                          <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
+                          {b.plan > 0 && (
+                            <>
+                              <span className="text-muted-foreground/40">·</span>
+                              <span><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span><span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span></span>
+                            </>
+                          )}
                         </span>
                       </span>
                       <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
