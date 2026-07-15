@@ -34,14 +34,8 @@ import { ArrowLeft, ClipboardList } from 'lucide-react';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-/** Категорії клієнтів для per-brand розбивки (заплановано → купили). */
-const BRAND_CATS: { key: 'active' | 'sleeping' | 'lost' | 'new' | 'none'; label: string }[] = [
-  { key: 'active', label: 'Активні' },
-  { key: 'sleeping', label: 'Сплячі' },
-  { key: 'lost', label: 'Втрачені' },
-  { key: 'new', label: 'Нові' },
-  { key: 'none', label: 'БЗ' },
-];
+/** Ключі категорій клієнтів (як у planAgg/regionStats byCategory). */
+type BrandCatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
 
 /** Мітка «В ПЛАНІ / ВІДСТАВАННЯ» за темпом виконання (як статус-колір борду). */
 function markOf(forecastPct: number): { label: string; cls: string } {
@@ -196,12 +190,21 @@ export default function WeeklyReportPage() {
   // regionStats.bySegment уже нормалізований. Джойн по коду бренда.
   const planSegNorm: Record<string, NonNullable<typeof planAgg>['bySegment'][string]> = {};
   if (planAgg) for (const [k, v] of Object.entries(planAgg.bySegment)) planSegNorm[mapSegmentCode(k)] = v;
-  const brandCats = (code: string) =>
-    BRAND_CATS.map(c => ({
-      label: c.label,
-      planned: planSegNorm[code]?.byCategory[c.key]?.plannedCount ?? 0,
-      bought: regionStats?.bySegment[code]?.byCategory[c.key]?.factCount ?? 0,
-    })).filter(x => x.planned > 0 || x.bought > 0);
+  // Групування як у таблиці борду (№5): Активні / Активізація (Сплячі+Втрачені+
+  // БЗ) / Нові / Незаплановані. planned = ЗАПЛАНОВАНО (клієнтів), bought = ФАКТ (кл.).
+  const brandCats = (code: string) => {
+    const p = planSegNorm[code]?.byCategory;
+    const f = regionStats?.bySegment[code]?.byCategory;
+    const unpl = regionStats?.bySegment[code]?.unplanned;
+    const sumP = (...keys: BrandCatKey[]) => keys.reduce((s, k) => s + (p?.[k]?.plannedCount ?? 0), 0);
+    const sumF = (...keys: BrandCatKey[]) => keys.reduce((s, k) => s + (f?.[k]?.factCount ?? 0), 0);
+    return [
+      { label: 'Активні', planned: sumP('active'), bought: sumF('active') },
+      { label: 'Активізація', planned: sumP('sleeping', 'lost', 'none'), bought: sumF('sleeping', 'lost', 'none') },
+      { label: 'Нові', planned: sumP('new'), bought: sumF('new') },
+      { label: 'Незапл.', planned: 0, bought: unpl?.factCount ?? 0 },
+    ].filter(x => x.planned > 0 || x.bought > 0);
+  };
 
   if (!user || !allowed) return null;
 
