@@ -349,26 +349,24 @@ export default function WeeklyReportPage() {
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
                       </span>
                     </div>
-                    {cats.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                        {cats.map(c => (
-                          <span key={c.label} className="inline-flex items-center gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-1.5 py-0.5 text-[10.5px]">
-                            <span className="text-muted-foreground">{c.label}</span>
-                            <span className="tabular-nums font-semibold text-foreground/80">
-                              {c.planned}
-                              <span className="mx-0.5 text-muted-foreground font-normal">→</span>
-                              <span className={c.planned > 0 && c.bought >= c.planned ? 'text-emerald-600' : c.bought > 0 ? 'text-foreground' : 'text-rose-500'}>{c.bought}</span>
-                            </span>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      {cats.map(c => (
+                        <span key={c.label} className="inline-flex items-center gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-1.5 py-0.5 text-[10.5px]">
+                          <span className="text-muted-foreground">{c.label}</span>
+                          <span className="tabular-nums font-semibold text-foreground/80">
+                            {c.planned}
+                            <span className="mx-0.5 text-muted-foreground font-normal">→</span>
+                            <span className={c.planned > 0 && c.bought >= c.planned ? 'text-emerald-600' : c.bought > 0 ? 'text-foreground' : 'text-rose-500'}>{c.bought}</span>
                           </span>
-                        ))}
-                      </div>
-                    )}
-                    {b.forecastPct < 100 && (
-                      <p className="text-[10.5px] font-bold text-rose-600 tabular-nums mt-1" title="Відставання від норми на дату (у відсоткових пунктах плану)">
-                        Відставання: −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
-                      </p>
-                    )}
-                    <BrandReason segmentName={b.name} draft={reasonDraft} />
+                        </span>
+                      ))}
+                      {b.forecastPct < 100 && (
+                        <span className="text-[10.5px] font-bold text-rose-600 tabular-nums" title="Відставання від норми на дату (у відсоткових пунктах плану)">
+                          Відставання −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
+                        </span>
+                      )}
+                      <BrandReason segmentName={b.name} draft={reasonDraft} className="ml-auto" />
+                    </div>
                   </div>
                 );
               })}
@@ -432,29 +430,22 @@ function Amt({ children }: { children: React.ReactNode }) {
  * збереження — зберігання додамо після виверки борду). `draft` — болванка
  * з числами для кнопки «Підставити числа».
  */
-function BrandReason({ segmentName, draft }: { segmentName: string; draft: string }) {
+function BrandReason({ segmentName, draft, className = '' }: { segmentName: string; draft: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState('');
   const [text, setText] = useState('');
   const ta = 'w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white/70 px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
   const openDialog = () => { setText(saved); setOpen(true); };
   return (
-    <div className="mt-1.5">
-      {saved ? (
-        <div className="rounded-lg bg-[#f7f9fc] border border-[#e8ecf5] px-3 py-2 flex items-start justify-between gap-2">
-          <p className="text-[12px] text-foreground/90 whitespace-pre-wrap break-words min-w-0">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold block mb-0.5">Причина за стандартом</span>
-            {saved}
-          </p>
-          <button onClick={openDialog} className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-600 hover:bg-slate-500/10 transition-colors">
-            <PenLine className="h-3 w-3" /> Редагувати
-          </button>
-        </div>
-      ) : (
-        <button onClick={openDialog} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-500/10 border border-slate-300/50 hover:bg-slate-500/15 transition-colors">
-          <PenLine className="h-3.5 w-3.5" /> Причина за стандартом
-        </button>
-      )}
+    <>
+      <button
+        onClick={openDialog}
+        title={saved || 'Причина за стандартом'}
+        className={`inline-flex items-center gap-1.5 max-w-[260px] px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${saved ? 'text-emet-blue bg-emet-blue/10 border-emet-blue/25 hover:bg-emet-blue/15' : 'text-slate-600 bg-slate-500/10 border-slate-300/50 hover:bg-slate-500/15'} ${className}`}
+      >
+        <PenLine className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{saved || 'Причина за стандартом'}</span>
+      </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
@@ -491,7 +482,7 @@ function BrandReason({ segmentName, draft }: { segmentName: string; draft: strin
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 
