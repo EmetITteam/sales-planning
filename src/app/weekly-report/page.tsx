@@ -343,18 +343,8 @@ export default function WeeklyReportPage() {
               })}
             </div>
 
-            {/* Ручні поля (не авто) */}
-            <div className="glass-card p-4 md:p-5 space-y-2">
-              <h2 className="text-[13px] font-bold">Заповнюється РМ вручну (не з борду)</h2>
-              <ul className="text-[12px] text-muted-foreground space-y-1 list-disc pl-5">
-                <li><b>Причина за стандартом</b> (категорія → N із M → факт → <i>висновок</i>) — числа вище, висновок вручну.</li>
-                <li><b>Дія на тиждень / фокус</b> — рішення РМ.</li>
-                <li><b>№8 Обіцяв минулого тижня → факт</b> (виконано / ні, чому) — потребує реєстру обіцянок.</li>
-              </ul>
-              <p className="text-[11px] text-amber-700 mt-2">
-                Заборонені формулювання без цифр: «немає потреби», «є тенденція», «запаси стоять», «літо/відпустки», «це процес», «мають купити» без переліку і дат.
-              </p>
-            </div>
+            {/* Ручні поля (не авто) — вводить РМ */}
+            <ManualFields />
           </>
         )}
       </main>
@@ -380,4 +370,48 @@ function PassportCell({ label, value, sub, color }: {
 /** Грошове значення, що ховається у режимі «Сховати суми» (клас .amount). */
 function Amt({ children }: { children: React.ReactNode }) {
   return <span className="amount">{children}</span>;
+}
+
+/**
+ * Ручні поля звіту — вводить РМ під час наради. Локальний стан (тестова
+ * сторінка, без збереження на бекенд). Три поля за пунктами регламенту +
+ * загальний «Висновок».
+ */
+function ManualFields() {
+  const [cause, setCause] = useState('');
+  const [action, setAction] = useState('');
+  const [promise, setPromise] = useState('');
+  const [conclusion, setConclusion] = useState('');
+  const ta = 'w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white/70 px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
+  return (
+    <div className="glass-card p-4 md:p-5 space-y-4">
+      <h2 className="text-[13px] font-bold">Заповнюється РМ вручну (не з борду)</h2>
+
+      <div className="space-y-1.5">
+        <label className="text-[12px] font-semibold">Причина за стандартом</label>
+        <p className="text-[11px] text-muted-foreground -mt-0.5">категорія → N із M → факт → <i>висновок</i> (числа вище, висновок словами)</p>
+        <textarea value={cause} onChange={e => setCause(e.target.value)} rows={3} maxLength={2000} placeholder="Напр.: Активні 78 запл., купили 32 (36%) — просів Petaran, 4 з 12 не відвантажили замовлення…" className={ta} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[12px] font-semibold">Дія на тиждень / фокус</label>
+        <textarea value={action} onChange={e => setAction(e.target.value)} rows={3} maxLength={2000} placeholder="Рішення РМ: кого відвідати, який бренд дотиснути, дедлайни…" className={ta} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[12px] font-semibold">№8 Обіцяв минулого тижня → факт</label>
+        <p className="text-[11px] text-muted-foreground -mt-0.5">виконано / ні, чому</p>
+        <textarea value={promise} onChange={e => setPromise(e.target.value)} rows={3} maxLength={2000} placeholder="Що обіцяв минулого тижня і що з того по факту сталося…" className={ta} />
+      </div>
+
+      <div className="space-y-1.5 pt-2 border-t border-[#eef1f7]">
+        <label className="text-[12px] font-bold">Висновок</label>
+        <textarea value={conclusion} onChange={e => setConclusion(e.target.value)} rows={4} maxLength={3000} placeholder="Загальний висновок по регіону за тиждень…" className={ta} />
+      </div>
+
+      <p className="text-[11px] text-amber-700">
+        Заборонені формулювання без цифр: «немає потреби», «є тенденція», «запаси стоять», «літо/відпустки», «це процес», «мають купити» без переліку і дат.
+      </p>
+    </div>
+  );
 }
