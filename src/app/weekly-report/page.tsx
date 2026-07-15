@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
+import { PeriodFilter } from '@/components/layout/period-filter';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData, mapSegmentCode } from '@/lib/onec-adapters';
 import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
@@ -33,8 +34,6 @@ import { pctOf, calcForecastPercent, formatUSD, formatPct } from '@/lib/format';
 import { isStrategicKpiLogin } from '@/lib/feature-flags';
 import { ArrowLeft, ClipboardList, PenLine, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /** Ключі категорій клієнтів (як у planAgg/regionStats byCategory). */
 type BrandCatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
@@ -56,7 +55,10 @@ export default function WeeklyReportPage() {
     if (user && !allowed) router.replace('/');
   }, [user, allowed, router]);
 
-  const asOfIso = todayIso();
+  // Тиждень з фільтра — «накопичувально з 1-го станом на кінець вибраного тижня».
+  // weekEnd з currentPeriod (той самий стор що у планінгу). asOfDate → 1С дає
+  // факт до цієї дати включно; passedWD рахується до неї ж.
+  const asOfIso = currentPeriod.weekEnd;
   const periodKey = currentPeriod.month.slice(0, 7); // 'YYYY-MM'
 
   // Action 5 — для admin/director проксується на директора (усі регіони).
@@ -234,6 +236,7 @@ export default function WeeklyReportPage() {
               Паспорт наради · накопичувально з 1-го · станом на {asOfIso}
             </p>
           </div>
+          <PeriodFilter />
           <select
             value={effectiveCode ?? ''}
             onChange={e => setSelectedCode(e.target.value)}
