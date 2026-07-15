@@ -391,10 +391,10 @@ function PassportCell({ label, value, sub, color }: {
     good: 'text-emerald-600', warn: 'text-amber-600', bad: 'text-rose-600', neutral: 'text-foreground',
   }[color];
   return (
-    <div className="rounded-xl border border-[#eef1f7] bg-[#fafbfe] px-3 py-2.5">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
-      <p className={`text-[22px] font-bold tabular-nums leading-tight mt-0.5 ${c}`}>{value}</p>
-      {sub && <p className="text-[10.5px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
+    <div className="min-w-0 rounded-xl border border-[#eef1f7] bg-[#fafbfe] px-3 py-2.5">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold leading-tight min-h-[2.2em] flex items-start">{label}</p>
+      <p className={`text-[22px] font-bold tabular-nums leading-tight mt-1 ${c}`}>{value}</p>
+      {sub && <p className="text-[10.5px] text-muted-foreground mt-1 leading-snug break-words">{sub}</p>}
     </div>
   );
 }
