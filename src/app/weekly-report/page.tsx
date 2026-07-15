@@ -328,7 +328,7 @@ export default function WeeklyReportPage() {
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
                       </span>
                     </div>
-                    {(cats.length > 0 || b.forecastPct < 100) && (
+                    {cats.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1 mt-1.5">
                         {cats.map(c => (
                           <span key={c.label} className="inline-flex items-center gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-1.5 py-0.5 text-[10.5px]">
@@ -340,12 +340,12 @@ export default function WeeklyReportPage() {
                             </span>
                           </span>
                         ))}
-                        {b.forecastPct < 100 && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 border border-rose-200 px-1.5 py-0.5 text-[10.5px] font-bold text-rose-600 tabular-nums" title="Відставання від норми на дату (у відсоткових пунктах плану)">
-                            Відставання −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
-                          </span>
-                        )}
                       </div>
+                    )}
+                    {b.forecastPct < 100 && (
+                      <p className="text-[10.5px] font-bold text-rose-600 tabular-nums mt-1" title="Відставання від норми на дату (у відсоткових пунктах плану)">
+                        Відставання: −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
+                      </p>
                     )}
                   </div>
                 );
