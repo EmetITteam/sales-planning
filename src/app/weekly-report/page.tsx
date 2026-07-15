@@ -359,6 +359,9 @@ export default function WeeklyReportPage() {
                             <span className="mx-0.5 text-muted-foreground font-normal">→</span>
                             <span className={c.planned > 0 && c.bought >= c.planned ? 'text-emerald-600' : c.bought > 0 ? 'text-foreground' : 'text-rose-500'}>{c.bought}</span>
                           </span>
+                          {c.planned > 0 && (
+                            <span className="tabular-nums text-muted-foreground/70">· {pctOf(c.bought, c.planned).toFixed(0)}%</span>
+                          )}
                         </span>
                       ))}
                       {b.forecastPct < 100 && (
@@ -366,7 +369,10 @@ export default function WeeklyReportPage() {
                           Відставання −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
                         </span>
                       )}
-                      <BrandReason segmentName={b.name} draft={reasonDraft} className="ml-auto" />
+                      <span className="ml-auto flex items-center gap-1.5">
+                        <BrandNote segmentName={b.name} label="Дія" placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
+                        <BrandNote segmentName={b.name} label="Причина" draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
+                      </span>
                     </div>
                   </div>
                 );
@@ -431,7 +437,9 @@ function Amt({ children }: { children: React.ReactNode }) {
  * збереження — зберігання додамо після виверки борду). `draft` — болванка
  * з числами для кнопки «Підставити числа».
  */
-function BrandReason({ segmentName, draft, className = '' }: { segmentName: string; draft: string; className?: string }) {
+function BrandNote({ segmentName, label, placeholder, hint, draft, className = '' }: {
+  segmentName: string; label: string; placeholder: string; hint?: string; draft?: string; className?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState('');
   const [text, setText] = useState('');
@@ -441,33 +449,33 @@ function BrandReason({ segmentName, draft, className = '' }: { segmentName: stri
     <>
       <button
         onClick={openDialog}
-        title={saved || 'Причина за стандартом'}
-        className={`inline-flex items-center gap-1.5 max-w-[260px] px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${saved ? 'text-emet-blue bg-emet-blue/10 border-emet-blue/25 hover:bg-emet-blue/15' : 'text-slate-600 bg-slate-500/10 border-slate-300/50 hover:bg-slate-500/15'} ${className}`}
+        title={saved || label}
+        className={`inline-flex items-center gap-1.5 max-w-[200px] px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${saved ? 'text-emet-blue bg-emet-blue/10 border-emet-blue/25 hover:bg-emet-blue/15' : 'text-slate-600 bg-slate-500/10 border-slate-300/50 hover:bg-slate-500/15'} ${className}`}
       >
         <PenLine className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">{saved || 'Причина за стандартом'}</span>
+        <span className="truncate">{saved ? `${label}: ${saved}` : label}</span>
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
-          <DialogTitle className="text-[15px]">Причина за стандартом · {segmentName}</DialogTitle>
-          <p className="text-[12px] text-muted-foreground -mt-1">
-            категорія → N із M → факт → <i>висновок</i> (числа з борду, висновок словами).
-          </p>
-          <button
-            type="button"
-            onClick={() => setText(t => (t.trim() ? t : `${draft}. Висновок: `))}
-            className="self-start inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emet-blue bg-emet-blue/10 border border-emet-blue/25 hover:bg-emet-blue/15 transition-colors"
-          >
-            Підставити числа
-          </button>
+          <DialogTitle className="text-[15px]">{label} · {segmentName}</DialogTitle>
+          {hint && <p className="text-[12px] text-muted-foreground -mt-1">{hint}</p>}
+          {draft !== undefined && (
+            <button
+              type="button"
+              onClick={() => setText(t => (t.trim() ? t : `${draft}. Висновок: `))}
+              className="self-start inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emet-blue bg-emet-blue/10 border border-emet-blue/25 hover:bg-emet-blue/15 transition-colors"
+            >
+              Підставити числа
+            </button>
+          )}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             autoFocus
             rows={4}
             maxLength={2000}
-            placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…"
+            placeholder={placeholder}
             className={ta}
           />
           <div className="flex flex-col gap-2 pt-1">
@@ -493,19 +501,13 @@ function BrandReason({ segmentName, draft, className = '' }: { segmentName: stri
  * загальний «Висновок».
  */
 function ManualFields() {
-  const [action, setAction] = useState('');
   const [promise, setPromise] = useState('');
   const [conclusion, setConclusion] = useState('');
   const ta = 'w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white/70 px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
   return (
     <div className="glass-card p-4 md:p-5 space-y-4">
       <h2 className="text-[13px] font-bold">Заповнюється РМ вручну (не з борду)</h2>
-      <p className="text-[11px] text-muted-foreground -mt-2">«Причина за стандартом» — під кожним брендом вище (по кнопці).</p>
-
-      <div className="space-y-1.5">
-        <label className="text-[12px] font-semibold">Дія на тиждень / фокус</label>
-        <textarea value={action} onChange={e => setAction(e.target.value)} rows={3} maxLength={2000} placeholder="Рішення РМ: кого відвідати, який бренд дотиснути, дедлайни…" className={ta} />
-      </div>
+      <p className="text-[11px] text-muted-foreground -mt-2">«Дія» і «Причина за стандартом» — під кожним брендом вище (по кнопках).</p>
 
       <div className="space-y-1.5">
         <label className="text-[12px] font-semibold">Обіцяв минулого тижня → факт</label>
