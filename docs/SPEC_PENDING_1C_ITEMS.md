@@ -4,7 +4,12 @@
 
 **Виконані позиції** → [ARCHIVE_SPECS_RESOLVED.md](./ARCHIVE_SPECS_RESOLVED.md) (Action A `getClientFocus`, Action C `isReserved`, Action 5 `includeAll`, Bug 1 isReserved-sync, Bug 2 checkActivities, clientStats discrepancy).
 
-**✅ Усі pending-позиції закриті.** Action B (`getClientActivationPlan`) доставлено 1С і інтегровано 2026-05-28 (commit `6d4a221`, Hero Card 3 на /clients). ⚠️ Дрібниця: 1С шле `totalInCategory` як **string** ("120"), а не number — обробляємо coerce-ом; нам це поле і так не потрібне (категорії рахуємо самі). Спека нижче лишена для довідки.
+**🆕 Pending (2026-07-10) — борд «Візити»:** три методи для 1С:
+- `getActivityPlan` + `getActivityPlansBulk` — **план** активностей (скільки візитів по категорії). → [ONEC_ACTION_ACTIVITY_PLAN_SPEC.md](./ONEC_ACTION_ACTIVITY_PLAN_SPEC.md). Зараз тільки зустрічі, обидва разом.
+- `getVisitsBulk` — **факт** візитів (для історії + звірки), категорія на місяць візиту. → [ONEC_ACTION_VISITS_SPEC.md](./ONEC_ACTION_VISITS_SPEC.md).
+- Загальна спека борду → [VISITS_BOARD_SPEC.md](./VISITS_BOARD_SPEC.md).
+
+**✅ Раніше все було закрито.** Action B (`getClientActivationPlan`) доставлено 1С і інтегровано 2026-05-28 (commit `6d4a221`, Hero Card 3 на /clients). ⚠️ Дрібниця: 1С шле `totalInCategory` як **string** ("120"), а не number — обробляємо coerce-ом; нам це поле і так не потрібне (категорії рахуємо самі). Спека нижче лишена для довідки.
 
 ---
 

@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import { PeriodFilter } from '@/components/layout/period-filter';
+import { MetricCard } from '@/components/dashboard/metric-card';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData, mapSegmentCode } from '@/lib/onec-adapters';
 import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
@@ -254,26 +255,40 @@ export default function WeeklyReportPage() {
 
         {region && (
           <>
-            {/* Верхній рівень: Паспорт регіону — Виконання / розрив-зараз / темп / мин.міс (+ Заплановано) */}
-            <div className="glass-card p-4 md:p-5">
-              <h2 className="text-[13px] font-bold mb-1">Паспорт регіону · {region.regionName}</h2>
-              <p className="text-[11px] text-muted-foreground mb-3">
-                Пройдено {passedWD} з {totalWD} роб. днів місяця ({Math.round(pace * 100)}%). Розрив рахується <b>на сьогодні</b> (норма на дату), а не за весь місяць.
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <PassportCell label="Виконання" value={formatPct(pct1)} sub={<><Amt>{formatUSD(totalFact)}</Amt> / <Amt>{formatUSD(totalPlan)}</Amt></>} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
-                <PassportCell
-                  label="Розрив на сьогодні"
-                  value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в плані'}
-                  sub={<>має бути {Math.round(pace * 100)}% · норма <Amt>{formatUSD(regionNormToDate)}</Amt></>}
-                  color={regionGapNow > 0.5 ? 'bad' : 'good'}
-                />
-                <PassportCell label="Прогноз темпу" value={formatPct(pct3)} sub="факт на кінець міс. при темпі" color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
-                <PassportCell label="Минулий місяць" value={<Amt>{delta7 >= 0 ? '+' : ''}{formatUSD(delta7)}</Amt>} sub={<>факт мин.: <Amt>{formatUSD(prevFact)}</Amt></>} color={delta7 >= 0 ? 'good' : 'bad'} />
+            {/* Верхній рівень: Паспорт регіону — hero-картки (стиль борду MetricCard) */}
+            <div>
+              <div className="flex items-baseline justify-between gap-2 mb-2 flex-wrap">
+                <h2 className="text-[14px] font-bold">Паспорт регіону · {region.regionName}</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Пройдено {passedWD}/{totalWD} роб. днів ({Math.round(pace * 100)}%) · розрив <b>на сьогодні</b> · Заплановано (фінал.): <b className="text-foreground">{formatPct(plannedPct)}</b> · <Amt>{formatUSD(plannedFinalized)}</Amt>
+                </p>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-2">
-                Заплановано (фіналізовано): <b className="text-foreground">{formatPct(plannedPct)}</b> · <Amt>{formatUSD(plannedFinalized)}</Amt>
-              </p>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <MetricCard
+                  index={0} ambient={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'}
+                  iconColor={pct1 >= 100 ? 'text-emerald-500' : pct3 >= 100 ? 'text-amber-500' : 'text-rose-500'}
+                  label="Виконання" value={formatPct(pct1)}
+                  caption={<span className="text-muted-foreground"><Amt>{formatUSD(totalFact)}</Amt> / <Amt>{formatUSD(totalPlan)}</Amt></span>}
+                />
+                <MetricCard
+                  index={1} ambient={regionGapNow > 0.5 ? 'bad' : 'good'}
+                  iconColor={regionGapNow > 0.5 ? 'text-rose-500' : 'text-emerald-500'}
+                  label="Розрив на сьогодні" value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в плані'}
+                  caption={<span className="text-muted-foreground">має бути {Math.round(pace * 100)}% · норма <Amt>{formatUSD(regionNormToDate)}</Amt></span>}
+                />
+                <MetricCard
+                  index={2} ambient={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'}
+                  iconColor={pct3 >= 100 ? 'text-emerald-500' : pct3 >= 80 ? 'text-amber-500' : 'text-rose-500'}
+                  label="Прогноз темпу" value={formatPct(pct3)}
+                  caption={<span className="text-muted-foreground">факт на кінець міс. при темпі</span>}
+                />
+                <MetricCard
+                  index={3} ambient={delta7 >= 0 ? 'good' : 'bad'}
+                  iconColor={delta7 >= 0 ? 'text-emerald-500' : 'text-rose-500'}
+                  label="Минулий місяць" value={<Amt>{delta7 >= 0 ? '+' : ''}{formatUSD(delta7)}</Amt>}
+                  caption={<span className="text-muted-foreground">факт мин.: <Amt>{formatUSD(prevFact)}</Amt></span>}
+                />
+              </div>
             </div>
 
             {/* Розбивка клієнтів по 1С-категорії (унікальні): заплановано / база / купили */}
@@ -290,7 +305,8 @@ export default function WeeklyReportPage() {
               fact={aggregatedFact}
               unplanned={aggregatedUnplanned}
               plan1C={totalPlan}
-              title={`${region.regionName} (планування)`}
+              title={region.regionName}
+              titleNote="планування"
               loading={statsLoading && !aggregatedFact}
             />
 
@@ -322,18 +338,18 @@ export default function WeeklyReportPage() {
                 return (
                   <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
                     <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_80px_130px] gap-x-3 gap-y-1 items-center text-[13px]">
-                      <span className="col-span-2 md:col-span-1">
+                      <span className="col-span-2 md:col-span-1 min-w-0">
                         <span className="font-bold block leading-tight text-[15px]">{b.name}</span>
-                        <span className="text-[10.5px] text-muted-foreground leading-tight flex items-center gap-2 flex-wrap">
-                          <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
+                        <span className="mt-1 text-[10.5px] text-muted-foreground leading-tight flex items-center gap-2 whitespace-nowrap overflow-x-auto">
+                          <span className="shrink-0"><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
                           {b.plan > 0 && (
                             <>
-                              <span className="text-muted-foreground/40">·</span>
-                              <span><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span><span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span></span>
+                              <span className="text-muted-foreground/40 shrink-0">·</span>
+                              <span className="shrink-0"><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span><span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span></span>
                             </>
                           )}
-                          <span className="text-muted-foreground/40">·</span>
-                          <span className="text-muted-foreground">Мин. міс. <span className="amount font-semibold">{formatUSD(b.prevFact)}</span> / {b.prevPct.toFixed(1)}%</span>
+                          <span className="text-muted-foreground/40 shrink-0">·</span>
+                          <span className="text-muted-foreground shrink-0">Мин. міс. <span className="amount font-semibold">{formatUSD(b.prevFact)}</span> / {b.prevPct.toFixed(1)}%</span>
                         </span>
                       </span>
                       <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
@@ -401,21 +417,6 @@ export default function WeeklyReportPage() {
         )}
       </main>
     </>
-  );
-}
-
-function PassportCell({ label, value, sub, color }: {
-  label: string; value: React.ReactNode; sub?: React.ReactNode; color: 'good' | 'warn' | 'bad' | 'neutral';
-}) {
-  const c = {
-    good: 'text-emerald-600', warn: 'text-amber-600', bad: 'text-rose-600', neutral: 'text-foreground',
-  }[color];
-  return (
-    <div className="min-w-0 rounded-xl border border-[#eef1f7] bg-[#fafbfe] px-3 py-2.5">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold leading-tight min-h-[2.2em] flex items-start">{label}</p>
-      <p className={`text-[22px] font-bold tabular-nums leading-tight mt-1 ${c}`}>{value}</p>
-      {sub && <p className="text-[10.5px] text-muted-foreground mt-1 leading-snug break-words">{sub}</p>}
-    </div>
   );
 }
 
