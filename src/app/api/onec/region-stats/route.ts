@@ -20,7 +20,7 @@
 import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
-import { aggregateRegionStats } from '@/lib/region-stats-aggregate';
+import { aggregateRegionStats, aggregateClientCategoryStats } from '@/lib/region-stats-aggregate';
 import { resolveRegionOverrides } from '@/lib/region-access';
 
 // Vercel: дай функції до 60с — 21 менеджер × 2 виклики 1С (Action 2 + Action 3)
@@ -201,6 +201,19 @@ async function handlePost(request: NextRequest) {
     gapActivationClientIds: Array.isArray(gapActivationClientIds) ? gapActivationClientIds : null,
   });
 
+  // Унікальні клієнти з планом (хоча б в одному бренді). Бакети приходять у
+  // форматі `${SEGMENT}|${clientId}` → витягуємо clientId і дедуплимо.
+  const plannedClientIdSet = new Set<string>();
+  for (const arr of [forecastClientIds, gapNewClientIds, gapActivationClientIds]) {
+    if (Array.isArray(arr)) {
+      for (const key of arr) {
+        const cid = String(key).split('|')[1] || '';
+        if (cid) plannedClientIdSet.add(cid);
+      }
+    }
+  }
+  const clientCategory = aggregateClientCategoryStats(managerInputs, Array.from(plannedClientIdSet));
+
   const successCount = results.filter(r => r.clientsResp && r.factResp).length;
   if (successCount < safeLogins.length) {
     console.warn('[region-stats] partial data', {
@@ -222,6 +235,7 @@ async function handlePost(request: NextRequest) {
   }
   return Response.json({
     bySegment: aggregated.bySegment,
+    clientCategory,
     meta: {
       period,
       logins: safeLogins.length,
