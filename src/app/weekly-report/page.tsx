@@ -22,7 +22,7 @@ import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import { useOneCData } from '@/lib/use-onec-data';
-import { adaptRegionData } from '@/lib/onec-adapters';
+import { adaptRegionData, mapSegmentCode } from '@/lib/onec-adapters';
 import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { useRegionStats } from '@/lib/use-region-stats';
@@ -33,6 +33,15 @@ import { isStrategicKpiLogin } from '@/lib/feature-flags';
 import { ArrowLeft, ClipboardList } from 'lucide-react';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/** Категорії клієнтів для per-brand розбивки (заплановано → купили). */
+const BRAND_CATS: { key: 'active' | 'sleeping' | 'lost' | 'new' | 'none'; label: string }[] = [
+  { key: 'active', label: 'Активні' },
+  { key: 'sleeping', label: 'Сплячі' },
+  { key: 'lost', label: 'Втрачені' },
+  { key: 'new', label: 'Нові' },
+  { key: 'none', label: 'БЗ' },
+];
 
 /** Мітка «В ПЛАНІ / ВІДСТАВАННЯ» за темпом виконання (як статус-колір борду). */
 function markOf(forecastPct: number): { label: string; cls: string } {
@@ -182,6 +191,18 @@ export default function WeeklyReportPage() {
     }))
     .sort((a, b) => b.plan - a.plan);
 
+  // Per-brand розбивка клієнтів по категоріях: заплановано (план) → купили (факт).
+  // planAgg.bySegment keyed by raw segment_code → нормалізуємо через mapSegmentCode;
+  // regionStats.bySegment уже нормалізований. Джойн по коду бренда.
+  const planSegNorm: Record<string, NonNullable<typeof planAgg>['bySegment'][string]> = {};
+  if (planAgg) for (const [k, v] of Object.entries(planAgg.bySegment)) planSegNorm[mapSegmentCode(k)] = v;
+  const brandCats = (code: string) =>
+    BRAND_CATS.map(c => ({
+      label: c.label,
+      planned: planSegNorm[code]?.byCategory[c.key]?.plannedCount ?? 0,
+      bought: regionStats?.bySegment[code]?.byCategory[c.key]?.factCount ?? 0,
+    })).filter(x => x.planned > 0 || x.bought > 0);
+
   if (!user || !allowed) return null;
 
   const dataLoading = loading && !region;
@@ -246,24 +267,44 @@ export default function WeeklyReportPage() {
 
             {/* №2 По брендах: % + мітка */}
             <div className="glass-card overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[#e2e7ef] flex items-center justify-between">
-                <h2 className="text-[13px] font-bold">№2 По брендах · % + мітка</h2>
-                <span className="text-[11px] text-muted-foreground">{brandRows.length} брендів</span>
+              <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[13px] font-bold">№2 По брендах · % + мітка</h2>
+                  <span className="text-[11px] text-muted-foreground">{brandRows.length} брендів</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Під брендом — клієнти по категоріях: <b>заплановано → купили</b>.</p>
               </div>
               <div className="hidden md:grid grid-cols-[1.4fr_1fr_1fr_80px_140px] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
                 <span>Бренд</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Мітка</span>
               </div>
               {brandRows.map(b => {
                 const mk = markOf(b.forecastPct);
+                const cats = brandCats(b.code);
                 return (
-                  <div key={b.code} className="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_80px_140px] gap-x-3 gap-y-1 px-4 py-2.5 items-center text-[13px] border-b border-[#f0f2f8] last:border-b-0">
-                    <span className="font-bold col-span-2 md:col-span-1">{b.name}</span>
-                    <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
-                    <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(b.fact)}</span>
-                    <span className={`text-right font-bold tabular-nums ${b.pct >= 100 ? 'text-emerald-600' : b.pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(b.pct)}</span>
-                    <span className="text-right">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
-                    </span>
+                  <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
+                    <div className="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_80px_140px] gap-x-3 gap-y-1 items-center text-[13px]">
+                      <span className="font-bold col-span-2 md:col-span-1">{b.name}</span>
+                      <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
+                      <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(b.fact)}</span>
+                      <span className={`text-right font-bold tabular-nums ${b.pct >= 100 ? 'text-emerald-600' : b.pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(b.pct)}</span>
+                      <span className="text-right">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
+                      </span>
+                    </div>
+                    {cats.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {cats.map(c => (
+                          <span key={c.label} className="inline-flex items-center gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-1.5 py-0.5 text-[10.5px]">
+                            <span className="text-muted-foreground">{c.label}</span>
+                            <span className="tabular-nums font-semibold text-foreground/80">
+                              {c.planned}
+                              <span className="mx-0.5 text-muted-foreground font-normal">→</span>
+                              <span className={c.planned > 0 && c.bought >= c.planned ? 'text-emerald-600' : c.bought > 0 ? 'text-foreground' : 'text-rose-500'}>{c.bought}</span>
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
