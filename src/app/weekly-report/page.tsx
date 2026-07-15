@@ -153,6 +153,13 @@ export default function WeeklyReportPage() {
   const pct3 = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);  // №3
   const delta7 = totalFact - prevFact;                                        // №7 $(±)
 
+  // === Розрив НА СЬОГОДНІ (а не за весь місяць) ===
+  // Норма-на-дату = план × пройдені_роб.дні / усі_роб.дні. Розрив = норма − факт.
+  // Якщо факт ≥ норми → розриву немає («в темпі»); інакше відставання на різницю.
+  const pace = totalWD > 0 ? passedWD / totalWD : 0;
+  const regionNormToDate = totalPlan * pace;
+  const regionGapNow = regionNormToDate - totalFact; // >0 = відставання від темпу
+
   // Заплановано (фіналізовані forecast+gap) — для №4 регіону
   const plannedFinalized = useMemo(() => {
     if (!aggregatedPlan) return 0;
@@ -215,15 +222,26 @@ export default function WeeklyReportPage() {
 
         {region && (
           <>
-            {/* Паспорт регіону — №1 / №3 / №4 / №7 */}
+            {/* Паспорт регіону — №1 / розрив-зараз / №3 / №7 (+ №4 нижче) */}
             <div className="glass-card p-4 md:p-5">
-              <h2 className="text-[13px] font-bold mb-3">Паспорт регіону · {region.regionName}</h2>
+              <h2 className="text-[13px] font-bold mb-1">Паспорт регіону · {region.regionName}</h2>
+              <p className="text-[11px] text-muted-foreground mb-3">
+                Пройдено {passedWD} з {totalWD} роб. днів місяця ({Math.round(pace * 100)}%). Розрив рахується <b>на сьогодні</b> (норма на дату), а не за весь місяць.
+              </p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <PassportCell label="№1 Виконання" value={formatPct(pct1)} sub={`${formatUSD(totalFact)} / ${formatUSD(totalPlan)}`} color={pct1 >= 100 ? 'good' : pct1 >= pct3 - 0 ? 'warn' : 'bad'} />
-                <PassportCell label="№3 Прогноз темпу" value={formatPct(pct3)} sub={`${passedWD}/${totalWD} роб. днів`} color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
-                <PassportCell label="№4 Заплановано" value={formatPct(plannedPct)} sub={formatUSD(plannedFinalized)} color="neutral" />
+                <PassportCell label="№1 Виконання" value={formatPct(pct1)} sub={`${formatUSD(totalFact)} / ${formatUSD(totalPlan)}`} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
+                <PassportCell
+                  label="Розрив на сьогодні"
+                  value={regionGapNow > 0.5 ? `−${formatUSD(regionGapNow)}` : 'в темпі'}
+                  sub={`норма на дату: ${formatUSD(regionNormToDate)}`}
+                  color={regionGapNow > 0.5 ? 'bad' : 'good'}
+                />
+                <PassportCell label="№3 Прогноз темпу" value={formatPct(pct3)} sub="факт на кінець міс. при темпі" color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
                 <PassportCell label="№7 Минулий місяць" value={`${delta7 >= 0 ? '+' : ''}${formatUSD(delta7)}`} sub={`факт мин.: ${formatUSD(prevFact)}`} color={delta7 >= 0 ? 'good' : 'bad'} />
               </div>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                №4 Заплановано (фіналізовано): <b className="text-foreground">{formatPct(plannedPct)}</b> · {formatUSD(plannedFinalized)}
+              </p>
             </div>
 
             {/* №2 По брендах: % + мітка */}
@@ -265,19 +283,20 @@ export default function WeeklyReportPage() {
             <div className="glass-card overflow-hidden">
               <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
                 <h2 className="text-[13px] font-bold">№6 Розріз по менеджерах · розрив = тригер подвійних візитів</h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5">«Розрив зараз» = норма на дату ({Math.round(pace * 100)}% плану) − факт. «в темпі» = факт ≥ норми.</p>
               </div>
               <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_80px_1fr] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
-                <span>Менеджер</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Розрив</span>
+                <span>Менеджер</span><span className="text-right">План міс.</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Розрив зараз</span>
               </div>
               {managers.map(m => {
-                const gap = m.totalPlan - m.totalFact;
+                const gap = m.totalPlan * pace - m.totalFact; // норма на дату − факт
                 return (
                   <div key={m.login} className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_80px_1fr] gap-x-3 gap-y-1 px-4 py-2.5 items-center text-[13px] border-b border-[#f0f2f8] last:border-b-0">
                     <span className="font-bold col-span-2 md:col-span-1">{m.name}</span>
                     <span className="text-right font-mono amount text-[12px]">{formatUSD(m.totalPlan)}</span>
                     <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(m.totalFact)}</span>
                     <span className={`text-right font-bold tabular-nums ${m.factPercent >= 100 ? 'text-emerald-600' : m.factPercent >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(m.factPercent)}</span>
-                    <span className={`text-right font-mono amount text-[12px] ${gap > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{gap > 0 ? `−${formatUSD(gap)}` : formatUSD(-gap)}</span>
+                    <span className={`text-right font-mono amount text-[12px] font-semibold ${gap > 0.5 ? 'text-rose-600' : 'text-emerald-600'}`}>{gap > 0.5 ? `−${formatUSD(gap)}` : 'в темпі'}</span>
                   </div>
                 );
               })}
