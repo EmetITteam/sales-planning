@@ -273,7 +273,7 @@ export default function WeeklyReportPage() {
                 <MetricCard
                   index={1} ambient={regionGapNow > 0.5 ? 'bad' : 'good'}
                   iconColor={regionGapNow > 0.5 ? 'text-rose-500' : 'text-emerald-500'}
-                  label="Розрив на сьогодні" value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в плані'}
+                  label="Розрив на сьогодні" value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'В плані'}
                   caption={<span className="text-muted-foreground">має бути {Math.round(pace * 100)}% · норма <Amt>{formatUSD(regionNormToDate)}</Amt></span>}
                 />
                 <MetricCard
@@ -338,27 +338,34 @@ export default function WeeklyReportPage() {
                 return (
                   <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
                     <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_80px_130px] gap-x-3 gap-y-1 items-center text-[13px]">
-                      <span className="col-span-2 md:col-span-1 min-w-0">
-                        <span className="font-bold block leading-tight text-[15px]">{b.name}</span>
-                        <span className="mt-1 text-[10.5px] text-muted-foreground leading-tight flex items-center gap-2 whitespace-nowrap overflow-x-auto">
-                          <span className="shrink-0"><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
-                          {b.plan > 0 && (
-                            <>
-                              <span className="text-muted-foreground/40 shrink-0">·</span>
-                              <span className="shrink-0"><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span><span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span></span>
-                            </>
-                          )}
-                          <span className="text-muted-foreground/40 shrink-0">·</span>
-                          <span className="text-muted-foreground shrink-0">Мин. міс. <span className="amount font-semibold">{formatUSD(b.prevFact)}</span> / {b.prevPct.toFixed(1)}%</span>
-                        </span>
-                      </span>
+                      <span className="col-span-2 md:col-span-1 min-w-0 font-bold text-[15px] truncate">{b.name}</span>
                       <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
                       <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(b.fact)}</span>
                       <span className={`text-right font-bold tabular-nums ${b.pct >= 100 ? 'text-emerald-600' : b.pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(b.pct)}</span>
-                      <span className="text-right">
+                      <span className="text-right flex flex-col items-end gap-0.5">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
+                        {b.forecastPct < 100 && (
+                          <span className="text-[10px] font-bold text-rose-600 tabular-nums" title="Відставання від норми на дату (у відсоткових пунктах плану)">
+                            −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
+                          </span>
+                        )}
                       </span>
                     </div>
+
+                    {/* Метрики бренду — окремий full-width рядок (щоб не тіснились у колонці) */}
+                    <div className="mt-1.5 text-[10.5px] text-muted-foreground leading-tight flex items-center gap-x-2 gap-y-0.5 flex-wrap">
+                      <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
+                      {b.plan > 0 && (
+                        <>
+                          <span className="text-muted-foreground/40">·</span>
+                          <span><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span><span className="text-muted-foreground"> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span></span>
+                        </>
+                      )}
+                      <span className="text-muted-foreground/40">·</span>
+                      <span>Мин. міс. <span className="amount font-semibold">{formatUSD(b.prevFact)}</span> / {b.prevPct.toFixed(1)}%</span>
+                    </div>
+
+                    {/* Клієнти по категоріях + кнопки */}
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {cats.map(c => (
                         <span key={c.label} className="inline-flex items-center gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-1.5 py-0.5 text-[10.5px]">
@@ -373,11 +380,6 @@ export default function WeeklyReportPage() {
                           )}
                         </span>
                       ))}
-                      {b.forecastPct < 100 && (
-                        <span className="text-[10.5px] font-bold text-rose-600 tabular-nums" title="Відставання від норми на дату (у відсоткових пунктах плану)">
-                          Відставання −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
-                        </span>
-                      )}
                       <span className="ml-auto flex items-center gap-1.5">
                         <BrandNote segmentName={b.name} label="Дія" placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
                         <BrandNote segmentName={b.name} label="Причина" draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
@@ -405,7 +407,7 @@ export default function WeeklyReportPage() {
                     <span className="text-right font-mono amount text-[12px]">{formatUSD(m.totalPlan)}</span>
                     <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(m.totalFact)}</span>
                     <span className={`text-right font-bold tabular-nums ${m.factPercent >= 100 ? 'text-emerald-600' : m.factPercent >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(m.factPercent)}</span>
-                    <span className={`text-right font-mono text-[12px] font-semibold ${gap > 0.5 ? 'amount text-rose-600' : 'text-emerald-600'}`}>{gap > 0.5 ? `−${formatUSD(gap)}` : 'в плані'}</span>
+                    <span className={`text-right font-mono text-[12px] font-semibold ${gap > 0.5 ? 'amount text-rose-600' : 'text-emerald-600'}`}>{gap > 0.5 ? `−${formatUSD(gap)}` : 'В плані'}</span>
                   </div>
                 );
               })}
