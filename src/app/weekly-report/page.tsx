@@ -23,7 +23,8 @@ import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData, mapSegmentCode } from '@/lib/onec-adapters';
-import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
+import { aggregateRegion, aggregateManagers, aggregateRegionClientStats } from '@/lib/region-aggregates';
+import { ClientStatsCard } from '@/components/dashboard/client-stats-card';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { useRegionStats } from '@/lib/use-region-stats';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
@@ -80,6 +81,7 @@ export default function WeeklyReportPage() {
   );
 
   const aggregate = useMemo(() => (region ? aggregateRegion(region) : null), [region]);
+  const clientStats = useMemo(() => (region ? aggregateRegionClientStats(region) : null), [region]);
   const managers = useMemo(() => (region ? aggregateManagers(region) : []), [region]);
   const allLogins = useMemo(
     () => (region ? Array.from(new Set(region.managers.map(m => m.login).filter(Boolean))) : []),
@@ -246,26 +248,43 @@ export default function WeeklyReportPage() {
 
         {region && (
           <>
-            {/* Паспорт регіону — №1 / розрив-зараз / №3 / №7 (+ №4 нижче) */}
-            <div className="glass-card p-4 md:p-5">
-              <h2 className="text-[13px] font-bold mb-1">Паспорт регіону · {region.regionName}</h2>
-              <p className="text-[11px] text-muted-foreground mb-3">
-                Пройдено {passedWD} з {totalWD} роб. днів місяця ({Math.round(pace * 100)}%). Розрив рахується <b>на сьогодні</b> (норма на дату), а не за весь місяць.
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <PassportCell label="№1 Виконання" value={formatPct(pct1)} sub={<><Amt>{formatUSD(totalFact)}</Amt> / <Amt>{formatUSD(totalPlan)}</Amt></>} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
-                <PassportCell
-                  label="Розрив на сьогодні"
-                  value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в темпі'}
-                  sub={<>має бути {Math.round(pace * 100)}% · норма <Amt>{formatUSD(regionNormToDate)}</Amt></>}
-                  color={regionGapNow > 0.5 ? 'bad' : 'good'}
-                />
-                <PassportCell label="№3 Прогноз темпу" value={formatPct(pct3)} sub="факт на кінець міс. при темпі" color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
-                <PassportCell label="№7 Минулий місяць" value={<Amt>{delta7 >= 0 ? '+' : ''}{formatUSD(delta7)}</Amt>} sub={<>факт мин.: <Amt>{formatUSD(prevFact)}</Amt></>} color={delta7 >= 0 ? 'good' : 'bad'} />
+            {/* Hero-ряд: паспорт (4 показники + №4) + 5-та картка «Клієнти — факт купівель» */}
+            <div className="grid lg:grid-cols-[2fr_1fr] gap-4 items-start">
+              {/* Паспорт регіону — №1 / розрив-зараз / №3 / №7 (+ №4 нижче) */}
+              <div className="glass-card p-4 md:p-5">
+                <h2 className="text-[13px] font-bold mb-1">Паспорт регіону · {region.regionName}</h2>
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  Пройдено {passedWD} з {totalWD} роб. днів місяця ({Math.round(pace * 100)}%). Розрив рахується <b>на сьогодні</b> (норма на дату), а не за весь місяць.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <PassportCell label="№1 Виконання" value={formatPct(pct1)} sub={<><Amt>{formatUSD(totalFact)}</Amt> / <Amt>{formatUSD(totalPlan)}</Amt></>} color={pct1 >= 100 ? 'good' : pct3 >= 100 ? 'warn' : 'bad'} />
+                  <PassportCell
+                    label="Розрив на сьогодні"
+                    value={regionGapNow > 0.5 ? <Amt>−{formatUSD(regionGapNow)}</Amt> : 'в темпі'}
+                    sub={<>має бути {Math.round(pace * 100)}% · норма <Amt>{formatUSD(regionNormToDate)}</Amt></>}
+                    color={regionGapNow > 0.5 ? 'bad' : 'good'}
+                  />
+                  <PassportCell label="№3 Прогноз темпу" value={formatPct(pct3)} sub="факт на кінець міс. при темпі" color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
+                  <PassportCell label="№7 Минулий місяць" value={<Amt>{delta7 >= 0 ? '+' : ''}{formatUSD(delta7)}</Amt>} sub={<>факт мин.: <Amt>{formatUSD(prevFact)}</Amt></>} color={delta7 >= 0 ? 'good' : 'bad'} />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  №4 Заплановано (фіналізовано): <b className="text-foreground">{formatPct(plannedPct)}</b> · <Amt>{formatUSD(plannedFinalized)}</Amt>
+                </p>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-2">
-                №4 Заплановано (фіналізовано): <b className="text-foreground">{formatPct(plannedPct)}</b> · <Amt>{formatUSD(plannedFinalized)}</Amt>
-              </p>
+
+              {/* 5-та hero-картка — клієнти по категоріях (факт купівель / усього), як у планінгу */}
+              <ClientStatsCard
+                stats={clientStats ?? {
+                  active: { total: 0, bought: 0 },
+                  sleeping: { total: 0, bought: 0 },
+                  lost: { total: 0, bought: 0 },
+                  newClients: { total: 0, bought: 0 },
+                  totalBought: 0,
+                  totalClients: 0,
+                }}
+                loading={loading && !clientStats}
+                index={1}
+              />
             </div>
 
             {/* №5 Розклад по категоріях (Активні/Активізація/Незаплановані/Нові) */}
