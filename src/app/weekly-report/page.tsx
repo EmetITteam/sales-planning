@@ -1,0 +1,318 @@
+'use client';
+
+/**
+ * /weekly-report — «Тижневий звіт» (тестова сторінка).
+ *
+ * Авто-збір показників паспорта наради (Регламент РОП–РМ §4.4) з тих самих
+ * джерел, що RM-дашборд: getRegionData (Action 5) → aggregateRegion/Managers,
+ * usePlanningAggregate (план по категоріях, №4), useRegionStats (факт по
+ * категоріях, №5). Заповнює числову частину звіту; текстові поля (дія,
+ * причина-висновок, обіцянка→факт) лишаються для ручного вводу.
+ *
+ * Показники: №1 Виконання регіону · №3 Прогноз темпу · №6 Розріз по менеджерах
+ * (розрив) · №7 Минулий місяць $(±) · по брендах №2 %+мітка / №4 Заплановано %
+ * · №5 Розклад по категоріях (Активні/Активізація/Незаплановані/Нові).
+ *
+ * Тестова: доступ admin + strategic-kpi логіни.
+ */
+
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAppStore } from '@/lib/store';
+import { AppHeader } from '@/components/layout/app-header';
+import { useOneCData } from '@/lib/use-onec-data';
+import { adaptRegionData } from '@/lib/onec-adapters';
+import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
+import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
+import { useRegionStats } from '@/lib/use-region-stats';
+import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
+import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { pctOf, calcForecastPercent, formatUSD, formatPct } from '@/lib/format';
+import { isStrategicKpiLogin } from '@/lib/feature-flags';
+import { ArrowLeft, ClipboardList } from 'lucide-react';
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/** Мітка «В ПЛАНІ / ВІДСТАВАННЯ» за темпом виконання (як статус-колір борду). */
+function markOf(forecastPct: number): { label: string; cls: string } {
+  return forecastPct >= 100
+    ? { label: 'В ПЛАНІ', cls: 'bg-emerald-500/12 border-emerald-300/50 text-emerald-700' }
+    : { label: 'ВІДСТАВАННЯ', cls: 'bg-rose-500/12 border-rose-300/50 text-rose-700' };
+}
+
+export default function WeeklyReportPage() {
+  const router = useRouter();
+  const user = useAppStore(s => s.user);
+  const currentPeriod = useAppStore(s => s.currentPeriod);
+  const allowed = !!user && (user.role === 'admin' || isStrategicKpiLogin(user.login) || user.canViewCompanyOverview === true);
+
+  useEffect(() => {
+    if (user && !allowed) router.replace('/');
+  }, [user, allowed, router]);
+
+  const asOfIso = todayIso();
+  const periodKey = currentPeriod.month.slice(0, 7); // 'YYYY-MM'
+
+  // Action 5 — для admin/director проксується на директора (усі регіони).
+  const { data: regionResp, loading } = useOneCData(
+    'getRegionData',
+    allowed && user ? { login: user.login, period: periodKey, asOfDate: asOfIso } : null,
+  );
+  const regions = useMemo(
+    () => (regionResp ? adaptRegionData(regionResp).regions.filter(r => r.regionCode) : []),
+    [regionResp],
+  );
+
+  // Регіон за замовчуванням — Дніпро.
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const defaultCode = useMemo(() => {
+    const d = regions.find(r => /дніпро|днепр/i.test(r.regionName));
+    return d?.regionCode ?? regions[0]?.regionCode ?? null;
+  }, [regions]);
+  const effectiveCode = selectedCode ?? defaultCode;
+  const region = useMemo(
+    () => regions.find(r => r.regionCode === effectiveCode) ?? null,
+    [regions, effectiveCode],
+  );
+
+  const aggregate = useMemo(() => (region ? aggregateRegion(region) : null), [region]);
+  const managers = useMemo(() => (region ? aggregateManagers(region) : []), [region]);
+  const allLogins = useMemo(
+    () => (region ? Array.from(new Set(region.managers.map(m => m.login).filter(Boolean))) : []),
+    [region],
+  );
+
+  const { data: planAgg } = usePlanningAggregate(
+    currentPeriod.id,
+    allLogins.length > 0 ? allLogins : null,
+    currentPeriod.month,
+  );
+  const { data: regionStats, loading: statsLoading } = useRegionStats(
+    allLogins.length > 0 ? periodKey : null,
+    asOfIso,
+    allLogins.length > 0 ? allLogins : null,
+    planAgg
+      ? {
+          forecastClientIds: planAgg.forecastClientIds,
+          gapNewClientIds: planAgg.gapNewClientIds,
+          gapActivationClientIds: planAgg.gapActivationClientIds,
+        }
+      : null,
+  );
+
+  // === №5 категорії: план + факт (як у RM-дашборді) ===
+  const aggregatedPlan = useMemo(() => {
+    if (!planAgg) return null;
+    const empty = () => ({ plannedCount: 0, plannedSum: 0, plannedCountFinalized: 0, plannedSumFinalized: 0 });
+    const out = { active: empty(), sleeping: empty(), lost: empty(), new: empty(), none: empty() };
+    for (const seg of Object.values(planAgg.bySegment)) {
+      for (const cat of ['active', 'sleeping', 'lost', 'new', 'none'] as const) {
+        out[cat].plannedCount += seg.byCategory[cat].plannedCount;
+        out[cat].plannedSum += seg.byCategory[cat].plannedSum;
+        out[cat].plannedCountFinalized += seg.byCategory[cat].plannedCountFinalized ?? 0;
+        out[cat].plannedSumFinalized += seg.byCategory[cat].plannedSumFinalized ?? 0;
+      }
+    }
+    return out;
+  }, [planAgg]);
+  const aggregatedFact = useMemo(() => {
+    if (!regionStats) return null;
+    const out = {
+      active: { factCount: 0, factSum: 0 }, sleeping: { factCount: 0, factSum: 0 },
+      lost: { factCount: 0, factSum: 0 }, new: { factCount: 0, factSum: 0 }, none: { factCount: 0, factSum: 0 },
+    };
+    for (const seg of Object.values(regionStats.bySegment)) {
+      for (const cat of ['active', 'sleeping', 'lost', 'new', 'none'] as const) {
+        out[cat].factCount += seg.byCategory[cat].factCount;
+        out[cat].factSum += seg.byCategory[cat].factSum;
+      }
+    }
+    return out;
+  }, [regionStats]);
+  const aggregatedUnplanned = useMemo(() => {
+    if (!regionStats) return null;
+    let factCount = 0, factSum = 0;
+    for (const seg of Object.values(regionStats.bySegment)) {
+      factCount += seg.unplanned?.factCount ?? 0;
+      factSum += seg.unplanned?.factSum ?? 0;
+    }
+    return { factCount, factSum };
+  }, [regionStats]);
+
+  // === Робочі дні (для темпу №3) ===
+  const [py, pm] = periodKey.split('-').map(Number);
+  const totalWD = getWorkingDaysInMonth(py, pm - 1);
+  const passedWD = getPassedWorkingDays(py, pm - 1, new Date(asOfIso));
+
+  // === Показники регіону ===
+  const totalPlan = aggregate?.totalPlan ?? 0;
+  const totalFact = aggregate?.totalFact ?? 0;
+  const prevFact = aggregate?.totalPrevMonthFact ?? 0;
+  const pct1 = pctOf(totalFact, totalPlan);                                   // №1
+  const pct3 = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);  // №3
+  const delta7 = totalFact - prevFact;                                        // №7 $(±)
+
+  // Заплановано (фіналізовані forecast+gap) — для №4 регіону
+  const plannedFinalized = useMemo(() => {
+    if (!aggregatedPlan) return 0;
+    return (['active', 'sleeping', 'lost', 'new', 'none'] as const)
+      .reduce((s, c) => s + aggregatedPlan[c].plannedSumFinalized, 0);
+  }, [aggregatedPlan]);
+  const plannedPct = pctOf(plannedFinalized, totalPlan); // №4 регіону
+
+  // По брендах (№2 %+мітка): тільки сегменти з планом або фактом.
+  // (без ручного useMemo — React Compiler мемоізує сам.)
+  const brandRows = (aggregate?.segments ?? [])
+    .filter(s => s.planAmount > 0 || s.factAmount > 0)
+    .map(s => ({
+      code: s.segmentCode,
+      name: s.segmentName,
+      plan: s.planAmount,
+      fact: s.factAmount,
+      pct: pctOf(s.factAmount, s.planAmount),
+      forecastPct: calcForecastPercent(s.factAmount, s.planAmount, passedWD, totalWD),
+    }))
+    .sort((a, b) => b.plan - a.plan);
+
+  if (!user || !allowed) return null;
+
+  const dataLoading = loading && !region;
+
+  return (
+    <>
+      <AppHeader />
+      <main className="p-4 md:p-6 max-w-5xl mx-auto w-full min-w-0 space-y-5">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground cursor-pointer">
+          <ArrowLeft className="h-4 w-4" /> На головну
+        </Link>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#066aab] to-sky-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <ClipboardList className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold">Тижневий звіт регіону</h1>
+            <p className="text-[12px] text-muted-foreground">
+              Паспорт наради · накопичувально з 1-го · станом на {asOfIso}
+            </p>
+          </div>
+          <select
+            value={effectiveCode ?? ''}
+            onChange={e => setSelectedCode(e.target.value)}
+            className="h-10 px-3 text-[13px] rounded-xl border border-[#e8ebf4] bg-[#fafbfe]"
+          >
+            {regions.map(r => (
+              <option key={r.regionCode} value={r.regionCode}>{r.regionName}</option>
+            ))}
+          </select>
+        </div>
+
+        {dataLoading && (
+          <div className="glass-card p-8 text-center text-[13px] text-muted-foreground">Завантажую дані регіону…</div>
+        )}
+
+        {region && (
+          <>
+            {/* Паспорт регіону — №1 / №3 / №4 / №7 */}
+            <div className="glass-card p-4 md:p-5">
+              <h2 className="text-[13px] font-bold mb-3">Паспорт регіону · {region.regionName}</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <PassportCell label="№1 Виконання" value={formatPct(pct1)} sub={`${formatUSD(totalFact)} / ${formatUSD(totalPlan)}`} color={pct1 >= 100 ? 'good' : pct1 >= pct3 - 0 ? 'warn' : 'bad'} />
+                <PassportCell label="№3 Прогноз темпу" value={formatPct(pct3)} sub={`${passedWD}/${totalWD} роб. днів`} color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
+                <PassportCell label="№4 Заплановано" value={formatPct(plannedPct)} sub={formatUSD(plannedFinalized)} color="neutral" />
+                <PassportCell label="№7 Минулий місяць" value={`${delta7 >= 0 ? '+' : ''}${formatUSD(delta7)}`} sub={`факт мин.: ${formatUSD(prevFact)}`} color={delta7 >= 0 ? 'good' : 'bad'} />
+              </div>
+            </div>
+
+            {/* №2 По брендах: % + мітка */}
+            <div className="glass-card overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[#e2e7ef] flex items-center justify-between">
+                <h2 className="text-[13px] font-bold">№2 По брендах · % + мітка</h2>
+                <span className="text-[11px] text-muted-foreground">{brandRows.length} брендів</span>
+              </div>
+              <div className="hidden md:grid grid-cols-[1.4fr_1fr_1fr_80px_140px] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
+                <span>Бренд</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Мітка</span>
+              </div>
+              {brandRows.map(b => {
+                const mk = markOf(b.forecastPct);
+                return (
+                  <div key={b.code} className="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_80px_140px] gap-x-3 gap-y-1 px-4 py-2.5 items-center text-[13px] border-b border-[#f0f2f8] last:border-b-0">
+                    <span className="font-bold col-span-2 md:col-span-1">{b.name}</span>
+                    <span className="text-right font-mono amount text-[12px]">{formatUSD(b.plan)}</span>
+                    <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(b.fact)}</span>
+                    <span className={`text-right font-bold tabular-nums ${b.pct >= 100 ? 'text-emerald-600' : b.pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(b.pct)}</span>
+                    <span className="text-right">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* №5 Розклад по категоріях (Активні/Активізація/Незаплановані/Нові) */}
+            <CategoryStatsTable
+              plan={aggregatedPlan}
+              fact={aggregatedFact}
+              unplanned={aggregatedUnplanned}
+              plan1C={totalPlan}
+              title={`№5 · ${region.regionName}`}
+              loading={statsLoading && !aggregatedFact}
+            />
+
+            {/* №6 Розріз по менеджерах (розрив = тригер подвійних візитів) */}
+            <div className="glass-card overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
+                <h2 className="text-[13px] font-bold">№6 Розріз по менеджерах · розрив = тригер подвійних візитів</h2>
+              </div>
+              <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_80px_1fr] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
+                <span>Менеджер</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Розрив</span>
+              </div>
+              {managers.map(m => {
+                const gap = m.totalPlan - m.totalFact;
+                return (
+                  <div key={m.login} className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_80px_1fr] gap-x-3 gap-y-1 px-4 py-2.5 items-center text-[13px] border-b border-[#f0f2f8] last:border-b-0">
+                    <span className="font-bold col-span-2 md:col-span-1">{m.name}</span>
+                    <span className="text-right font-mono amount text-[12px]">{formatUSD(m.totalPlan)}</span>
+                    <span className="text-right font-mono amount text-[12px] text-emerald-700">{formatUSD(m.totalFact)}</span>
+                    <span className={`text-right font-bold tabular-nums ${m.factPercent >= 100 ? 'text-emerald-600' : m.factPercent >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(m.factPercent)}</span>
+                    <span className={`text-right font-mono amount text-[12px] ${gap > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{gap > 0 ? `−${formatUSD(gap)}` : formatUSD(-gap)}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Ручні поля (не авто) */}
+            <div className="glass-card p-4 md:p-5 space-y-2">
+              <h2 className="text-[13px] font-bold">Заповнюється РМ вручну (не з борду)</h2>
+              <ul className="text-[12px] text-muted-foreground space-y-1 list-disc pl-5">
+                <li><b>Причина за стандартом</b> (категорія → N із M → факт → <i>висновок</i>) — числа вище, висновок вручну.</li>
+                <li><b>Дія на тиждень / фокус</b> — рішення РМ.</li>
+                <li><b>№8 Обіцяв минулого тижня → факт</b> (виконано / ні, чому) — потребує реєстру обіцянок.</li>
+              </ul>
+              <p className="text-[11px] text-amber-700 mt-2">
+                Заборонені формулювання без цифр: «немає потреби», «є тенденція», «запаси стоять», «літо/відпустки», «це процес», «мають купити» без переліку і дат.
+              </p>
+            </div>
+          </>
+        )}
+      </main>
+    </>
+  );
+}
+
+function PassportCell({ label, value, sub, color }: {
+  label: string; value: string; sub?: string; color: 'good' | 'warn' | 'bad' | 'neutral';
+}) {
+  const c = {
+    good: 'text-emerald-600', warn: 'text-amber-600', bad: 'text-rose-600', neutral: 'text-foreground',
+  }[color];
+  return (
+    <div className="rounded-xl border border-[#eef1f7] bg-[#fafbfe] px-3 py-2.5">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
+      <p className={`text-[22px] font-bold tabular-nums leading-tight mt-0.5 ${c}`}>{value}</p>
+      {sub && <p className="text-[10.5px] text-muted-foreground mt-0.5 truncate" title={sub}>{sub}</p>}
+    </div>
+  );
+}
