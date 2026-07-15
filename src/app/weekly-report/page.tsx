@@ -233,7 +233,7 @@ export default function WeeklyReportPage() {
                 <PassportCell
                   label="Розрив на сьогодні"
                   value={regionGapNow > 0.5 ? `−${formatUSD(regionGapNow)}` : 'в темпі'}
-                  sub={`норма на дату: ${formatUSD(regionNormToDate)}`}
+                  sub={`має бути ${Math.round(pace * 100)}% · норма ${formatUSD(regionNormToDate)}`}
                   color={regionGapNow > 0.5 ? 'bad' : 'good'}
                 />
                 <PassportCell label="№3 Прогноз темпу" value={formatPct(pct3)} sub="факт на кінець міс. при темпі" color={pct3 >= 100 ? 'good' : pct3 >= 80 ? 'warn' : 'bad'} />
