@@ -265,6 +265,16 @@ export default function WeeklyReportPage() {
               </p>
             </div>
 
+            {/* №5 Розклад по категоріях (Активні/Активізація/Незаплановані/Нові) */}
+            <CategoryStatsTable
+              plan={aggregatedPlan}
+              fact={aggregatedFact}
+              unplanned={aggregatedUnplanned}
+              plan1C={totalPlan}
+              title={`№5 · ${region.regionName}`}
+              loading={statsLoading && !aggregatedFact}
+            />
+
             {/* №2 По брендах: % + мітка */}
             <div className="glass-card overflow-hidden">
               <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
@@ -309,16 +319,6 @@ export default function WeeklyReportPage() {
                 );
               })}
             </div>
-
-            {/* №5 Розклад по категоріях (Активні/Активізація/Незаплановані/Нові) */}
-            <CategoryStatsTable
-              plan={aggregatedPlan}
-              fact={aggregatedFact}
-              unplanned={aggregatedUnplanned}
-              plan1C={totalPlan}
-              title={`№5 · ${region.regionName}`}
-              loading={statsLoading && !aggregatedFact}
-            />
 
             {/* №6 Розріз по менеджерах (розрив = тригер подвійних візитів) */}
             <div className="glass-card overflow-hidden">
