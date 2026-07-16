@@ -131,13 +131,15 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // «Неверное имя менеджера» = логін без клієнтського ростера (колл-центр /
-  // продукт / фін тощо). Це НЕ помилка — пропускаємо, не ретраїмо.
+  // «Неверное имя менеджера» = Action 8 не приймає логін. Але це може бути
+  // реальний менеджер (колл-центр лідогенерації) — пробуємо Action 2
+  // (getClientsForPlanning), який теж віддає категорію. Решта (продукт/фін
+  // без клієнтів) лишиться skip.
   const isNoRoster = (reason: string) => /неверное имя|невірне ім|invalid manager|не найден|not found/i.test(reason);
-  const skipped = failed.filter(f => isNoRoster(f.reason));
+  const noRoster = failed.filter(f => isNoRoster(f.reason));
   const retryable = failed.filter(f => !isNoRoster(f.reason));
 
-  // Ретрай-прохід лише для СПРАВЖНІХ падінь (таймаут/http) — послідовно, 60с.
+  // Ретрай-прохід для СПРАВЖНІХ падінь Action 8 (таймаут/http) — 60с.
   const stillFailed: { login: string; reason: string }[] = [];
   for (const f of retryable) {
     const res = await callOneC<Action8Resp>('getManagerClients', { login: f.login }, 60_000);
@@ -145,12 +147,36 @@ export async function GET(request: NextRequest) {
     else stillFailed.push({ login: f.login, reason: res.reason ?? f.reason });
   }
 
+  // Fallback Action 2 для no-roster логінів (call-center). Action 2 не несе
+  // резерву → is_reserved=false (для лідогенерації резерв не застосовується).
+  type A2Resp = { clients?: Array<{ clientId?: string; category?: string; clientName?: string }> };
+  const skipped: string[] = [];
+  for (const f of noRoster) {
+    const res = await callOneC<A2Resp>('getClientsForPlanning', { login: f.login }, 45_000);
+    const arr = res.data?.clients ?? [];
+    if (res.data && arr.length > 0) {
+      successfulLogins.add(f.login);
+      const regionCode = managerRegion.get(f.login) || '';
+      for (const c of arr) {
+        const clientId = String(c.clientId ?? '').trim();
+        if (!clientId) continue;
+        fresh.push({
+          clientId, clientName: c.clientName,
+          category: mapClientCategory(c.category),
+          managerLogin: f.login, regionCode, isReserved: false,
+        });
+      }
+    } else {
+      skipped.push(f.login);
+    }
+  }
+
   // Закриваємо зниклих ТІЛЬКИ серед успішних менеджерів (упавших/skip не чіпаємо).
   const stats = await syncClientCategories(fresh, monthFirstIso, todayIso, successfulLogins);
   const mgrOk = successfulLogins.size;
   const mgrFail = stillFailed.length;
   const mgrSkipped = skipped.length;
-  console.log('[cron/sync-client-categories]', { period, managers: logins.length, mgrOk, mgrSkipped, mgrFail, failedLogins: stillFailed, ...stats });
+  console.log('[cron/sync-client-categories]', { period, managers: logins.length, mgrOk, mgrSkipped, mgrFail, skippedLogins: skipped, failedLogins: stillFailed, ...stats });
 
-  return Response.json({ ok: true, period, managers: logins.length, mgrOk, mgrSkipped, mgrFail, skippedLogins: skipped.map(s => s.login), failedLogins: stillFailed, ...stats });
+  return Response.json({ ok: true, period, managers: logins.length, mgrOk, mgrSkipped, mgrFail, skippedLogins: skipped, failedLogins: stillFailed, ...stats });
 }
