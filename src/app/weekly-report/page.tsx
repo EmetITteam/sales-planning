@@ -29,6 +29,7 @@ import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
 import { ClientCategoryUniqueTable } from '@/components/dashboard/client-category-unique-table';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { useRegionStats } from '@/lib/use-region-stats';
+import { useWeeklyNotes, type WeeklyNotesApi } from '@/lib/use-weekly-notes';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { pctOf, calcForecastPercent, formatUSD, formatPct } from '@/lib/format';
@@ -145,6 +146,9 @@ export default function WeeklyReportPage() {
     () => regions.find(r => r.regionCode === effectiveCode) ?? null,
     [regions, effectiveCode],
   );
+
+  // Замітки Тижневого звіту (Дія/Причина/Висновок) — понедельно, з версіями.
+  const notes = useWeeklyNotes(effectiveCode, currentPeriod.weekEnd);
 
   const aggregate = useMemo(() => (region ? aggregateRegion(region) : null), [region]);
   const managers = useMemo(() => (region ? aggregateManagers(region) : []), [region]);
@@ -446,8 +450,8 @@ export default function WeeklyReportPage() {
 
                     {/* Кнопки — окремий рядок, вирівняні праворуч */}
                     <div className="mt-2 flex items-center justify-end gap-1.5">
-                      <BrandNote segmentName={b.name} label="Дія" placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
-                      <BrandNote segmentName={b.name} label="Причина" draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
+                      <BrandNote segmentName={b.name} label="Дія" value={notes.get('action', b.code)?.text ?? ''} onSave={(t) => notes.save('action', b.code, t)} placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
+                      <BrandNote segmentName={b.name} label="Причина" value={notes.get('reason', b.code)?.text ?? ''} onSave={(t) => notes.save('reason', b.code, t)} draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
                     </div>
                   </div>
                 );
@@ -478,7 +482,7 @@ export default function WeeklyReportPage() {
             </div>
 
             {/* Ручні поля (не авто) — вводить РМ */}
-            <ManualFields />
+            <ManualFields notes={notes} />
           </>
         )}
       </main>
@@ -492,31 +496,38 @@ function Amt({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * «Причина за стандартом» по бренду — кнопка → діалог (стиль як у
- * «Зауваження до планування»). ЛОКАЛЬНИЙ стан (тестова сторінка, без
- * збереження — зберігання додамо після виверки борду). `draft` — болванка
- * з числами для кнопки «Підставити числа».
+ * «Дія» / «Причина за стандартом» по бренду — кнопка → діалог. Значення
+ * приходить з weekly_report_notes (`value`), збереження — append-only через
+ * `onSave` (повертає true при успіху). `draft` — болванка з числами.
  */
-function BrandNote({ segmentName, label, placeholder, hint, draft, className = '' }: {
-  segmentName: string; label: string; placeholder: string; hint?: string; draft?: string; className?: string;
+function BrandNote({ segmentName, label, placeholder, hint, draft, value, onSave, className = '' }: {
+  segmentName: string; label: string; placeholder: string; hint?: string; draft?: string;
+  value: string; onSave: (text: string) => Promise<boolean>; className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [saved, setSaved] = useState('');
   const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const ta = 'w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white/70 px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
-  const openDialog = () => { setText(saved); setOpen(true); };
+  const openDialog = () => { setText(value); setErr(null); setOpen(true); };
+  const doSave = async () => {
+    setBusy(true); setErr(null);
+    const ok = await onSave(text.trim());
+    setBusy(false);
+    if (ok) setOpen(false); else setErr('Не вдалося зберегти — спробуйте ще раз');
+  };
   return (
     <>
       <button
         onClick={openDialog}
-        title={saved || label}
-        className={`inline-flex items-center h-6 gap-1 max-w-[180px] px-2 rounded-md text-[10.5px] font-semibold border transition-colors ${saved ? 'text-emet-blue bg-emet-blue/10 border-emet-blue/25 hover:bg-emet-blue/15' : 'text-slate-600 bg-transparent border-[#e2e7ef] hover:bg-[#f5f7fb]'} ${className}`}
+        title={value || label}
+        className={`inline-flex items-center h-6 gap-1 max-w-[180px] px-2 rounded-md text-[10.5px] font-semibold border transition-colors ${value ? 'text-emet-blue bg-emet-blue/10 border-emet-blue/25 hover:bg-emet-blue/15' : 'text-slate-600 bg-transparent border-[#e2e7ef] hover:bg-[#f5f7fb]'} ${className}`}
       >
         <PenLine className="h-3 w-3 shrink-0" />
-        <span className="truncate">{saved ? `${label}: ${saved}` : label}</span>
+        <span className="truncate">{value ? `${label}: ${value}` : label}</span>
       </button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => { if (!busy) setOpen(v); }}>
         <DialogContent className="max-w-md">
           <DialogTitle className="text-[15px]">{label} · {segmentName}</DialogTitle>
           {hint && <p className="text-[12px] text-muted-foreground -mt-1">{hint}</p>}
@@ -538,14 +549,16 @@ function BrandNote({ segmentName, label, placeholder, hint, draft, className = '
             placeholder={placeholder}
             className={ta}
           />
+          {err && <p className="text-[12px] text-rose-600">{err}</p>}
           <div className="flex flex-col gap-2 pt-1">
             <button
-              onClick={() => { setSaved(text.trim()); setOpen(false); }}
-              className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-emet-blue text-white font-semibold text-[13px] active:scale-[0.98] transition-transform"
+              onClick={doSave}
+              disabled={busy}
+              className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-emet-blue text-white font-semibold text-[13px] disabled:opacity-50 active:scale-[0.98] transition-transform"
             >
-              <Check className="h-4 w-4" /> Зберегти
+              <Check className="h-4 w-4" /> {busy ? 'Зберігаю…' : 'Зберегти'}
             </button>
-            <button onClick={() => setOpen(false)} className="h-10 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-foreground">
+            <button onClick={() => { if (!busy) setOpen(false); }} className="h-10 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-foreground">
               Скасувати
             </button>
           </div>
@@ -560,24 +573,39 @@ function BrandNote({ segmentName, label, placeholder, hint, draft, className = '
  * сторінка, без збереження на бекенд). Три поля за пунктами регламенту +
  * загальний «Висновок».
  */
-function ManualFields() {
-  const [promise, setPromise] = useState('');
-  const [conclusion, setConclusion] = useState('');
+function ManualFields({ notes }: { notes: WeeklyNotesApi }) {
+  const savedConclusion = notes.get('conclusion', null)?.text ?? '';
+  const [conclusion, setConclusion] = useState(savedConclusion);
+  const [busy, setBusy] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  // Підтягуємо збережений висновок коли завантажився / змінився тиждень/регіон.
+  useEffect(() => { setConclusion(savedConclusion); }, [savedConclusion]);
   const ta = 'w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white/70 px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
+  const saveConclusion = async () => {
+    setBusy(true);
+    const ok = await notes.save('conclusion', null, conclusion.trim());
+    setBusy(false);
+    if (ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800); }
+  };
+  const dirty = conclusion.trim() !== savedConclusion.trim();
   return (
     <div className="glass-card p-4 md:p-5 space-y-4">
       <h2 className="text-[13px] font-bold">Заповнюється РМ вручну (не з борду)</h2>
-      <p className="text-[11px] text-muted-foreground -mt-2">«Дія» і «Причина за стандартом» — під кожним брендом вище (по кнопках).</p>
+      <p className="text-[11px] text-muted-foreground -mt-2">«Дія» і «Причина за стандартом» — під кожним брендом вище (по кнопках). Зберігається понедельно.</p>
 
       <div className="space-y-1.5">
-        <label className="text-[12px] font-semibold">Обіцяв минулого тижня → факт</label>
-        <p className="text-[11px] text-muted-foreground -mt-0.5">виконано / ні, чому</p>
-        <textarea value={promise} onChange={e => setPromise(e.target.value)} rows={3} maxLength={2000} placeholder="Що обіцяв минулого тижня і що з того по факту сталося…" className={ta} />
-      </div>
-
-      <div className="space-y-1.5 pt-2 border-t border-[#eef1f7]">
-        <label className="text-[12px] font-bold">Висновок</label>
+        <label className="text-[12px] font-bold">Висновок по регіону за тиждень</label>
         <textarea value={conclusion} onChange={e => setConclusion(e.target.value)} rows={4} maxLength={3000} placeholder="Загальний висновок по регіону за тиждень…" className={ta} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={saveConclusion}
+            disabled={busy || !dirty}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-emet-blue disabled:opacity-40 active:scale-[0.98] transition-transform"
+          >
+            <Check className="h-3.5 w-3.5" /> {busy ? 'Зберігаю…' : 'Зберегти висновок'}
+          </button>
+          {savedFlash && <span className="text-[11px] text-emerald-600 font-semibold">Збережено</span>}
+        </div>
       </div>
 
       <p className="text-[11px] text-amber-700">
