@@ -66,7 +66,15 @@ export function useWeeklyNotes(regionCode: string | null, weekKey: string | null
 
   const get = useCallback((field: NoteField, segmentCode: string | null): NoteLatest | undefined => map[keyOf(field, segmentCode)], [map]);
 
-  return { get, save, loading };
+  // Перелік останніх заміток поля (напр. усі «Дія» по брендах) — для чек-листа.
+  const list = useCallback((field: NoteField): { segmentCode: string | null; note: NoteLatest }[] => {
+    const prefix = `${field}|`;
+    return Object.entries(map)
+      .filter(([k]) => k.startsWith(prefix))
+      .map(([k, note]) => ({ segmentCode: k.slice(prefix.length) || null, note }));
+  }, [map]);
+
+  return { get, list, save, loading };
 }
 
 export type WeeklyNotesApi = ReturnType<typeof useWeeklyNotes>;

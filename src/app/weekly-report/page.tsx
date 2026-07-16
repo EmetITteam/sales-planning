@@ -32,6 +32,7 @@ import { useRegionStats } from '@/lib/use-region-stats';
 import { useWeeklyNotes, type WeeklyNotesApi } from '@/lib/use-weekly-notes';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
+import { getWeeksForMonth } from '@/lib/periods';
 import { pctOf, calcForecastPercent, formatUSD, formatPct } from '@/lib/format';
 import { isStrategicKpiLogin, DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 import { ArrowLeft, ClipboardList, PenLine, Check, ChevronDown, MapPin, Loader2 } from 'lucide-react';
@@ -149,6 +150,18 @@ export default function WeeklyReportPage() {
 
   // Замітки Тижневого звіту (Дія/Причина/Висновок) — понедельно, з версіями.
   const notes = useWeeklyNotes(effectiveCode, currentPeriod.weekEnd);
+  // Ключ минулого тижня (для чек-листа «Обіцяв минулого тижня» = «Дія» з нього).
+  const prevWeekKey = useMemo(() => {
+    const [wy, wm] = periodKey.split('-').map(Number);
+    const weeks = getWeeksForMonth(wy, wm - 1);
+    const idx = weeks.findIndex(w => w.weekEnd === currentPeriod.weekEnd);
+    if (idx > 0) return weeks[idx - 1].weekEnd;
+    const pm = wm - 1 === 0 ? 12 : wm - 1;
+    const py = wm - 1 === 0 ? wy - 1 : wy;
+    const pw = getWeeksForMonth(py, pm - 1);
+    return pw.length ? pw[pw.length - 1].weekEnd : null;
+  }, [periodKey, currentPeriod.weekEnd]);
+  const prevNotes = useWeeklyNotes(effectiveCode, prevWeekKey);
 
   const aggregate = useMemo(() => (region ? aggregateRegion(region) : null), [region]);
   const managers = useMemo(() => (region ? aggregateManagers(region) : []), [region]);
@@ -481,6 +494,18 @@ export default function WeeklyReportPage() {
               })}
             </div>
 
+            {/* Обіцяв минулого тижня → факт: чек-лист з прошлотижневих «Дія» */}
+            <PromiseChecklist
+              items={prevNotes.list('action')
+                .filter(x => x.segmentCode && x.note.text.trim())
+                .map(x => ({
+                  segmentCode: x.segmentCode as string,
+                  segmentName: brandRows.find(b => b.code === x.segmentCode)?.name ?? (x.segmentCode as string),
+                  actionText: x.note.text.trim(),
+                }))}
+              notes={notes}
+            />
+
             {/* Ручні поля (не авто) — вводить РМ */}
             <ManualFields notes={notes} />
           </>
@@ -573,6 +598,69 @@ function BrandNote({ segmentName, label, placeholder, hint, draft, value, onSave
  * сторінка, без збереження на бекенд). Три поля за пунктами регламенту +
  * загальний «Висновок».
  */
+/** Чек-лист «Обіцяв минулого тижня» — прошлотижневі «Дія» по брендах. */
+function PromiseChecklist({ items, notes }: {
+  items: { segmentCode: string; segmentName: string; actionText: string }[];
+  notes: WeeklyNotesApi;
+}) {
+  return (
+    <div className="glass-card p-4 md:p-5 space-y-3">
+      <div>
+        <h2 className="text-[13px] font-bold">Обіцяв минулого тижня → факт</h2>
+        <p className="text-[11px] text-muted-foreground mt-0.5">«Дія» по брендах з минулого тижня. Відзначте виконано / ні + причину.</p>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-[12px] text-muted-foreground">Минулого тижня «Дій» по брендах не збережено — чек-листа нема.</p>
+      ) : (
+        <div className="space-y-2">
+          {items.map(it => {
+            const st = notes.get('promise_check', it.segmentCode);
+            return <PromiseItem key={it.segmentCode} item={it} done={st?.done ?? null} reason={st?.text ?? ''} notes={notes} />;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PromiseItem({ item, done, reason, notes }: {
+  item: { segmentCode: string; segmentName: string; actionText: string };
+  done: boolean | null; reason: string; notes: WeeklyNotesApi;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [localReason, setLocalReason] = useState(reason);
+  useEffect(() => { setLocalReason(reason); }, [reason]);
+  const setStatus = async (val: boolean) => {
+    setBusy(true);
+    await notes.save('promise_check', item.segmentCode, val ? '' : localReason.trim(), val);
+    setBusy(false);
+  };
+  const saveReason = async () => { await notes.save('promise_check', item.segmentCode, localReason.trim(), false); };
+  const btn = (active: boolean, cls: string) => `h-7 px-2.5 rounded-lg text-[11px] font-semibold border transition-colors disabled:opacity-50 ${active ? cls : 'bg-transparent border-[#e2e7ef] text-slate-600 hover:bg-[#f5f7fb]'}`;
+  return (
+    <div className="rounded-xl border border-[#eef1f7] bg-[#fafbfe] px-3 py-2.5">
+      <div className="flex items-start gap-2">
+        <span className="font-bold text-[12px] shrink-0">{item.segmentName}</span>
+        <span className="text-[12px] text-muted-foreground flex-1 min-w-0">{item.actionText}</span>
+      </div>
+      <div className="flex items-center gap-1.5 mt-2">
+        <button onClick={() => setStatus(true)} disabled={busy} className={btn(done === true, 'bg-emerald-500/15 border-emerald-300 text-emerald-700')}>Виконано</button>
+        <button onClick={() => setStatus(false)} disabled={busy} className={btn(done === false, 'bg-rose-500/12 border-rose-300 text-rose-700')}>Не виконано</button>
+      </div>
+      {done === false && (
+        <input
+          value={localReason}
+          onChange={e => setLocalReason(e.target.value)}
+          onBlur={saveReason}
+          maxLength={500}
+          placeholder="Причина невиконання…"
+          className="w-full mt-2 h-8 rounded-lg border border-[rgba(6,42,61,0.15)] bg-white/70 px-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-emet-blue/30"
+        />
+      )}
+    </div>
+  );
+}
+
 function ManualFields({ notes }: { notes: WeeklyNotesApi }) {
   const savedConclusion = notes.get('conclusion', null)?.text ?? '';
   const [conclusion, setConclusion] = useState(savedConclusion);
