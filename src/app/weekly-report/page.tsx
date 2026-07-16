@@ -32,7 +32,7 @@ import { useRegionStats } from '@/lib/use-region-stats';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { pctOf, calcForecastPercent, formatUSD, formatPct } from '@/lib/format';
-import { isStrategicKpiLogin } from '@/lib/feature-flags';
+import { isStrategicKpiLogin, DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
 import { ArrowLeft, ClipboardList, PenLine, Check, ChevronDown, MapPin, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
@@ -97,7 +97,23 @@ export default function WeeklyReportPage() {
   const router = useRouter();
   const user = useAppStore(s => s.user);
   const currentPeriod = useAppStore(s => s.currentPeriod);
-  const allowed = !!user && (user.role === 'admin' || isStrategicKpiLogin(user.login) || user.canViewCompanyOverview === true);
+  // Доступ як на борді: директор/admin/страт — усі регіони; РМ — свій(і);
+  // менеджер з грантом — лише регіон гранту; звичайний менеджер — ні.
+  const seesAll = !!user && (user.role === 'admin' || user.role === 'director'
+    || isStrategicKpiLogin(user.login) || user.canViewCompanyOverview === true);
+  const overrideRegions = useMemo(() => (user ? (MULTI_REGION_RM_OVERRIDES[user.login] ?? []) : []), [user]);
+  const grantRegions = useMemo(() => (user?.regionGrants ?? []).map(g => g.regionCode), [user]);
+  const allowedRegionCodes = useMemo<string[] | null>(() => {
+    if (seesAll) return null; // усі
+    if (!user) return [];
+    const base = user.role === 'rm' ? [user.regionCode, ...overrideRegions] : [];
+    return Array.from(new Set([...base, ...grantRegions].filter(Boolean)));
+  }, [seesAll, user, overrideRegions, grantRegions]);
+  const allowed = seesAll || (allowedRegionCodes !== null && allowedRegionCodes.length > 0);
+  // Якщо треба регіони поза «домашнім» (мультирегіон/гранти) — тягнемо через
+  // директор-прокси (route дозволяє для isMultiRegionRM) і фільтруємо нижче.
+  const needsProxy = !seesAll && (overrideRegions.length > 0 || grantRegions.length > 0);
+  const fetchLogin = user ? (needsProxy ? DIRECTOR_PROXY_LOGIN : user.login) : '';
 
   useEffect(() => {
     if (user && !allowed) router.replace('/');
@@ -109,17 +125,16 @@ export default function WeeklyReportPage() {
   const asOfIso = currentPeriod.weekEnd;
   const periodKey = currentPeriod.month.slice(0, 7); // 'YYYY-MM'
 
-  // Action 5 — для admin/director проксується на директора (усі регіони).
   const { data: regionResp, loading } = useOneCData(
     'getRegionData',
-    allowed && user ? { login: user.login, period: periodKey, asOfDate: asOfIso } : null,
+    allowed && user ? { login: fetchLogin, period: periodKey, asOfDate: asOfIso } : null,
   );
-  const regions = useMemo(
-    () => (regionResp ? adaptRegionData(regionResp).regions.filter(r => r.regionCode) : []),
-    [regionResp],
-  );
+  const regions = useMemo(() => {
+    const all = regionResp ? adaptRegionData(regionResp).regions.filter(r => r.regionCode) : [];
+    return allowedRegionCodes === null ? all : all.filter(r => allowedRegionCodes.includes(r.regionCode));
+  }, [regionResp, allowedRegionCodes]);
 
-  // Регіон за замовчуванням — Дніпро.
+  // Регіон за замовчуванням — Дніпро (якщо доступний), інакше перший дозволений.
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const defaultCode = useMemo(() => {
     const d = regions.find(r => /дніпро|днепр/i.test(r.regionName));
