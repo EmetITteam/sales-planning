@@ -57,6 +57,17 @@ function RegionDropdown({ regions, value, onChange, loading }: {
     return () => { clearTimeout(t); document.removeEventListener('click', handler); };
   }, [open]);
   const current = regions.find(r => r.regionCode === value);
+
+  // Один регіон (РМ у єдиному регіоні) — вибирати нема з чого, показуємо статику.
+  if (regions.length <= 1) {
+    return (
+      <div className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-white/60 border border-white/50">
+        {loading ? <Loader2 className="h-4 w-4 text-emet-blue animate-spin" /> : <MapPin className="h-4 w-4 text-emet-blue" />}
+        <span className="text-[13px] font-semibold text-foreground">{current?.regionName ?? regions[0]?.regionName ?? '—'}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="relative" ref={ref}>
       <button

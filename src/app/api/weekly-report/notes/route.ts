@@ -21,9 +21,12 @@ async function allowedForRegion(
   if (!session || !regionCode) return false;
   if (session.role === 'admin' || session.role === 'director') return true;
   if (isStrategicKpiLogin(session.login)) return true;
-  const overrides = await resolveRegionOverrides(session.login);
-  const allowed = new Set<string>([session.regionCode ?? '', ...(overrides ?? [])].filter(Boolean));
-  return allowed.has(regionCode);
+  // resolveRegionOverrides = MULTI_REGION_RM_OVERRIDES ∪ активні гранти.
+  const grantCodes = new Set<string>((await resolveRegionOverrides(session.login)) ?? []);
+  // РМ — свій «домашній» регіон + overrides/гранти. Звичайний менеджер (та інші
+  // ролі) — ЛИШЕ за активним грантом на цей регіон (домашній регіон не дає прав).
+  if (session.role === 'rm') return regionCode === session.regionCode || grantCodes.has(regionCode);
+  return grantCodes.has(regionCode);
 }
 
 export async function GET(request: NextRequest) {

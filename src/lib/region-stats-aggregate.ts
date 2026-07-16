@@ -95,6 +95,9 @@ export type ClientCat = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
 /** 1С-категорія клієнта → ключ. Локальна копія (файл тримаємо без залежностей). */
 function mapClientCat(category: string | null | undefined): ClientCat {
   const s = (category ?? '').trim().toLowerCase();
+  // Вже UI-ключ (з БД-зрізу client_category_history) — пропускаємо без ремапу.
+  if (s === 'active' || s === 'sleeping' || s === 'lost' || s === 'new' || s === 'none') return s as ClientCat;
+  // Сирі 1С-категорії (live-шлях Action 2).
   if (s === 'активный' || s === 'активний') return 'active';
   if (s === 'спящий' || s === 'сплячий') return 'sleeping';
   if (s === 'потерянный' || s === 'втрачений') return 'lost';
