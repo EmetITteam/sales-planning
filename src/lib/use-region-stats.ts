@@ -18,11 +18,20 @@ export interface RegionStatsCategoryStat {
   factSum: number;
 }
 
+/** Клієнти по 1С-категорії (унікальні): база / заплановано / купили. */
+export interface ClientCatCounts { base: number; planned: number; bought: number }
+export interface ClientCategoryBreakdown {
+  region: Record<RegionStatsCategory, ClientCatCounts>;
+  byManager: Array<{ login: string; byCategory: Record<RegionStatsCategory, ClientCatCounts> }>;
+}
+
 export interface RegionStats {
   bySegment: Record<string, {
     byCategory: Record<RegionStatsCategory, RegionStatsCategoryStat>;
     unplanned: { factCount: number; factSum: number };
   }>;
+  /** Розбивка клієнтів по 1С-категорії (унікальні) — для нової таблиці weekly-report. */
+  clientCategory?: ClientCategoryBreakdown;
 }
 
 export interface PlanBucketsInput {

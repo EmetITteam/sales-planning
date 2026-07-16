@@ -20,8 +20,10 @@
 import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
-import { aggregateRegionStats } from '@/lib/region-stats-aggregate';
+import { aggregateRegionStats, aggregateClientCategoryStats } from '@/lib/region-stats-aggregate';
 import { resolveRegionOverrides } from '@/lib/region-access';
+import { isClientReserved } from '@/lib/mityng-types';
+import { readActiveRosterByLogins } from '@/lib/client-category-store';
 
 // Vercel: дай функції до 60с — 21 менеджер × 2 виклики 1С (Action 2 + Action 3)
 // з timeout 20с кожен. Без цього Vercel killed function на 10с (Hobby default)
@@ -153,11 +155,15 @@ async function handlePost(request: NextRequest) {
   type Action2Resp = {
     clients: Array<{
       clientId: string;
+      clientName?: string;
       category?: string;
+      isReserved?: boolean;
       purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }>;
     }>;
   };
   type Action3Resp = { segments: Array<{ segmentCode: string; clients: Array<{ clientId: string; factAmountUSD: number | string }> }> };
+  // Action 8 (getManagerClients) — єдине джерело прапорця isReserved.
+  type Action8Resp = { clients?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>;
 
   // Один менеджер = 1 виклик Action 2 + 1 виклик Action 3 (sequential).
   // Раніше всі 21 менеджер летіли в 1С паралельно (42 запити одночасно) — 1С
@@ -165,8 +171,46 @@ async function handlePost(request: NextRequest) {
   // менеджерів не було, totalFact зменшувався втричі.
   // Тепер обмежуємо concurrency до CONCURRENCY_LIMIT менеджерів за раз.
   const CONCURRENCY_LIMIT = 5;
+
+  // 🚀 Ростер (категорія + резерв) читаємо з НАШОГО зрізу (client_category_history),
+  // а не з Action 2 + Action 8 — гарячий шлях падає до 1 виклику 1С/менеджера
+  // (тільки факт Action 3). Fallback на live-шлях, поки крон ще не наповнив зріз.
+  const dbRoster = await readActiveRosterByLogins(safeLogins).catch(() => [] as Awaited<ReturnType<typeof readActiveRosterByLogins>>);
+  const useDb = dbRoster.length > 0;
+  const rosterByLogin = new Map<string, Array<{ clientId: string; clientName?: string; category?: string; isReserved?: boolean }>>();
+  if (useDb) {
+    for (const r of dbRoster) {
+      const arr = rosterByLogin.get(r.manager_login) ?? [];
+      arr.push({ clientId: r.client_id, clientName: r.client_name ?? undefined, category: r.category, isReserved: r.is_reserved });
+      rosterByLogin.set(r.manager_login, arr);
+    }
+  }
+
   const fetchOneManager = async (login: string) => {
-    const clientsResp = await callOneC<Action2Resp>('getClientsForPlanning', { login });
+    let clientsResp: Action2Resp | null;
+    if (useDb) {
+      // Ростер із БД — категорія та резерв уже тут. 1С не чіпаємо (окрім факту).
+      const dbClients = rosterByLogin.get(login) ?? [];
+      clientsResp = { clients: dbClients };
+    } else {
+      // Live fallback: Action 2 (клієнти) + Action 8 (резерв) паралельно.
+      const [c2, mgrResp] = await Promise.all([
+        callOneC<Action2Resp>('getClientsForPlanning', { login }),
+        callOneC<Action8Resp>('getManagerClients', { login }),
+      ]);
+      clientsResp = c2;
+      if (clientsResp?.clients && mgrResp) {
+        const arr = Array.isArray(mgrResp) ? mgrResp : (mgrResp.clients ?? []);
+        const reserved = new Set<string>();
+        for (const m of arr) {
+          const rid = m?.ClientID ?? m?.clientId ?? m?.clientID;
+          if (rid != null && isClientReserved(m)) reserved.add(String(rid));
+        }
+        if (reserved.size > 0) {
+          for (const c of clientsResp.clients) if (reserved.has(String(c.clientId))) c.isReserved = true;
+        }
+      }
+    }
     if (!clientsResp || !clientsResp.clients) return { login, clientsResp: null, factResp: null };
     const clientIds = clientsResp.clients.map(c => c.clientId);
     if (clientIds.length === 0) return { login, clientsResp, factResp: null };
@@ -193,6 +237,11 @@ async function handlePost(request: NextRequest) {
       clients: r.clientsResp!.clients ?? [],
       segments: r.factResp!.segments ?? [],
     }));
+  // Діагностика резерву: скільки клієнтів позначено isReserved (виключаються
+  // з clientCategory). Видно у meta відповіді + у Vercel logs.
+  const rosterTotal = managerInputs.reduce((s, m) => s + m.clients.length, 0);
+  const reservedExcluded = managerInputs.reduce((s, m) => s + m.clients.filter(c => c.isReserved).length, 0);
+  console.log('[region-stats] reserve', { logins: managerInputs.length, rosterTotal, reservedExcluded });
   // Класифікація buyer-ів по плану менеджера: forecast/gapNew/gapActivation/unplanned.
   // Кожен у рівно одному bucket (без дублювання). Σ = totalFact.
   const aggregated = aggregateRegionStats(managerInputs, {
@@ -200,6 +249,19 @@ async function handlePost(request: NextRequest) {
     gapNewClientIds: Array.isArray(gapNewClientIds) ? gapNewClientIds : null,
     gapActivationClientIds: Array.isArray(gapActivationClientIds) ? gapActivationClientIds : null,
   });
+
+  // Унікальні клієнти з планом (хоча б в одному бренді). Бакети приходять у
+  // форматі `${SEGMENT}|${clientId}` → витягуємо clientId і дедуплимо.
+  const plannedClientIdSet = new Set<string>();
+  for (const arr of [forecastClientIds, gapNewClientIds, gapActivationClientIds]) {
+    if (Array.isArray(arr)) {
+      for (const key of arr) {
+        const cid = String(key).split('|')[1] || '';
+        if (cid) plannedClientIdSet.add(cid);
+      }
+    }
+  }
+  const clientCategory = aggregateClientCategoryStats(managerInputs, Array.from(plannedClientIdSet));
 
   const successCount = results.filter(r => r.clientsResp && r.factResp).length;
   if (successCount < safeLogins.length) {
@@ -222,11 +284,15 @@ async function handlePost(request: NextRequest) {
   }
   return Response.json({
     bySegment: aggregated.bySegment,
+    clientCategory,
     meta: {
       period,
       logins: safeLogins.length,
       successful: successCount,
       partial: successCount < safeLogins.length,
+      // Діагностика резерву — скільки клієнтів виключено з clientCategory.
+      rosterTotal,
+      reservedExcluded,
       // Дiагностика dedup — у DevTools Network видно, що саме пропущено.
       dedupSkippedCount: aggregated.dedup.skippedCount,
       dedupSkippedSum: aggregated.dedup.skippedSum,

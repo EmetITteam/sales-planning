@@ -70,9 +70,9 @@ function toNumber(v: number | string | null | undefined): number {
 
 /**
  * 🆕 v2.5: 5 категорій 1С → картка UI.
- *  active / sleeping / lost / new — кожна окремою рядком (sleeping і lost
- *  БІЛЬШЕ НЕ складаються — див. ClientStatsCard).
- *  none — у totalClients, але без власної картки.
+ *  active / sleeping / lost / new / none — кожна окремою рядком
+ *  (sleeping і lost БІЛЬШЕ НЕ складаються; none = «Без закупок» — теж
+ *  окремий рядок з 2026-07). Див. ClientStatsCard.
  */
 function mapManagerClientStats(raw: OneCManagerClientStats): ClientCategoryStats {
   return {
@@ -91,6 +91,10 @@ function mapManagerClientStats(raw: OneCManagerClientStats): ClientCategoryStats
     newClients: {
       total: toNumber(raw.new.total),
       bought: toNumber(raw.new.bought),
+    },
+    none: {
+      total: toNumber(raw.none?.total),
+      bought: toNumber(raw.none?.bought),
     },
     totalBought: toNumber(raw.totalBought),
     totalClients: toNumber(raw.totalClients),

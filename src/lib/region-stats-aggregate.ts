@@ -40,7 +40,7 @@ export interface ManagerResult {
   login?: string;
   /** Action 2 повертає список клієнтів менеджера. clientName потрібен щоб у
    *  meta-діагностиці дублів показати читабельне ім'я. */
-  clients: Array<{ clientId: string; clientName?: string; category?: string; purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }> }>;
+  clients: Array<{ clientId: string; clientName?: string; category?: string; isReserved?: boolean; purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }> }>;
   segments: FactSegment[];
 }
 
@@ -87,6 +87,81 @@ export interface PlanBuckets {
 export function mapSegmentCode(code: string): string {
   if (code === 'ДРУГИЕТМ') return 'OTHER';
   return code;
+}
+
+// === Клієнти по 1С-категорії (унікальні): база / заплановано / купили ===
+export type ClientCat = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
+
+/** 1С-категорія клієнта → ключ. Локальна копія (файл тримаємо без залежностей). */
+function mapClientCat(category: string | null | undefined): ClientCat {
+  const s = (category ?? '').trim().toLowerCase();
+  if (s === 'активный' || s === 'активний') return 'active';
+  if (s === 'спящий' || s === 'сплячий') return 'sleeping';
+  if (s === 'потерянный' || s === 'втрачений') return 'lost';
+  if (s === 'новый' || s === 'новий') return 'new';
+  return 'none'; // «без закупок» + невідомі
+}
+
+export interface ClientCatCounts { base: number; planned: number; bought: number }
+export interface ClientCategoryBreakdown {
+  region: Record<ClientCat, ClientCatCounts>;
+  byManager: Array<{ login: string; byCategory: Record<ClientCat, ClientCatCounts> }>;
+}
+
+const CLIENT_CATS: readonly ClientCat[] = ['active', 'sleeping', 'lost', 'new', 'none'];
+function emptyClientCat(): Record<ClientCat, ClientCatCounts> {
+  return {
+    active: { base: 0, planned: 0, bought: 0 },
+    sleeping: { base: 0, planned: 0, bought: 0 },
+    lost: { base: 0, planned: 0, bought: 0 },
+    new: { base: 0, planned: 0, bought: 0 },
+    none: { base: 0, planned: 0, bought: 0 },
+  };
+}
+
+/**
+ * Розбивка клієнтів по 1С-категорії (УНІКАЛЬНІ, per manager + region-total):
+ *   base    — усього клієнтів категорії у ростері менеджера (Action 2).
+ *   planned — з них ті, у кого є план ХОЧА Б в одному бренді (plannedClientIds).
+ *   bought  — з них ті, хто купив цього місяця (fact > 0, Action 3).
+ * Клієнт рахується РІВНО раз (по своїй 1С-категорії), незалежно від к-сті брендів
+ * — на відміну від `bySegment` де сума plannedCount «не унікальна».
+ */
+export function aggregateClientCategoryStats(
+  managers: ManagerResult[],
+  plannedClientIds: string[],
+): ClientCategoryBreakdown {
+  const plannedSet = new Set(plannedClientIds.filter(Boolean));
+  const region = emptyClientCat();
+  const byManager: ClientCategoryBreakdown['byManager'] = [];
+  for (const m of managers) {
+    // Клієнти які купили цього місяця (унік. clientId з fact > 0).
+    const boughtSet = new Set<string>();
+    for (const seg of m.segments) {
+      for (const c of seg.clients ?? []) {
+        const amt = typeof c.factAmountUSD === 'number' ? c.factAmountUSD : parseFloat(String(c.factAmountUSD));
+        if (Number.isFinite(amt) && amt > 0 && c.clientId) boughtSet.add(c.clientId);
+      }
+    }
+    const mgr = emptyClientCat();
+    const seen = new Set<string>();
+    for (const cl of m.clients) {
+      if (!cl.clientId || seen.has(cl.clientId)) continue;
+      if (cl.isReserved) continue; // Резерв виключений (як з планування)
+      seen.add(cl.clientId);
+      const cat = mapClientCat(cl.category);
+      mgr[cat].base += 1;
+      if (plannedSet.has(cl.clientId)) mgr[cat].planned += 1;
+      if (boughtSet.has(cl.clientId)) mgr[cat].bought += 1;
+    }
+    for (const c of CLIENT_CATS) {
+      region[c].base += mgr[c].base;
+      region[c].planned += mgr[c].planned;
+      region[c].bought += mgr[c].bought;
+    }
+    byManager.push({ login: m.login ?? '', byCategory: mgr });
+  }
+  return { region, byManager };
 }
 
 function emptyStat(): CategoryStat {

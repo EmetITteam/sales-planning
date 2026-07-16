@@ -25,6 +25,8 @@ interface Props {
   unplanned?: { factCount: number; factSum: number } | null;
   /** Заголовок-контекст: «Регіон Дніпро» або «Petaran · 8 регіонів». */
   title?: string;
+  /** Примітка у сам заголовок (напр. «планування») → «Розклад … (планування)». */
+  titleNote?: string;
   /**
    * Офіційний план 1С для контексту таблиці (регіон / компанія / бренд —
    * той самий, що ПЛАН МІСЯЦЯ у hero). Для колонки «% факт 1С» = скільки факт
@@ -72,7 +74,8 @@ const CAT_META: Array<{
   { key: 'new',        label: 'Нові клієнти (категорія 1С)', icon: UserPlus, iconClass: 'text-emerald-600', bgClass: 'bg-emerald-50' },
 ];
 
-export function CategoryStatsTable({ plan, fact, unplanned, title, plan1C, loading }: Props) {
+export function CategoryStatsTable({ plan, fact, unplanned, title, titleNote, plan1C, loading }: Props) {
+  const heading = `Розклад по категоріях клієнтів${titleNote ? ` (${titleNote})` : ''}`;
   // Агрегуємо у 4 групи що показуються:
   // active = active
   // new = new
@@ -126,7 +129,7 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, plan1C, loadi
     return (
       <div className="glass-card ambient-accent overflow-hidden">
         {title && <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
-          <h3 className="text-[14px] font-bold">Розклад по категоріях клієнтів</h3>
+          <h3 className="text-[14px] font-bold">{heading}</h3>
           <span className="text-[11px] text-muted-foreground">{title}</span>
         </div>}
         <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
@@ -144,7 +147,7 @@ export function CategoryStatsTable({ plan, fact, unplanned, title, plan1C, loadi
     <div className="glass-card ambient-accent overflow-hidden">
       {title && (
         <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
-          <h3 className="text-[14px] font-bold">Розклад по категоріях клієнтів</h3>
+          <h3 className="text-[14px] font-bold">{heading}</h3>
           <span className="text-[11px] text-muted-foreground">{title}</span>
         </div>
       )}

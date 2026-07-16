@@ -491,6 +491,7 @@ export function DirectorDashboard() {
                 sleeping: { total: 0, bought: 0 },
                 lost: { total: 0, bought: 0 },
                 newClients: { total: 0, bought: 0 },
+                none: { total: 0, bought: 0 },
                 totalBought: 0,
                 totalClients: 0,
               }}

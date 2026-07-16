@@ -320,3 +320,41 @@ test('Вінниця: план пустий, 78 buyers → unplanned 78 / ≈$34
   assert.ok(Math.abs(result.bySegment.PETARAN.unplanned.factSum - 34279) < 1);
   assert.equal(result.bySegment.PETARAN.byCategory.active.factSum, 0);
 });
+
+// === aggregateClientCategoryStats: унікальні клієнти по 1С-категорії ===
+import { aggregateClientCategoryStats } from '../src/lib/region-stats-aggregate.ts';
+
+test('clientCategory: база/заплановано/купили унікальні по категорії', () => {
+  const managers = [{
+    login: 'm1@x',
+    clients: [
+      { clientId: 'a1', category: 'Активный' },
+      { clientId: 'a2', category: 'активний' },
+      { clientId: 's1', category: 'Спящий' },
+      { clientId: 'z1', category: 'Без закупок' },
+      { clientId: 'n1', category: 'Новый' },
+      { clientId: 'r1', category: 'Активный', isReserved: true }, // резерв — не рахується
+    ],
+    segments: [
+      { segmentCode: 'PETARAN', clients: [{ clientId: 'a1', factAmountUSD: 100 }, { clientId: 'z1', factAmountUSD: 50 }] },
+      // a1 купив і у другому бренді — все одно рахується РАЗ у bought:
+      { segmentCode: 'IUSE', clients: [{ clientId: 'a1', factAmountUSD: 30 }] },
+    ],
+  }];
+  // a1 запланований у двох брендах — має бути 1 planned (унікальний):
+  const planned = ['PETARAN|a1', 'IUSE|a1', 'PETARAN|s1'];
+  const r = aggregateClientCategoryStats(managers, planned.map(k => k.split('|')[1]));
+
+  assert.equal(r.region.active.base, 2);      // a1, a2
+  assert.equal(r.region.active.planned, 1);   // тільки a1 (унік.)
+  assert.equal(r.region.active.bought, 1);    // a1 (раз, попри 2 бренди)
+  assert.equal(r.region.sleeping.base, 1);    // s1
+  assert.equal(r.region.sleeping.planned, 1); // s1
+  assert.equal(r.region.sleeping.bought, 0);  // s1 не купив
+  assert.equal(r.region.none.base, 1);        // z1 «Без закупок»
+  assert.equal(r.region.none.bought, 1);      // z1 купив
+  assert.equal(r.region.none.planned, 0);     // z1 не в плані
+  assert.equal(r.region.new.base, 1);         // n1
+  assert.equal(r.byManager.length, 1);
+  assert.equal(r.byManager[0].byCategory.active.base, 2);
+});

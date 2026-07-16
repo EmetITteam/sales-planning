@@ -16,9 +16,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar, TrendingUp, Building2 } from 'lucide-react';
+import { LogOut, ChevronDown, Eye, EyeOff, Shield, Users, Calendar, TrendingUp, Building2, ClipboardList } from 'lucide-react';
 import { NotificationsBell } from '@/components/notifications/notifications-bell';
-import { isStrategicKpiLogin, hasManagerTabs, canManageRegionAccess, isAdminLogin } from '@/lib/feature-flags';
+import { isStrategicKpiLogin, hasManagerTabs, canManageRegionAccess, isAdminLogin, canViewWeeklyReport } from '@/lib/feature-flags';
 
 const HIDE_AMOUNTS_KEY = 'emet:hideAmounts';
 
@@ -274,6 +274,15 @@ export function AppHeader() {
               <Calendar className="mr-2 h-3.5 w-3.5" />
               Зустрічі
             </DropdownMenuItem>
+            {canViewWeeklyReport(user) && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/weekly-report')} className="cursor-pointer">
+                  <ClipboardList className="mr-2 h-3.5 w-3.5" />
+                  Тижневий звіт
+                </DropdownMenuItem>
+              </>
+            )}
             {canManageRegionAccess(user.login) && !isAdminLogin(user.login) && (
               <>
                 <DropdownMenuSeparator />

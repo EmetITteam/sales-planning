@@ -186,3 +186,16 @@ export function canManageRegionAccess(login: string | null | undefined): boolean
   const l = login.toLowerCase().trim();
   return REGION_ACCESS_MANAGERS.includes(l) || isAdminLogin(login);
 }
+
+/**
+ * Хто бачить «Тижневий звіт»: директор/admin/страт/огляд — усі регіони; РМ —
+ * свій; менеджер з активним грантом — регіон гранту. Звичайний менеджер — ні.
+ */
+export function canViewWeeklyReport(user: {
+  login: string; role: string; canViewCompanyOverview?: boolean; regionGrants?: unknown[];
+} | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'director' || user.role === 'rm') return true;
+  if (isStrategicKpiLogin(user.login) || user.canViewCompanyOverview === true) return true;
+  return (user.regionGrants?.length ?? 0) > 0;
+}
