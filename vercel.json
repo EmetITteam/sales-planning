@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/warm-1c",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-client-categories",
+      "schedule": "17 * * * *"
     }
   ]
 }
