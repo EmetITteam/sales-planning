@@ -131,19 +131,26 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Ретрай-прохід для упавших — послідовно, довший таймаут (60с).
+  // «Неверное имя менеджера» = логін без клієнтського ростера (колл-центр /
+  // продукт / фін тощо). Це НЕ помилка — пропускаємо, не ретраїмо.
+  const isNoRoster = (reason: string) => /неверное имя|невірне ім|invalid manager|не найден|not found/i.test(reason);
+  const skipped = failed.filter(f => isNoRoster(f.reason));
+  const retryable = failed.filter(f => !isNoRoster(f.reason));
+
+  // Ретрай-прохід лише для СПРАВЖНІХ падінь (таймаут/http) — послідовно, 60с.
   const stillFailed: { login: string; reason: string }[] = [];
-  for (const f of failed) {
+  for (const f of retryable) {
     const res = await callOneC<Action8Resp>('getManagerClients', { login: f.login }, 60_000);
     if (res.data) addClients(f.login, unwrap(res.data));
     else stillFailed.push({ login: f.login, reason: res.reason ?? f.reason });
   }
 
-  // Закриваємо зниклих ТІЛЬКИ серед успішних менеджерів (упавших не чіпаємо).
+  // Закриваємо зниклих ТІЛЬКИ серед успішних менеджерів (упавших/skip не чіпаємо).
   const stats = await syncClientCategories(fresh, monthFirstIso, todayIso, successfulLogins);
   const mgrOk = successfulLogins.size;
   const mgrFail = stillFailed.length;
-  console.log('[cron/sync-client-categories]', { period, managers: logins.length, mgrOk, mgrFail, failedLogins: stillFailed, ...stats });
+  const mgrSkipped = skipped.length;
+  console.log('[cron/sync-client-categories]', { period, managers: logins.length, mgrOk, mgrSkipped, mgrFail, failedLogins: stillFailed, ...stats });
 
-  return Response.json({ ok: true, period, managers: logins.length, mgrOk, mgrFail, failedLogins: stillFailed, ...stats });
+  return Response.json({ ok: true, period, managers: logins.length, mgrOk, mgrSkipped, mgrFail, skippedLogins: skipped.map(s => s.login), failedLogins: stillFailed, ...stats });
 }

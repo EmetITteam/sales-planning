@@ -69,15 +69,25 @@ export async function replaceMonthSales(
   monthStartIso: string,
   monthEndExclusiveIso: string,
 ): Promise<{ deleted: boolean; inserted: number }> {
+  // 1. Чистимо місяць (скасовані/видалені документи зникають — їх нема у батчі).
   const { error: delErr } = await supabase.from('sales')
     .delete().gte('sale_date', monthStartIso).lt('sale_date', monthEndExclusiveIso);
   if (delErr) throw new Error(`replaceMonthSales delete: ${delErr.message}`);
+
+  // 2. Дедуп батча по (doc_id, doc_line) — 1С інколи віддає рядок двічі.
+  const byKey = new Map<string, Record<string, unknown>>();
+  for (const r of rows) byKey.set(`${r.doc_id}|${r.doc_line}`, r);
+  const deduped = [...byKey.values()];
+
+  // 3. UPSERT (merge по doc_id,doc_line) — стійко до залишків на tz-межі місяця
+  //    (напр. документ, чия sale_date у сусідньому місяці, але потрапив у вигрузку).
   const CHUNK = 500;
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const { error } = await supabase.from('sales').insert(rows.slice(i, i + CHUNK));
-    if (error) throw new Error(`replaceMonthSales insert: ${error.message}`);
+  for (let i = 0; i < deduped.length; i += CHUNK) {
+    const { error } = await supabase.from('sales')
+      .upsert(deduped.slice(i, i + CHUNK), { onConflict: 'doc_id,doc_line' });
+    if (error) throw new Error(`replaceMonthSales upsert: ${error.message}`);
   }
-  return { deleted: true, inserted: rows.length };
+  return { deleted: true, inserted: deduped.length };
 }
 
 /** Оновлює агрегат sales_kpi_rollup для року (щоб дашборд бачив свіжі дані). */
