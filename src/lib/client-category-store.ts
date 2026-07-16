@@ -63,6 +63,23 @@ export async function readActiveRoster(regionCode?: string): Promise<ActiveRow[]
   return out;
 }
 
+/** Читає активні версії по списку логінів менеджерів (для регіону у звіті). */
+export async function readActiveRosterByLogins(logins: string[]): Promise<ActiveRow[]> {
+  if (logins.length === 0) return [];
+  const out: ActiveRow[] = [];
+  const CHUNK = 100;
+  for (let i = 0; i < logins.length; i += CHUNK) {
+    const slice = logins.slice(i, i + CHUNK);
+    const { data, error } = await supabase.from('client_category_history')
+      .select('id,client_id,client_name,category,manager_login,region_code,is_reserved,valid_from')
+      .is('valid_to', null)
+      .in('manager_login', slice);
+    if (error) throw new Error(`readActiveRosterByLogins: ${error.message}`);
+    out.push(...((data ?? []) as unknown as ActiveRow[]));
+  }
+  return out;
+}
+
 /**
  * Застосовує повний снапшот (усі менеджери за один прохід) до БД за SCD2.
  * `fresh` — свіжі рядки з 1С; `monthFirstIso` — 1-ше поточного місяця (valid_from

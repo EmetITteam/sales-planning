@@ -23,6 +23,7 @@ import { getSession } from '@/lib/session';
 import { aggregateRegionStats, aggregateClientCategoryStats } from '@/lib/region-stats-aggregate';
 import { resolveRegionOverrides } from '@/lib/region-access';
 import { isClientReserved } from '@/lib/mityng-types';
+import { readActiveRosterByLogins } from '@/lib/client-category-store';
 
 // Vercel: дай функції до 60с — 21 менеджер × 2 виклики 1С (Action 2 + Action 3)
 // з timeout 20с кожен. Без цього Vercel killed function на 10с (Hobby default)
@@ -154,6 +155,7 @@ async function handlePost(request: NextRequest) {
   type Action2Resp = {
     clients: Array<{
       clientId: string;
+      clientName?: string;
       category?: string;
       isReserved?: boolean;
       purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }>;
@@ -169,27 +171,47 @@ async function handlePost(request: NextRequest) {
   // менеджерів не було, totalFact зменшувався втричі.
   // Тепер обмежуємо concurrency до CONCURRENCY_LIMIT менеджерів за раз.
   const CONCURRENCY_LIMIT = 5;
+
+  // 🚀 Ростер (категорія + резерв) читаємо з НАШОГО зрізу (client_category_history),
+  // а не з Action 2 + Action 8 — гарячий шлях падає до 1 виклику 1С/менеджера
+  // (тільки факт Action 3). Fallback на live-шлях, поки крон ще не наповнив зріз.
+  const dbRoster = await readActiveRosterByLogins(safeLogins).catch(() => [] as Awaited<ReturnType<typeof readActiveRosterByLogins>>);
+  const useDb = dbRoster.length > 0;
+  const rosterByLogin = new Map<string, Array<{ clientId: string; clientName?: string; category?: string; isReserved?: boolean }>>();
+  if (useDb) {
+    for (const r of dbRoster) {
+      const arr = rosterByLogin.get(r.manager_login) ?? [];
+      arr.push({ clientId: r.client_id, clientName: r.client_name ?? undefined, category: r.category, isReserved: r.is_reserved });
+      rosterByLogin.set(r.manager_login, arr);
+    }
+  }
+
   const fetchOneManager = async (login: string) => {
-    // Action 2 (клієнти) + Action 8 (резерв) паралельно — Action 8 несе isReserved,
-    // якого немає в Action 2 (там базова категорія). Резерв виключаємо з
-    // clientCategory (як планування виключає його зі списків).
-    const [clientsResp, mgrResp] = await Promise.all([
-      callOneC<Action2Resp>('getClientsForPlanning', { login }),
-      callOneC<Action8Resp>('getManagerClients', { login }),
-    ]);
-    if (!clientsResp || !clientsResp.clients) return { login, clientsResp: null, factResp: null };
-    // Резерв-збагачення: помічаємо isReserved по clientId (як /api/onec).
-    if (mgrResp) {
-      const arr = Array.isArray(mgrResp) ? mgrResp : (mgrResp.clients ?? []);
-      const reserved = new Set<string>();
-      for (const m of arr) {
-        const rid = m?.ClientID ?? m?.clientId ?? m?.clientID;
-        if (rid != null && isClientReserved(m)) reserved.add(String(rid));
-      }
-      if (reserved.size > 0) {
-        for (const c of clientsResp.clients) if (reserved.has(String(c.clientId))) c.isReserved = true;
+    let clientsResp: Action2Resp | null;
+    if (useDb) {
+      // Ростер із БД — категорія та резерв уже тут. 1С не чіпаємо (окрім факту).
+      const dbClients = rosterByLogin.get(login) ?? [];
+      clientsResp = { clients: dbClients };
+    } else {
+      // Live fallback: Action 2 (клієнти) + Action 8 (резерв) паралельно.
+      const [c2, mgrResp] = await Promise.all([
+        callOneC<Action2Resp>('getClientsForPlanning', { login }),
+        callOneC<Action8Resp>('getManagerClients', { login }),
+      ]);
+      clientsResp = c2;
+      if (clientsResp?.clients && mgrResp) {
+        const arr = Array.isArray(mgrResp) ? mgrResp : (mgrResp.clients ?? []);
+        const reserved = new Set<string>();
+        for (const m of arr) {
+          const rid = m?.ClientID ?? m?.clientId ?? m?.clientID;
+          if (rid != null && isClientReserved(m)) reserved.add(String(rid));
+        }
+        if (reserved.size > 0) {
+          for (const c of clientsResp.clients) if (reserved.has(String(c.clientId))) c.isReserved = true;
+        }
       }
     }
+    if (!clientsResp || !clientsResp.clients) return { login, clientsResp: null, factResp: null };
     const clientIds = clientsResp.clients.map(c => c.clientId);
     if (clientIds.length === 0) return { login, clientsResp, factResp: null };
     const factPayload: Record<string, unknown> = { login, period, clientIds };
