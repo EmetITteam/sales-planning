@@ -12,6 +12,7 @@
     "qa:refactor": "node scripts/qa-refactor-audit.mjs",
     "qa:refactor:headless": "cross-env HEADLESS=1 node scripts/qa-refactor-audit.mjs",
     "check:arch": "node scripts/architecture-check.mjs",
+    "check:data": "node scripts/check-data-integrity.mjs",
     "test": "tsx --test tests/**/*.test.ts",
     "test:components": "vitest run",
     "test:components:watch": "vitest",
