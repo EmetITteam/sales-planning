@@ -75,6 +75,9 @@ async function fetchValidSales(dateFromIso: string, dateToIso: string): Promise<
       .eq('is_gift', false)
       .eq('is_excluded', false)
       .neq('brand', 'НЕ_МАПНУТО')
+      // ORDER BY sale_date (не id) — фільтр sale_date через idx_sales_sale_date,
+      // інакше повний скан id-індексу (крон освіжає id місяця) → timeout 57014.
+      .order('sale_date')
       .order('id')
       .range(from, from + PAGE - 1);
 
@@ -424,6 +427,9 @@ async function fetchValidSalesWithDate(dateFromIso: string, dateToIso: string): 
       .eq('is_gift', false)
       .eq('is_excluded', false)
       .neq('brand', 'НЕ_МАПНУТО')
+      // ORDER BY sale_date (не id) — фільтр sale_date через idx_sales_sale_date,
+      // інакше повний скан id-індексу (крон освіжає id місяця) → timeout 57014.
+      .order('sale_date')
       .order('id')
       .range(from, from + PAGE - 1);
     if (result.error || !result.data) throw new Error(`sales fetch: ${result.error?.message || 'no data'}`);

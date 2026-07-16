@@ -54,6 +54,9 @@ async function doFetchRepSeminars(
       .lt('sale_date', dateToIso)
       .eq('is_ignored', false)
       .eq('is_excluded', false)
+      // ORDER BY sale_date (не id) — фільтр sale_date через idx_sales_sale_date,
+      // інакше повний скан id-індексу (крон освіжає id місяця) → timeout.
+      .order('sale_date')
       .order('id')
       .range(from, from + PAGE - 1);
     if (res.error || !res.data) {

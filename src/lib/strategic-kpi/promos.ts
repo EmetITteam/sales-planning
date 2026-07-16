@@ -101,6 +101,12 @@ async function fetchPromoRows(dateFrom: string, dateTo: string): Promise<PromoRo
       .eq('is_ignored', false)
       .eq('is_excluded', false)
       .not('discount', 'is', null)
+      // ⚠️ ORDER BY sale_date (не id!): фільтр по sale_date + ORDER BY id
+      // змушував planner сканувати весь id-індекс (266K), бо крон пере-вставляє
+      // поточний місяць зі свіжими max(id) → липень у хвості → statement timeout
+      // (57014). idx_sales_sale_date робить range миттєвим; id — вторинний для
+      // стабільної пагінації (у документа однаковий sale_date на всіх рядках).
+      .order('sale_date')
       .order('id')
       .range(from, from + PAGE - 1);
 

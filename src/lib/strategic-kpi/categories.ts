@@ -107,6 +107,10 @@ async function fetchAllBrandRows(brand: string, dateToIso: string): Promise<Sale
       .eq('is_ignored', false)
       .eq('is_gift', false)
       .eq('is_excluded', false)
+      // ORDER BY sale_date (не id) — щоб фільтр по sale_date йшов через
+      // idx_sales_sale_date, а не повний скан id-індексу (крон освіжає id
+      // поточного місяця → timeout). id — вторинний для стабільної пагінації.
+      .order('sale_date')
       .order('id')
       .range(from, from + PAGE - 1);
     if (result.error || !result.data) {
