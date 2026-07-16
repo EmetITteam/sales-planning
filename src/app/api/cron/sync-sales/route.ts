@@ -55,25 +55,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function handleSync(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  const okCron = !!secret && request.headers.get('authorization') === `Bearer ${secret}`;
-  let okAdmin = false;
-  if (!okCron) { const s = await getSession(); okAdmin = s?.role === 'admin'; }
-  if (!okCron && !okAdmin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // За замовчуванням — поточний місяць (як крон). Можна передати ?month=YYYY-MM
-  // (admin) щоб пересинхронити будь-який місяць з екшена — напр. для сверки
-  // (червень ≈ 5522) або добору. Full-month replace застосується до цього місяця.
-  const monthParam = request.nextUrl.searchParams.get('month');
-  let y: number, m: number;
-  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
-    [y, m] = monthParam.split('-').map(Number);
-  } else {
-    const now = new Date();
-    y = now.getUTCFullYear();
-    m = now.getUTCMonth() + 1;
-  }
+/** Синхронізує один місяць (fetch усіх сторінок + full-month replace, БЕЗ rollup). */
+async function syncMonth(y: number, m: number): Promise<{ month: string; pages: number; totalRows: number; inserted: number }> {
   const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
   const nextY = m === 12 ? y + 1 : y;
   const nextM = m === 12 ? 1 : m + 1;
@@ -82,25 +65,54 @@ async function handleSync(request: NextRequest) {
   const lastDay = new Date(Date.UTC(nextY, nextM - 1, 0)).getUTCDate();
   const dateTo = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-  // Пагінація: тягнемо всі сторінки місяця.
   const rows: Record<string, unknown>[] = [];
   let page = 1, totalRows = 0, pages = 0;
   for (;;) {
     const data = await fetchSalesPage(monthStart, dateTo, page);
-    if (!data) return Response.json({ error: `getSalesLineItems failed on page ${page}` }, { status: 502 });
+    if (!data) throw new Error(`getSalesLineItems failed on ${monthStart} page ${page}`);
     pages++;
     const pageRows = Array.isArray(data.rows) ? data.rows : [];
     totalRows = data.totalRows ?? rows.length + pageRows.length;
     for (const r of pageRows) rows.push(mapLineItemToRow(r));
     if (!data.hasMore || pageRows.length === 0) break;
     page++;
-    if (page > 50) break; // запобіжник від нескінченного циклу
+    if (page > 50) break; // запобіжник
+  }
+  const { inserted } = await replaceMonthSales(rows, monthStart, monthEndExclusive);
+  return { month: `${y}-${String(m).padStart(2, '0')}`, pages, totalRows, inserted };
+}
+
+async function handleSync(request: NextRequest) {
+  const secret = process.env.CRON_SECRET;
+  const okCron = !!secret && request.headers.get('authorization') === `Bearer ${secret}`;
+  let okAdmin = false;
+  if (!okCron) { const s = await getSession(); okAdmin = s?.role === 'admin'; }
+  if (!okCron && !okAdmin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Які місяці синкати:
+  //  - ?month=YYYY-MM (admin) → лише цей місяць (сверка/добір).
+  //  - інакше: ЗАВЖДИ поточний; + у перші 10 днів місяця ще й ПОПЕРЕДНІЙ
+  //    (ловимо пізні правки/донесення документів минулого місяця при закритті).
+  const monthParam = request.nextUrl.searchParams.get('month');
+  const targets: Array<{ y: number; m: number }> = [];
+  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+    const [y, m] = monthParam.split('-').map(Number);
+    targets.push({ y, m });
+  } else {
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = now.getUTCMonth() + 1;
+    targets.push({ y, m });
+    if (now.getUTCDate() <= 10) {
+      targets.push({ y: m === 1 ? y - 1 : y, m: m === 1 ? 12 : m - 1 });
+    }
   }
 
-  // Full-month replace + rollup (guard: сюди доходимо лише при успішній вигрузці).
-  const { inserted } = await replaceMonthSales(rows, monthStart, monthEndExclusive);
-  await refreshKpiRollup(y);
+  const months = [];
+  for (const t of targets) months.push(await syncMonth(t.y, t.m));
+  // Rollup — раз на кожен унікальний рік (замість двічі для того самого).
+  for (const yr of new Set(targets.map(t => t.y))) await refreshKpiRollup(yr);
 
-  console.log('[cron/sync-sales]', { month: monthStart, pages, totalRows, inserted });
-  return Response.json({ ok: true, month: `${y}-${String(m).padStart(2, '0')}`, pages, totalRows, inserted });
+  console.log('[cron/sync-sales]', { months });
+  return Response.json({ ok: true, months });
 }
