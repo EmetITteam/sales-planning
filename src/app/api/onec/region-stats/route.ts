@@ -22,6 +22,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { aggregateRegionStats, aggregateClientCategoryStats } from '@/lib/region-stats-aggregate';
 import { resolveRegionOverrides } from '@/lib/region-access';
+import { isClientReserved } from '@/lib/mityng-types';
 
 // Vercel: дай функції до 60с — 21 менеджер × 2 виклики 1С (Action 2 + Action 3)
 // з timeout 20с кожен. Без цього Vercel killed function на 10с (Hobby default)
@@ -154,10 +155,13 @@ async function handlePost(request: NextRequest) {
     clients: Array<{
       clientId: string;
       category?: string;
+      isReserved?: boolean;
       purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }>;
     }>;
   };
   type Action3Resp = { segments: Array<{ segmentCode: string; clients: Array<{ clientId: string; factAmountUSD: number | string }> }> };
+  // Action 8 (getManagerClients) — єдине джерело прапорця isReserved.
+  type Action8Resp = { clients?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>;
 
   // Один менеджер = 1 виклик Action 2 + 1 виклик Action 3 (sequential).
   // Раніше всі 21 менеджер летіли в 1С паралельно (42 запити одночасно) — 1С
@@ -166,8 +170,26 @@ async function handlePost(request: NextRequest) {
   // Тепер обмежуємо concurrency до CONCURRENCY_LIMIT менеджерів за раз.
   const CONCURRENCY_LIMIT = 5;
   const fetchOneManager = async (login: string) => {
-    const clientsResp = await callOneC<Action2Resp>('getClientsForPlanning', { login });
+    // Action 2 (клієнти) + Action 8 (резерв) паралельно — Action 8 несе isReserved,
+    // якого немає в Action 2 (там базова категорія). Резерв виключаємо з
+    // clientCategory (як планування виключає його зі списків).
+    const [clientsResp, mgrResp] = await Promise.all([
+      callOneC<Action2Resp>('getClientsForPlanning', { login }),
+      callOneC<Action8Resp>('getManagerClients', { login }),
+    ]);
     if (!clientsResp || !clientsResp.clients) return { login, clientsResp: null, factResp: null };
+    // Резерв-збагачення: помічаємо isReserved по clientId (як /api/onec).
+    if (mgrResp) {
+      const arr = Array.isArray(mgrResp) ? mgrResp : (mgrResp.clients ?? []);
+      const reserved = new Set<string>();
+      for (const m of arr) {
+        const rid = m?.ClientID ?? m?.clientId ?? m?.clientID;
+        if (rid != null && isClientReserved(m)) reserved.add(String(rid));
+      }
+      if (reserved.size > 0) {
+        for (const c of clientsResp.clients) if (reserved.has(String(c.clientId))) c.isReserved = true;
+      }
+    }
     const clientIds = clientsResp.clients.map(c => c.clientId);
     if (clientIds.length === 0) return { login, clientsResp, factResp: null };
     const factPayload: Record<string, unknown> = { login, period, clientIds };

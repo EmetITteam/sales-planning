@@ -40,7 +40,7 @@ export interface ManagerResult {
   login?: string;
   /** Action 2 повертає список клієнтів менеджера. clientName потрібен щоб у
    *  meta-діагностиці дублів показати читабельне ім'я. */
-  clients: Array<{ clientId: string; clientName?: string; category?: string; purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }> }>;
+  clients: Array<{ clientId: string; clientName?: string; category?: string; isReserved?: boolean; purchases?: Array<{ segmentCode: string; lastPurchaseDate?: string }> }>;
   segments: FactSegment[];
 }
 
@@ -147,6 +147,7 @@ export function aggregateClientCategoryStats(
     const seen = new Set<string>();
     for (const cl of m.clients) {
       if (!cl.clientId || seen.has(cl.clientId)) continue;
+      if (cl.isReserved) continue; // Резерв виключений (як з планування)
       seen.add(cl.clientId);
       const cat = mapClientCat(cl.category);
       mgr[cat].base += 1;
