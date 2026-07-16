@@ -141,9 +141,9 @@ export default function StrategicKpiPage() {
   useGlassHover();  // cursor-follow spotlight на .glass-card як на інших бордах
 
   const defaultPeriod = useMemo(() => {
+    // ПОТОЧНИЙ місяць (продажі тепер live-синкаються кроном). Раніше був
+    // попередній — бо поточний ще не був у БД.
     const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }, []);
   const [period, setPeriod] = useState(defaultPeriod);
@@ -269,7 +269,7 @@ export default function StrategicKpiPage() {
         .sk-hero-title { font-family: var(--font-sans); font-weight: 200; font-size: 30px; letter-spacing: -1px; line-height: 1.05; }
         .sk-hero-title strong { font-weight: 700; }
         .sk-mega-pct { font-family: var(--font-mono); font-weight: 700; font-size: 52px; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
-        .sk-brand-pill { padding: 10px 16px; border-radius: 16px; font-weight: 700; font-size: 13px; letter-spacing: -0.2px; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(6,42,61,0.08); background: rgba(255,255,255,0.5); color: rgba(6,42,61,0.58); min-width: 118px; text-align: center; }
+        .sk-brand-pill { padding: 7px 12px; border-radius: 12px; font-weight: 700; font-size: 12.5px; letter-spacing: -0.2px; transition: all 0.2s; cursor: pointer; border: 1px solid rgba(6,42,61,0.08); background: rgba(255,255,255,0.5); color: rgba(6,42,61,0.58); min-width: 0; text-align: center; white-space: nowrap; }
         .sk-brand-pill:hover { transform: translateY(-1px); background: rgba(255,255,255,0.75); color: #062a3d; }
         .sk-brand-pill.active { background: linear-gradient(135deg, #066aab 0%, #0284c7 100%); color: white; border-color: transparent; box-shadow: 0 4px 14px rgba(6,106,171,0.35); }
         .sk-brand-pill.active:hover { transform: translateY(-1px); }
