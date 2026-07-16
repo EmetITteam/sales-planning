@@ -59,7 +59,10 @@ export function AppHeader() {
   const isOnClientsPage = pathname?.startsWith('/clients') ?? false;
   const isOnMeetingsPage = pathname?.startsWith('/meetings') ?? false;
   const isOnStrategicKpiPage = pathname?.startsWith('/admin/strategic-kpi') ?? false;
-  const isOnPlanningPage = !isOnClientsPage && !isOnMeetingsPage && !isOnStrategicKpiPage;
+  // Головна (планування/огляд) живе рівно на '/'. Раніше вважалося «будь-що
+  // крім clients/meetings/strategic» → на /admin, /weekly-report тощо чипи
+  // «Планування»/«Огляд» не переходили (бо гадали що вже на головній).
+  const isOnPlanningPage = pathname === '/';
   // Cursor-following gradient на всіх glass-card. Один document listener.
   useGlassHover();
   const handleLogout = async () => {
