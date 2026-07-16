@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   // Зведення по всіх регіонах — тільки оверсайт-ролі.
   if (sp.get('all') === '1') {
-    if (!seesAllReports(session)) return Response.json({ error: 'Forbidden' }, { status: 403 });
+    if (!(await seesAllReports(session))) return Response.json({ error: 'Forbidden' }, { status: 403 });
     try {
       const statuses = await listWeekStatuses(week);
       return Response.json({ statuses });

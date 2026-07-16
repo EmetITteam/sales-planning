@@ -11,12 +11,12 @@
  */
 import { isStrategicKpiLogin } from './feature-flags';
 import { resolveRegionOverrides } from './region-access';
+import { supabase } from './supabase';
 
 export interface WeeklyAccessSession {
   role: string;
   login: string;
   regionCode?: string;
-  canViewCompanyOverview?: boolean;
 }
 
 export async function allowedForRegion(
@@ -32,9 +32,21 @@ export async function allowedForRegion(
   return grantCodes.has(regionCode);
 }
 
-/** Оверсайт-роль — бачить зведення фіналізації по всіх регіонах. */
-export function seesAllReports(session: WeeklyAccessSession | null): boolean {
+/**
+ * Оверсайт-роль — бачить зведення фіналізації по всіх регіонах.
+ * canViewCompanyOverview НЕ у JWT (toggle має діяти одразу) → читаємо з БД,
+ * як у /api/admin/company-overview. Тому async.
+ */
+export async function seesAllReports(session: WeeklyAccessSession | null): Promise<boolean> {
   if (!session) return false;
-  return session.role === 'admin' || session.role === 'director'
-    || isStrategicKpiLogin(session.login) || session.canViewCompanyOverview === true;
+  if (session.role === 'admin' || session.role === 'director' || isStrategicKpiLogin(session.login)) return true;
+  try {
+    const { data } = await supabase
+      .from('users')
+      .select('can_view_company_overview')
+      .eq('login', session.login);
+    return !!(Array.isArray(data) && data[0]?.can_view_company_overview);
+  } catch {
+    return false; // колонка ще не існує / помилка → тільки явні оверсайт-ролі
+  }
 }
