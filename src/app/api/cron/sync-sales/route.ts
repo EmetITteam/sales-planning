@@ -62,9 +62,18 @@ async function handleSync(request: NextRequest) {
   if (!okCron) { const s = await getSession(); okAdmin = s?.role === 'admin'; }
   if (!okCron && !okAdmin) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth() + 1;
+  // За замовчуванням — поточний місяць (як крон). Можна передати ?month=YYYY-MM
+  // (admin) щоб пересинхронити будь-який місяць з екшена — напр. для сверки
+  // (червень ≈ 5522) або добору. Full-month replace застосується до цього місяця.
+  const monthParam = request.nextUrl.searchParams.get('month');
+  let y: number, m: number;
+  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+    [y, m] = monthParam.split('-').map(Number);
+  } else {
+    const now = new Date();
+    y = now.getUTCFullYear();
+    m = now.getUTCMonth() + 1;
+  }
   const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
   const nextY = m === 12 ? y + 1 : y;
   const nextM = m === 12 ? 1 : m + 1;
