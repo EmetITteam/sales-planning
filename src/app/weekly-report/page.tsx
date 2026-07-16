@@ -178,6 +178,8 @@ export default function WeeklyReportPage() {
   const prevNotes = useWeeklyNotes(effectiveCode, prevWeekKey);
   // Статус фіналізації звіту цього регіону за тиждень.
   const finalization = useReportFinalization(effectiveCode, currentPeriod.weekEnd);
+  // Сигнал для миттєвого рефрешу зведення після локальної (де)фіналізації.
+  const [summaryRefresh, setSummaryRefresh] = useState(0);
 
   const aggregate = useMemo(() => (region ? aggregateRegion(region) : null), [region]);
   const managers = useMemo(() => (region ? aggregateManagers(region) : []), [region]);
@@ -335,6 +337,10 @@ export default function WeeklyReportPage() {
 
   const dataLoading = loading && !region;
 
+  // Після власної (де)фіналізації — миттєво оновлюємо зведення (крім 30с-поллінгу).
+  const doFinalize = async () => { await finalization.finalize(); setSummaryRefresh(v => v + 1); };
+  const doUnfinalize = async () => { await finalization.unfinalize(); setSummaryRefresh(v => v + 1); };
+
   return (
     <>
       <AppHeader />
@@ -368,6 +374,7 @@ export default function WeeklyReportPage() {
           <FinalizationSummary
             regions={regions.map(r => ({ regionCode: r.regionCode, regionName: r.regionName }))}
             weekKey={currentPeriod.weekEnd}
+            refreshSignal={summaryRefresh}
           />
         )}
 
@@ -553,8 +560,8 @@ export default function WeeklyReportPage() {
               finalizedAt={finalization.finalizedAt}
               finalizedBy={finalization.finalizedBy}
               busy={finalization.busy}
-              onFinalize={finalization.finalize}
-              onUnfinalize={finalization.unfinalize}
+              onFinalize={doFinalize}
+              onUnfinalize={doUnfinalize}
             />
           </>
         )}

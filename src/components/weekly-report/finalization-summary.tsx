@@ -14,24 +14,36 @@ import { ChevronDown, ClipboardCheck, CheckCircle2 } from 'lucide-react';
 interface RegionRef { regionCode: string; regionName: string }
 interface StatusRow { region_code: string; finalized_at: string | null; finalized_by: string | null }
 
-export function FinalizationSummary({ regions, weekKey }: { regions: RegionRef[]; weekKey: string | null }) {
+export function FinalizationSummary({ regions, weekKey, refreshSignal }: {
+  regions: RegionRef[]; weekKey: string | null; refreshSignal?: number;
+}) {
   const [statuses, setStatuses] = useState<Record<string, StatusRow>>({});
   const [expanded, setExpanded] = useState(false);
 
+  // Авто-оновлення: інший РМ фіналізує у своїй сесії, а директор бачить свіжий
+  // стан без перезавантаження. Джерела рефрешу: старт, кожні 30с (тільки коли
+  // вкладка активна), повернення фокусу на вкладку, і refreshSignal (локальна
+  // фіналізація на цій же сторінці — миттєво).
   useEffect(() => {
     if (!weekKey) { setStatuses({}); return; }
     let cancelled = false;
-    fetch(`/api/weekly-report/finalize?week=${encodeURIComponent(weekKey)}&all=1`, { credentials: 'same-origin' })
-      .then(r => (r.ok ? r.json() : { statuses: [] }))
-      .then((d: { statuses?: StatusRow[] }) => {
-        if (cancelled) return;
-        const map: Record<string, StatusRow> = {};
-        for (const s of d.statuses ?? []) map[s.region_code] = s;
-        setStatuses(map);
-      })
-      .catch(() => { /* мовчки */ });
-    return () => { cancelled = true; };
-  }, [weekKey]);
+    const load = () => {
+      fetch(`/api/weekly-report/finalize?week=${encodeURIComponent(weekKey)}&all=1`, { credentials: 'same-origin' })
+        .then(r => (r.ok ? r.json() : { statuses: [] }))
+        .then((d: { statuses?: StatusRow[] }) => {
+          if (cancelled) return;
+          const map: Record<string, StatusRow> = {};
+          for (const s of d.statuses ?? []) map[s.region_code] = s;
+          setStatuses(map);
+        })
+        .catch(() => { /* мовчки */ });
+    };
+    load();
+    const iv = setInterval(() => { if (!document.hidden) load(); }, 30000);
+    const onFocus = () => load();
+    window.addEventListener('focus', onFocus);
+    return () => { cancelled = true; clearInterval(iv); window.removeEventListener('focus', onFocus); };
+  }, [weekKey, refreshSignal]);
 
   const rows = useMemo(() => regions
     .map(r => ({ ...r, status: statuses[r.regionCode] ?? null }))
