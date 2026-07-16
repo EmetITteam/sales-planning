@@ -46,6 +46,16 @@ async function fetchSalesPage(dateFrom: string, dateTo: string, page: number): P
 }
 
 export async function GET(request: NextRequest) {
+  try {
+    return await handleSync(request);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[cron/sync-sales] error', msg);
+    return Response.json({ error: msg }, { status: 500 });
+  }
+}
+
+async function handleSync(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const okCron = !!secret && request.headers.get('authorization') === `Bearer ${secret}`;
   let okAdmin = false;
@@ -70,9 +80,10 @@ export async function GET(request: NextRequest) {
     const data = await fetchSalesPage(monthStart, dateTo, page);
     if (!data) return Response.json({ error: `getSalesLineItems failed on page ${page}` }, { status: 502 });
     pages++;
-    totalRows = data.totalRows ?? rows.length + data.rows.length;
-    for (const r of data.rows) rows.push(mapLineItemToRow(r));
-    if (!data.hasMore || data.rows.length === 0) break;
+    const pageRows = Array.isArray(data.rows) ? data.rows : [];
+    totalRows = data.totalRows ?? rows.length + pageRows.length;
+    for (const r of pageRows) rows.push(mapLineItemToRow(r));
+    if (!data.hasMore || pageRows.length === 0) break;
     page++;
     if (page > 50) break; // запобіжник від нескінченного циклу
   }

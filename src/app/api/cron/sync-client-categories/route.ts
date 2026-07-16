@@ -27,23 +27,30 @@ if (process.env.ONEC_LOGIN && process.env.ONEC_PASSWORD) {
   oneCHeaders['Authorization'] = 'Basic ' + Buffer.from(`${process.env.ONEC_LOGIN}:${process.env.ONEC_PASSWORD}`).toString('base64');
 }
 
-async function callOneC<T>(action: string, payload: Record<string, unknown>, attempt = 0): Promise<T | null> {
+async function callOneC<T>(
+  action: string, payload: Record<string, unknown>, timeoutMs = 30_000, attempt = 0,
+): Promise<{ data: T | null; reason?: string }> {
   try {
     const res = await fetch(baseUrl, {
       method: 'POST', headers: oneCHeaders, cache: 'no-store',
       body: JSON.stringify({ action, payload }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const text = await res.text();
-    const json = JSON.parse(text) as { status?: string; data?: T };
-    if (json.status !== 'success' || !json.data) {
-      if (attempt < 2) { await new Promise(r => setTimeout(r, 600)); return callOneC<T>(action, payload, attempt + 1); }
-      return null;
+    if (!res.ok) {
+      if (attempt < 2) { await new Promise(r => setTimeout(r, 700)); return callOneC<T>(action, payload, timeoutMs, attempt + 1); }
+      return { data: null, reason: `http ${res.status}: ${text.slice(0, 120)}` };
     }
-    return json.data;
-  } catch {
-    if (attempt < 2) { await new Promise(r => setTimeout(r, 600)); return callOneC<T>(action, payload, attempt + 1); }
-    return null;
+    const json = JSON.parse(text) as { status?: string; data?: T; message?: string };
+    if (json.status !== 'success' || !json.data) {
+      if (attempt < 2) { await new Promise(r => setTimeout(r, 700)); return callOneC<T>(action, payload, timeoutMs, attempt + 1); }
+      return { data: null, reason: `status:${json.status} ${(json.message ?? '').slice(0, 120)}` };
+    }
+    return { data: json.data };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (attempt < 2) { await new Promise(r => setTimeout(r, 700)); return callOneC<T>(action, payload, timeoutMs, attempt + 1); }
+    return { data: null, reason: /timeout|abort/i.test(msg) ? `timeout(${timeoutMs}ms)` : msg.slice(0, 120) };
   }
 }
 
@@ -72,9 +79,9 @@ export async function GET(request: NextRequest) {
   const todayIso = now.toISOString().slice(0, 10);
 
   // Усі регіони/менеджери — через директор-прокси + includeAll.
-  const region = await callOneC<RegionResp>('getRegionData', {
+  const { data: region } = await callOneC<RegionResp>('getRegionData', {
     login: DIRECTOR_PROXY_LOGIN, period, includeAll: true,
-  });
+  }, 45_000);
   if (!region?.regions) {
     return Response.json({ error: 'getRegionData failed' }, { status: 502 });
   }
@@ -90,37 +97,53 @@ export async function GET(request: NextRequest) {
   }
   const logins = Array.from(managerRegion.keys());
 
-  // Action 8 по кожному менеджеру (батчами) → снапшот.
-  const CONCURRENCY = 5;
   const fresh: SnapshotRow[] = [];
-  let mgrOk = 0, mgrFail = 0;
+  const successfulLogins = new Set<string>();
+  const addClients = (login: string, arr: Record<string, unknown>[]) => {
+    successfulLogins.add(login);
+    const regionCode = managerRegion.get(login) || '';
+    for (const c of arr) {
+      const clientId = String(c.ClientID ?? c.clientId ?? c.clientID ?? '').trim();
+      if (!clientId) continue;
+      fresh.push({
+        clientId,
+        clientName: (c.ClientName ?? c.clientName) as string | undefined,
+        category: mapClientCategory((c.ClientCategory ?? c.category) as string | undefined),
+        managerLogin: login,
+        regionCode,
+        isReserved: isClientReserved(c),
+      });
+    }
+  };
+  const unwrap = (d: Action8Resp): Record<string, unknown>[] => Array.isArray(d) ? d : (d.clients ?? []);
+
+  // Action 8 по кожному менеджеру (батчами, concurrency 3, timeout 45с).
+  const CONCURRENCY = 3;
+  const failed: { login: string; reason: string }[] = [];
   for (let i = 0; i < logins.length; i += CONCURRENCY) {
     const batch = logins.slice(i, i + CONCURRENCY);
     const resps = await Promise.all(batch.map(login =>
-      callOneC<Action8Resp>('getManagerClients', { login }).then(d => ({ login, d })),
+      callOneC<Action8Resp>('getManagerClients', { login }, 45_000).then(res => ({ login, res })),
     ));
-    for (const { login, d } of resps) {
-      if (!d) { mgrFail++; continue; }
-      mgrOk++;
-      const arr = Array.isArray(d) ? d : (d.clients ?? []);
-      const regionCode = managerRegion.get(login) || '';
-      for (const c of arr) {
-        const clientId = String(c.ClientID ?? c.clientId ?? c.clientID ?? '').trim();
-        if (!clientId) continue;
-        fresh.push({
-          clientId,
-          clientName: (c.ClientName ?? c.clientName) as string | undefined,
-          category: mapClientCategory((c.ClientCategory ?? c.category) as string | undefined),
-          managerLogin: login,
-          regionCode,
-          isReserved: isClientReserved(c),
-        });
-      }
+    for (const { login, res } of resps) {
+      if (res.data) addClients(login, unwrap(res.data));
+      else failed.push({ login, reason: res.reason ?? 'unknown' });
     }
   }
 
-  const stats = await syncClientCategories(fresh, monthFirstIso, todayIso);
-  console.log('[cron/sync-client-categories]', { period, managers: logins.length, mgrOk, mgrFail, ...stats });
+  // Ретрай-прохід для упавших — послідовно, довший таймаут (60с).
+  const stillFailed: { login: string; reason: string }[] = [];
+  for (const f of failed) {
+    const res = await callOneC<Action8Resp>('getManagerClients', { login: f.login }, 60_000);
+    if (res.data) addClients(f.login, unwrap(res.data));
+    else stillFailed.push({ login: f.login, reason: res.reason ?? f.reason });
+  }
 
-  return Response.json({ ok: true, period, managers: logins.length, mgrOk, mgrFail, ...stats });
+  // Закриваємо зниклих ТІЛЬКИ серед успішних менеджерів (упавших не чіпаємо).
+  const stats = await syncClientCategories(fresh, monthFirstIso, todayIso, successfulLogins);
+  const mgrOk = successfulLogins.size;
+  const mgrFail = stillFailed.length;
+  console.log('[cron/sync-client-categories]', { period, managers: logins.length, mgrOk, mgrFail, failedLogins: stillFailed, ...stats });
+
+  return Response.json({ ok: true, period, managers: logins.length, mgrOk, mgrFail, failedLogins: stillFailed, ...stats });
 }

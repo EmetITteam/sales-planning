@@ -90,6 +90,7 @@ export async function syncClientCategories(
   fresh: SnapshotRow[],
   monthFirstIso: string,
   todayIso: string,
+  successfulLogins?: Set<string>,
 ): Promise<SyncStats> {
   const active = await readActiveRoster();
   const activeById = new Map<string, ActiveRow>(active.map(r => [r.client_id, r]));
@@ -124,7 +125,13 @@ export async function syncClientCategories(
     }
   }
   // Зниклі клієнти (є активна версія, але у свіжому снапшоті нема) → закрити.
-  for (const r of active) if (!freshById.has(r.client_id)) toClose.push(r.id);
+  // ⚠️ ТІЛЬКИ серед менеджерів, що успішно відповіли цього прогону — інакше
+  // упавший (timeout) менеджер «загубив» би всіх своїх клієнтів з БД.
+  for (const r of active) {
+    if (freshById.has(r.client_id)) continue;
+    if (successfulLogins && !successfulLogins.has(r.manager_login)) continue;
+    toClose.push(r.id);
+  }
 
   // Застосування: спершу закриття (щоб не порушити unique active), потім вставки.
   await patchByIds(toClose, { valid_to: todayIso });
