@@ -16,7 +16,7 @@
  * Тестова: доступ admin + strategic-kpi логіни.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
@@ -33,11 +33,58 @@ import { CategoryStatsTable } from '@/components/dashboard/category-stats-table'
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { pctOf, calcForecastPercent, formatUSD, formatPct } from '@/lib/format';
 import { isStrategicKpiLogin } from '@/lib/feature-flags';
-import { ArrowLeft, ClipboardList, PenLine, Check } from 'lucide-react';
+import { ArrowLeft, ClipboardList, PenLine, Check, ChevronDown, MapPin, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 /** Ключі категорій клієнтів (як у planAgg/regionStats byCategory). */
 type BrandCatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
+
+/** Кастомний дропдаун вибору регіону (glass, стиль як PeriodFilter). */
+function RegionDropdown({ regions, value, onChange, loading }: {
+  regions: { regionCode: string; regionName: string }[];
+  value: string | null;
+  onChange: (code: string) => void;
+  loading?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const t = setTimeout(() => document.addEventListener('click', handler), 10);
+    return () => { clearTimeout(t); document.removeEventListener('click', handler); };
+  }, [open]);
+  const current = regions.find(r => r.regionCode === value);
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-white/60 backdrop-blur-md border border-white/50 hover:border-emet-blue/30 hover:bg-white/80 transition-all cursor-pointer"
+      >
+        {loading ? <Loader2 className="h-4 w-4 text-emet-blue animate-spin" /> : <MapPin className="h-4 w-4 text-emet-blue" />}
+        <span className="text-[13px] font-semibold text-foreground">{current?.regionName ?? 'Регіон'}</span>
+        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full mt-2 right-0 z-50 w-[220px] bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-[0_8px_40px_rgba(6,42,61,0.18)] py-1.5 max-h-[320px] overflow-y-auto">
+          {regions.map(r => {
+            const sel = r.regionCode === value;
+            return (
+              <button
+                key={r.regionCode}
+                onClick={() => { onChange(r.regionCode); setOpen(false); }}
+                className={`w-full flex items-center justify-between px-3.5 py-2 text-left text-[13px] transition-colors cursor-pointer ${sel ? 'bg-emet-50 text-emet-blue font-semibold' : 'hover:bg-[#f4f7fb] text-foreground'}`}
+              >
+                <span className="truncate">{r.regionName}</span>
+                {sel && <Check className="h-4 w-4 text-emet-blue shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Мітка «В ПЛАНІ / ВІДСТАВАННЯ» за темпом виконання (як статус-колір борду). */
 function markOf(forecastPct: number): { label: string; cls: string } {
@@ -238,15 +285,12 @@ export default function WeeklyReportPage() {
             </p>
           </div>
           <PeriodFilter />
-          <select
-            value={effectiveCode ?? ''}
-            onChange={e => setSelectedCode(e.target.value)}
-            className="h-10 px-3 text-[13px] rounded-xl border border-[#e8ebf4] bg-[#fafbfe]"
-          >
-            {regions.map(r => (
-              <option key={r.regionCode} value={r.regionCode}>{r.regionName}</option>
-            ))}
-          </select>
+          <RegionDropdown
+            regions={regions}
+            value={effectiveCode}
+            onChange={setSelectedCode}
+            loading={statsLoading}
+          />
         </div>
 
         {dataLoading && (
@@ -296,7 +340,7 @@ export default function WeeklyReportPage() {
               data={regionStats?.clientCategory ?? null}
               managerNames={managerNames}
               title={`${region.regionName} (1С)`}
-              loading={statsLoading && !regionStats?.clientCategory}
+              loading={statsLoading}
             />
 
             {/* Розклад по категоріях — planning (сума plannedCount по брендах, «не унікальні») */}

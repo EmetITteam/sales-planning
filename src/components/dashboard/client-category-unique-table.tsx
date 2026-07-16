@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { Users, RefreshCw, UserPlus, UserMinus, CircleSlash, ChevronDown } from 'lucide-react';
+import { Users, RefreshCw, UserPlus, UserMinus, CircleSlash, ChevronDown, Loader2 } from 'lucide-react';
 import { pctOf } from '@/lib/format';
 import type { ClientCategoryBreakdown, ClientCatCounts, RegionStatsCategory } from '@/lib/use-region-stats';
 
@@ -100,9 +100,17 @@ export function ClientCategoryUniqueTable({ data, managerNames, title, loading }
   loading?: boolean;
 }) {
   const [showManagers, setShowManagers] = useState(false);
+  const refreshing = loading && !!data; // оновлюємо поверх старих даних (напр. зміна міста)
 
   return (
-    <div className="glass-card ambient-accent overflow-hidden">
+    <div className="glass-card ambient-accent overflow-hidden relative">
+      {refreshing && (
+        <div className="absolute inset-0 z-10 bg-white/55 backdrop-blur-[1px] flex items-start justify-center pt-16">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white shadow-[0_4px_20px_rgba(6,42,61,0.12)] text-[12px] font-semibold text-emet-blue">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Оновлюємо…
+          </span>
+        </div>
+      )}
       <div className="px-5 py-3 border-b border-[#e2e7ef] flex items-center justify-between">
         <h3 className="text-[14px] font-bold">Розклад по категоріях клієнтів (1С)</h3>
         {title && <span className="text-[11px] text-muted-foreground">{title}</span>}
