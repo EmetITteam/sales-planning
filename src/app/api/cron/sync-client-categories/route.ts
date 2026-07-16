@@ -100,6 +100,9 @@ export async function GET(request: NextRequest) {
   const fresh: SnapshotRow[] = [];
   const successfulLogins = new Set<string>();
   const addClients = (login: string, arr: Record<string, unknown>[]) => {
+    // Порожній АЛЕ успішний респонс → НЕ маркуємо successful, інакше
+    // disappeared-close закрив би всіх наявних клієнтів цього менеджера.
+    if (arr.length === 0) return;
     successfulLogins.add(login);
     const regionCode = managerRegion.get(login) || '';
     for (const c of arr) {

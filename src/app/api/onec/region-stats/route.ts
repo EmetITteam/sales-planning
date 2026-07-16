@@ -176,15 +176,16 @@ async function handlePost(request: NextRequest) {
   // а не з Action 2 + Action 8 — гарячий шлях падає до 1 виклику 1С/менеджера
   // (тільки факт Action 3). Fallback на live-шлях, поки крон ще не наповнив зріз.
   const dbRoster = await readActiveRosterByLogins(safeLogins).catch(() => [] as Awaited<ReturnType<typeof readActiveRosterByLogins>>);
-  const useDb = dbRoster.length > 0;
   const rosterByLogin = new Map<string, Array<{ clientId: string; clientName?: string; category?: string; isReserved?: boolean }>>();
-  if (useDb) {
-    for (const r of dbRoster) {
-      const arr = rosterByLogin.get(r.manager_login) ?? [];
-      arr.push({ clientId: r.client_id, clientName: r.client_name ?? undefined, category: r.category, isReserved: r.is_reserved });
-      rosterByLogin.set(r.manager_login, arr);
-    }
+  for (const r of dbRoster) {
+    const arr = rosterByLogin.get(r.manager_login) ?? [];
+    arr.push({ clientId: r.client_id, clientName: r.client_name ?? undefined, category: r.category, isReserved: r.is_reserved });
+    rosterByLogin.set(r.manager_login, arr);
   }
+  // DB-шлях ЛИШЕ якщо зріз покриває ВСІХ менеджерів регіону — інакше частина
+  // менеджерів дала б порожній ростер → мовчазний недолік Бази/факту. Регіон з
+  // не-синканим менеджером (напр. новий, або колл-центр) → повністю live.
+  const useDb = dbRoster.length > 0 && safeLogins.every(l => rosterByLogin.has(l));
 
   const fetchOneManager = async (login: string) => {
     let clientsResp: Action2Resp | null;
@@ -230,12 +231,14 @@ async function handlePost(request: NextRequest) {
 
   // Агрегація винесена в pure-функцію (src/lib/region-stats-aggregate.ts) —
   // тестується unit-тестами без HTTP/моків. Endpoint тільки готує дані.
+  // Включаємо менеджера якщо є РОСТЕР (clientsResp) — навіть коли факт (Action 3)
+  // впав: База/Заплановано лишаються, купили=0 (краще ніж загубити менеджера).
   const managerInputs = results
-    .filter(r => r.clientsResp && r.factResp)
+    .filter(r => r.clientsResp)
     .map(r => ({
       login: r.login,
       clients: r.clientsResp!.clients ?? [],
-      segments: r.factResp!.segments ?? [],
+      segments: r.factResp?.segments ?? [],
     }));
   // Діагностика резерву: скільки клієнтів позначено isReserved (виключаються
   // з clientCategory). Видно у meta відповіді + у Vercel logs.

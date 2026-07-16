@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 }
 
 /** Синхронізує один місяць (fetch усіх сторінок + full-month replace, БЕЗ rollup). */
-async function syncMonth(y: number, m: number): Promise<{ month: string; pages: number; totalRows: number; inserted: number }> {
+async function syncMonth(y: number, m: number): Promise<{ month: string; pages: number; totalRows: number; inserted: number; skipped?: boolean }> {
   const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
   const nextY = m === 12 ? y + 1 : y;
   const nextM = m === 12 ? 1 : m + 1;
@@ -77,6 +77,12 @@ async function syncMonth(y: number, m: number): Promise<{ month: string; pages: 
     if (!data.hasMore || pageRows.length === 0) break;
     page++;
     if (page > 50) break; // запобіжник
+  }
+  // ⚠️ Guard: порожній АЛЕ успішний респонс 1С (transient glitch) НЕ повинен
+  // стерти весь місяць. Поточний місяць після 1-го числа завжди має продажі,
+  // попередній — тим більше. 0 рядків → пропускаємо replace (не чіпаємо БД).
+  if (rows.length === 0) {
+    return { month: `${y}-${String(m).padStart(2, '0')}`, pages, totalRows, inserted: 0, skipped: true };
   }
   const { inserted } = await replaceMonthSales(rows, monthStart, monthEndExclusive);
   return { month: `${y}-${String(m).padStart(2, '0')}`, pages, totalRows, inserted };
