@@ -8,26 +8,10 @@
  */
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/session';
-import { isStrategicKpiLogin } from '@/lib/feature-flags';
-import { resolveRegionOverrides } from '@/lib/region-access';
+import { allowedForRegion } from '@/lib/weekly-report-access';
 import { readNotes, insertNote, type NoteField } from '@/lib/weekly-notes-store';
 
 const FIELDS: NoteField[] = ['action', 'reason', 'conclusion', 'promise_check'];
-
-async function allowedForRegion(
-  session: { role: string; login: string; regionCode?: string } | null,
-  regionCode: string,
-): Promise<boolean> {
-  if (!session || !regionCode) return false;
-  if (session.role === 'admin' || session.role === 'director') return true;
-  if (isStrategicKpiLogin(session.login)) return true;
-  // resolveRegionOverrides = MULTI_REGION_RM_OVERRIDES ∪ активні гранти.
-  const grantCodes = new Set<string>((await resolveRegionOverrides(session.login)) ?? []);
-  // РМ — свій «домашній» регіон + overrides/гранти. Звичайний менеджер (та інші
-  // ролі) — ЛИШЕ за активним грантом на цей регіон (домашній регіон не дає прав).
-  if (session.role === 'rm') return regionCode === session.regionCode || grantCodes.has(regionCode);
-  return grantCodes.has(regionCode);
-}
 
 export async function GET(request: NextRequest) {
   const session = await getSession();

@@ -30,6 +30,9 @@ import { ClientCategoryUniqueTable } from '@/components/dashboard/client-categor
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { useRegionStats } from '@/lib/use-region-stats';
 import { useWeeklyNotes, type WeeklyNotesApi } from '@/lib/use-weekly-notes';
+import { useReportFinalization } from '@/lib/use-report-finalization';
+import { ReportFinalizeBar } from '@/components/weekly-report/report-finalize-bar';
+import { FinalizationSummary } from '@/components/weekly-report/finalization-summary';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { getWeeksForMonth } from '@/lib/periods';
@@ -173,6 +176,8 @@ export default function WeeklyReportPage() {
     return pw.length ? pw[pw.length - 1].weekEnd : null;
   }, [periodKey, currentPeriod.weekEnd]);
   const prevNotes = useWeeklyNotes(effectiveCode, prevWeekKey);
+  // Статус фіналізації звіту цього регіону за тиждень.
+  const finalization = useReportFinalization(effectiveCode, currentPeriod.weekEnd);
 
   const aggregate = useMemo(() => (region ? aggregateRegion(region) : null), [region]);
   const managers = useMemo(() => (region ? aggregateManagers(region) : []), [region]);
@@ -304,6 +309,28 @@ export default function WeeklyReportPage() {
     ].filter(x => x.planned > 0 || x.bought > 0);
   };
 
+  // Чек-лист прошлотижневих обіцянок («Дія» минулого тижня по брендах).
+  const promiseItems = prevNotes.list('action')
+    .filter(x => x.segmentCode && x.note.text.trim())
+    .map(x => ({
+      segmentCode: x.segmentCode as string,
+      segmentName: brandRows.find(b => b.code === x.segmentCode)?.name ?? (x.segmentCode as string),
+      actionText: x.note.text.trim(),
+    }));
+
+  // Повнота звіту для фіналізації: по кожному бренду Причина + Дія, Висновок по
+  // регіону, і всі прошлотижневі обіцянки відмічені (виконано/ні).
+  const missing: string[] = [];
+  for (const b of brandRows) {
+    if (!notes.get('reason', b.code)?.text.trim()) missing.push(`${b.name}: причина`);
+    if (!notes.get('action', b.code)?.text.trim()) missing.push(`${b.name}: дія`);
+  }
+  if (!notes.get('conclusion', null)?.text.trim()) missing.push('Висновок по регіону');
+  for (const it of promiseItems) {
+    const done = notes.get('promise_check', it.segmentCode)?.done;
+    if (done !== true && done !== false) missing.push(`Обіцянка «${it.segmentName}»: відмітити`);
+  }
+
   if (!user || !allowed) return null;
 
   const dataLoading = loading && !region;
@@ -335,6 +362,14 @@ export default function WeeklyReportPage() {
             loading={statsLoading}
           />
         </div>
+
+        {/* Зведення фіналізації по регіонах — лише оверсайт (директор/адмін/РОП) */}
+        {seesAll && (
+          <FinalizationSummary
+            regions={regions.map(r => ({ regionCode: r.regionCode, regionName: r.regionName }))}
+            weekKey={currentPeriod.weekEnd}
+          />
+        )}
 
         {dataLoading && (
           <div className="glass-card p-8 text-center text-[13px] text-muted-foreground">Завантажую дані регіону…</div>
@@ -472,10 +507,10 @@ export default function WeeklyReportPage() {
                       </div>
                     </div>
 
-                    {/* Кнопки — окремий рядок, вирівняні праворуч */}
+                    {/* Кнопки — окремий рядок, вирівняні праворуч. Спершу Причина, потім Дія. */}
                     <div className="mt-2 flex items-center justify-end gap-1.5">
-                      <BrandNote segmentName={b.name} label="Дія" value={notes.get('action', b.code)?.text ?? ''} onSave={(t) => notes.save('action', b.code, t)} placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
                       <BrandNote segmentName={b.name} label="Причина" value={notes.get('reason', b.code)?.text ?? ''} onSave={(t) => notes.save('reason', b.code, t)} draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
+                      <BrandNote segmentName={b.name} label="Дія" value={notes.get('action', b.code)?.text ?? ''} onSave={(t) => notes.save('action', b.code, t)} placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
                     </div>
                   </div>
                 );
@@ -506,19 +541,21 @@ export default function WeeklyReportPage() {
             </div>
 
             {/* Обіцяв минулого тижня → факт: чек-лист з прошлотижневих «Дія» */}
-            <PromiseChecklist
-              items={prevNotes.list('action')
-                .filter(x => x.segmentCode && x.note.text.trim())
-                .map(x => ({
-                  segmentCode: x.segmentCode as string,
-                  segmentName: brandRows.find(b => b.code === x.segmentCode)?.name ?? (x.segmentCode as string),
-                  actionText: x.note.text.trim(),
-                }))}
-              notes={notes}
-            />
+            <PromiseChecklist items={promiseItems} notes={notes} />
 
             {/* Ручні поля (не авто) — вводить РМ */}
             <ManualFields notes={notes} />
+
+            {/* Фіналізація звіту — перевіряє повноту, фіксує здачу за тиждень */}
+            <ReportFinalizeBar
+              regionName={region.regionName}
+              missing={missing}
+              finalizedAt={finalization.finalizedAt}
+              finalizedBy={finalization.finalizedBy}
+              busy={finalization.busy}
+              onFinalize={finalization.finalize}
+              onUnfinalize={finalization.unfinalize}
+            />
           </>
         )}
       </main>
