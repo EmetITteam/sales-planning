@@ -13,6 +13,10 @@
     {
       "path": "/api/cron/sync-client-categories",
       "schedule": "17 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-sales",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
