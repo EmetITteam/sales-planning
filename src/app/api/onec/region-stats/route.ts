@@ -215,6 +215,11 @@ async function handlePost(request: NextRequest) {
       clients: r.clientsResp!.clients ?? [],
       segments: r.factResp!.segments ?? [],
     }));
+  // Діагностика резерву: скільки клієнтів позначено isReserved (виключаються
+  // з clientCategory). Видно у meta відповіді + у Vercel logs.
+  const rosterTotal = managerInputs.reduce((s, m) => s + m.clients.length, 0);
+  const reservedExcluded = managerInputs.reduce((s, m) => s + m.clients.filter(c => c.isReserved).length, 0);
+  console.log('[region-stats] reserve', { logins: managerInputs.length, rosterTotal, reservedExcluded });
   // Класифікація buyer-ів по плану менеджера: forecast/gapNew/gapActivation/unplanned.
   // Кожен у рівно одному bucket (без дублювання). Σ = totalFact.
   const aggregated = aggregateRegionStats(managerInputs, {
@@ -263,6 +268,9 @@ async function handlePost(request: NextRequest) {
       logins: safeLogins.length,
       successful: successCount,
       partial: successCount < safeLogins.length,
+      // Діагностика резерву — скільки клієнтів виключено з clientCategory.
+      rosterTotal,
+      reservedExcluded,
       // Дiагностика dedup — у DevTools Network видно, що саме пропущено.
       dedupSkippedCount: aggregated.dedup.skippedCount,
       dedupSkippedSum: aggregated.dedup.skippedSum,
