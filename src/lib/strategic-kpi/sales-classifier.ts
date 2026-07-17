@@ -11,7 +11,17 @@
  * Створено 2026-07-03 (Фаза 1 live-плану).
  */
 
-export type SalesChannel = 'representatives' | 'call_center';
+export type SalesChannel = 'representatives' | 'call_center' | 'distributors' | 'other';
+
+// Канонічний периметр «представництв» — рівно 8 регіональних підрозділів.
+// Стратегія рахує представництва ТІЛЬКИ по них (узгоджено з ITD 2026-07-17).
+export const REPRESENTATIVE_DIVISIONS = [
+  'киев', 'одесса', 'днепр', 'харьков', 'винница', 'запорожье', 'николаев', 'житомир',
+];
+// Дистриб'ютори — окремий канал (Полтава, Чернівці). НЕ представництва.
+const DISTRIBUTOR_DIVISIONS = ['полтава', 'черновцы'];
+// Решта (Лазерхауз, Адасса, Сотрудники, Маркетинг, службові рядки) → 'other',
+// поза периметром стратегії — не показуються у жодному каналі борду.
 
 /** Бренд не розпізнано — кладемо цей маркер (як у backfill). */
 export const UNMAPPED_BRAND = 'НЕ_МАПНУТО';
@@ -99,7 +109,13 @@ export function detectChannel(division?: string | null): SalesChannel {
   if (d.includes('коллцентр') || d.includes('call center') || d.includes('call-center')) {
     return 'call_center';
   }
-  return 'representatives';
+  // Нормалізуємо: прибираємо суфікс '*' (1С маркує ним Полтава*/Черновцы*/Лазерхауз*)
+  // і зайві пробіли, потім матчимо по канонічних списках.
+  const norm = d.replace(/\*+$/, '').trim();
+  if (REPRESENTATIVE_DIVISIONS.includes(norm)) return 'representatives';
+  if (DISTRIBUTOR_DIVISIONS.includes(norm)) return 'distributors';
+  // Лазерхауз, Адасса, Сотрудники, Маркетинг, службові/promo-рядки → поза периметром.
+  return 'other';
 }
 
 // Бренд-ТРИГЕР промо: бренд, який треба було купити щоб отримати подарунок.

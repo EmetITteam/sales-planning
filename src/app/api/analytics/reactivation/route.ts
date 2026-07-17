@@ -19,15 +19,18 @@ import { supabase } from '@/lib/supabase';
 import { parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { STRATEGIC_BRANDS } from '@/lib/strategic-kpi/brands';
 import { AsyncCache } from '@/lib/strategic-kpi/cache-helper';
-import { UNMAPPED_BRAND } from '@/lib/strategic-kpi/sales-classifier';
+import { UNMAPPED_BRAND, detectPromoTriggerBrand } from '@/lib/strategic-kpi/sales-classifier';
 
-// Службові «поводи» 1С, що не є клієнтськими акціями (внутрішні нагороди/HR):
-// кубки за підсумками продажів, річниці роботи, ювілеї тощо. У рейтингу акцій
-// реактивації їх не показуємо — це шум, а не промо.
-const NON_PROMO_RE = /кубк|годовщ|годівщ|ювіле|юбиле|річниц|нагород|награ[дж]|подяк|благодар/i;
-function isJunkPromo(key: string): boolean {
+// «Справжня акція» — повод, у якому впізнається бренд-тригер (канонічний
+// detectPromoTriggerBrand, як у promos.ts) АБО є знижковий патерн (%, «від Nх»,
+// суфікс місяця «(07.26)»). Службові поводи (Кубки за підсумками продажів,
+// Годовщина роботи, Ценообразование, Брендированная продукция) і порожні —
+// НЕ акції, у рейтингу не показуємо.
+const DISCOUNT_RE = /%|від\s*\d|\(\d{2}\.\d{2}\)/i;
+function isRealPromo(key: string): boolean {
   const k = (key ?? '').trim();
-  return k === '' || NON_PROMO_RE.test(k);
+  if (!k) return false;
+  return !!detectPromoTriggerBrand(k) || DISCOUNT_RE.test(k);
 }
 
 // RPC get_reactivation_analytics за багатомісячний період (H1/рік) з p_brand=NULL
@@ -182,8 +185,10 @@ async function computeReactivation(
       if (r.dimension === 'brand' && (r.key === UNMAPPED_BRAND || r.key.trim() === '')) continue;
       cat.by_dim.push(row);
     } else if (r.dimension === 'promo') {
-      // Порожні / службові поводи (Кубки, Годовщина роботи тощо) — не клієнтські акції.
-      if (isJunkPromo(r.key)) continue;
+      // Тільки справжні акції (бренд-тригер / знижковий патерн). Порожні та
+      // службові поводи (Кубки, Годовщина, Ценообразование, Брендированная
+      // продукция) відсікаємо.
+      if (!isRealPromo(r.key)) continue;
       cat.by_promo.push(row);
     }
   }
