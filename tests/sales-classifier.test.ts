@@ -48,15 +48,24 @@ test('detectBrand — невідомий товар → null', () => {
   assert.equal(detectBrand('Якийсь невідомий товар'), null);
 });
 
-// === detectChannel ===
-test('detectChannel — колл-центр vs представництва', () => {
+// === detectChannel (4-way: representatives / call_center / distributors / other) ===
+test('detectChannel — 4 канали за підрозділом', () => {
+  // колл-центр
   assert.equal(detectChannel('Коллцентр Call center лидогенерация'), 'call_center');
   assert.equal(detectChannel('call-center'), 'call_center');
+  // представництва — рівно 8 регіонів
   assert.equal(detectChannel('Киев'), 'representatives');
   assert.equal(detectChannel('Одесса'), 'representatives');
-  assert.equal(detectChannel('Полтава*'), 'representatives'); // дистри у sales = representatives
-  assert.equal(detectChannel(''), 'representatives');
-  assert.equal(detectChannel(null), 'representatives');
+  assert.equal(detectChannel('Житомир'), 'representatives');
+  // дистриб'ютори (суфікс '*' нормалізується)
+  assert.equal(detectChannel('Полтава*'), 'distributors');
+  assert.equal(detectChannel('Черновцы*'), 'distributors');
+  // «окремі» / службові → other (поза периметром стратегії)
+  assert.equal(detectChannel('Лазерхауз*'), 'other');
+  assert.equal(detectChannel('Адасса'), 'other');
+  assert.equal(detectChannel('Сотрудники,  модели, проч'), 'other');
+  assert.equal(detectChannel(''), 'other');
+  assert.equal(detectChannel(null), 'other');
 });
 
 // === ignore / exclude / ambassador / gift ===
