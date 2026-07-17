@@ -33,6 +33,7 @@ import { useWeeklyNotes, type WeeklyNotesApi } from '@/lib/use-weekly-notes';
 import { useReportFinalization } from '@/lib/use-report-finalization';
 import { ReportFinalizeBar } from '@/components/weekly-report/report-finalize-bar';
 import { FinalizationSummary } from '@/components/weekly-report/finalization-summary';
+import { PrevWeekReasons } from '@/components/weekly-report/prev-week-reasons';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { getWeeksForMonth } from '@/lib/periods';
@@ -311,6 +312,15 @@ export default function WeeklyReportPage() {
     ].filter(x => x.planned > 0 || x.bought > 0);
   };
 
+  // Причини минулого тижня (read-only, для контексту) — «Причина» по брендах тиждень тому.
+  const prevReasons = prevNotes.list('reason')
+    .filter(x => x.segmentCode && x.note.text.trim())
+    .map(x => ({
+      segmentCode: x.segmentCode as string,
+      segmentName: brandRows.find(b => b.code === x.segmentCode)?.name ?? (x.segmentCode as string),
+      reasonText: x.note.text.trim(),
+    }));
+
   // Чек-лист прошлотижневих обіцянок («Дія» минулого тижня по брендах).
   const promiseItems = prevNotes.list('action')
     .filter(x => x.segmentCode && x.note.text.trim())
@@ -546,6 +556,9 @@ export default function WeeklyReportPage() {
                 );
               })}
             </div>
+
+            {/* Причини минулого тижня — інформаційно, перед блоком дій */}
+            <PrevWeekReasons items={prevReasons} />
 
             {/* Обіцяв минулого тижня → факт: чек-лист з прошлотижневих «Дія» */}
             <PromiseChecklist items={promiseItems} notes={notes} />
