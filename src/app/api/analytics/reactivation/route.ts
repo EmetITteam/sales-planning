@@ -19,6 +19,16 @@ import { supabase } from '@/lib/supabase';
 import { parsePeriod } from '@/lib/strategic-kpi/aggregate';
 import { STRATEGIC_BRANDS } from '@/lib/strategic-kpi/brands';
 import { AsyncCache } from '@/lib/strategic-kpi/cache-helper';
+import { UNMAPPED_BRAND } from '@/lib/strategic-kpi/sales-classifier';
+
+// Службові «поводи» 1С, що не є клієнтськими акціями (внутрішні нагороди/HR):
+// кубки за підсумками продажів, річниці роботи, ювілеї тощо. У рейтингу акцій
+// реактивації їх не показуємо — це шум, а не промо.
+const NON_PROMO_RE = /кубк|годовщ|годівщ|ювіле|юбиле|річниц|нагород|награ[дж]|подяк|благодар/i;
+function isJunkPromo(key: string): boolean {
+  const k = (key ?? '').trim();
+  return k === '' || NON_PROMO_RE.test(k);
+}
 
 // RPC get_reactivation_analytics за багатомісячний період (H1/рік) з p_brand=NULL
 // (режим «Акції») сканує sales кілька разів + self-join — на холодну може бути
@@ -167,8 +177,13 @@ async function computeReactivation(
     };
 
     if (r.dimension === 'brand' || r.dimension === 'channel') {
+      // НЕ_МАПНУТО — службова «не-бренд» корзина (номенклатура поза 5 ключовими ТМ);
+      // порожній ключ — теж не бренд. У рейтинг брендів не показуємо.
+      if (r.dimension === 'brand' && (r.key === UNMAPPED_BRAND || r.key.trim() === '')) continue;
       cat.by_dim.push(row);
     } else if (r.dimension === 'promo') {
+      // Порожні / службові поводи (Кубки, Годовщина роботи тощо) — не клієнтські акції.
+      if (isJunkPromo(r.key)) continue;
       cat.by_promo.push(row);
     }
   }
