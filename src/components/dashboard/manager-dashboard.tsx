@@ -226,7 +226,9 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
   const clientStats: ClientCategoryStats | null = useMemo(() => {
     if (isDemo) return getDemoClientStats();
     if (!clientsResponse) return null;
-    const all = adaptClientsForPlanning(clientsResponse);
+    // Резерв виключаємо (як Тижневий звіт / RM-борд). /api/onec збагачує
+    // getClientsForPlanning резервом з getManagerClients (isReserved).
+    const all = adaptClientsForPlanning(clientsResponse).filter(c => !c.isReserved);
 
     // Set ID-шок клієнтів які купили хоча б щось цього місяця (з Action 3).
     const boughtIds = new Set<string>();
@@ -254,7 +256,8 @@ export function ManagerDashboard({ targetUserLogin, targetUserName, targetUserRe
       lost: { total: lost.length, bought: countBought(lost) },
       newClients: { total: newClients.length, bought: countBought(newClients) },
       none: { total: none.length, bought: countBought(none) },
-      totalBought: boughtIds.size,
+      // Тільки не-резервні покупці (all уже без резерву) — щоб узгоджувалось із сумою по категоріях.
+      totalBought: all.filter(c => boughtIds.has(c.clientId)).length,
       totalClients: all.length,
     };
   }, [isDemo, clientsResponse, factResponse]);

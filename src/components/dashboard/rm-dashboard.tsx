@@ -5,7 +5,8 @@ import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
 import { DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
-import { aggregateRegion, aggregateManagers, aggregateRegionClientStats } from '@/lib/region-aggregates';
+import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
+import { clientCategoryToStats } from '@/lib/region-stats-aggregate';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { useRegionStats } from '@/lib/use-region-stats';
 import { CategoryStatsTable } from './category-stats-table';
@@ -209,9 +210,14 @@ export function RMDashboard({ regionCode }: RMDashboardProps = {}) {
     return { factCount, factSum };
   }, [regionStats]);
 
-  // Агрегат клієнтів по регіону — береться з Action 5 (v2.5 clientStats per manager).
-  const clientStats = useMemo(() => region ? aggregateRegionClientStats(region) : null, [region]);
-  const clientStatsLoading = loading && !clientStats;
+  // Агрегат клієнтів по регіону — з резерв-виключеного clientCategory (Action 8
+  // ростер, як Тижневий звіт та /clients), а НЕ сирих Action 5 clientStats (там
+  // резерв не відокремлений). Клієнти в резерві не рахуються у базі/факті.
+  const clientStats = useMemo(
+    () => (regionStats?.clientCategory ? clientCategoryToStats(regionStats.clientCategory.region) : null),
+    [regionStats],
+  );
+  const clientStatsLoading = statsLoading && !clientStats;
 
   // === Зріз дат для прогресу місяця ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).

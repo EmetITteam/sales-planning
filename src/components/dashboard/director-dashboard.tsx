@@ -5,7 +5,8 @@ import { useSWRConfig } from 'swr';
 import { useAppStore } from '@/lib/store';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData } from '@/lib/onec-adapters';
-import { aggregateCompany, aggregateManagers, aggregateCompanyClientStats } from '@/lib/region-aggregates';
+import { aggregateCompany, aggregateManagers } from '@/lib/region-aggregates';
+import { clientCategoryToStats } from '@/lib/region-stats-aggregate';
 import { usePlanningAggregate } from '@/lib/use-planning-aggregate';
 import { useRegionStats } from '@/lib/use-region-stats';
 import { formatUSD, formatPct, formatDateShort, pctOf, calcForecastPercent, workingDaysLabel } from '@/lib/format';
@@ -111,10 +112,6 @@ export function DirectorDashboard() {
     );
   }, [swrMutate]);
 
-  // Агрегат клієнтів по компанії — береться з Action 5 (v2.5 clientStats per manager).
-  const clientStats = useMemo(() => adapted ? aggregateCompanyClientStats(adapted.regions) : null, [adapted]);
-  const clientStatsLoading = loading && !clientStats;
-
   // === Робочі дні / asOfDate для прогресу ===
   // asOfDate = currentPeriod.weekEnd (фільтр) або today (live).
   const monthParts = currentPeriod.month.split('-').map(Number);
@@ -161,6 +158,13 @@ export function DirectorDashboard() {
       gapActivationClientIds: planAgg.gapActivationClientIds,
     } : null,
   );
+  // Агрегат клієнтів по компанії — з резерв-виключеного clientCategory (Action 8
+  // ростер), а НЕ сирих Action 5 clientStats (там резерв не відокремлений).
+  const clientStats = useMemo(
+    () => (companyStats?.clientCategory ? clientCategoryToStats(companyStats.clientCategory.region) : null),
+    [companyStats],
+  );
+  const clientStatsLoading = companyStatsLoading && !clientStats;
   // Агрегат plan + fact для CategoryStatsTable: сумарно по компанії (всі сегменти разом)
   const aggregatedPlan = useMemo(() => {
     if (!planAgg) return null;

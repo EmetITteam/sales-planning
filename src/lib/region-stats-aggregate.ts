@@ -35,6 +35,8 @@ export interface FactSegment {
   clients: Array<{ clientId: string; factAmountUSD: number | string }>;
 }
 
+import type { ClientCategoryStats } from './types';
+
 export interface ManagerResult {
   /** Логін менеджера — потрібен для діагностики дублів (хто з ким пересікся). */
   login?: string;
@@ -165,6 +167,26 @@ export function aggregateClientCategoryStats(
     byManager.push({ login: m.login ?? '', byCategory: mgr });
   }
   return { region, byManager };
+}
+
+/**
+ * Мапить резерв-виключений `clientCategory.region` (base/planned/bought) у формат
+ * картки `ClientStatsCard` (total/bought). Використовується на дашбордах, щоб
+ * карточка «Клієнти — факт купівель» була БЕЗ резерву (як Тижневий звіт та
+ * /clients), а не з сирих Action 5 clientStats (де резерв не відокремлений).
+ */
+export function clientCategoryToStats(cc: Record<ClientCat, ClientCatCounts>): ClientCategoryStats {
+  const totalClients = cc.active.base + cc.sleeping.base + cc.lost.base + cc.new.base + cc.none.base;
+  const totalBought = cc.active.bought + cc.sleeping.bought + cc.lost.bought + cc.new.bought + cc.none.bought;
+  return {
+    active: { total: cc.active.base, bought: cc.active.bought },
+    sleeping: { total: cc.sleeping.base, bought: cc.sleeping.bought },
+    lost: { total: cc.lost.base, bought: cc.lost.bought },
+    newClients: { total: cc.new.base, bought: cc.new.bought },
+    none: { total: cc.none.base, bought: cc.none.bought },
+    totalBought,
+    totalClients,
+  };
 }
 
 function emptyStat(): CategoryStat {
