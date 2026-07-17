@@ -61,7 +61,10 @@ async function main() {
   console.log('\nЗбираю distinct division…');
   const divs = new Set();
   for (let from = 0; ; from += 1000) {
-    const r = await fetch(`${U}/rest/v1/sales?select=division`, { headers: { ...H, Range: `${from}-${from + 999}` } });
+    // ⚠️ ORDER BY id ОБОВ'ЯЗКОВО — без нього PostgREST між сторінками віддає
+    // рядки у непередбачуваному порядку і пропускає рідкісні division (Полтава=61
+    // рядок) → пере-класифікація неповна.
+    const r = await fetch(`${U}/rest/v1/sales?select=division&order=id`, { headers: { ...H, Range: `${from}-${from + 999}` } });
     const rows = await r.json();
     if (!Array.isArray(rows) || rows.length === 0) break;
     for (const x of rows) divs.add(x.division ?? null);
