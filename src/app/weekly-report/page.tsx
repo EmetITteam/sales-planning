@@ -337,7 +337,7 @@ export default function WeeklyReportPage() {
     if (!notes.get('reason', b.code)?.text.trim()) missing.push(`${b.name}: причина`);
     if (!notes.get('action', b.code)?.text.trim()) missing.push(`${b.name}: дія`);
   }
-  if (!notes.get('conclusion', null)?.text.trim()) missing.push('Висновок по регіону');
+  // Блок «Висновок» тимчасово прихований — з фіналізації теж не вимагаємо.
   for (const it of promiseItems) {
     const done = notes.get('promise_check', it.segmentCode)?.done;
     if (done !== true && done !== false) missing.push(`Обіцянка «${it.segmentName}»: відмітити`);
@@ -563,8 +563,8 @@ export default function WeeklyReportPage() {
             {/* Обіцяв минулого тижня → факт: чек-лист з прошлотижневих «Дія» */}
             <PromiseChecklist items={promiseItems} notes={notes} />
 
-            {/* Ручні поля (не авто) — вводить РМ */}
-            <ManualFields notes={notes} />
+            {/* Блок «Висновок» тимчасово прихований (за проханням користувача). */}
+            {/* <ManualFields notes={notes} /> */}
 
             {/* Фіналізація звіту — перевіряє повноту, фіксує здачу за тиждень */}
             <ReportFinalizeBar
