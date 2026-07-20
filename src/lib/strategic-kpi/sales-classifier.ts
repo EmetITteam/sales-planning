@@ -106,7 +106,10 @@ export function detectGiftBrand(discount?: string | null): string | null {
 
 export function detectChannel(division?: string | null): SalesChannel {
   const d = (division || '').toLowerCase().trim();
-  if (d.includes('коллцентр') || d.includes('call center') || d.includes('call-center')) {
+  // Колл-центр = B2C-канал: власне колл-центр + інтернет-магазин (Интернет
+  // магазин esseskincare) — це ті самі B2C-продажі, не «інші».
+  if (d.includes('коллцентр') || d.includes('call center') || d.includes('call-center')
+      || d.includes('интернет магазин') || d.includes('інтернет магазин')) {
     return 'call_center';
   }
   // Нормалізуємо: прибираємо суфікс '*' (1С маркує ним Полтава*/Черновцы*/Лазерхауз*)

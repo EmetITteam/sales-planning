@@ -50,9 +50,10 @@ test('detectBrand — невідомий товар → null', () => {
 
 // === detectChannel (4-way: representatives / call_center / distributors / other) ===
 test('detectChannel — 4 канали за підрозділом', () => {
-  // колл-центр
+  // колл-центр (+ інтернет-магазин = той самий B2C-канал)
   assert.equal(detectChannel('Коллцентр Call center лидогенерация'), 'call_center');
   assert.equal(detectChannel('call-center'), 'call_center');
+  assert.equal(detectChannel('Интернет магазин esseskincare'), 'call_center');
   // представництва — рівно 8 регіонів
   assert.equal(detectChannel('Киев'), 'representatives');
   assert.equal(detectChannel('Одесса'), 'representatives');
