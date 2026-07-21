@@ -215,17 +215,22 @@ export default function WeeklyReportPage() {
     allLogins.length > 0 ? allLogins : null,
     currentPeriod.month,
   );
+  const planAggIds = planAgg
+    ? { forecastClientIds: planAgg.forecastClientIds, gapNewClientIds: planAgg.gapNewClientIds, gapActivationClientIds: planAgg.gapActivationClientIds }
+    : null;
   const { data: regionStats, loading: statsLoading } = useRegionStats(
     allLogins.length > 0 ? periodKey : null,
     asOfIso,
     allLogins.length > 0 ? allLogins : null,
-    planAgg
-      ? {
-          forecastClientIds: planAgg.forecastClientIds,
-          gapNewClientIds: planAgg.gapNewClientIds,
-          gapActivationClientIds: planAgg.gapActivationClientIds,
-        }
-      : null,
+    planAggIds,
+  );
+  // Prev-week факт по категоріях (для динаміки клієнтів у воронці) — той самий
+  // план, asOfDate = кінець попереднього тижня. Тільки коли є попередня точка.
+  const { data: prevRegionStats } = useRegionStats(
+    prevWeekEndInMonth && allLogins.length > 0 ? periodKey : null,
+    prevWeekEndInMonth,
+    prevWeekEndInMonth && allLogins.length > 0 ? allLogins : null,
+    planAggIds,
   );
 
   // === №5 категорії: план + факт (як у RM-дашборді) ===
@@ -318,17 +323,21 @@ export default function WeeklyReportPage() {
   if (planAgg) for (const [k, v] of Object.entries(planAgg.bySegment)) planSegNorm[mapSegmentCode(k)] = v;
   // Групування як у таблиці борду (№5): Активні / Активізація (Сплячі+Втрачені+
   // БЗ) / Нові / Незаплановані. planned = ЗАПЛАНОВАНО (клієнтів), bought = ФАКТ (кл.).
+  const hasPrevStats = !!prevRegionStats;
   const brandCats = (code: string) => {
     const p = planSegNorm[code]?.byCategory;
     const f = regionStats?.bySegment[code]?.byCategory;
+    const fp = prevRegionStats?.bySegment[code]?.byCategory;      // минулий тиждень
     const unpl = regionStats?.bySegment[code]?.unplanned;
+    const unplPrev = prevRegionStats?.bySegment[code]?.unplanned;
     const sumP = (...keys: BrandCatKey[]) => keys.reduce((s, k) => s + (p?.[k]?.plannedCount ?? 0), 0);
     const sumF = (...keys: BrandCatKey[]) => keys.reduce((s, k) => s + (f?.[k]?.factCount ?? 0), 0);
+    const sumFp = (...keys: BrandCatKey[]) => keys.reduce((s, k) => s + (fp?.[k]?.factCount ?? 0), 0);
     return [
-      { label: 'Активні', planned: sumP('active'), bought: sumF('active') },
-      { label: 'Активізація', planned: sumP('sleeping', 'lost', 'none'), bought: sumF('sleeping', 'lost', 'none') },
-      { label: 'Нові', planned: sumP('new'), bought: sumF('new') },
-      { label: 'Незапл.', planned: 0, bought: unpl?.factCount ?? 0 },
+      { label: 'Активні', planned: sumP('active'), bought: sumF('active'), prevBought: hasPrevStats ? sumFp('active') : undefined },
+      { label: 'Активізація', planned: sumP('sleeping', 'lost', 'none'), bought: sumF('sleeping', 'lost', 'none'), prevBought: hasPrevStats ? sumFp('sleeping', 'lost', 'none') : undefined },
+      { label: 'Нові', planned: sumP('new'), bought: sumF('new'), prevBought: hasPrevStats ? sumFp('new') : undefined },
+      { label: 'Незапл.', planned: 0, bought: unpl?.factCount ?? 0, prevBought: hasPrevStats ? (unplPrev?.factCount ?? 0) : undefined },
     ].filter(x => x.planned > 0 || x.bought > 0);
   };
 

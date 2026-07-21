@@ -31,7 +31,7 @@ export interface BrandRow {
 
 interface Props {
   b: BrandRow;
-  cats: { label: string; planned: number; bought: number }[];
+  cats: { label: string; planned: number; bought: number; prevBought?: number }[];
   pace: number;
   planSeg?: { forecastFinalized?: number; gapFinalized?: number };
   notes: WeeklyNotesApi;       // цей тиждень
@@ -180,16 +180,21 @@ function Chip({ dot, children }: { dot?: 'amber' | 'blue'; children: React.React
   );
 }
 
-function FunnelChip({ c }: { c: { label: string; planned: number; bought: number } }) {
+function FunnelChip({ c }: { c: { label: string; planned: number; bought: number; prevBought?: number } }) {
   const hasPlan = c.planned > 0;
   const pct = hasPlan ? Math.round(pctOf(c.bought, c.planned)) : 0;
   const barCls = pct >= 90 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-rose-400';
+  // Динаміка клієнтів vs минулий тиждень (більше купило = зростання).
+  const d = typeof c.prevBought === 'number' ? c.bought - c.prevBought : null;
   return (
     <span className="inline-flex flex-col gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-2 py-1 min-w-[96px]">
       <span className="flex items-center justify-between gap-2">
         <span>{c.label}</span>
-        <span className="tabular-nums font-semibold text-foreground/80">
+        <span className="tabular-nums font-semibold text-foreground/80 inline-flex items-center gap-1">
           {hasPlan ? <>{c.bought}/{c.planned} <span className="text-emet-blue">({pct}%)</span></> : c.bought}
+          {d !== null && d !== 0 && (
+            <span className={d > 0 ? 'text-emerald-600' : 'text-rose-500'} title={`минулого тижня: ${c.prevBought} кл`}>{d > 0 ? `▲+${d}` : `▼${d}`}</span>
+          )}
         </span>
       </span>
       {hasPlan && (
