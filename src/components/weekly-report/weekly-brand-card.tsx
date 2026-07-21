@@ -58,11 +58,14 @@ function Amt({ children }: { children: React.ReactNode }) {
 }
 
 export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prevWeekPct, insight }: Props) {
-  // «N клієнтів купили» — з того ж джерела, що й топ-акції/фокус (таблиця sales,
-  // унікальні client_code), щоб числа сходились: акція не може мати більше
-  // клієнтів, ніж усього купило бренд. Fallback на категорійну суму (ростер 1С),
-  // поки insight не завантажився.
-  const brandBuyers = insight?.totalBuyers ?? cats.reduce((s, c) => s + c.bought, 0);
+  // «N клієнтів купили» = сума воронки (bought по категоріях) — ТОТ ЖЕ источник,
+  // что и сама воронка ниже, тождественно. Раньше брали insight.totalBuyers (наша
+  // sales) — для 8 реальних брендів воно збігається з воронкою (перевірено), але
+  // для службового OTHER/«Інші ТМ» розходилось (sales кладе непізнане у
+  // НЕ_МАПНУТО, 1С — у ДРУГИЕТМ): 7 vs 19. Сума воронки прибирає це розходження.
+  // Акції/фокус (insight, sales) — суб-деталі; для реальних брендів sales=воронка,
+  // тож акція ніколи не більша за шапку.
+  const brandBuyers = cats.reduce((s, c) => s + c.bought, 0);
   const plannedSum = (planSeg?.forecastFinalized ?? 0) + (planSeg?.gapFinalized ?? 0);
   const expectedPct = b.plan > 0 ? (plannedSum / b.plan) * 100 : 0;
   const reasonDraft = [
