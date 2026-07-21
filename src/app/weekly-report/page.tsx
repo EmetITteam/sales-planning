@@ -33,14 +33,13 @@ import { useWeeklyNotes, type WeeklyNotesApi } from '@/lib/use-weekly-notes';
 import { useReportFinalization } from '@/lib/use-report-finalization';
 import { ReportFinalizeBar } from '@/components/weekly-report/report-finalize-bar';
 import { FinalizationSummary } from '@/components/weekly-report/finalization-summary';
-import { PrevWeekReasons } from '@/components/weekly-report/prev-week-reasons';
+import { WeeklyBrandCard } from '@/components/weekly-report/weekly-brand-card';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { getWeeksForMonth } from '@/lib/periods';
 import { pctOf, calcForecastPercent, formatUSD, formatPct } from '@/lib/format';
 import { isStrategicKpiLogin, DIRECTOR_PROXY_LOGIN, MULTI_REGION_RM_OVERRIDES } from '@/lib/feature-flags';
-import { ArrowLeft, ClipboardList, PenLine, Check, ChevronDown, MapPin, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, ClipboardList, Check, ChevronDown, MapPin, Loader2 } from 'lucide-react';
 
 /** Ключі категорій клієнтів (як у planAgg/regionStats byCategory). */
 type BrandCatKey = 'active' | 'sleeping' | 'lost' | 'new' | 'none';
@@ -101,13 +100,6 @@ function RegionDropdown({ regions, value, onChange, loading }: {
       )}
     </div>
   );
-}
-
-/** Мітка «В ПЛАНІ / ВІДСТАВАННЯ» за темпом виконання (як статус-колір борду). */
-function markOf(forecastPct: number): { label: string; cls: string } {
-  return forecastPct >= 100
-    ? { label: 'В ПЛАНІ', cls: 'bg-emerald-500/12 border-emerald-300/50 text-emerald-700' }
-    : { label: 'ВІДСТАВАННЯ', cls: 'bg-rose-500/12 border-rose-300/50 text-rose-700' };
 }
 
 export default function WeeklyReportPage() {
@@ -312,16 +304,7 @@ export default function WeeklyReportPage() {
     ].filter(x => x.planned > 0 || x.bought > 0);
   };
 
-  // Причини минулого тижня (read-only, для контексту) — «Причина» по брендах тиждень тому.
-  const prevReasons = prevNotes.list('reason')
-    .filter(x => x.segmentCode && x.note.text.trim())
-    .map(x => ({
-      segmentCode: x.segmentCode as string,
-      segmentName: brandRows.find(b => b.code === x.segmentCode)?.name ?? (x.segmentCode as string),
-      reasonText: x.note.text.trim(),
-    }));
-
-  // Чек-лист прошлотижневих обіцянок («Дія» минулого тижня по брендах).
+  // Чек-лист прошлотижневих обіцянок («Дія» минулого тижня по брендах) — для перевірки повноти фіналізації.
   const promiseItems = prevNotes.list('action')
     .filter(x => x.segmentCode && x.note.text.trim())
     .map(x => ({
@@ -461,77 +444,17 @@ export default function WeeklyReportPage() {
               <div className="hidden md:grid grid-cols-[1fr_96px_96px_64px_116px] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
                 <span>Бренд</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Мітка</span>
               </div>
-              {brandRows.map(b => {
-                const mk = markOf(b.forecastPct);
-                const cats = brandCats(b.code);
-                const brandBuyers = cats.reduce((s, c) => s + c.bought, 0); // клієнтів купило бренд
-                // «Запл.» — Σ фіналізованих forecast+gap по бренду / план 1С (як у планінгу).
-                const pseg = planSegNorm[b.code];
-                const plannedSum = (pseg?.forecastFinalized ?? 0) + (pseg?.gapFinalized ?? 0);
-                const expectedPct = b.plan > 0 ? (plannedSum / b.plan) * 100 : 0;
-                // Болванка з числами для діалогу «Причина за стандартом».
-                const reasonDraft = [
-                  ...cats.map(c => `${c.label} ${c.planned}→${c.bought}`),
-                  `темп ${formatPct(b.forecastPct)}`,
-                  b.forecastPct < 100 ? `відставання −${Math.max(0, pace * 100 - b.pct).toFixed(1)}%` : 'в плані',
-                ].join(' · ');
-                return (
-                  <div key={b.code} className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
-                    {/* Ряд 1 — жорсткий grid: Бренд | ПЛАН | ФАКТ | % | МІТКА (числа фікс. ширина, tabular-nums) */}
-                    <div className="grid grid-cols-2 md:grid-cols-[1fr_96px_96px_64px_116px] gap-x-3 gap-y-1 items-center text-[13px]">
-                      <span className="col-span-2 md:col-span-1 min-w-0">
-                        <span className="font-bold text-[15px] leading-tight truncate block">{b.name}</span>
-                        <span className="text-[10px] text-muted-foreground tabular-nums">{brandBuyers} клієнтів купили</span>
-                      </span>
-                      <span className="text-right font-mono amount tabular-nums text-[13px]">{formatUSD(b.plan)}</span>
-                      <span className="text-right font-mono amount tabular-nums text-[13px] text-emerald-700">{formatUSD(b.fact)}</span>
-                      <span className={`text-right font-bold tabular-nums text-[14px] ${b.pct >= 100 ? 'text-emerald-600' : b.pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(b.pct)}</span>
-                      <span className="text-right flex flex-col items-end gap-0.5">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${mk.cls}`}>{mk.label}</span>
-                        {b.forecastPct < 100 && (
-                          <span className="text-[10px] font-bold text-rose-600 tabular-nums" title="Відставання від норми на дату (у відсоткових пунктах плану)">
-                            −{Math.max(0, pace * 100 - b.pct).toFixed(1)}%
-                          </span>
-                        )}
-                      </span>
-                    </div>
-
-                    {/* Ряд 2 — один компактний рядок: метрики зліва · чіпи + кнопки справа (h-6, ghost) */}
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-[10.5px] text-muted-foreground">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span><span className="text-amber-600">●</span> Прогноз (темп): <span className="font-bold text-amber-600">{formatPct(b.forecastPct)}</span></span>
-                        {b.plan > 0 && (
-                          <>
-                            <span className="text-muted-foreground/40">·</span>
-                            <span><span className="text-emet-blue">●</span> Запл.: <span className="font-bold text-emet-blue">{formatPct(expectedPct)}</span> · <span className="amount font-semibold">{formatUSD(plannedSum)}</span></span>
-                          </>
-                        )}
-                        <span className="text-muted-foreground/40">·</span>
-                        <span>Мин. міс. <span className="amount font-semibold">{formatUSD(b.prevFact)}</span> / {b.prevPct.toFixed(1)}%</span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5 ml-auto">
-                        {cats.map(c => (
-                          <span key={c.label} className="inline-flex items-center h-6 gap-1 rounded-md bg-[#f5f7fb] border border-[#e8ecf5] px-2">
-                            <span>{c.label}</span>
-                            <span className="tabular-nums font-semibold text-foreground/80">
-                              {c.planned}
-                              <span className="mx-0.5 text-muted-foreground font-normal">→</span>
-                              <span className={c.planned > 0 && c.bought >= c.planned ? 'text-emerald-600' : c.bought > 0 ? 'text-foreground' : 'text-rose-500'}>{c.bought}</span>
-                            </span>
-                            {c.planned > 0 && <span className="tabular-nums text-muted-foreground/70">· {pctOf(c.bought, c.planned).toFixed(0)}%</span>}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Кнопки — окремий рядок, вирівняні праворуч. Спершу Причина, потім Дія. */}
-                    <div className="mt-2 flex items-center justify-end gap-1.5">
-                      <BrandNote segmentName={b.name} label="Причина" value={notes.get('reason', b.code)?.text ?? ''} onSave={(t) => notes.save('reason', b.code, t)} draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили замовлення…" />
-                      <BrandNote segmentName={b.name} label="Дія" value={notes.get('action', b.code)?.text ?? ''} onSave={(t) => notes.save('action', b.code, t)} placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…" />
-                    </div>
-                  </div>
-                );
-              })}
+              {brandRows.map(b => (
+                <WeeklyBrandCard
+                  key={b.code}
+                  b={b}
+                  cats={brandCats(b.code)}
+                  pace={pace}
+                  planSeg={planSegNorm[b.code]}
+                  notes={notes}
+                  prevNotes={prevNotes}
+                />
+              ))}
             </div>
 
             {/* №6 Розріз по менеджерах (розрив = тригер подвійних візитів) */}
@@ -557,12 +480,6 @@ export default function WeeklyReportPage() {
               })}
             </div>
 
-            {/* Причини минулого тижня — інформаційно, перед блоком дій */}
-            <PrevWeekReasons items={prevReasons} />
-
-            {/* Обіцяв минулого тижня → факт: чек-лист з прошлотижневих «Дія» */}
-            <PromiseChecklist items={promiseItems} notes={notes} />
-
             {/* Блок «Висновок» тимчасово прихований (за проханням користувача). */}
             {/* <ManualFields notes={notes} /> */}
 
@@ -586,147 +503,6 @@ export default function WeeklyReportPage() {
 /** Грошове значення, що ховається у режимі «Сховати суми» (клас .amount). */
 function Amt({ children }: { children: React.ReactNode }) {
   return <span className="amount">{children}</span>;
-}
-
-/**
- * «Дія» / «Причина за стандартом» по бренду — кнопка → діалог. Значення
- * приходить з weekly_report_notes (`value`), збереження — append-only через
- * `onSave` (повертає true при успіху). `draft` — болванка з числами.
- */
-function BrandNote({ segmentName, label, placeholder, hint, draft, value, onSave, className = '' }: {
-  segmentName: string; label: string; placeholder: string; hint?: string; draft?: string;
-  value: string; onSave: (text: string) => Promise<boolean>; className?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const ta = 'w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white/70 px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
-  const openDialog = () => { setText(value); setErr(null); setOpen(true); };
-  const doSave = async () => {
-    setBusy(true); setErr(null);
-    const ok = await onSave(text.trim());
-    setBusy(false);
-    if (ok) setOpen(false); else setErr('Не вдалося зберегти — спробуйте ще раз');
-  };
-  return (
-    <>
-      <button
-        onClick={openDialog}
-        title={value || label}
-        className={`inline-flex items-center h-6 gap-1 max-w-[180px] px-2 rounded-md text-[10.5px] font-semibold border transition-colors ${value ? 'text-emet-blue bg-emet-blue/10 border-emet-blue/25 hover:bg-emet-blue/15' : 'text-slate-600 bg-transparent border-[#e2e7ef] hover:bg-[#f5f7fb]'} ${className}`}
-      >
-        <PenLine className="h-3 w-3 shrink-0" />
-        <span className="truncate">{value ? `${label}: ${value}` : label}</span>
-      </button>
-
-      <Dialog open={open} onOpenChange={(v) => { if (!busy) setOpen(v); }}>
-        <DialogContent className="max-w-md">
-          <DialogTitle className="text-[15px]">{label} · {segmentName}</DialogTitle>
-          {hint && <p className="text-[12px] text-muted-foreground -mt-1">{hint}</p>}
-          {draft !== undefined && (
-            <button
-              type="button"
-              onClick={() => setText(t => (t.trim() ? t : `${draft}. Висновок: `))}
-              className="self-start inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emet-blue bg-emet-blue/10 border border-emet-blue/25 hover:bg-emet-blue/15 transition-colors"
-            >
-              Підставити числа
-            </button>
-          )}
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            autoFocus
-            rows={4}
-            maxLength={2000}
-            placeholder={placeholder}
-            className={ta}
-          />
-          {err && <p className="text-[12px] text-rose-600">{err}</p>}
-          <div className="flex flex-col gap-2 pt-1">
-            <button
-              onClick={doSave}
-              disabled={busy}
-              className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-emet-blue text-white font-semibold text-[13px] disabled:opacity-50 active:scale-[0.98] transition-transform"
-            >
-              <Check className="h-4 w-4" /> {busy ? 'Зберігаю…' : 'Зберегти'}
-            </button>
-            <button onClick={() => { if (!busy) setOpen(false); }} className="h-10 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-foreground">
-              Скасувати
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-/**
- * Ручні поля звіту — вводить РМ під час наради. Локальний стан (тестова
- * сторінка, без збереження на бекенд). Три поля за пунктами регламенту +
- * загальний «Висновок».
- */
-/** Чек-лист «Обіцяв минулого тижня» — прошлотижневі «Дія» по брендах. */
-function PromiseChecklist({ items, notes }: {
-  items: { segmentCode: string; segmentName: string; actionText: string }[];
-  notes: WeeklyNotesApi;
-}) {
-  return (
-    <div className="glass-card p-4 md:p-5 space-y-3">
-      <div>
-        <h2 className="text-[13px] font-bold">Обіцяв минулого тижня → факт</h2>
-        <p className="text-[11px] text-muted-foreground mt-0.5">«Дія» по брендах з минулого тижня. Відзначте виконано / ні + причину.</p>
-      </div>
-      {items.length === 0 ? (
-        <p className="text-[12px] text-muted-foreground">Минулого тижня «Дій» по брендах не збережено — чек-листа нема.</p>
-      ) : (
-        <div className="space-y-2">
-          {items.map(it => {
-            const st = notes.get('promise_check', it.segmentCode);
-            return <PromiseItem key={it.segmentCode} item={it} done={st?.done ?? null} reason={st?.text ?? ''} notes={notes} />;
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PromiseItem({ item, done, reason, notes }: {
-  item: { segmentCode: string; segmentName: string; actionText: string };
-  done: boolean | null; reason: string; notes: WeeklyNotesApi;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [localReason, setLocalReason] = useState(reason);
-  useEffect(() => { setLocalReason(reason); }, [reason]);
-  const setStatus = async (val: boolean) => {
-    setBusy(true);
-    await notes.save('promise_check', item.segmentCode, val ? '' : localReason.trim(), val);
-    setBusy(false);
-  };
-  const saveReason = async () => { await notes.save('promise_check', item.segmentCode, localReason.trim(), false); };
-  const btn = (active: boolean, cls: string) => `h-7 px-2.5 rounded-lg text-[11px] font-semibold border transition-colors disabled:opacity-50 ${active ? cls : 'bg-transparent border-[#e2e7ef] text-slate-600 hover:bg-[#f5f7fb]'}`;
-  return (
-    <div className="rounded-xl border border-[#eef1f7] bg-[#fafbfe] px-3 py-2.5">
-      <div className="flex items-start gap-2">
-        <span className="font-bold text-[12px] shrink-0">{item.segmentName}</span>
-        <span className="text-[12px] text-muted-foreground flex-1 min-w-0">{item.actionText}</span>
-      </div>
-      <div className="flex items-center gap-1.5 mt-2">
-        <button onClick={() => setStatus(true)} disabled={busy} className={btn(done === true, 'bg-emerald-500/15 border-emerald-300 text-emerald-700')}>Виконано</button>
-        <button onClick={() => setStatus(false)} disabled={busy} className={btn(done === false, 'bg-rose-500/12 border-rose-300 text-rose-700')}>Не виконано</button>
-      </div>
-      {done === false && (
-        <input
-          value={localReason}
-          onChange={e => setLocalReason(e.target.value)}
-          onBlur={saveReason}
-          maxLength={500}
-          placeholder="Причина невиконання…"
-          className="w-full mt-2 h-8 rounded-lg border border-[rgba(6,42,61,0.15)] bg-white/70 px-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-emet-blue/30"
-        />
-      )}
-    </div>
-  );
 }
 
 function ManualFields({ notes }: { notes: WeeklyNotesApi }) {
