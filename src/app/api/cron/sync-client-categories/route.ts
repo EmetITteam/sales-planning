@@ -86,13 +86,24 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: 'getRegionData failed' }, { status: 502 });
   }
 
-  // Унікальні (login → regionCode). Менеджер у 2 регіонах: беремо перший (1С
-  // повертає дублі; активна версія все одно одна на клієнта).
+  // Унікальні (login → regionCode). Менеджер у кількох нодах: РЕАЛЬНИЙ регіон
+  // (буквений код DNP/KYV/ODS…) перемагає службову ноду (числовий код:
+  // 000000060 Коллцентр, 000000082 HRA, 000000014 Маркетинг, 000000037 Лазерхауз).
+  // Без цього менеджер Дніпра (Сирык) отримував код колл-центру для ВСІХ своїх
+  // клієнтів — бо 1С повертає ноду «Коллцентр» РАНІШЕ за «Дніпро», а раніше брали
+  // просто перший. 1С кладе менеджера у службову ноду, коли у когось із його
+  // клієнтів була разова лід-ген продажа через КЦ — це не «регіон» менеджера.
+  const isRealRegion = (code: string) => /^[A-Za-z]/.test(code);
   const managerRegion = new Map<string, string>();
   for (const r of region.regions) {
     for (const mgr of r.managers ?? []) {
       const login = (mgr.managerLogin || '').toLowerCase().trim();
-      if (login && !managerRegion.has(login)) managerRegion.set(login, r.regionCode);
+      if (!login) continue;
+      const cur = managerRegion.get(login);
+      // Ставимо якщо ще нема, АБО апгрейд службової ноди на реальний регіон.
+      if (!cur || (isRealRegion(r.regionCode) && !isRealRegion(cur))) {
+        managerRegion.set(login, r.regionCode);
+      }
     }
   }
   const logins = Array.from(managerRegion.keys());
