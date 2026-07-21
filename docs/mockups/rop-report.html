@@ -88,7 +88,7 @@
   .badge.bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
   .brandchips { display: flex; flex-wrap: wrap; gap: 4px; }
   .bchip { font-size: 10.5px; font-weight: 700; background: var(--bad-bg); color: var(--bad); border: 1px solid var(--bad-line); border-radius: 6px; padding: 2px 7px; white-space: nowrap; }
-  .bchip.none { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
+  .bchip.none { background: var(--chip); color: var(--ink-3); border-color: var(--chip-line); }
   .txt { color: var(--ink-2); font-size: 11.8px; line-height: 1.4; max-width: 250px; }
   .txt b { color: var(--ink); font-weight: 700; }
   .yn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 3px 9px; border: 1px solid; }
@@ -168,7 +168,7 @@
     <div class="metric">
       <div class="lbl">План узгоджено в термін</div>
       <div class="val mono" style="color:var(--ok)">7<span style="font-size:18px;color:var(--ink-3)">/8</span></div>
-      <div class="foot">1 регіон прострочив (Запоріжжя)</div>
+      <div class="foot">1 регіон прострочив: Запоріжжя</div>
     </div>
     <div class="metric">
       <div class="lbl">Обіцянки минулого звіту</div>
@@ -285,7 +285,7 @@
         <div class="zbrand">Ellanse</div>
         <div class="zbar"><span style="width:50%;background:var(--bad)"></span></div>
         <div class="zregions">Одеса · Дніпро · Запоріжжя · Харків</div>
-        <div class="zcount" style="color:var(--bad)">4 / 8<span class="esc">→ CPO+CMO</span></div>
+        <div class="zcount" style="color:var(--bad)">4 / 8<span class="esc">→ CPO/CMO</span></div>
       </div>
       <div class="zrow">
         <div class="zbrand">Vitaran</div>
@@ -311,7 +311,7 @@
   <div class="grid2">
     <!-- 4.3 promises -->
     <div class="card" style="margin-bottom:0">
-      <div class="card-hd"><h2><span class="no">4.3</span>Реєстр обіцянок</h2></div>
+      <div class="card-hd"><h2><span class="no">4.3</span>Реєстр обіцянок</h2><span class="hint">5 обіцянок · 2 виконано</span></div>
       <div>
         <div class="prom"><div class="pr-r">Харків</div><div class="pr-t">«Дотиснути Vitaran по 5 точках до 12.07» — <em>не виконано:</em> менеджер у відпустці, 2 з 5</div></div>
         <div class="prom"><div class="pr-r">Дніпро</div><div class="pr-t">«Опрацювати 12 активних по Ellanse» — <em>не виконано:</em> опрацьовано 7, конверсія низька</div></div>
