@@ -12,17 +12,28 @@ export interface FocusRow {
   region_code?: string | null;
 }
 
-/** Кількість учасників фокусу per сегмент для регіону за період (унік. клієнти). */
-export async function readFocusCountsByRegion(period: string, regionCode: string): Promise<Record<string, number>> {
-  const { data, error } = await supabase
-    .from('focus_participants')
-    .select('client_id,segment_code')
-    .eq('period', period)
-    .eq('region_code', regionCode);
-  if (error) throw new Error(`readFocusCounts: ${error.message}`);
+/**
+ * Кількість учасників фокусу per сегмент для набору менеджерів за період
+ * (унік. клієнти). Скоуп — по manager_login (як ростер регіону), щоб збігалося
+ * з воронкою; region_code у 1С непослідовний (колл-центр тощо), не використовуємо.
+ */
+export async function readFocusCountsByLogins(period: string, logins: string[]): Promise<Record<string, number>> {
+  if (logins.length === 0) return {};
+  const rows: { client_id: string; segment_code: string }[] = [];
+  const CHUNK = 100;
+  for (let i = 0; i < logins.length; i += CHUNK) {
+    const slice = logins.slice(i, i + CHUNK);
+    const { data, error } = await supabase
+      .from('focus_participants')
+      .select('client_id,segment_code')
+      .eq('period', period)
+      .in('manager_login', slice);
+    if (error) throw new Error(`readFocusCounts: ${error.message}`);
+    rows.push(...((data ?? []) as unknown as { client_id: string; segment_code: string }[]));
+  }
   const seen = new Set<string>();
   const out: Record<string, number> = {};
-  for (const r of (data ?? []) as unknown as { client_id: string; segment_code: string }[]) {
+  for (const r of rows) {
     const k = `${r.segment_code}|${r.client_id}`;
     if (seen.has(k)) continue;
     seen.add(k);

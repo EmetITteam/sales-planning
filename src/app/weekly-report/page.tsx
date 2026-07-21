@@ -35,7 +35,6 @@ import { ReportFinalizeBar } from '@/components/weekly-report/report-finalize-ba
 import { FinalizationSummary } from '@/components/weekly-report/finalization-summary';
 import { WeeklyBrandCard } from '@/components/weekly-report/weekly-brand-card';
 import { useBrandInsights } from '@/lib/use-brand-insights';
-import { regionToDivision } from '@/lib/weekly-brand-insights';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { getWeeksForMonth } from '@/lib/periods';
@@ -193,10 +192,6 @@ export default function WeeklyReportPage() {
     return m;
   }, [prevRegionResp, effectiveCode]);
 
-  // Інсайти по брендах (топ-3 акції + купили по фокусу) з таблиці sales по регіону.
-  const insightDivision = useMemo(() => regionToDivision(region?.regionName), [region]);
-  const { insights: brandInsights } = useBrandInsights(effectiveCode, insightDivision, periodKey);
-
   // Статус фіналізації звіту цього регіону за тиждень.
   const finalization = useReportFinalization(effectiveCode, currentPeriod.weekEnd);
   // Сигнал для миттєвого рефрешу зведення після локальної (де)фіналізації.
@@ -209,6 +204,10 @@ export default function WeeklyReportPage() {
     () => (region ? Array.from(new Set(region.managers.map(m => m.login).filter(Boolean))) : []),
     [region],
   );
+
+  // Інсайти по брендах (топ-3 акції + купили по фокусу) — скоуп по ростеру
+  // регіону (allLogins), той самий, що воронка категорій → числа збігаються.
+  const { insights: brandInsights } = useBrandInsights(effectiveCode, allLogins, periodKey, asOfIso);
 
   const { data: planAgg } = usePlanningAggregate(
     currentPeriod.id,
