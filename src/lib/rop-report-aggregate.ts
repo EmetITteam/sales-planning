@@ -133,23 +133,46 @@ export function workingDaysBetween(from: Date, to: Date): number {
   return count;
 }
 
-export interface PlanStatus {
-  agreed: boolean;            // всі менеджери регіону фіналізували план
-  inTime: boolean;            // узгоджено <= дедлайн
-  overdueWorkingDays: number; // роб. днів прострочення (0 якщо в термін або не узгоджено)
+/**
+ * Стан узгодження плану регіону:
+ *   'not_started' — жодного запису у period_summaries (план не розпочато)
+ *   'draft'       — є записи, але не всі менеджери фіналізували (чернетки)
+ *   'in_time'     — повністю узгоджено <= дедлайн
+ *   'late'        — повністю узгоджено, але ПІСЛЯ дедлайну (прострочено)
+ */
+export type PlanState = 'not_started' | 'draft' | 'in_time' | 'late';
+export interface PlanStatusResult {
+  state: PlanState;
+  agreed: boolean;            // in_time | late (план повністю узгоджено)
+  inTime: boolean;            // in_time
+  overdueWorkingDays: number; // роб. днів прострочення (0 крім 'late')
+  finalizedAt: Date | null;
 }
 
 /**
- * Статус узгодження плану регіону vs дедлайн. finalizedAt = коли регіон повністю
- * узгодив план (max з фіналізацій менеджерів) або null якщо не всі узгодили.
+ * Статус узгодження плану регіону vs дедлайн.
+ * ⚠️ Регіон БЕЗ жодного запису (hasAnyRecord=false) — це 'not_started', а НЕ
+ * «узгоджено» (інакше «нема чернеток» було б вакуумно-істинним → фейкове ✓).
  */
-export function planDeadlineStatus(finalizedAt: Date | null, deadline: Date): PlanStatus {
-  if (!finalizedAt) return { agreed: false, inTime: false, overdueWorkingDays: 0 };
-  const inTime = finalizedAt <= deadline;
+export function resolvePlanStatus(input: {
+  hasAnyRecord: boolean;         // хоч у одного менеджера регіону є рядок у period_summaries
+  fullyFinalized: boolean;       // ВСІ менеджери фіналізували, без чернеток
+  finalizedAt: Date | null;      // max(finalized_at) коли fullyFinalized
+  deadline: Date;
+}): PlanStatusResult {
+  if (!input.hasAnyRecord) {
+    return { state: 'not_started', agreed: false, inTime: false, overdueWorkingDays: 0, finalizedAt: null };
+  }
+  if (!input.fullyFinalized || !input.finalizedAt) {
+    return { state: 'draft', agreed: false, inTime: false, overdueWorkingDays: 0, finalizedAt: null };
+  }
+  const inTime = input.finalizedAt <= input.deadline;
   return {
+    state: inTime ? 'in_time' : 'late',
     agreed: true,
     inTime,
-    overdueWorkingDays: inTime ? 0 : workingDaysBetween(deadline, finalizedAt),
+    overdueWorkingDays: inTime ? 0 : workingDaysBetween(input.deadline, input.finalizedAt),
+    finalizedAt: input.finalizedAt,
   };
 }
 

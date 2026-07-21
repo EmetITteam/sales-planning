@@ -23,17 +23,14 @@ import { getPassedWorkingDays, getWorkingDaysInMonth } from '@/lib/working-days'
 import { statusBadge, isRed } from '@/lib/status-badge';
 import {
   pickWorstBrand, rollupPromises, crossRegionRedZones, computeRopDeadline,
-  planDeadlineStatus, countByTone, type BrandLine, type PromiseLine,
+  resolvePlanStatus, countByTone, type BrandLine, type PromiseLine,
 } from '@/lib/rop-report-aggregate';
+import { isRepresentativeRegionCode, REPORT_RECIPIENT, ESCALATION_RECIPIENT } from '@/lib/rop-report-config';
 import { readWeekNotes, type WeeklyNote } from '@/lib/weekly-notes-store';
 import { listWeekStatuses } from '@/lib/weekly-report-status-store';
 import { readRopMeta } from '@/lib/rop-report-meta-store';
 
 export const maxDuration = 60;
-
-// Представництва = регіони з буквеним кодом (DNP/KYV/ODS…). Числові ноди
-// (000000060 Коллцентр тощо) — не представництва, у звіт РОП не входять.
-const isRepresentativeRegion = (code: string) => /^[A-Za-z]/.test(code);
 
 /** Latest-версія замітки (append-only): notes DESC by created_at → перша виграє. */
 function indexLatest(notes: WeeklyNote[]): Map<string, WeeklyNote> {
@@ -75,7 +72,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: `getRegionData: ${regResp.errorMessage ?? 'no data'}` }, { status: 502 });
   }
   const allRegions = adaptRegionData(regResp.data as Parameters<typeof adaptRegionData>[0])
-    .regions.filter(r => r.regionCode && isRepresentativeRegion(r.regionCode));
+    .regions.filter(r => r.regionCode && isRepresentativeRegionCode(r.regionCode));
 
   // Робочі дні для темпу прогнозу (та сама формула, що у звіті РМ).
   const weekDate = new Date(week);
@@ -148,15 +145,19 @@ export async function GET(request: NextRequest) {
       });
     const promise = rollupPromises(promiseLines);
 
-    // План (4.4): узгоджено = всі менеджери фіналізували, без чернеток.
+    // План (4.4): узгоджено = КОЖЕН менеджер регіону фіналізував, без чернеток.
+    // Регіон без ЖОДНОГО запису → 'not_started' (а не фейкове «нема чернеток»).
     const logins = region.managers.map(mm => (mm.login || '').toLowerCase()).filter(Boolean);
-    const finRows = logins.map(l => planFinByLogin.get(l)).filter(Boolean) as Array<{ hasFinal: boolean; hasDraft: boolean; maxAt: number }>;
-    const hasFinal = finRows.some(r => r.hasFinal);
-    const hasDraft = finRows.some(r => r.hasDraft);
-    const planFinalizedAt = hasFinal && !hasDraft && finRows.length > 0
-      ? new Date(Math.max(...finRows.map(r => r.maxAt)))
-      : null;
-    const plan = planDeadlineStatus(planFinalizedAt, deadline);
+    const perMgr = logins.map(l => planFinByLogin.get(l)); // undefined = у менеджера нема рядків
+    const hasAnyRecord = perMgr.some(Boolean);
+    const fullyFinalized = logins.length > 0 && perMgr.every(r => !!r && r.hasFinal && !r.hasDraft);
+    const maxAt = Math.max(0, ...perMgr.filter(Boolean).map(r => r!.maxAt));
+    const plan = resolvePlanStatus({
+      hasAnyRecord,
+      fullyFinalized,
+      finalizedAt: fullyFinalized && maxAt > 0 ? new Date(maxAt) : null,
+      deadline,
+    });
 
     return {
       code: region.regionCode,
@@ -173,10 +174,11 @@ export async function GET(request: NextRequest) {
       promise,
       reportFinalized: finalizedReportRegions.has(region.regionCode),
       plan: {
+        state: plan.state,
         agreed: plan.agreed,
         inTime: plan.inTime,
         overdueWorkingDays: plan.overdueWorkingDays,
-        finalizedAt: planFinalizedAt ? planFinalizedAt.toISOString() : null,
+        finalizedAt: plan.finalizedAt ? plan.finalizedAt.toISOString() : null,
         lateReason: lateReasons.get(region.regionCode) || null,
       },
     };
@@ -208,6 +210,7 @@ export async function GET(request: NextRequest) {
 
   return Response.json({
     period, week, prevWeek, deadline: deadline.toISOString(),
+    recipients: { report: REPORT_RECIPIENT, escalation: ESCALATION_RECIPIENT },
     hero: {
       companyPlan: Math.round(totals.plan),
       companyFact: Math.round(totals.fact),

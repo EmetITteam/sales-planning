@@ -7,7 +7,7 @@ import {
   crossRegionRedZones,
   computeRopDeadline,
   workingDaysBetween,
-  planDeadlineStatus,
+  resolvePlanStatus,
   countByTone,
 } from '../src/lib/rop-report-aggregate';
 
@@ -127,25 +127,35 @@ test('workingDaysBetween: пропускає свято 01.06 (Трійця)', (
   assert.equal(n, 1);
 });
 
-test('planDeadlineStatus: у термін → inTime, 0 прострочення', () => {
-  const deadline = new Date(2026, 6, 6, 16);
-  const r = planDeadlineStatus(new Date(2026, 6, 6, 15), deadline);
+const DL = new Date(2026, 6, 6, 16); // дедлайн 06.07 16:00
+
+test('resolvePlanStatus: НЕМА жодного запису → not_started (не «узгоджено»!)', () => {
+  const r = resolvePlanStatus({ hasAnyRecord: false, fullyFinalized: false, finalizedAt: null, deadline: DL });
+  assert.equal(r.state, 'not_started');
+  assert.equal(r.agreed, false);
+  assert.equal(r.inTime, false);
+});
+
+test('resolvePlanStatus: є записи, не всі фіналізували → draft', () => {
+  const r = resolvePlanStatus({ hasAnyRecord: true, fullyFinalized: false, finalizedAt: null, deadline: DL });
+  assert.equal(r.state, 'draft');
+  assert.equal(r.agreed, false);
+});
+
+test('resolvePlanStatus: повністю узгоджено у термін → in_time, 0 прострочення', () => {
+  const r = resolvePlanStatus({ hasAnyRecord: true, fullyFinalized: true, finalizedAt: new Date(2026, 6, 6, 15), deadline: DL });
+  assert.equal(r.state, 'in_time');
   assert.equal(r.agreed, true);
   assert.equal(r.inTime, true);
   assert.equal(r.overdueWorkingDays, 0);
 });
 
-test('planDeadlineStatus: прострочено на 2 роб. дні', () => {
-  const deadline = new Date(2026, 6, 6, 16);
-  const r = planDeadlineStatus(new Date(2026, 6, 8, 10), deadline);
+test('resolvePlanStatus: узгоджено після дедлайну → late, +2 роб. дні', () => {
+  const r = resolvePlanStatus({ hasAnyRecord: true, fullyFinalized: true, finalizedAt: new Date(2026, 6, 8, 10), deadline: DL });
+  assert.equal(r.state, 'late');
+  assert.equal(r.agreed, true);
   assert.equal(r.inTime, false);
   assert.equal(r.overdueWorkingDays, 2);
-});
-
-test('planDeadlineStatus: план не узгоджено (null) → agreed false', () => {
-  const r = planDeadlineStatus(null, new Date(2026, 6, 6, 16));
-  assert.equal(r.agreed, false);
-  assert.equal(r.inTime, false);
 });
 
 // ── countByTone ──────────────────────────────────────────────────────────────
