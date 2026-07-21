@@ -72,7 +72,7 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prev
   ].join(' · ');
 
   return (
-    <div className="border-b border-[#eef1f7] last:border-b-0">
+    <div className="bg-white rounded-xl border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <BrandCardHeader b={b} brandBuyers={brandBuyers} prevWeekPct={prevWeekPct} />
       <BrandCardMetrics b={b} cats={cats} plannedSum={plannedSum} expectedPct={expectedPct} insight={insight} />
       <BrandCardWorkzone b={b} notes={notes} prevNotes={prevNotes} reasonDraft={reasonDraft} />
@@ -84,33 +84,35 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prev
 function BrandCardHeader({ b, brandBuyers, prevWeekPct }: { b: BrandRow; brandBuyers: number; prevWeekPct?: number }) {
   const badge = statusBadge(b.forecastPct);
   return (
-    <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-x-4 gap-y-1.5 flex-wrap">
+    <div className="px-4 pt-3 pb-2.5 flex items-start justify-between gap-x-4 gap-y-2 flex-wrap">
       <div className="min-w-0">
         <div className="font-bold text-[18px] leading-tight truncate">{b.name}</div>
         <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">{brandBuyers} клієнтів купили</div>
       </div>
 
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <div className="flex items-end gap-3">
-          <NumCol label="План"><span className="amount">{formatUSD(b.plan)}</span></NumCol>
-          <span className="text-muted-foreground/30 self-center pb-0.5">→</span>
-          <NumCol label="Факт"><span className="amount text-emerald-700">{formatUSD(b.fact)}</span></NumCol>
-          <div className="text-right">
-            <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70 leading-none mb-0.5">Викон.</div>
-            <div className={`font-bold tabular-nums text-[20px] leading-none ${planColor(b.forecastPct)}`}>{formatPct(b.pct)}</div>
-          </div>
-          <span className={`self-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
+        {/* Лінійка План | Факт | Викон.(% + бейдж) — з роздільниками */}
+        <div className="flex items-stretch divide-x divide-slate-200 rounded-lg border border-slate-200 bg-slate-50/40">
+          <StatCol label="План"><span className="amount">{formatUSD(b.plan)}</span></StatCol>
+          <StatCol label="Факт"><span className="amount text-emerald-700">{formatUSD(b.fact)}</span></StatCol>
+          <StatCol label="Викон.">
+            <span className="flex items-center gap-2">
+              <span className={`font-bold tabular-nums text-[16px] md:text-[18px] leading-none ${planColor(b.forecastPct)}`}>{formatPct(b.pct)}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
+            </span>
+          </StatCol>
         </div>
+        {/* Динаміка — під лінійкою, справа, приглушено; кольорова лише дельта */}
         {typeof prevWeekPct === 'number' && (() => {
           const d = b.pct - prevWeekPct;
           const up = d > 0.05, down = d < -0.05;
           const cls = up ? 'text-emerald-600' : down ? 'text-rose-600' : 'text-muted-foreground';
           const arrow = up ? '▲' : down ? '▼' : '▪';
           return (
-            <div className="text-[11px] tabular-nums flex items-center gap-1" title="Динаміка % виконання: минулий тиждень → зараз">
-              <span className="text-slate-500 font-semibold">{formatPct(prevWeekPct)}</span>
+            <div className="text-[11px] tabular-nums text-muted-foreground/70 flex items-center gap-1 self-end" title="Динаміка % виконання: минулий тиждень → зараз">
+              <span>{formatPct(prevWeekPct)}</span>
               <span className="text-muted-foreground/40">→</span>
-              <span className={`font-bold ${planColor(b.forecastPct)}`}>{formatPct(b.pct)}</span>
+              <span>{formatPct(b.pct)}</span>
               <span className={`font-semibold ${cls}`}>{arrow} {d >= 0 ? '+' : ''}{d.toFixed(1)}</span>
             </div>
           );
@@ -120,11 +122,12 @@ function BrandCardHeader({ b, brandBuyers, prevWeekPct }: { b: BrandRow; brandBu
   );
 }
 
-function NumCol({ label, children }: { label: string; children: React.ReactNode }) {
+/** Колонка лінійки: лейбл зверху (uppercase, slate-400), значення знизу. */
+function StatCol({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="text-right">
-      <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70 leading-none mb-0.5">{label}</div>
-      <div className="font-mono tabular-nums text-[13px] leading-none">{children}</div>
+    <div className="flex flex-col items-end justify-center px-3 md:px-4 py-1.5">
+      <div className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 leading-none mb-1">{label}</div>
+      <div className="font-mono tabular-nums text-[14px] md:text-[16px] leading-none">{children}</div>
     </div>
   );
 }
@@ -244,7 +247,7 @@ function BrandCardWorkzone({ b, notes, prevNotes, reasonDraft }: {
   const proposal = notes.get('proposal', b.code)?.text ?? '';
 
   return (
-    <div className="border-t border-[#e8ecf5] bg-slate-50/70 px-4 py-2.5">
+    <div className="border-t border-slate-200 bg-slate-50/50 px-4 py-2.5">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 items-stretch">
         <WorkzoneCard
           title="Причина" accent="neutral"

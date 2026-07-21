@@ -478,22 +478,21 @@ export default function WeeklyReportPage() {
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Під брендом — клієнти по категоріях: <b>заплановано → купили</b>.</p>
               </div>
-              <div className="hidden md:grid grid-cols-[1fr_96px_96px_64px_116px] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
-                <span>Бренд</span><span className="text-right">План</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Мітка</span>
+              <div className="bg-slate-100 p-3 md:p-4 space-y-5">
+                {brandRows.map(b => (
+                  <WeeklyBrandCard
+                    key={b.code}
+                    b={b}
+                    cats={brandCats(b.code)}
+                    pace={pace}
+                    planSeg={planSegNorm[b.code]}
+                    notes={notes}
+                    prevNotes={prevNotes}
+                    prevWeekPct={prevPctByBrand[b.code]}
+                    insight={brandInsights[b.code]}
+                  />
+                ))}
               </div>
-              {brandRows.map(b => (
-                <WeeklyBrandCard
-                  key={b.code}
-                  b={b}
-                  cats={brandCats(b.code)}
-                  pace={pace}
-                  planSeg={planSegNorm[b.code]}
-                  notes={notes}
-                  prevNotes={prevNotes}
-                  prevWeekPct={prevPctByBrand[b.code]}
-                  insight={brandInsights[b.code]}
-                />
-              ))}
             </div>
 
             {/* №6 Розріз по менеджерах (розрив = тригер подвійних візитів) */}
