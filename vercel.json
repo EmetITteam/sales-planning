@@ -17,6 +17,10 @@
     {
       "path": "/api/cron/sync-sales",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-focus",
+      "schedule": "0 6,15 * * *"
     }
   ]
 }

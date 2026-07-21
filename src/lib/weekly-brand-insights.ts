@@ -22,6 +22,7 @@ export interface InsightRow {
 export interface PromoOut { name: string; clients: number; sum: number; pct: number }
 export interface BrandInsight {
   totalBuyers: number;
+  focusParticipants: number;  // з focus_participants (крон); заповнює API
   focusBought: number;
   focusSum: number;
   topPromos: PromoOut[];
@@ -103,7 +104,7 @@ export function aggregateBrandInsights(rows: InsightRow[]): Record<string, Brand
       .map(([name, v]) => ({ name, clients: v.cl.size, sum: Math.round(v.sum), pct: totalBuyers > 0 ? Math.round((v.cl.size / totalBuyers) * 1000) / 10 : 0 }))
       .sort((x, y) => y.clients - x.clients)
       .slice(0, 3);
-    out[seg] = { totalBuyers, focusBought: a.focus.size, focusSum: Math.round(a.focusSum), topPromos };
+    out[seg] = { totalBuyers, focusParticipants: 0, focusBought: a.focus.size, focusSum: Math.round(a.focusSum), topPromos };
   }
   return out;
 }

@@ -137,14 +137,17 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prev
       </div>
 
       {/* Фокус (купили) + топ-3 акції — з таблиці sales по регіону */}
-      {insight && (insight.focusBought > 0 || insight.topPromos.length > 0) && (
+      {insight && (insight.focusParticipants > 0 || insight.focusBought > 0 || insight.topPromos.length > 0) && (
         <div className="mt-1.5 space-y-1 text-[10.5px]">
-          {insight.focusBought > 0 && (
+          {(insight.focusParticipants > 0 || insight.focusBought > 0) && (
             <div className="flex items-center gap-1.5 flex-wrap">
               <Target className="h-3 w-3 text-violet-500 shrink-0" />
-              <span className="text-muted-foreground">Купили по фокусу:</span>
-              <span className="font-bold tabular-nums text-foreground/80">{insight.focusBought} кл</span>
-              <span className="amount text-muted-foreground">· ${insight.focusSum.toLocaleString('en-US')}</span>
+              <span className="text-muted-foreground">Фокус:</span>
+              {insight.focusParticipants > 0 && <span className="font-bold tabular-nums text-foreground/80">{insight.focusParticipants} учасн.</span>}
+              <span className="text-muted-foreground">купили</span>
+              <span className="font-bold tabular-nums text-emerald-700">{insight.focusBought}</span>
+              {insight.focusParticipants > 0 && <span className="tabular-nums font-bold text-emet-blue">({Math.round((insight.focusBought / insight.focusParticipants) * 100)}%)</span>}
+              {insight.focusSum > 0 && <span className="amount text-muted-foreground">· ${insight.focusSum.toLocaleString('en-US')}</span>}
             </div>
           )}
           {insight.topPromos.length > 0 && (

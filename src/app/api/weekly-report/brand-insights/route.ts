@@ -11,7 +11,8 @@ import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import { allowedForRegion } from '@/lib/weekly-report-access';
-import { aggregateBrandInsights, type InsightRow } from '@/lib/weekly-brand-insights';
+import { aggregateBrandInsights, type InsightRow, type BrandInsight } from '@/lib/weekly-brand-insights';
+import { readFocusCountsByRegion } from '@/lib/focus-participants-store';
 
 function monthBounds(period: string): { from: string; to: string } | null {
   if (!/^\d{4}-\d{2}$/.test(period)) return null;
@@ -59,7 +60,14 @@ export async function GET(request: NextRequest) {
       rows.push(...chunk);
       if (chunk.length < PAGE) break;
     }
-    return Response.json({ brands: aggregateBrandInsights(rows) });
+    const brands = aggregateBrandInsights(rows);
+    // Учасники фокусу — з focus_participants (крон sync-focus), не наживо з 1С.
+    const focusCounts = await readFocusCountsByRegion(period, region);
+    const empty = (): BrandInsight => ({ totalBuyers: 0, focusParticipants: 0, focusBought: 0, focusSum: 0, topPromos: [] });
+    for (const [seg, cnt] of Object.entries(focusCounts)) {
+      (brands[seg] ??= empty()).focusParticipants = cnt;
+    }
+    return Response.json({ brands });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 500 });
   }
