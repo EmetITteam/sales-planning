@@ -64,6 +64,7 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prev
   // Ретро минулого тижня + відмітка виконання Дії.
   const lastReason = prevNotes.get('reason', b.code)?.text.trim();
   const lastAction = prevNotes.get('action', b.code)?.text.trim();
+  const proposal = notes.get('proposal', b.code)?.text.trim();
 
   return (
     <div className="px-4 py-2.5 border-b border-[#f0f2f8] last:border-b-0">
@@ -159,6 +160,19 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prev
             segmentName={b.name} label="Дія" value={notes.get('action', b.code)?.text ?? ''}
             onSave={(t) => notes.save('action', b.code, t)}
             placeholder="Дія на тиждень / фокус по цьому бренду: кого відвідати, що дотиснути, дедлайн…"
+          />
+        </div>
+
+        {/* Пропозиція регіону — вільний текст на бренд (нічого не рахуємо) */}
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="w-[46px] shrink-0 font-bold text-slate-500 uppercase tracking-wider text-[9.5px]">Проп.</span>
+          <span className="flex-1 min-w-0 truncate text-muted-foreground" title={proposal || undefined}>
+            {proposal ? proposal : <span className="text-muted-foreground/40">пропозиція регіону по бренду…</span>}
+          </span>
+          <BrandNote
+            segmentName={b.name} label="Пропозиція" value={notes.get('proposal', b.code)?.text ?? ''}
+            onSave={(t) => notes.save('proposal', b.code, t)}
+            placeholder="Пропозиція регіону по цьому бренду…"
           />
         </div>
       </div>

@@ -5,7 +5,7 @@
  */
 import { supabase } from './supabase';
 
-export type NoteField = 'action' | 'reason' | 'conclusion' | 'promise_check';
+export type NoteField = 'action' | 'reason' | 'conclusion' | 'promise_check' | 'proposal';
 
 export interface WeeklyNote {
   id: string;

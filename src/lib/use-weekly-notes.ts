@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
-export type NoteField = 'action' | 'reason' | 'conclusion' | 'promise_check';
+export type NoteField = 'action' | 'reason' | 'conclusion' | 'promise_check' | 'proposal';
 
 export interface NoteLatest {
   text: string;

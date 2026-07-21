@@ -11,7 +11,7 @@ import { getSession } from '@/lib/session';
 import { allowedForRegion } from '@/lib/weekly-report-access';
 import { readNotes, insertNote, type NoteField } from '@/lib/weekly-notes-store';
 
-const FIELDS: NoteField[] = ['action', 'reason', 'conclusion', 'promise_check'];
+const FIELDS: NoteField[] = ['action', 'reason', 'conclusion', 'promise_check', 'proposal'];
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
