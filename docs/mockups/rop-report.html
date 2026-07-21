@@ -1,0 +1,365 @@
+<title>Звіт РОП → CSO/CMO — макет</title>
+<style>
+  :root {
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace;
+    --emet: #066aab;
+    --emet-soft: #066aab14;
+    --page: #eef2f7;
+    --card: #ffffff;
+    --ink: #0f1e2e;
+    --ink-2: #52657a;
+    --ink-3: #8496a8;
+    --line: #e4e9f0;
+    --line-soft: #eef1f6;
+    --chip: #f5f7fb;
+    --chip-line: #e8ecf5;
+    --ok: #059669; --ok-bg: #05966915; --ok-line: #05966933;
+    --warn: #d97706; --warn-bg: #d9770615; --warn-line: #d9770633;
+    --bad: #e11d48; --bad-bg: #e11d4815; --bad-line: #e11d4833;
+    --shadow: 0 1px 2px #0f1e2e0a, 0 6px 20px #0f1e2e0d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0b1420; --card: #111c2b; --ink: #eaf1f8; --ink-2: #9db0c4; --ink-3: #6b7f93;
+      --line: #22303f; --line-soft: #1a2634; --chip: #16222f; --chip-line: #263647;
+      --emet: #3d9bd8; --emet-soft: #3d9bd820;
+      --ok-bg: #05966925; --warn-bg: #d9770625; --bad-bg: #e11d4825;
+      --shadow: 0 1px 2px #0006, 0 8px 24px #0007;
+    }
+  }
+  :root[data-theme="light"] { --page:#eef2f7; --card:#fff; --ink:#0f1e2e; --ink-2:#52657a; --ink-3:#8496a8; --line:#e4e9f0; --chip:#f5f7fb; --chip-line:#e8ecf5; --emet:#066aab; }
+  :root[data-theme="dark"] { --page:#0b1420; --card:#111c2b; --ink:#eaf1f8; --ink-2:#9db0c4; --ink-3:#6b7f93; --line:#22303f; --chip:#16222f; --chip-line:#263647; --emet:#3d9bd8; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .wrap { font-family: var(--font-sans); background: var(--page); color: var(--ink); min-height: 100vh; padding: 22px clamp(12px, 3vw, 34px) 48px; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .max { max-width: 1220px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .hdr .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--emet); margin-bottom: 6px; }
+  .hdr h1 { font-size: clamp(20px, 2.4vw, 27px); font-weight: 800; letter-spacing: -.02em; margin: 0; line-height: 1.1; }
+  .hdr .sub { font-size: 12.5px; color: var(--ink-2); margin-top: 5px; }
+  .hdr .sub b { color: var(--ink); font-weight: 600; }
+  .hdr-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--ink-2); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; box-shadow: var(--shadow); }
+  .live .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-bg); }
+  .btn { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: #fff; background: var(--emet); border: none; border-radius: 10px; padding: 9px 14px; cursor: pointer; box-shadow: var(--shadow); }
+  .btn svg { width: 15px; height: 15px; }
+
+  /* ── Hero metrics ── */
+  .hero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 860px) { .hero { grid-template-columns: repeat(2, 1fr); } }
+  .metric { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 15px 16px; box-shadow: var(--shadow); }
+  .metric .lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .metric .val { font-size: 30px; font-weight: 800; letter-spacing: -.03em; margin-top: 7px; line-height: 1; }
+  .metric .foot { font-size: 11.5px; color: var(--ink-2); margin-top: 8px; }
+  .split { display: flex; gap: 6px; margin-top: 9px; }
+  .pill { flex: 1; text-align: center; border-radius: 9px; padding: 6px 4px; font-size: 11px; font-weight: 700; }
+  .pill .n { display: block; font-size: 18px; line-height: 1; margin-bottom: 3px; }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+
+  /* ── Card / sections ── */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 18px; }
+  .card-hd { padding: 14px 18px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .card-hd .no { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #fff; background: var(--emet); border-radius: 6px; padding: 2px 7px; margin-right: 9px; }
+  .card-hd h2 { font-size: 14.5px; font-weight: 800; margin: 0; letter-spacing: -.01em; display: flex; align-items: center; }
+  .card-hd .hint { font-size: 11.5px; color: var(--ink-3); }
+
+  /* ── 4.1 Table ── */
+  .tbl-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 880px; }
+  thead th { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  thead th.r { text-align: right; }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--chip); }
+  .rgn { font-weight: 700; font-size: 13.5px; }
+  .rgn small { display: block; font-weight: 500; font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+  .pct { font-family: var(--font-mono); font-weight: 800; font-size: 17px; text-align: right; }
+  .pct.ok { color: var(--ok); } .pct.warn { color: var(--warn); } .pct.bad { color: var(--bad); }
+  .badge { display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; border-radius: 999px; padding: 3px 9px; border: 1px solid; white-space: nowrap; }
+  .badge.ok { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-line); }
+  .badge.bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
+  .brandchips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .bchip { font-size: 10.5px; font-weight: 700; background: var(--bad-bg); color: var(--bad); border: 1px solid var(--bad-line); border-radius: 6px; padding: 2px 7px; white-space: nowrap; }
+  .bchip.none { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
+  .txt { color: var(--ink-2); font-size: 11.8px; line-height: 1.4; max-width: 250px; }
+  .txt b { color: var(--ink); font-weight: 700; }
+  .yn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 3px 9px; border: 1px solid; }
+  .yn.y { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
+  .yn.n { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
+
+  /* ── 4.2 Red zones ── */
+  .zones { padding: 6px 8px; }
+  .zrow { display: flex; align-items: center; gap: 14px; padding: 11px 12px; border-radius: 12px; }
+  .zrow:hover { background: var(--chip); }
+  .zbrand { width: 130px; font-weight: 800; font-size: 13.5px; flex-shrink: 0; }
+  .zbar { flex: 1; height: 26px; background: var(--line-soft); border-radius: 8px; overflow: hidden; position: relative; min-width: 120px; }
+  .zbar span { display: block; height: 100%; border-radius: 8px; }
+  .zregions { font-size: 11.5px; color: var(--ink-2); flex: 1.3; min-width: 150px; }
+  .zcount { font-family: var(--font-mono); font-weight: 800; font-size: 15px; width: 92px; text-align: right; flex-shrink: 0; }
+  .esc { font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--bad); background: var(--bad-bg); border: 1px solid var(--bad-line); border-radius: 6px; padding: 3px 8px; margin-left: 8px; white-space: nowrap; }
+
+  /* ── two-col grid ── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* ── 4.3 promises ── */
+  .prom { display: flex; align-items: flex-start; gap: 11px; padding: 11px 16px; border-bottom: 1px solid var(--line-soft); }
+  .prom:last-child { border-bottom: none; }
+  .prom .pr-r { font-weight: 700; font-size: 12.5px; width: 78px; flex-shrink: 0; }
+  .prom .pr-t { flex: 1; font-size: 11.8px; color: var(--ink-2); line-height: 1.4; }
+  .prom .pr-t em { color: var(--bad); font-style: normal; font-weight: 600; }
+
+  /* ── 4.4 planning ── */
+  .plan-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; }
+  .pl { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; border-radius: 10px; padding: 8px 12px; border: 1px solid; }
+  .pl.y { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
+  .pl.n { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
+  .pl small { font-weight: 500; opacity: .8; }
+
+  /* ── 4.5 signals ── */
+  .sig { display: grid; grid-template-columns: 1fr auto auto; gap: 12px 16px; align-items: center; padding: 13px 18px; border-bottom: 1px solid var(--line-soft); }
+  .sig:last-child { border-bottom: none; }
+  .sig .s-txt { font-size: 12.5px; color: var(--ink); line-height: 1.4; }
+  .sig .s-txt small { display: block; color: var(--ink-3); font-size: 10.5px; margin-top: 2px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .sig .s-to { font-size: 11.5px; font-weight: 700; color: var(--emet); background: var(--emet-soft); border-radius: 7px; padding: 5px 10px; white-space: nowrap; }
+  .sig .s-due { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+  @media (max-width: 640px) { .sig { grid-template-columns: 1fr; } }
+
+  .foot { font-size: 11px; color: var(--ink-3); text-align: center; margin-top: 24px; font-style: italic; }
+</style>
+
+<div class="wrap"><div class="max">
+
+  <div class="hdr">
+    <div>
+      <div class="eyebrow">Sales Planning · Нарада відділу продажів</div>
+      <h1>Зведений звіт РОП → CSO / CMO</h1>
+      <div class="sub">Період <b>Липень 2026</b> · дата звіту <b>нд 19.07</b> · наростаючим підсумком з 1-го · подання <b>щовівторка до 10:00</b></div>
+    </div>
+    <div class="hdr-right">
+      <span class="live"><span class="dot"></span>Live з 1С</span>
+      <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Експорт .xlsx</button>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="metric">
+      <div class="lbl">Виконання компанії</div>
+      <div class="val mono" style="color:var(--warn)">68<span style="font-size:18px">%</span></div>
+      <div class="foot">норма на 19.07 — 61% · темп прогнозу <b class="mono">94%</b></div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Регіони за міткою</div>
+      <div class="split">
+        <span class="pill ok"><span class="n mono">4</span>в плані</span>
+        <span class="pill warn"><span class="n mono">2</span>ризик</span>
+        <span class="pill bad"><span class="n mono">2</span>відстав.</span>
+      </div>
+    </div>
+    <div class="metric">
+      <div class="lbl">План узгоджено в термін</div>
+      <div class="val mono" style="color:var(--ok)">7<span style="font-size:18px;color:var(--ink-3)">/8</span></div>
+      <div class="foot">1 регіон прострочив (Запоріжжя)</div>
+    </div>
+    <div class="metric">
+      <div class="lbl">Обіцянки минулого звіту</div>
+      <div class="val mono">5<span style="font-size:18px;color:var(--ink-3)">/8</span></div>
+      <div class="foot">виконано · 3 не виконано (з причинами)</div>
+    </div>
+  </div>
+
+  <!-- 4.1 Зведена таблиця -->
+  <div class="card">
+    <div class="card-hd">
+      <h2><span class="no">4.1</span>Зведена таблиця по регіонах</h2>
+      <span class="hint">Автозбір з тижневих звітів РМ · 8 представництв</span>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Регіон</th>
+            <th class="r">% на дату</th>
+            <th>Мітка</th>
+            <th>Червоні бренди</th>
+            <th>Причина за стандартом</th>
+            <th>Дія на тиждень</th>
+            <th>Обіцянка→факт</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="rgn">Вінниця<small>1 представництво</small></td>
+            <td class="pct ok">82%</td>
+            <td><span class="badge ok">В плані</span></td>
+            <td><span class="bchip none">— чисто</span></td>
+            <td class="txt">Активні <b>17 із 19</b> опрацьовано, конверсія в норму</td>
+            <td class="txt">Тримати темп по IUSE, дотиснути 2 без відповіді</td>
+            <td><span class="yn y">Так</span></td>
+          </tr>
+          <tr>
+            <td class="rgn">Київ<small>1 представництво</small></td>
+            <td class="pct ok">78%</td>
+            <td><span class="badge ok">В плані</span></td>
+            <td><span class="bchip">Neuronox</span></td>
+            <td class="txt">Neuronox <b>62%</b> — конкурент демпінгує, візити на 30 тиждень</td>
+            <td class="txt">Подвійні візити РОП+менеджер по 4 точках</td>
+            <td><span class="yn y">Так</span></td>
+          </tr>
+          <tr>
+            <td class="rgn">Житомир<small>1 представництво</small></td>
+            <td class="pct ok">74%</td>
+            <td><span class="badge ok">В плані</span></td>
+            <td><span class="bchip">IUSE</span></td>
+            <td class="txt">IUSE <b>4 із 11</b> активізації — план дзвінків на тиждень 30</td>
+            <td class="txt">Фокус на семінар 24.07, 6 запрошень</td>
+            <td><span class="yn y">Так</span></td>
+          </tr>
+          <tr>
+            <td class="rgn">Одеса<small>1 представництво</small></td>
+            <td class="pct ok">71%</td>
+            <td><span class="badge ok">В плані</span></td>
+            <td><span class="bchip">Ellanse</span></td>
+            <td class="txt">Ellanse <b>3 із 8</b> — 2 на конкуренті, візити заплановані</td>
+            <td class="txt">Демо-процедура для 2 сумнівних клінік</td>
+            <td><span class="yn y">Так</span></td>
+          </tr>
+          <tr>
+            <td class="rgn">Миколаїв<small>1 представництво</small></td>
+            <td class="pct warn">69%</td>
+            <td><span class="badge warn">Ризик</span></td>
+            <td><span class="bchip">Neuramis</span></td>
+            <td class="txt">Neuramis <b>58%</b> — сезонний спад, 5 без замовлення</td>
+            <td class="txt">Акційна пропозиція від 3х уп., дедлайн 25.07</td>
+            <td><span class="yn y">Так</span></td>
+          </tr>
+          <tr>
+            <td class="rgn">Дніпро<small>1 представництво</small></td>
+            <td class="pct warn">64%</td>
+            <td><span class="badge warn">Ризик</span></td>
+            <td><span class="bchip">Ellanse</span><span class="bchip">Petaran</span></td>
+            <td class="txt">Ellanse <b>7 із 18</b>, Petaran <b>9 із 21</b> — просів темп</td>
+            <td class="txt">Опрацювати ще 10 потенційних, фокус на лікарів</td>
+            <td><span class="yn n">Ні · конверсія низька</span></td>
+          </tr>
+          <tr>
+            <td class="rgn">Харків<small>1 представництво</small></td>
+            <td class="pct bad">58%</td>
+            <td><span class="badge bad">Відставання</span></td>
+            <td><span class="bchip">Vitaran</span><span class="bchip">Neuramis</span></td>
+            <td class="txt">Vitaran <b>14 із 24</b> — 6 на 2-й тиждень, 5 на конкуренті</td>
+            <td class="txt">Подвійні візити на конкурентних точках</td>
+            <td><span class="yn n">Ні · відпустка мгр</span></td>
+          </tr>
+          <tr>
+            <td class="rgn">Запоріжжя<small>1 представництво</small></td>
+            <td class="pct bad">55%</td>
+            <td><span class="badge bad">Відставання</span></td>
+            <td><span class="bchip">Vitaran</span><span class="bchip">Ellanse</span><span class="bchip">Petaran</span></td>
+            <td class="txt">3 бренди &lt;60% — низький клієнтопотік, план дзвінків 40</td>
+            <td class="txt">РОП виїзд 22.07, розбір воронки по кожному</td>
+            <td><span class="yn n">Ні · план прострочено</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 4.2 Red zones -->
+  <div class="card">
+    <div class="card-hd">
+      <h2><span class="no">4.2</span>Червоні зони по брендах</h2>
+      <span class="hint">Бренд у «відставанні» в 4+ регіонах → окремим пунктом на CPO+CMO</span>
+    </div>
+    <div class="zones">
+      <div class="zrow">
+        <div class="zbrand">Ellanse</div>
+        <div class="zbar"><span style="width:50%;background:var(--bad)"></span></div>
+        <div class="zregions">Одеса · Дніпро · Запоріжжя · Харків</div>
+        <div class="zcount" style="color:var(--bad)">4 / 8<span class="esc">→ CPO+CMO</span></div>
+      </div>
+      <div class="zrow">
+        <div class="zbrand">Vitaran</div>
+        <div class="zbar"><span style="width:37.5%;background:var(--warn)"></span></div>
+        <div class="zregions">Харків · Запоріжжя · Дніпро</div>
+        <div class="zcount" style="color:var(--warn)">3 / 8</div>
+      </div>
+      <div class="zrow">
+        <div class="zbrand">Petaran</div>
+        <div class="zbar"><span style="width:25%;background:var(--warn)"></span></div>
+        <div class="zregions">Дніпро · Запоріжжя</div>
+        <div class="zcount" style="color:var(--warn)">2 / 8</div>
+      </div>
+      <div class="zrow">
+        <div class="zbrand">Neuramis</div>
+        <div class="zbar"><span style="width:25%;background:var(--warn)"></span></div>
+        <div class="zregions">Харків · Миколаїв</div>
+        <div class="zcount" style="color:var(--warn)">2 / 8</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <!-- 4.3 promises -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><h2><span class="no">4.3</span>Реєстр обіцянок</h2></div>
+      <div>
+        <div class="prom"><div class="pr-r">Харків</div><div class="pr-t">«Дотиснути Vitaran по 5 точках до 12.07» — <em>не виконано:</em> менеджер у відпустці, 2 з 5</div></div>
+        <div class="prom"><div class="pr-r">Дніпро</div><div class="pr-t">«Опрацювати 12 активних по Ellanse» — <em>не виконано:</em> опрацьовано 7, конверсія низька</div></div>
+        <div class="prom"><div class="pr-r">Запоріжжя</div><div class="pr-t">«Узгодити план до 4-го роб. дня» — <em>не виконано:</em> прострочено на 2 дні</div></div>
+        <div class="prom"><div class="pr-r">Київ</div><div class="pr-t">«Подвійні візити по Neuronox» — виконано, 4 з 4 точок</div></div>
+        <div class="prom"><div class="pr-r">Одеса</div><div class="pr-t">«Демо для 2 клінік по Ellanse» — виконано</div></div>
+      </div>
+    </div>
+
+    <!-- 4.4 planning -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><h2><span class="no">4.4</span>Підсумки планування</h2><span class="hint">до 16:00 4-го роб. дня</span></div>
+      <div class="plan-grid">
+        <span class="pl y">Вінниця</span>
+        <span class="pl y">Київ</span>
+        <span class="pl y">Житомир</span>
+        <span class="pl y">Одеса</span>
+        <span class="pl y">Миколаїв</span>
+        <span class="pl y">Дніпро</span>
+        <span class="pl y">Харків</span>
+        <span class="pl n">Запоріжжя <small>+2 дні</small></span>
+      </div>
+      <div style="padding:0 16px 16px;font-size:11.5px;color:var(--ink-2)">7 із 8 регіонів узгодили план у термін. <b style="color:var(--bad)">Запоріжжя</b> — прострочення, причина: заміна РМ.</div>
+    </div>
+  </div>
+
+  <!-- 4.5 signals -->
+  <div class="card" style="margin-top:18px">
+    <div class="card-hd"><h2><span class="no">4.5</span>Ринкові сигнали</h2><span class="hint">Заповнює РОП · передається CPO/CMO з дедлайном</span></div>
+    <div>
+      <div class="sig">
+        <div class="s-txt">Конкурент запустив демпінг по Neuronox (−30%) у Києві та Дніпрі — ризик відтоку 6 ключових клінік.<small>Джерело: Київ, Дніпро</small></div>
+        <div class="s-to">→ CMO</div>
+        <div class="s-due">до 26.07</div>
+      </div>
+      <div class="sig">
+        <div class="s-txt">Зростання попиту на екзосоми (Exosome-PDRN) — 3 регіони питають, у прайсі як «Інші ТМ».<small>Джерело: Одеса, Харків, Львів-дистриб.</small></div>
+        <div class="s-to">→ CPO</div>
+        <div class="s-due">до 26.07</div>
+      </div>
+      <div class="sig">
+        <div class="s-txt">Дистриб'ютор Полтава просить розширити навчання по Ellanse — 2 нові клініки готові заходити.<small>Джерело: Полтава</small></div>
+        <div class="s-to">→ CPO+CMO</div>
+        <div class="s-due">наступна нарада</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">Макет для узгодження компоновки · дані умовні · джерело фактичних показників — тижневі звіти РМ (Продажі 1С)</div>
+
+</div></div>
