@@ -65,9 +65,9 @@ async function callOneC<T>(
     const text = await res.text();
     const json = JSON.parse(text) as OneCResp<T>;
     if (json.status !== 'success' || !json.data) {
-      if (attempt < 2) {
-        // Один retry — 1С іноді віддає transient помилки на батчах
-        await new Promise(r => setTimeout(r, 500));
+      if (attempt < 3) {
+        // До 2 ретраїв — 1С іноді віддає transient помилки/timeout на батчах
+        await new Promise(r => setTimeout(r, 500 * attempt));
         return callOneC<T>(action, payload, timeoutMs, attempt + 1);
       }
       console.warn('[region-stats.callOneC] failed', { action, status: json.status, message: json.message });
@@ -75,7 +75,7 @@ async function callOneC<T>(
     }
     return json.data;
   } catch (err) {
-    if (attempt < 2) {
+    if (attempt < 3) {
       await new Promise(r => setTimeout(r, 500));
       return callOneC<T>(action, payload, timeoutMs, attempt + 1);
     }
@@ -171,6 +171,10 @@ async function handlePost(request: NextRequest) {
   // менеджерів не було, totalFact зменшувався втричі.
   // Тепер обмежуємо concurrency до CONCURRENCY_LIMIT менеджерів за раз.
   const CONCURRENCY_LIMIT = 5;
+  // Action 3 (getSalesFact) шлемо ЧАНКАМИ по FACT_CHUNK клієнтів — важкий регіон
+  // (Дніпро: ~600 клієнтів/менеджера) в одному виклику інколи не встигав (timeout)
+  // → factResp=null → бренд показував Факт (Action 5) але 0 покупців у воронці.
+  const FACT_CHUNK = 250;
 
   // 🚀 Ростер (категорія + резерв) читаємо з НАШОГО зрізу (client_category_history),
   // а не з Action 2 + Action 8 — гарячий шлях падає до 1 виклику 1С/менеджера
@@ -215,9 +219,24 @@ async function handlePost(request: NextRequest) {
     if (!clientsResp || !clientsResp.clients) return { login, clientsResp: null, factResp: null };
     const clientIds = clientsResp.clients.map(c => c.clientId);
     if (clientIds.length === 0) return { login, clientsResp, factResp: null };
-    const factPayload: Record<string, unknown> = { login, period, clientIds };
-    if (asOfDate) factPayload.asOfDate = asOfDate;
-    const fact = await callOneC<Action3Resp>('getSalesFact', factPayload);
+    // Чанкуємо clientIds — дрібні виклики швидші/надійніші, невдалий чанк
+    // ретраїться сам (callOneC). Успішні мержимо по segmentCode. Втрачаємо
+    // максимум один чанк, а не весь факт менеджера (раніше: 1 timeout = 0 покупців).
+    const merged = new Map<string, Action3Resp['segments'][number]>();
+    let anyOk = false;
+    for (let i = 0; i < clientIds.length; i += FACT_CHUNK) {
+      const factPayload: Record<string, unknown> = { login, period, clientIds: clientIds.slice(i, i + FACT_CHUNK) };
+      if (asOfDate) factPayload.asOfDate = asOfDate;
+      const part = await callOneC<Action3Resp>('getSalesFact', factPayload);
+      if (!part) continue;
+      anyOk = true;
+      for (const seg of part.segments ?? []) {
+        const cur = merged.get(seg.segmentCode) ?? { segmentCode: seg.segmentCode, clients: [] };
+        if (seg.clients) cur.clients.push(...seg.clients);
+        merged.set(seg.segmentCode, cur);
+      }
+    }
+    const fact: Action3Resp | null = anyOk ? { segments: [...merged.values()] } : null;
     return { login, clientsResp, factResp: fact };
   };
 
