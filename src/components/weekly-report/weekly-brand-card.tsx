@@ -58,7 +58,11 @@ function Amt({ children }: { children: React.ReactNode }) {
 }
 
 export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prevWeekPct, insight }: Props) {
-  const brandBuyers = cats.reduce((s, c) => s + c.bought, 0);
+  // «N клієнтів купили» — з того ж джерела, що й топ-акції/фокус (таблиця sales,
+  // унікальні client_code), щоб числа сходились: акція не може мати більше
+  // клієнтів, ніж усього купило бренд. Fallback на категорійну суму (ростер 1С),
+  // поки insight не завантажився.
+  const brandBuyers = insight?.totalBuyers ?? cats.reduce((s, c) => s + c.bought, 0);
   const plannedSum = (planSeg?.forecastFinalized ?? 0) + (planSeg?.gapFinalized ?? 0);
   const expectedPct = b.plan > 0 ? (plannedSum / b.plan) * 100 : 0;
   const reasonDraft = [
