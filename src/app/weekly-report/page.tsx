@@ -34,6 +34,8 @@ import { useReportFinalization } from '@/lib/use-report-finalization';
 import { ReportFinalizeBar } from '@/components/weekly-report/report-finalize-bar';
 import { FinalizationSummary } from '@/components/weekly-report/finalization-summary';
 import { WeeklyBrandCard } from '@/components/weekly-report/weekly-brand-card';
+import { useBrandInsights } from '@/lib/use-brand-insights';
+import { regionToDivision } from '@/lib/weekly-brand-insights';
 import { CategoryStatsTable } from '@/components/dashboard/category-stats-table';
 import { getWorkingDaysInMonth, getPassedWorkingDays } from '@/lib/working-days';
 import { getWeeksForMonth } from '@/lib/periods';
@@ -190,6 +192,10 @@ export default function WeeklyReportPage() {
     for (const s of agg?.segments ?? []) m[s.segmentCode] = pctOf(s.factAmount, s.planAmount);
     return m;
   }, [prevRegionResp, effectiveCode]);
+
+  // Інсайти по брендах (топ-3 акції + купили по фокусу) з таблиці sales по регіону.
+  const insightDivision = useMemo(() => regionToDivision(region?.regionName), [region]);
+  const { insights: brandInsights } = useBrandInsights(effectiveCode, insightDivision, periodKey);
 
   // Статус фіналізації звіту цього регіону за тиждень.
   const finalization = useReportFinalization(effectiveCode, currentPeriod.weekEnd);
@@ -476,6 +482,7 @@ export default function WeeklyReportPage() {
                   notes={notes}
                   prevNotes={prevNotes}
                   prevWeekPct={prevPctByBrand[b.code]}
+                  insight={brandInsights[b.code]}
                 />
               ))}
             </div>

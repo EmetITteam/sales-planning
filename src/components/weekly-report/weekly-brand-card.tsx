@@ -12,9 +12,10 @@
  * (Фази B–E — фокус, топ-3 акції, пропозиція, динаміка % — додаються окремо.)
  */
 import { useEffect, useState } from 'react';
-import { PenLine, Check } from 'lucide-react';
+import { PenLine, Check, Target, Flame } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { WeeklyNotesApi } from '@/lib/use-weekly-notes';
+import type { BrandInsight } from '@/lib/weekly-brand-insights';
 import { pctOf, formatUSD, formatPct } from '@/lib/format';
 
 export interface BrandRow {
@@ -37,6 +38,8 @@ interface Props {
   prevNotes: WeeklyNotesApi;   // минулий тиждень
   /** % виконання на кінець минулого тижня (для динаміки). undefined = нема точки. */
   prevWeekPct?: number;
+  /** Інсайти з sales: топ-3 акції + купили по фокусу. */
+  insight?: BrandInsight;
 }
 
 /** Мітка «В ПЛАНІ / ВІДСТАВАННЯ» за темпом виконання. */
@@ -50,7 +53,7 @@ function Amt({ children }: { children: React.ReactNode }) {
   return <span className="amount">{children}</span>;
 }
 
-export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prevWeekPct }: Props) {
+export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prevWeekPct, insight }: Props) {
   const mk = markOf(b.forecastPct);
   const brandBuyers = cats.reduce((s, c) => s + c.bought, 0);
   const plannedSum = (planSeg?.forecastFinalized ?? 0) + (planSeg?.gapFinalized ?? 0);
@@ -132,6 +135,34 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prev
           ))}
         </div>
       </div>
+
+      {/* Фокус (купили) + топ-3 акції — з таблиці sales по регіону */}
+      {insight && (insight.focusBought > 0 || insight.topPromos.length > 0) && (
+        <div className="mt-1.5 space-y-1 text-[10.5px]">
+          {insight.focusBought > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Target className="h-3 w-3 text-violet-500 shrink-0" />
+              <span className="text-muted-foreground">Купили по фокусу:</span>
+              <span className="font-bold tabular-nums text-foreground/80">{insight.focusBought} кл</span>
+              <span className="amount text-muted-foreground">· ${insight.focusSum.toLocaleString('en-US')}</span>
+            </div>
+          )}
+          {insight.topPromos.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Flame className="h-3 w-3 text-amber-500 shrink-0" />
+              <span className="text-muted-foreground shrink-0">Топ акції:</span>
+              {insight.topPromos.map(p => (
+                <span key={p.name} title={p.name} className="inline-flex items-center h-5 gap-1 rounded bg-amber-50 border border-amber-200/60 px-1.5">
+                  <span className="truncate max-w-[150px]">{p.name}</span>
+                  <span className="tabular-nums font-semibold text-foreground/80">{p.clients}кл</span>
+                  <span className="amount tabular-nums text-muted-foreground">${p.sum >= 1000 ? `${Math.round(p.sum / 1000)}k` : p.sum}</span>
+                  <span className="tabular-nums font-bold text-emet-blue">{p.pct}%</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ретро: Причина / Дія — минулий тиждень + заповнення на цей */}
       <div className="mt-2 pt-2 border-t border-[#f0f2f8] space-y-1.5">
