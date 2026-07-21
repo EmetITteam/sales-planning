@@ -54,10 +54,15 @@ test('detectChannel — 4 канали за підрозділом', () => {
   assert.equal(detectChannel('Коллцентр Call center лидогенерация'), 'call_center');
   assert.equal(detectChannel('call-center'), 'call_center');
   assert.equal(detectChannel('Интернет магазин esseskincare'), 'call_center');
-  // представництва — рівно 8 регіонів
+  // представництва (Херсон — офіс закрито, історичні продажі рахуємо)
   assert.equal(detectChannel('Киев'), 'representatives');
   assert.equal(detectChannel('Одесса'), 'representatives');
   assert.equal(detectChannel('Житомир'), 'representatives');
+  assert.equal(detectChannel('Херсон'), 'representatives');
+  // seller-фолбек: історичний TSV-імпорт клав повод у division, місто — у seller
+  assert.equal(detectChannel('Акция периода', 'Киев'), 'representatives');
+  assert.equal(detectChannel('Ценообразование', 'Коллцентр Call center'), 'call_center');
+  assert.equal(detectChannel('СРОК', 'Іванова О.'), 'other'); // seller=менеджер → лишається other
   // дистриб'ютори (суфікс '*' нормалізується)
   assert.equal(detectChannel('Полтава*'), 'distributors');
   assert.equal(detectChannel('Черновцы*'), 'distributors');

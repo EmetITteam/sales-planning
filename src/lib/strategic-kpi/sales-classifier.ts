@@ -17,6 +17,8 @@ export type SalesChannel = 'representatives' | 'call_center' | 'distributors' | 
 // Стратегія рахує представництва ТІЛЬКИ по них (узгоджено з ITD 2026-07-17).
 export const REPRESENTATIVE_DIVISIONS = [
   'киев', 'одесса', 'днепр', 'харьков', 'винница', 'запорожье', 'николаев', 'житомир',
+  // Херсон — офіс закрито, але історичні продажі рахуємо як представництво.
+  'херсон',
 ];
 // Дистриб'ютори — окремий канал (Полтава, Чернівці). НЕ представництва.
 const DISTRIBUTOR_DIVISIONS = ['полтава', 'черновцы'];
@@ -104,8 +106,9 @@ export function detectGiftBrand(discount?: string | null): string | null {
   return detectBrand(m[1]);
 }
 
-export function detectChannel(division?: string | null): SalesChannel {
-  const d = (division || '').toLowerCase().trim();
+/** Класифікує ОДНЕ значення підрозділу у канал (без seller-фолбеку). */
+function classifyDivision(raw: string | null | undefined): SalesChannel {
+  const d = (raw || '').toLowerCase().trim();
   // Колл-центр = B2C-канал: власне колл-центр + інтернет-магазин (Интернет
   // магазин esseskincare) — це ті самі B2C-продажі, не «інші».
   if (d.includes('коллцентр') || d.includes('call center') || d.includes('call-center')
@@ -118,6 +121,22 @@ export function detectChannel(division?: string | null): SalesChannel {
   if (REPRESENTATIVE_DIVISIONS.includes(norm)) return 'representatives';
   if (DISTRIBUTOR_DIVISIONS.includes(norm)) return 'distributors';
   // Лазерхауз, Адасса, Сотрудники, Маркетинг, службові/promo-рядки → поза периметром.
+  return 'other';
+}
+
+/**
+ * Канал продажу за підрозділом. У 1С для деяких семпл-документів поле
+ * «Підрозділ» містить ПОВОД знижки (Акция периода/СРОК/Ценообразование…), а
+ * реальне місто лежить у `seller`. Тому: якщо division не розпізнано —
+ * пробуємо seller як фолбек.
+ */
+export function detectChannel(division?: string | null, seller?: string | null): SalesChannel {
+  const primary = classifyDivision(division);
+  if (primary !== 'other') return primary;
+  if (seller) {
+    const fb = classifyDivision(seller);
+    if (fb !== 'other') return fb;
+  }
   return 'other';
 }
 
@@ -136,6 +155,7 @@ export interface RawSaleFields {
   product: string;
   discount?: string | null;
   division: string;
+  seller?: string | null;
   sumUsd: number;
 }
 
@@ -157,7 +177,7 @@ export interface SaleClassification {
  */
 export function classifySale(r: RawSaleFields): SaleClassification {
   const brand = detectBrand(r.product);
-  const channel = detectChannel(r.division);
+  const channel = detectChannel(r.division, r.seller);
   const isIgnored = !brand && isIgnoredProduct(r.product);
   const isGift = isGiftInDiscount(r.discount) && r.sumUsd === 0;
   const isExcluded = isExcludedDiscount(r.discount)

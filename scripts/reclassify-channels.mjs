@@ -34,16 +34,23 @@ if (!U || !K) { console.error('NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_
 const H = { apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json' };
 
 // ── дзеркало detectChannel() з sales-classifier.ts (single source там; тут .mjs) ──
-const REPRESENTATIVE_DIVISIONS = ['киев', 'одесса', 'днепр', 'харьков', 'винница', 'запорожье', 'николаев', 'житомир'];
+const REPRESENTATIVE_DIVISIONS = ['киев', 'одесса', 'днепр', 'харьков', 'винница', 'запорожье', 'николаев', 'житомир', 'херсон'];
 const DISTRIBUTOR_DIVISIONS = ['полтава', 'черновцы'];
-function detectChannel(division) {
-  const d = (division || '').toLowerCase().trim();
+function classifyDivision(raw) {
+  const d = (raw || '').toLowerCase().trim();
   if (d.includes('коллцентр') || d.includes('call center') || d.includes('call-center')
       || d.includes('интернет магазин') || d.includes('інтернет магазин')) return 'call_center';
   const norm = d.replace(/\*+$/, '').trim();
   if (REPRESENTATIVE_DIVISIONS.includes(norm)) return 'representatives';
   if (DISTRIBUTOR_DIVISIONS.includes(norm)) return 'distributors';
   return 'other';
+}
+// seller-фолбек: 1С для семпл-документів кладе повод у division, місто — у seller.
+function detectChannel(division, seller) {
+  const primary = classifyDivision(division);
+  if (primary !== 'other') return primary;
+  const fb = classifyDivision(seller);
+  return fb !== 'other' ? fb : 'other';
 }
 
 async function countBy(channel) {
@@ -73,11 +80,11 @@ async function main() {
   }
   console.log(`  Знайдено ${divs.size} унікальних division.`);
 
-  // 2. Для кожного division — PATCH channel там де він відрізняється.
+  // 2. Прохід по division (класифікація за самим підрозділом).
   console.log('\nОновлюю channel по division:');
   let totalChanged = 0;
   for (const div of divs) {
-    const ch = detectChannel(div);
+    const ch = classifyDivision(div);
     const divFilter = div === null ? 'division=is.null' : `division=eq.${encodeURIComponent(div)}`;
     const url = `${U}/rest/v1/sales?${divFilter}&channel=neq.${ch}`;
     const r = await fetch(url, {
@@ -89,6 +96,35 @@ async function main() {
     const cr = r.headers.get('content-range');
     const n = cr ? parseInt(cr.split('/')[1], 10) : 0;
     if (n > 0) { console.log(`  ${String(div ?? '(null)').padEnd(36)} → ${ch.padEnd(14)} ${n} рядків`); totalChanged += n; }
+  }
+
+  // 3. seller-фолбек: рядки, де division нерозпізнано ('other'), але seller =
+  //    реальний підрозділ (семпл-документи 1С з поводом у полі division).
+  console.log('\nseller-фолбек по рядках channel=other:');
+  const otherRows = [];
+  for (let from = 0; ; from += 1000) {
+    const r = await fetch(`${U}/rest/v1/sales?select=id,division,seller&channel=eq.other&order=id`, { headers: { ...H, Range: `${from}-${from + 999}` } });
+    const rows = await r.json();
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    otherRows.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  const byNewCh = {}; // channel → [ids]
+  for (const x of otherRows) {
+    const ch = detectChannel(x.division, x.seller);
+    if (ch !== 'other') { (byNewCh[ch] = byNewCh[ch] || []).push(x.id); }
+  }
+  for (const [ch, ids] of Object.entries(byNewCh)) {
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const r = await fetch(`${U}/rest/v1/sales?id=in.(${batch.join(',')})`, {
+        method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ channel: ch }),
+      });
+      if (!r.ok) console.log(`  ⚠️ ${ch} batch: HTTP ${r.status}`);
+    }
+    console.log(`  → ${ch.padEnd(14)} ${ids.length} рядків (за seller)`);
+    totalChanged += ids.length;
   }
   console.log(`\nВсього змінено channel: ${totalChanged.toLocaleString()} рядків.`);
 

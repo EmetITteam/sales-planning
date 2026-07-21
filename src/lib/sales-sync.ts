@@ -32,7 +32,7 @@ export interface RawLineItem {
 
 /** Line-item → рядок таблиці `sales` (з нашою класифікацією). */
 export function mapLineItemToRow(r: RawLineItem): Record<string, unknown> {
-  const c = classifySale({ product: r.product, discount: r.discount, division: r.division, sumUsd: r.sumUsd });
+  const c = classifySale({ product: r.product, discount: r.discount, division: r.division, seller: r.seller, sumUsd: r.sumUsd });
   return {
     doc_id: r.docNumber,
     doc_line: r.docLine,
