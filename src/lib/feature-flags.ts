@@ -188,6 +188,25 @@ export function canManageRegionAccess(login: string | null | undefined): boolean
 }
 
 /**
+ * Логіни РОП (керівники операційної роботи регіонів) — бачать Зведений звіт РОП.
+ * Мігашко Анна (headofsd) — РОП власних представництв.
+ */
+const ROP_LOGINS: readonly string[] = ['headofsd@emet.in.ua'];
+
+/**
+ * Хто бачить ЗВЕДЕНИЙ ЗВІТ РОП (Лист 4, усі 8 представництв): РОП + директор
+ * продажів (CSO) + strategic-логіни (CEO/owner/CMO/headofproduct) + admin.
+ * ⚠️ РМ і звичайний менеджер — НІ (на відміну від Тижневого звіту). Перевірка
+ * на сервері у /api/rop-report, не лише приховування в UI.
+ */
+export function canViewRopReport(user: { login: string; role: string } | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'director' || user.role === 'admin') return true;
+  const l = user.login.toLowerCase().trim();
+  return isStrategicKpiLogin(l) || ROP_LOGINS.includes(l);
+}
+
+/**
  * Хто бачить «Тижневий звіт»: директор/admin/страт/огляд — усі регіони; РМ —
  * свій; менеджер з активним грантом — регіон гранту. Звичайний менеджер — ні.
  */

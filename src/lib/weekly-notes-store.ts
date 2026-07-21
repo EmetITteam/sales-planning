@@ -30,6 +30,16 @@ export async function readNotes(regionCode: string, weekKey: string): Promise<We
   return (data ?? []) as unknown as WeeklyNote[];
 }
 
+/** Усі замітки ВСІХ регіонів за тиждень (для зведеного звіту РОП — один запит). */
+export async function readWeekNotes(weekKey: string): Promise<WeeklyNote[]> {
+  const { data, error } = await supabase.from('weekly_report_notes')
+    .select('id,region_code,segment_code,week_key,field,text,done,author_login,created_at')
+    .eq('week_key', weekKey)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`readWeekNotes: ${error.message}`);
+  return (data ?? []) as unknown as WeeklyNote[];
+}
+
 /** Додає нову версію замітки (append-only). */
 export async function insertNote(row: {
   region_code: string; segment_code: string | null; week_key: string;

@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { WeeklyNotesApi } from '@/lib/use-weekly-notes';
 import type { BrandInsight, PromoOut } from '@/lib/weekly-brand-insights';
 import { pctOf, formatUSD, formatPct } from '@/lib/format';
+import { statusBadge } from '@/lib/status-badge';
 
 export interface BrandRow {
   code: string;
@@ -46,12 +47,6 @@ interface Props {
 /** Колір % — за планом бренду: у плані (темп ≥100) зелений, інакше червоний. */
 function planColor(forecastPct: number): string {
   return forecastPct >= 100 ? 'text-emerald-600' : 'text-rose-600';
-}
-/** Бейдж статусу за прогнозом-темпом: ≥100 В ПЛАНІ · 80–99 РИЗИК · <80 ВІДСТАВАННЯ. */
-function statusBadge(forecastPct: number): { label: string; cls: string } {
-  if (forecastPct >= 100) return { label: 'В ПЛАНІ', cls: 'bg-emerald-500/12 border-emerald-300/50 text-emerald-700' };
-  if (forecastPct >= 80) return { label: 'РИЗИК', cls: 'bg-amber-500/12 border-amber-300/50 text-amber-700' };
-  return { label: 'ВІДСТАВАННЯ', cls: 'bg-rose-500/12 border-rose-300/50 text-rose-700' };
 }
 function Amt({ children }: { children: React.ReactNode }) {
   return <span className="amount">{children}</span>;
