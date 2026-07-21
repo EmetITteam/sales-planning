@@ -169,6 +169,28 @@ export default function WeeklyReportPage() {
     return pw.length ? pw[pw.length - 1].weekEnd : null;
   }, [periodKey, currentPeriod.weekEnd]);
   const prevNotes = useWeeklyNotes(effectiveCode, prevWeekKey);
+
+  // Динаміка %: 2-й getRegionData на кінець ПОПЕРЕДНЬОГО тижня (у межах місяця).
+  // idx===0 (перший тиждень місяця) → нема попередньої точки → без динаміки.
+  const prevWeekEndInMonth = useMemo(() => {
+    const [wy, wm] = periodKey.split('-').map(Number);
+    const weeks = getWeeksForMonth(wy, wm - 1);
+    const idx = weeks.findIndex(w => w.weekEnd === currentPeriod.weekEnd);
+    return idx > 0 ? weeks[idx - 1].weekEnd : null;
+  }, [periodKey, currentPeriod.weekEnd]);
+  const { data: prevRegionResp } = useOneCData(
+    'getRegionData',
+    allowed && user && prevWeekEndInMonth ? { login: fetchLogin, period: periodKey, asOfDate: prevWeekEndInMonth } : null,
+  );
+  const prevPctByBrand = useMemo(() => {
+    const m: Record<string, number> = {};
+    if (!prevRegionResp || !effectiveCode) return m;
+    const r = adaptRegionData(prevRegionResp).regions.find(x => x.regionCode === effectiveCode);
+    const agg = r ? aggregateRegion(r) : null;
+    for (const s of agg?.segments ?? []) m[s.segmentCode] = pctOf(s.factAmount, s.planAmount);
+    return m;
+  }, [prevRegionResp, effectiveCode]);
+
   // Статус фіналізації звіту цього регіону за тиждень.
   const finalization = useReportFinalization(effectiveCode, currentPeriod.weekEnd);
   // Сигнал для миттєвого рефрешу зведення після локальної (де)фіналізації.
@@ -453,6 +475,7 @@ export default function WeeklyReportPage() {
                   planSeg={planSegNorm[b.code]}
                   notes={notes}
                   prevNotes={prevNotes}
+                  prevWeekPct={prevPctByBrand[b.code]}
                 />
               ))}
             </div>

@@ -35,6 +35,8 @@ interface Props {
   planSeg?: { forecastFinalized?: number; gapFinalized?: number };
   notes: WeeklyNotesApi;       // цей тиждень
   prevNotes: WeeklyNotesApi;   // минулий тиждень
+  /** % виконання на кінець минулого тижня (для динаміки). undefined = нема точки. */
+  prevWeekPct?: number;
 }
 
 /** Мітка «В ПЛАНІ / ВІДСТАВАННЯ» за темпом виконання. */
@@ -48,7 +50,7 @@ function Amt({ children }: { children: React.ReactNode }) {
   return <span className="amount">{children}</span>;
 }
 
-export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes }: Props) {
+export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prevWeekPct }: Props) {
   const mk = markOf(b.forecastPct);
   const brandBuyers = cats.reduce((s, c) => s + c.bought, 0);
   const plannedSum = (planSeg?.forecastFinalized ?? 0) + (planSeg?.gapFinalized ?? 0);
@@ -83,6 +85,24 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes }: Pr
           )}
         </span>
       </div>
+
+      {/* Динаміка % виконання: минулий тиждень → зараз (розрив скорочується?) */}
+      {typeof prevWeekPct === 'number' && (() => {
+        const d = b.pct - prevWeekPct;
+        const up = d > 0.05, down = d < -0.05;
+        const cls = up ? 'text-emerald-600' : down ? 'text-rose-600' : 'text-muted-foreground';
+        const arrow = up ? '▲' : down ? '▼' : '▪';
+        const note = up ? 'розрив скорочується' : down ? 'розрив росте' : 'без змін';
+        return (
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] flex-wrap">
+            <span className="text-muted-foreground">% виконання:</span>
+            <span className="tabular-nums font-semibold text-slate-500">{formatPct(prevWeekPct)}</span>
+            <span className="text-muted-foreground/40">→</span>
+            <span className={`tabular-nums font-bold ${b.pct >= 100 ? 'text-emerald-600' : b.pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{formatPct(b.pct)}</span>
+            <span className={`tabular-nums font-semibold ${cls}`}>{arrow} {d >= 0 ? '+' : ''}{d.toFixed(1)} <span className="font-normal text-muted-foreground/80">({note})</span></span>
+          </div>
+        );
+      })()}
 
       {/* Ряд 2 — метрики зліва · чіпи категорій справа */}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-[10.5px] text-muted-foreground">
