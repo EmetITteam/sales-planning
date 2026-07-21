@@ -43,9 +43,9 @@ interface Props {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-/** Семантичний колір % виконання: ≥90 зел · 60–89 оранж · <60 черв. */
-function pctColor(pct: number): string {
-  return pct >= 90 ? 'text-emerald-600' : pct >= 60 ? 'text-amber-600' : 'text-rose-600';
+/** Колір % — за планом бренду: у плані (темп ≥100) зелений, інакше червоний. */
+function planColor(forecastPct: number): string {
+  return forecastPct >= 100 ? 'text-emerald-600' : 'text-rose-600';
 }
 /** Бейдж статусу за прогнозом-темпом: ≥100 В ПЛАНІ · 80–99 РИЗИК · <80 ВІДСТАВАННЯ. */
 function statusBadge(forecastPct: number): { label: string; cls: string } {
@@ -97,7 +97,7 @@ function BrandCardHeader({ b, brandBuyers, prevWeekPct }: { b: BrandRow; brandBu
           <NumCol label="Факт"><span className="amount text-emerald-700">{formatUSD(b.fact)}</span></NumCol>
           <div className="text-right">
             <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70 leading-none mb-0.5">Викон.</div>
-            <div className={`font-bold tabular-nums text-[20px] leading-none ${pctColor(b.pct)}`}>{formatPct(b.pct)}</div>
+            <div className={`font-bold tabular-nums text-[20px] leading-none ${planColor(b.forecastPct)}`}>{formatPct(b.pct)}</div>
           </div>
           <span className={`self-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
         </div>
@@ -110,7 +110,7 @@ function BrandCardHeader({ b, brandBuyers, prevWeekPct }: { b: BrandRow; brandBu
             <div className="text-[11px] tabular-nums flex items-center gap-1" title="Динаміка % виконання: минулий тиждень → зараз">
               <span className="text-slate-500 font-semibold">{formatPct(prevWeekPct)}</span>
               <span className="text-muted-foreground/40">→</span>
-              <span className={`font-bold ${pctColor(b.pct)}`}>{formatPct(b.pct)}</span>
+              <span className={`font-bold ${planColor(b.forecastPct)}`}>{formatPct(b.pct)}</span>
               <span className={`font-semibold ${cls}`}>{arrow} {d >= 0 ? '+' : ''}{d.toFixed(1)}</span>
             </div>
           );
