@@ -229,57 +229,72 @@ function BrandCardWorkzone({ b, notes, prevNotes, reasonDraft }: {
 }) {
   const lastReason = prevNotes.get('reason', b.code)?.text.trim() || '';
   const lastAction = prevNotes.get('action', b.code)?.text.trim() || '';
+  const lastProposal = prevNotes.get('proposal', b.code)?.text.trim() || '';
   const thisReason = notes.get('reason', b.code)?.text ?? '';
   const thisAction = notes.get('action', b.code)?.text ?? '';
   const proposal = notes.get('proposal', b.code)?.text ?? '';
 
   return (
-    <div className="border-t border-[#e8ecf5] bg-slate-50/70 px-4 py-2 space-y-1.5">
+    <div className="border-t border-[#e8ecf5] bg-slate-50/70 px-4 py-2 space-y-2">
       <WorkRow
         label="Причина"
-        text={lastReason} prefix="мин. тижд"
+        prevText={lastReason} currentText={thisReason.trim()}
         action={<BrandNote segmentName={b.name} label="Причина" value={thisReason} onSave={(t) => notes.save('reason', b.code, t)} draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили…" />}
       />
       <WorkRow
         label="Дія"
-        text={lastAction} prefix="мин. тижд"
+        prevText={lastAction} currentText={thisAction.trim()}
         extra={lastAction ? <PromiseToggle code={b.code} notes={notes} /> : undefined}
         action={<BrandNote segmentName={b.name} label="Дія" value={thisAction} onSave={(t) => notes.save('action', b.code, t)} placeholder="Дія на тиждень: кого відвідати, що дотиснути, дедлайн…" />}
       />
       <WorkRow
         label="Пропозиція"
-        text={proposal.trim()} prefix=""
-        emptyText="пропозиція регіону по бренду…"
-        action={<BrandNote segmentName={b.name} label={proposal.trim() ? 'Пропозиція' : 'Пропозиція'} addMode={!proposal.trim()} value={proposal} onSave={(t) => notes.save('proposal', b.code, t)} placeholder="Пропозиція регіону по цьому бренду…" />}
+        prevText={lastProposal} currentText={proposal.trim()}
+        currentEmpty="пропозиція регіону по бренду…"
+        action={<BrandNote segmentName={b.name} label="Пропозиція" addMode={!proposal.trim()} value={proposal} onSave={(t) => notes.save('proposal', b.code, t)} placeholder="Пропозиція регіону по цьому бренду…" />}
       />
     </div>
   );
 }
 
-function WorkRow({ label, text, prefix, emptyText, extra, action }: {
-  label: string; text: string; prefix: string; emptyText?: string;
+/**
+ * Рядок робочої зони: лейбл + ДВА текстові рядки (минулий тиждень + цей тиждень,
+ * видимі текстом, не за кнопкою) + кнопки праворуч.
+ */
+function WorkRow({ label, prevText, currentText, currentEmpty, extra, action }: {
+  label: string; prevText: string; currentText: string; currentEmpty?: string;
   extra?: React.ReactNode; action: React.ReactNode;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const has = !!text;
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
-      <span className="w-[72px] shrink-0 font-bold text-slate-500 uppercase tracking-wider text-[9.5px]">{label}</span>
-      <button
-        type="button"
-        onClick={() => has && setExpanded(e => !e)}
-        title={has ? text : undefined}
-        className={`flex-1 min-w-0 text-left text-[11px] ${has ? 'text-slate-600 cursor-pointer hover:text-slate-800' : 'text-muted-foreground/40 cursor-default'} ${expanded ? 'whitespace-pre-wrap' : 'truncate'}`}
-      >
-        {has
-          ? <>{prefix && <span className="text-muted-foreground/60">{prefix}: </span>}«{text}»</>
-          : (emptyText ?? 'минулого тижня не вказано')}
-      </button>
-      <div className="flex items-center gap-1.5 shrink-0 md:justify-end">
+    <div className="flex flex-col md:flex-row md:items-start gap-1 md:gap-2">
+      <span className="w-[72px] shrink-0 md:pt-0.5 font-bold text-slate-500 uppercase tracking-wider text-[9.5px]">{label}</span>
+      <div className="flex-1 min-w-0 space-y-0.5">
+        <TextLine prefix="мин. тижд" text={prevText} tone="muted" empty="минулого тижня не вказано" />
+        <TextLine prefix="цей тижд" text={currentText} tone="current" empty={currentEmpty ?? 'не заповнено'} />
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0 md:justify-end md:pt-0.5">
         {extra}
         {action}
       </div>
     </div>
+  );
+}
+
+/** Один текстовий рядок (минулий/цей тиждень) — обрізка в 1 рядок + розкриття по кліку. */
+function TextLine({ prefix, text, tone, empty }: { prefix: string; text: string; tone: 'muted' | 'current'; empty: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const has = !!text;
+  const toneCls = tone === 'current' ? 'text-slate-700 font-medium' : 'text-slate-500';
+  return (
+    <button
+      type="button"
+      onClick={() => has && setExpanded(e => !e)}
+      title={has ? text : undefined}
+      className={`block w-full text-left text-[11px] ${has ? `${toneCls} cursor-pointer hover:text-slate-900` : 'text-muted-foreground/40 cursor-default'} ${expanded ? 'whitespace-pre-wrap' : 'truncate'}`}
+    >
+      <span className="text-muted-foreground/50 font-normal">{prefix}: </span>
+      {has ? <>«{text}»</> : <span className="italic">{empty}</span>}
+    </button>
   );
 }
 
