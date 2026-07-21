@@ -12,7 +12,7 @@
  * Дані/пропси/збереження — без змін (лише реструктуризація + стилі).
  */
 import { useEffect, useState } from 'react';
-import { PenLine, Check, Target, Flame, Plus, Loader2 } from 'lucide-react';
+import { PenLine, Check, Target, Flame, Plus, Loader2, MessageCircle, Lightbulb, ChevronDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { WeeklyNotesApi } from '@/lib/use-weekly-notes';
 import type { BrandInsight, PromoOut } from '@/lib/weekly-brand-insights';
@@ -227,7 +227,7 @@ function TopPromos({ promos }: { promos: PromoOut[] }) {
   );
 }
 
-// ── Зона 3: РАБОЧА ────────────────────────────────────────────────────────────
+// ── Зона 3: РАБОЧА (3 карточки — Причина / Дія / Пропозиція) ──────────────────
 function BrandCardWorkzone({ b, notes, prevNotes, reasonDraft }: {
   b: BrandRow; notes: WeeklyNotesApi; prevNotes: WeeklyNotesApi; reasonDraft: string;
 }) {
@@ -239,66 +239,101 @@ function BrandCardWorkzone({ b, notes, prevNotes, reasonDraft }: {
   const proposal = notes.get('proposal', b.code)?.text ?? '';
 
   return (
-    <div className="border-t border-[#e8ecf5] bg-slate-50/70 px-4 py-2 space-y-2">
-      <WorkRow
-        label="Причина"
-        prevText={lastReason} currentText={thisReason.trim()}
-        action={<BrandNote segmentName={b.name} label="Причина" value={thisReason} onSave={(t) => notes.save('reason', b.code, t)} draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили…" />}
-      />
-      <WorkRow
-        label="Дія"
-        prevText={lastAction} currentText={thisAction.trim()}
-        extra={lastAction ? <PromiseToggle code={b.code} notes={notes} /> : undefined}
-        action={<BrandNote segmentName={b.name} label="Дія" value={thisAction} onSave={(t) => notes.save('action', b.code, t)} placeholder="Дія на тиждень: кого відвідати, що дотиснути, дедлайн…" />}
-      />
-      <WorkRow
-        label="Пропозиція"
-        prevText={lastProposal} currentText={proposal.trim()}
-        currentEmpty="пропозиція регіону по бренду…"
-        action={<BrandNote segmentName={b.name} label="Пропозиція" addMode={!proposal.trim()} value={proposal} onSave={(t) => notes.save('proposal', b.code, t)} placeholder="Пропозиція регіону по цьому бренду…" />}
-      />
+    <div className="border-t border-[#e8ecf5] bg-slate-50/70 px-4 py-2.5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 items-stretch">
+        <WorkzoneCard
+          title="Причина" accent="neutral"
+          icon={<MessageCircle className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+          thisWeek={thisReason.trim()} lastWeek={lastReason}
+          emptyText="причину за цей тиждень не внесено"
+          footer={<BrandNote full segmentName={b.name} label="Причина" addMode={!thisReason.trim()} value={thisReason} onSave={(t) => notes.save('reason', b.code, t)} draft={reasonDraft} hint="категорія → N із M → факт → висновок (числа з борду, висновок словами)." placeholder="Напр.: Активні 8 запл., купили 2 (25%) — просів темп, 4 з 12 не відвантажили…" />}
+        />
+        <WorkzoneCard
+          title="Дія" accent="blue"
+          icon={<Target className="h-3.5 w-3.5 text-emet-blue shrink-0" />}
+          thisWeek={thisAction.trim()} lastWeek={lastAction}
+          emptyText="дію на цей тиждень не внесено"
+          footer={
+            <div className="flex items-center justify-between gap-1.5 w-full flex-wrap">
+              {lastAction ? <PromiseToggle code={b.code} notes={notes} /> : <span className="text-[10px] text-muted-foreground/40">минулого тижня дії не було</span>}
+              <BrandNote segmentName={b.name} label="Дія" addMode={!thisAction.trim()} value={thisAction} onSave={(t) => notes.save('action', b.code, t)} placeholder="Дія на тиждень: кого відвідати, що дотиснути, дедлайн…" />
+            </div>
+          }
+        />
+        <WorkzoneCard
+          title="Пропозиція" accent="neutral"
+          icon={<Lightbulb className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+          thisWeek={proposal.trim()} lastWeek={lastProposal}
+          emptyText="пропозицію регіону по бренду не внесено"
+          footer={<BrandNote full segmentName={b.name} label="Пропозиція" addMode={!proposal.trim()} value={proposal} onSave={(t) => notes.save('proposal', b.code, t)} placeholder="Пропозиція регіону по цьому бренду…" />}
+        />
+      </div>
     </div>
   );
 }
 
 /**
- * Рядок робочої зони: лейбл + ДВА текстові рядки (минулий тиждень + цей тиждень,
- * видимі текстом, не за кнопкою) + кнопки праворуч.
+ * Одна карточка робочої зони (Причина / Дія / Пропозиція): header зі статусом,
+ * акцентний блок «Цей тиждень» (quote-box, line-clamp-3), згорнутий «Минулий
+ * тиждень», footer з кнопками (прижатий донизу). Логіку збереження несуть props.
  */
-function WorkRow({ label, prevText, currentText, currentEmpty, extra, action }: {
-  label: string; prevText: string; currentText: string; currentEmpty?: string;
-  extra?: React.ReactNode; action: React.ReactNode;
+function WorkzoneCard({ title, icon, accent, thisWeek, lastWeek, emptyText, footer }: {
+  title: string; icon: React.ReactNode; accent: 'neutral' | 'blue';
+  thisWeek: string; lastWeek: string; emptyText: string; footer: React.ReactNode;
 }) {
+  const [showLast, setShowLast] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const filled = !!thisWeek.trim();
+  const cardCls = accent === 'blue' ? 'bg-blue-50/50 border-blue-200/70' : 'bg-white border-slate-200';
+  const quoteCls = accent === 'blue' ? 'border-emet-blue/50 bg-emet-blue/[0.04]' : 'border-slate-300 bg-slate-50';
+
   return (
-    <div className="flex flex-col md:flex-row md:items-start gap-1 md:gap-2">
-      <span className="w-[72px] shrink-0 md:pt-0.5 font-bold text-slate-500 uppercase tracking-wider text-[9.5px]">{label}</span>
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <TextLine prefix="мин. тижд" text={prevText} tone="muted" empty="минулого тижня не вказано" />
-        <TextLine prefix="цей тижд" text={currentText} tone="current" empty={currentEmpty ?? 'не заповнено'} />
+    <div className={`flex flex-col rounded-xl border ${cardCls} p-2.5`}>
+      {/* Header */}
+      <div className="flex items-center gap-1.5">
+        {icon}
+        <span className="font-bold text-slate-600 uppercase tracking-wider text-[10px]">{title}</span>
+        <span className={`ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${filled ? 'bg-emerald-500/12 text-emerald-700 border-emerald-300/40' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+          {filled ? <><Check className="h-2.5 w-2.5" /> Заповнено</> : 'Порожньо'}
+        </span>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0 md:justify-end md:pt-0.5">
-        {extra}
-        {action}
+
+      {/* Цей тиждень — акцентний quote-box */}
+      <div className="mt-1.5">
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 mb-1">Цей тиждень</div>
+        <div className={`border-l-2 rounded-r-md px-2 py-1.5 ${quoteCls}`}>
+          {filled ? (
+            <p className={`text-[12px] leading-snug text-slate-800 whitespace-pre-wrap ${expanded ? '' : 'line-clamp-3'}`}>{thisWeek}</p>
+          ) : (
+            <p className="text-[11px] italic text-muted-foreground/50">{emptyText}</p>
+          )}
+          {filled && thisWeek.length > 110 && (
+            <button type="button" onClick={() => setExpanded(e => !e)} className="mt-1 text-[10px] font-semibold text-emet-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40 rounded">
+              {expanded ? 'згорнути' : 'розгорнути'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Минулий тиждень — згорнутий */}
+      <div className="mt-1.5">
+        {lastWeek ? (
+          <>
+            <button type="button" onClick={() => setShowLast(s => !s)} className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40 rounded">
+              Минулий тиждень <ChevronDown className={`h-3 w-3 transition-transform ${showLast ? 'rotate-180' : ''}`} />
+            </button>
+            {showLast && <p className="mt-0.5 text-[10.5px] leading-snug text-slate-500 whitespace-pre-wrap">«{lastWeek}»</p>}
+          </>
+        ) : (
+          <span className="text-[10px] text-muted-foreground/40">минулого тижня не вказано</span>
+        )}
+      </div>
+
+      {/* Footer — прижатий донизу */}
+      <div className="mt-auto pt-2 flex items-center gap-1.5 flex-wrap">
+        {footer}
       </div>
     </div>
-  );
-}
-
-/** Один текстовий рядок (минулий/цей тиждень) — обрізка в 1 рядок + розкриття по кліку. */
-function TextLine({ prefix, text, tone, empty }: { prefix: string; text: string; tone: 'muted' | 'current'; empty: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const has = !!text;
-  const toneCls = tone === 'current' ? 'text-slate-700 font-medium' : 'text-slate-500';
-  return (
-    <button
-      type="button"
-      onClick={() => has && setExpanded(e => !e)}
-      title={has ? text : undefined}
-      className={`block w-full text-left text-[11px] ${has ? `${toneCls} cursor-pointer hover:text-slate-900` : 'text-muted-foreground/40 cursor-default'} ${expanded ? 'whitespace-pre-wrap' : 'truncate'}`}
-    >
-      <span className="text-muted-foreground/50 font-normal">{prefix}: </span>
-      {has ? <>«{text}»</> : <span className="italic">{empty}</span>}
-    </button>
   );
 }
 
@@ -350,9 +385,9 @@ function PromiseToggle({ code, notes }: { code: string; notes: WeeklyNotesApi })
  * «Причина» / «Дія» / «Пропозиція» по бренду — кнопка «Редагувати/Додати» →
  * діалог. Значення з weekly_report_notes, збереження append-only через `onSave`.
  */
-function BrandNote({ segmentName, label, placeholder, hint, draft, value, onSave, addMode }: {
+function BrandNote({ segmentName, label, placeholder, hint, draft, value, onSave, addMode, full }: {
   segmentName: string; label: string; placeholder: string; hint?: string; draft?: string;
-  value: string; onSave: (text: string) => Promise<boolean>; addMode?: boolean;
+  value: string; onSave: (text: string) => Promise<boolean>; addMode?: boolean; full?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
@@ -372,7 +407,7 @@ function BrandNote({ segmentName, label, placeholder, hint, draft, value, onSave
       <button
         onClick={openDialog}
         title={value || label}
-        className="inline-flex items-center justify-center gap-1.5 h-7 min-w-[112px] px-2.5 rounded-lg text-[11px] font-semibold border bg-white border-[#e2e7ef] text-slate-600 hover:bg-slate-50 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40 transition-colors"
+        className={`inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold border bg-white border-[#e2e7ef] text-slate-600 hover:bg-slate-50 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emet-blue/40 transition-colors ${full ? 'w-full' : 'min-w-[112px]'}`}
       >
         {addMode && !filled
           ? <><Plus className="h-3.5 w-3.5 shrink-0" /> Додати</>
