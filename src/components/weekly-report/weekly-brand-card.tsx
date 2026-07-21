@@ -87,7 +87,7 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prev
 function BrandCardHeader({ b, brandBuyers, prevWeekPct }: { b: BrandRow; brandBuyers: number; prevWeekPct?: number }) {
   const badge = statusBadge(b.forecastPct);
   return (
-    <div className="px-4 pt-3 pb-2.5 flex items-start justify-between gap-x-4 gap-y-2 flex-wrap">
+    <div className="px-4 pt-3 pb-1.5 flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
       <div className="min-w-0">
         <div className="font-bold text-[18px] leading-tight truncate">{b.name}</div>
         <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">{brandBuyers} клієнтів купили</div>
@@ -189,7 +189,8 @@ function Chip({ dot, children }: { dot?: 'amber' | 'blue'; children: React.React
 function FunnelChip({ c }: { c: { label: string; planned: number; bought: number; prevBought?: number } }) {
   const hasPlan = c.planned > 0;
   const pct = hasPlan ? Math.round(pctOf(c.bought, c.planned)) : 0;
-  const barCls = pct >= 90 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-rose-400';
+  // Колір бара за %: ≥70 зелений · 40–69 синій · <40 оранжевий. Червоний не використовуємо.
+  const barCls = pct >= 70 ? 'bg-emerald-400' : pct >= 40 ? 'bg-blue-400' : 'bg-amber-400';
   // Динаміка клієнтів vs минулий тиждень (більше купило = зростання).
   const d = typeof c.prevBought === 'number' ? c.bought - c.prevBought : null;
   return (
@@ -295,7 +296,11 @@ function WorkzoneCard({ title, icon, accent, thisWeek, lastWeek, emptyText, foot
   const [showLast, setShowLast] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const filled = !!thisWeek.trim();
-  const cardCls = accent === 'blue' ? 'bg-blue-50/50 border-blue-200/70' : 'bg-white border-slate-200';
+  // Порожня картка — приглушена (dashed, блідий фон, сірий текст). При заповненні
+  // повертається до звичайного вигляду (білий/blue-accent).
+  const cardCls = !filled
+    ? 'bg-slate-50/30 border-dashed border-slate-300 text-slate-400'
+    : accent === 'blue' ? 'bg-blue-50/50 border-blue-200/70' : 'bg-white border-slate-200';
   const quoteCls = accent === 'blue' ? 'border-emet-blue/50 bg-emet-blue/[0.04]' : 'border-slate-300 bg-slate-50';
 
   return (
@@ -303,7 +308,7 @@ function WorkzoneCard({ title, icon, accent, thisWeek, lastWeek, emptyText, foot
       {/* Header */}
       <div className="flex items-center gap-1.5">
         {icon}
-        <span className="font-bold text-slate-600 uppercase tracking-wider text-[10px]">{title}</span>
+        <span className={`font-bold uppercase tracking-wider text-[10px] ${filled ? 'text-slate-600' : 'text-slate-400'}`}>{title}</span>
         <span className={`ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${filled ? 'bg-emerald-500/12 text-emerald-700 border-emerald-300/40' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
           {filled ? <><Check className="h-2.5 w-2.5" /> Заповнено</> : 'Порожньо'}
         </span>
@@ -423,7 +428,6 @@ function BrandNote({ segmentName, label, placeholder, hint, draft, value, onSave
         {addMode && !filled
           ? <><Plus className="h-3.5 w-3.5 shrink-0" /> Додати</>
           : <><PenLine className="h-3.5 w-3.5 shrink-0" /> Редагувати</>}
-        {filled && <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
       </button>
 
       <Dialog open={open} onOpenChange={(v) => { if (!busy) setOpen(v); }}>
