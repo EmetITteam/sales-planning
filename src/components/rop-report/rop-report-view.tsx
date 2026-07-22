@@ -162,8 +162,6 @@ function BrandDetailCard({ b, worst }: { b: { name: string; pct: number; forecas
 function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onToggle: () => void }) {
   const router = useRouter();
   const muted = r.submission === 'empty';
-  const chips = r.redBrands.slice(0, 3);
-  const extra = r.redBrands.length - chips.length;
   const panelBrands = r.reds.length > 0 ? r.reds : (r.worst ? [r.worst] : []);
   const openRegion = (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/weekly-report?region=${r.code}`); };
   return (
@@ -177,10 +175,9 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
         <div className={`text-right font-mono font-extrabold text-[14px] ${toneText[r.badge.tone]}`}>{pct(r.pct)}</div>
         <div><span className={`inline-block text-[9px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border ${badgeCls[r.badge.tone]}`}>{r.badge.label}</span></div>
         <div className="flex flex-wrap gap-1 items-center min-w-0">
-          {chips.length === 0
+          {r.redBrands.length === 0
             ? <span className="text-[10.5px] font-bold rounded px-2 py-0.5 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
-            : <>{chips.map(b => <span key={b} className="text-[10.5px] font-bold rounded px-1.5 py-0.5 border bg-rose-500/10 text-rose-700 border-rose-300/40 whitespace-nowrap">{b}</span>)}
-               {extra > 0 && <span className="text-[10px] font-bold text-rose-600">+{extra}</span>}</>}
+            : r.redBrands.map(b => <span key={b} className="text-[10.5px] font-bold rounded px-1.5 py-0.5 border bg-rose-500/10 text-rose-700 border-rose-300/40 whitespace-nowrap">{b}</span>)}
         </div>
         <div className="min-w-0"><PromiseCell p={r.promise} /></div>
         <ChevronDown className={`h-4 w-4 text-slate-400 justify-self-end transition-transform ${open ? 'rotate-180' : ''}`} />
