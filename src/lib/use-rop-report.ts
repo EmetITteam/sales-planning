@@ -3,6 +3,9 @@
 import useSWR from 'swr';
 import type { StatusTone } from './status-badge';
 import type { PlanState } from './rop-report-aggregate';
+import type { MarketSignal } from './market-signals-store';
+
+export type { MarketSignal } from './market-signals-store';
 
 export interface RopRegionRow {
   code: string;
@@ -62,6 +65,7 @@ export interface RopReport {
     doneCount: number;
     promises: Array<{ brand: string; promiseText: string; done: boolean | null; reason: string | null }>;
   }>;
+  marketSignals: MarketSignal[];   // 4.5
   meta: Record<string, unknown>;
 }
 

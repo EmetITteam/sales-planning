@@ -5,12 +5,14 @@
  * мові системи (MetricCard hero, glass-card секції, статус-тинти, mono-числа).
  */
 import { useState, useEffect, useRef } from 'react';
+import { useSWRConfig } from 'swr';
 import { useRouter } from 'next/navigation';
-import { Loader2, Check, ChevronDown, X } from 'lucide-react';
+import { Loader2, Check, ChevronDown, X, Plus, Pencil, Trash2 } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PerfBadge } from '@/components/ui/perf-badge';
-import type { RopReport, RopRegionRow } from '@/lib/use-rop-report';
+import type { RopReport, RopRegionRow, MarketSignal } from '@/lib/use-rop-report';
+import type { SignalPriority, SignalStatus } from '@/lib/market-signals-store';
 import type { StatusTone } from '@/lib/status-badge';
 
 const toneText: Record<StatusTone, string> = { ok: 'text-emerald-600', warn: 'text-amber-600', bad: 'text-rose-600' };
@@ -40,6 +42,7 @@ export function RopReportView({ data }: { data: RopReport }) {
         <Promises data={data} />
         <Planning data={data} />
       </div>
+      <MarketSignals data={data} />
     </div>
   );
 }
@@ -386,6 +389,155 @@ function PlanRow({ period, r }: { period: string; r: RopRegionRow }) {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ── 4.5 Ринкові сигнали (РОП вводить вручну) ─────────────────────────────────
+const PRIORITY_META: Record<SignalPriority, { label: string; cls: string }> = {
+  high: { label: 'Високий', cls: 'bg-rose-500/12 text-rose-700 border-rose-300/40' },
+  medium: { label: 'Середній', cls: 'bg-amber-500/12 text-amber-700 border-amber-300/40' },
+  low: { label: 'Низький', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
+};
+const STATUS_META: Record<SignalStatus, { label: string; cls: string }> = {
+  new: { label: 'Новий', cls: 'bg-blue-500/12 text-blue-700 border-blue-300/40' },
+  in_progress: { label: 'В роботі', cls: 'bg-amber-500/12 text-amber-700 border-amber-300/40' },
+  closed: { label: 'Закрито', cls: 'bg-emerald-500/12 text-emerald-700 border-emerald-300/40' },
+};
+const chipCls = 'inline-flex items-center text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border whitespace-nowrap';
+
+function MarketSignals({ data }: { data: RopReport }) {
+  const { mutate } = useSWRConfig();
+  const refresh = () => mutate((k: unknown) => typeof k === 'string' && k.startsWith('rop-report|'));
+  // null = форма закрита; {} = нова; {..signal} = редагування наявної.
+  const [form, setForm] = useState<Partial<MarketSignal> | null>(null);
+  const signals = data.marketSignals;
+  const open = signals.filter(s => s.status !== 'closed').length;
+  return (
+    <div className="glass-card overflow-hidden">
+      <SectionHeader no="4.5" title="Ринкові сигнали"
+        hint={
+          <span className="flex items-center gap-2">
+            {signals.length > 0 && <span className="text-[11px] text-muted-foreground">{signals.length} · {open} відкритих</span>}
+            <button type="button" onClick={() => setForm({})}
+              className="inline-flex items-center gap-1 text-[11px] font-bold rounded-lg px-2.5 py-1 border border-emet-blue/25 text-emet-blue bg-emet-blue/10 hover:bg-emet-blue/15 transition-colors">
+              <Plus className="h-3.5 w-3.5" /> Додати
+            </button>
+          </span>
+        } />
+      {form && <SignalForm period={data.period} initial={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); refresh(); }} />}
+      {signals.length === 0 && !form
+        ? <div className="p-6 text-center text-[12px] text-muted-foreground">ринкових сигналів за період немає</div>
+        : <div className="divide-y divide-[#f0f2f8]">{signals.map(s => <SignalRow key={s.id} s={s} onEdit={() => setForm(s)} onChanged={refresh} />)}</div>}
+    </div>
+  );
+}
+
+/** Дедлайн прострочено (< сьогодні) і сигнал не закритий → підсвічуємо. */
+function isOverdue(deadline: string | null, status: SignalStatus): boolean {
+  if (!deadline || status === 'closed') return false;
+  return deadline < new Date().toISOString().slice(0, 10);
+}
+
+function SignalRow({ s, onEdit, onChanged }: { s: MarketSignal; onEdit: () => void; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const overdue = isOverdue(s.deadline, s.status);
+  const patchStatus = async (status: SignalStatus) => {
+    setBusy(true);
+    try {
+      await fetch('/api/rop-report/signals', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ id: s.id, status }),
+      });
+      onChanged();
+    } finally { setBusy(false); }
+  };
+  const del = async () => {
+    if (!confirm('Видалити сигнал?')) return;
+    setBusy(true);
+    try {
+      await fetch(`/api/rop-report/signals?id=${encodeURIComponent(s.id)}`, { method: 'DELETE', credentials: 'same-origin' });
+      onChanged();
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="px-4 py-3 flex items-start gap-3 hover:bg-[#f5f7fb]">
+      <span className={`${chipCls} ${PRIORITY_META[s.priority].cls} mt-0.5`}>{PRIORITY_META[s.priority].label}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-semibold text-foreground/90 leading-snug">{s.signal}</p>
+        <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          {s.source && <span>Джерело: <b className="text-foreground/70">{s.source}</b></span>}
+          {s.recipient && <span>· Кому: <b className="text-foreground/70">{s.recipient}</b></span>}
+          {s.deadline && <span className={overdue ? 'text-rose-600 font-bold' : ''}>· Дедлайн: {s.deadline}{overdue ? ' (прострочено)' : ''}</span>}
+        </div>
+      </div>
+      <select value={s.status} disabled={busy} onChange={e => patchStatus(e.target.value as SignalStatus)}
+        className={`${chipCls} ${STATUS_META[s.status].cls} shrink-0 cursor-pointer disabled:opacity-50`} title="Статус">
+        {(Object.keys(STATUS_META) as SignalStatus[]).map(k => <option key={k} value={k}>{STATUS_META[k].label}</option>)}
+      </select>
+      <div className="flex items-center gap-1 shrink-0">
+        <button type="button" onClick={onEdit} disabled={busy} title="Редагувати" className="p-1.5 rounded-lg text-slate-400 hover:text-emet-blue hover:bg-white disabled:opacity-50"><Pencil className="h-3.5 w-3.5" /></button>
+        <button type="button" onClick={del} disabled={busy} title="Видалити" className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white disabled:opacity-50">{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}</button>
+      </div>
+    </div>
+  );
+}
+
+function SignalForm({ period, initial, onClose, onSaved }: {
+  period: string; initial: Partial<MarketSignal>; onClose: () => void; onSaved: () => void;
+}) {
+  const [signal, setSignal] = useState(initial.signal ?? '');
+  const [source, setSource] = useState(initial.source ?? '');
+  const [recipient, setRecipient] = useState(initial.recipient ?? '');
+  const [deadline, setDeadline] = useState(initial.deadline ?? '');
+  const [priority, setPriority] = useState<SignalPriority>(initial.priority ?? 'medium');
+  const [status, setStatus] = useState<SignalStatus>(initial.status ?? 'new');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const isEdit = !!initial.id;
+  const inputCls = 'h-9 rounded-lg border border-[rgba(6,42,61,0.15)] bg-white px-2.5 text-[12.5px] focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
+
+  const save = async () => {
+    if (!signal.trim()) { setErr('Опишіть сигнал'); return; }
+    setBusy(true); setErr(null);
+    const payload = { period, id: initial.id, signal: signal.trim(), source, recipient, deadline: deadline || null, priority, status };
+    try {
+      const res = await fetch('/api/rop-report/signals', {
+        method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) onSaved();
+      else setErr((await res.json().catch(() => ({})))?.error || 'Не вдалося зберегти');
+    } catch { setErr('Мережна помилка'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="px-4 py-3 border-b border-[#e2e7ef] bg-slate-50/60 space-y-2">
+      <textarea value={signal} onChange={e => setSignal(e.target.value)} autoFocus rows={2} maxLength={1000}
+        placeholder="Сигнал: що відбувається на ринку (дії конкурента, зміна попиту, регуляторика, дефіцит…)"
+        className="w-full rounded-lg border border-[rgba(6,42,61,0.15)] bg-white px-2.5 py-2 text-[12.5px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <input value={source} onChange={e => setSource(e.target.value)} maxLength={300} placeholder="Джерело" className={inputCls} />
+        <input value={recipient} onChange={e => setRecipient(e.target.value)} maxLength={300} placeholder="Кому / відповідальний" className={inputCls} />
+        <input type="date" value={deadline ?? ''} onChange={e => setDeadline(e.target.value)} className={inputCls} title="Дедлайн реакції" />
+        <div className="grid grid-cols-2 gap-2">
+          <select value={priority} onChange={e => setPriority(e.target.value as SignalPriority)} className={inputCls} title="Пріоритет">
+            {(Object.keys(PRIORITY_META) as SignalPriority[]).map(k => <option key={k} value={k}>{PRIORITY_META[k].label}</option>)}
+          </select>
+          <select value={status} onChange={e => setStatus(e.target.value as SignalStatus)} className={inputCls} title="Статус">
+            {(Object.keys(STATUS_META) as SignalStatus[]).map(k => <option key={k} value={k}>{STATUS_META[k].label}</option>)}
+          </select>
+        </div>
+      </div>
+      {err && <p className="text-[12px] text-rose-600">{err}</p>}
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={save} disabled={busy}
+          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[12.5px] font-bold text-white bg-emet-blue disabled:opacity-50">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{isEdit ? 'Зберегти' : 'Додати'}
+        </button>
+        <button type="button" onClick={onClose} disabled={busy} className="h-9 px-3 rounded-lg text-[12.5px] font-medium text-muted-foreground hover:text-foreground">Скасувати</button>
+      </div>
     </div>
   );
 }
