@@ -63,7 +63,7 @@ function Hero({ data }: { data: RopReport }) {
           <span className="w-1.5 h-1.5 rounded-full bg-emet-blue text-emet-blue shadow-[0_0_6px_currentColor]" />
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Регіони за міткою</p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-1 items-center">
           {(['ok', 'warn', 'bad'] as StatusTone[]).map(t => (
             <span key={t} className={`flex-1 text-center rounded-lg py-1.5 border ${badgeCls[t]}`}>
               <span className="block text-[20px] font-extrabold tabular-nums leading-none mb-1">{h.regionsByTone[t]}</span>
@@ -123,13 +123,14 @@ function PromiseCell({ p }: { p: RopRegionRow['promise'] }) {
 }
 
 // Міні-картка бренду у панелі: причина + дія. Повний текст, clamp лише через CSS.
-// «розгорнути» знімає clamp І робить картку на 2 колонки.
+// «розгорнути» знімає clamp — текст на всю ширину картки (картка НЕ розтягується
+// на 2 колонки, лишається у своїй клітинці; напів-порожні картки — норм).
 function BrandDetailCard({ b, worst }: { b: { name: string; forecastPct: number; reason?: string | null; action?: string | null }; worst: boolean }) {
   const [open, setOpen] = useState(false);
   const long = (b.reason?.length ?? 0) > 90 || (b.action?.length ?? 0) > 90;
   const clamp = open ? '' : 'line-clamp-2';
   return (
-    <div className={`rounded-xl border p-3 ${worst ? 'border-rose-300/60 bg-rose-50/50' : 'border-slate-200 bg-white'} ${open ? 'md:col-span-2' : ''}`}>
+    <div className={`rounded-xl border p-3 ${worst ? 'border-rose-300/60 bg-rose-50/50' : 'border-slate-200 bg-white'}`}>
       <div className="font-bold text-[13px] mb-2">{b.name}<span className="font-mono text-slate-400 font-semibold"> · {pct(b.forecastPct)}</span></div>
       <div className="mb-2">
         <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Причина</div>
@@ -154,11 +155,13 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
   const chips = r.redBrands.slice(0, 3);
   const extra = r.redBrands.length - chips.length;
   const panelBrands = r.reds.length > 0 ? r.reds : (r.worst ? [r.worst] : []);
+  const openRegion = (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/weekly-report?region=${r.code}`); };
   return (
     <div className={muted ? 'opacity-55' : ''}>
-      <button type="button" onClick={onToggle} className={`${COLS} w-full px-4 py-2.5 text-left hover:bg-[#f5f7fb] transition-colors`}>
+      <div onClick={onToggle} className={`${COLS} w-full px-4 py-2.5 hover:bg-[#f5f7fb] transition-colors cursor-pointer`}>
         <div className="min-w-0">
-          <div className="font-bold text-[13px] truncate">{r.name}</div>
+          {/* Клік по назві → повний звіт цього регіону (не розгортання) */}
+          <button type="button" onClick={openRegion} className="block max-w-full text-left font-bold text-[13px] truncate hover:text-emet-blue hover:underline" title="Відкрити звіт регіону">{r.name}</button>
           <div className="text-[10px] text-slate-400 flex items-center gap-1"><SubmissionDot r={r} />{r.managerCount} {mgrWord(r.managerCount)}</div>
         </div>
         <div className={`text-right font-mono font-extrabold text-[14px] ${toneText[r.badge.tone]}`}>{pct(r.pct)}</div>
@@ -171,7 +174,7 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
         </div>
         <div className="min-w-0"><PromiseCell p={r.promise} /></div>
         <ChevronDown className={`h-4 w-4 text-slate-400 justify-self-end transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+      </div>
       {open && (
         <div className="px-4 pt-1 pb-4 bg-slate-50 border-t border-slate-100">
           {panelBrands.length > 0 && (
@@ -179,7 +182,7 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
               {panelBrands.map((b, i) => <BrandDetailCard key={b.code ?? String(i)} b={b} worst={i === 0} />)}
             </div>
           )}
-          <button type="button" onClick={() => router.push('/weekly-report')} className="mt-3 text-[12px] font-semibold text-emet-blue hover:underline inline-flex items-center gap-1">
+          <button type="button" onClick={() => router.push(`/weekly-report?region=${r.code}`)} className="mt-3 text-[12px] font-semibold text-emet-blue hover:underline inline-flex items-center gap-1">
             Відкрити повний звіт регіону →
           </button>
         </div>
@@ -291,10 +294,8 @@ function PromiseItem({ p }: { p: RopReport['promiseRegister'][number]['promises'
     <div className="flex gap-2">
       <div className="shrink-0 mt-0.5">{icon}</div>
       <div className="min-w-0 flex-1">
-        <div className="text-[11.5px] leading-snug">
-          <b className="text-foreground/70">{p.brand}</b>{' '}
-          <span className={`text-muted-foreground italic ${open ? '' : 'line-clamp-2'} inline`}>{p.promiseText || '—'}</span>
-        </div>
+        <div className="text-[11.5px] font-bold text-foreground/80 mb-0.5">{p.brand}</div>
+        <p className={`text-[11.5px] text-muted-foreground leading-snug ${open ? '' : 'line-clamp-2'}`}>{p.promiseText || '—'}</p>
         {long && <button type="button" onClick={() => setOpen(o => !o)} className="text-[10px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
         {p.done === false && <div className="text-[11px] text-rose-600 mt-0.5">{p.reason || 'причину не вказано'}</div>}
       </div>

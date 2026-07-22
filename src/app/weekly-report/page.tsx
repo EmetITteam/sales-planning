@@ -146,6 +146,12 @@ export default function WeeklyReportPage() {
 
   // Регіон за замовчуванням — Дніпро (якщо доступний), інакше перший дозволений.
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  // Пред-вибір регіону з ?region=CODE (перехід зі Зведеного звіту РОП по кліку на
+  // назву регіону). Клієнтський read window.location — без useSearchParams/Suspense.
+  useEffect(() => {
+    const r = new URLSearchParams(window.location.search).get('region');
+    if (r) setSelectedCode(r);
+  }, []);
   const defaultCode = useMemo(() => {
     const d = regions.find(r => /дніпро|днепр/i.test(r.regionName));
     return d?.regionCode ?? regions[0]?.regionCode ?? null;

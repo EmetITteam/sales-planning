@@ -150,10 +150,14 @@ export async function GET(request: NextRequest) {
     // План (4.4): узгоджено = КОЖЕН менеджер регіону фіналізував, без чернеток.
     // Регіон без ЖОДНОГО запису → 'not_started' (а не фейкове «нема чернеток»).
     const logins = region.managers.map(mm => (mm.login || '').toLowerCase()).filter(Boolean);
-    const perMgr = logins.map(l => planFinByLogin.get(l)); // undefined = у менеджера нема рядків
-    const hasAnyRecord = perMgr.some(Boolean);
-    const fullyFinalized = logins.length > 0 && perMgr.every(r => !!r && r.hasFinal && !r.hasDraft);
-    const maxAt = Math.max(0, ...perMgr.filter(Boolean).map(r => r!.maxAt));
+    // Рахуємо ЛИШЕ менеджерів, що мають рядки у period_summaries (тобто планують).
+    // Менеджера БЕЗ рядків (напр. РОП headofsd у KYV-ноді — не планує) ІГНОРУЄМО,
+    // інакше регіон фейково «чернетка» попри усіх реальних менеджерів фіналізованих
+    // (узгоджено з planning-readiness: «усі менеджери фіналізували»).
+    const withRows = logins.map(l => planFinByLogin.get(l)).filter(Boolean) as Array<{ hasFinal: boolean; hasDraft: boolean; maxAt: number }>;
+    const hasAnyRecord = withRows.length > 0;
+    const fullyFinalized = withRows.length > 0 && withRows.every(r => r.hasFinal && !r.hasDraft);
+    const maxAt = Math.max(0, ...withRows.map(r => r.maxAt));
     const plan = resolvePlanStatus({
       hasAnyRecord,
       fullyFinalized,

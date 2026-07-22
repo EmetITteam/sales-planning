@@ -44,9 +44,6 @@ export default function RopReportPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-2 text-[11.5px] font-semibold text-muted-foreground bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />Live з 1С{data ? ` · на ${data.week.slice(8)}.${data.week.slice(5, 7)}` : ''}
-            </span>
             <PeriodFilter />
             <button type="button" disabled title="у розробці"
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-bold text-white bg-emet-blue opacity-40 cursor-not-allowed">
