@@ -5,6 +5,7 @@
  * мові системи (MetricCard hero, glass-card секції, статус-тинти, mono-числа).
  */
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Loader2, Check, ChevronDown } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import type { RopReport, RopRegionRow } from '@/lib/use-rop-report';
@@ -24,9 +25,9 @@ export function RopReportView({ data }: { data: RopReport }) {
   return (
     <div className="space-y-4">
       <Hero data={data} />
-      <SummaryTable data={data} />
+      <Summary data={data} />
       <RedZones data={data} />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         <Promises data={data} />
         <Planning data={data} />
       </div>
@@ -117,81 +118,119 @@ function PromiseCell({ p }: { p: RopRegionRow['promise'] }) {
   );
 }
 
-function SubmissionBadge({ r }: { r: RopRegionRow }) {
-  if (r.submission === 'submitted') return <span className="text-[10px] font-bold text-emerald-600">звіт подано</span>;
-  if (r.submission === 'partial') return <span className="text-[10px] font-bold text-amber-600">заповнюється</span>;
-  return <span className="text-[10px] font-bold text-slate-400">звіт не подано</span>;
+// Точка стану подачі звіту (region-level; per-manager фіналізації нема — Фаза 0).
+function SubmissionDot({ r }: { r: RopRegionRow }) {
+  const map = {
+    submitted: ['bg-emerald-500', 'Звіт подано'],
+    partial: ['bg-amber-500', 'Заповнюється (не фіналізовано)'],
+    empty: ['bg-slate-300', 'Звіт не подано'],
+  } as const;
+  const [cls, tip] = map[r.submission];
+  return <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${cls}`} title={tip} />;
 }
 
-function SummaryRow({ r }: { r: RopRegionRow }) {
-  const [showReds, setShowReds] = useState(false);
-  const muted = r.submission === 'empty'; // приглушуємо ТІЛЬКИ якщо нема ні звіту, ні заміток
-  const otherReds = r.reds.filter(b => b.code !== r.worst?.code);
+// Міні-картка бренду у розкритій панелі: причина + дія.
+function BrandDetailCard({ b, worst }: { b: { name: string; forecastPct: number; reason?: string | null; action?: string | null }; worst: boolean }) {
   return (
-    <>
-      <tr className={`text-[12.5px] border-b border-[#f0f2f8] hover:bg-[#f5f7fb] ${muted ? 'opacity-55' : ''}`}>
-        <td className="px-3.5 py-3 align-top min-w-[130px]">
-          <div className="font-bold text-[13.5px]">{r.name}</div>
-          <div className="text-[10.5px] text-slate-400">{r.managerCount} мгр · <SubmissionBadge r={r} /></div>
-        </td>
-        <td className={`px-3.5 py-3 text-right align-top font-mono font-extrabold text-[16px] ${toneText[r.badge.tone]}`}>{pct(r.pct)}</td>
-        <td className="px-3.5 py-3 align-top"><span className={`inline-block text-[9.5px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border ${badgeCls[r.badge.tone]}`}>{r.badge.label}</span></td>
-        <td className="px-3.5 py-3 align-top min-w-[110px]">
-          {r.redBrands.length === 0
-            ? <span className="text-[10.5px] font-bold rounded px-2 py-0.5 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
-            : <div className="flex flex-wrap gap-1 items-center">
-                <span className="text-[10.5px] font-bold rounded px-1.5 py-0.5 border bg-rose-500/10 text-rose-700 border-rose-300/40">{r.worst?.name}</span>
-                {r.extraRedCount > 0 && (
-                  <button type="button" onClick={() => setShowReds(s => !s)} className="text-[10px] font-bold rounded px-1.5 py-0.5 border bg-rose-500/8 text-rose-600 border-rose-300/40 hover:bg-rose-500/15 inline-flex items-center gap-0.5">
-                    +{r.extraRedCount}<ChevronDown className={`h-2.5 w-2.5 transition-transform ${showReds ? 'rotate-180' : ''}`} />
-                  </button>
-                )}
-              </div>}
-        </td>
-        <td className="px-3.5 py-3 align-top text-[11.8px] text-muted-foreground min-w-[200px] max-w-[260px]">
-          <ClampText text={r.worst?.reason} empty="причину не внесено" />
-        </td>
-        <td className="px-3.5 py-3 align-top text-[11.8px] text-muted-foreground min-w-[180px] max-w-[260px]">
-          <ClampText text={r.worst?.action} empty="дію не внесено" />
-        </td>
-        <td className="px-3.5 py-3 align-top"><PromiseCell p={r.promise} /></td>
-      </tr>
-      {showReds && otherReds.length > 0 && (
-        <tr className="bg-[#fbf4f5] border-b border-[#f0f2f8]">
-          <td colSpan={7} className="px-3.5 py-2.5">
-            <div className="text-[10px] uppercase tracking-wider text-rose-500/70 font-bold mb-1.5">Інші червоні бренди регіону</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-              {otherReds.map(b => (
-                <div key={b.code} className="text-[11.5px] text-muted-foreground">
-                  <b className="text-rose-700">{b.name}</b> <span className="text-slate-400 font-mono">({pct(b.forecastPct)})</span>
-                  <div className="mt-0.5"><ClampText text={b.reason} lines={2} empty="причину не внесено" /></div>
-                  {b.action?.trim() && <div className="mt-0.5 text-slate-500"><b className="text-slate-600">Дія:</b> {b.action}</div>}
-                </div>
-              ))}
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
+    <div className={`rounded-xl border p-3 ${worst ? 'border-rose-300/60 bg-rose-50/50' : 'border-slate-200 bg-white'}`}>
+      <div className="font-bold text-[13px] mb-2">{b.name}<span className="font-mono text-slate-400 font-semibold"> · {pct(b.forecastPct)}</span></div>
+      <div className="mb-2">
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Причина</div>
+        <div className="text-[12px] text-muted-foreground leading-snug"><ClampText text={b.reason} lines={2} empty="причину не внесено" /></div>
+      </div>
+      <div>
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Дія</div>
+        <div className="text-[12px] text-muted-foreground leading-snug"><ClampText text={b.action} lines={2} empty="дію не внесено" /></div>
+      </div>
+    </div>
   );
 }
 
-function SummaryTable({ data }: { data: RopReport }) {
+// Один рядок-акордеон регіону: згорнутий підсумок + розкрита панель брендів.
+function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onToggle: () => void }) {
+  const router = useRouter();
+  const muted = r.submission === 'empty';
+  const chips = r.redBrands.slice(0, 3);
+  const extra = r.redBrands.length - chips.length;
+  const panelBrands = r.reds.length > 0 ? r.reds : (r.worst ? [r.worst] : []);
+  return (
+    <div className={muted ? 'opacity-55' : ''}>
+      <button type="button" onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[#f5f7fb] transition-colors">
+        <div className="w-[140px] shrink-0 min-w-0">
+          <div className="font-bold text-[13.5px] truncate">{r.name}</div>
+          <div className="text-[10.5px] text-slate-400 flex items-center gap-1"><SubmissionDot r={r} />{r.managerCount} мгр</div>
+        </div>
+        <div className={`w-[46px] text-right font-mono font-extrabold text-[15px] shrink-0 ${toneText[r.badge.tone]}`}>{pct(r.pct)}</div>
+        <span className={`hidden sm:inline-block text-[9px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border shrink-0 ${badgeCls[r.badge.tone]}`}>{r.badge.label}</span>
+        <div className="flex-1 flex flex-wrap gap-1 items-center min-w-0">
+          {chips.length === 0
+            ? <span className="text-[10.5px] font-bold rounded px-2 py-0.5 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
+            : <>{chips.map(b => <span key={b} className="text-[10.5px] font-bold rounded px-1.5 py-0.5 border bg-rose-500/10 text-rose-700 border-rose-300/40 whitespace-nowrap">{b}</span>)}
+               {extra > 0 && <span className="text-[10px] font-bold text-rose-600">+{extra}</span>}</>}
+        </div>
+        <div className="hidden md:block w-[180px] shrink-0"><PromiseCell p={r.promise} /></div>
+        <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-4 pt-1 pb-4 bg-slate-50 border-t border-slate-100">
+          {panelBrands.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-3">
+              {panelBrands.map((b, i) => <BrandDetailCard key={b.code ?? String(i)} b={b} worst={i === 0} />)}
+            </div>
+          )}
+          <button type="button" onClick={() => router.push('/weekly-report')} className="mt-3 text-[12px] font-semibold text-emet-blue hover:underline inline-flex items-center gap-1">
+            Відкрити повний звіт регіону →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const TONE_FILTER: Array<{ key: 'all' | StatusTone; label: string }> = [
+  { key: 'all', label: 'Всі' },
+  { key: 'bad', label: 'Відставання' },
+  { key: 'warn', label: 'Ризик' },
+  { key: 'ok', label: 'В плані' },
+];
+const filterActiveCls: Record<'all' | StatusTone, string> = {
+  all: 'bg-emet-blue text-white border-emet-blue',
+  ok: 'bg-emerald-500 text-white border-emerald-500',
+  warn: 'bg-amber-500 text-white border-amber-500',
+  bad: 'bg-rose-500 text-white border-rose-500',
+};
+
+function Summary({ data }: { data: RopReport }) {
+  const [filter, setFilter] = useState<'all' | StatusTone>('all');
+  const [openCode, setOpenCode] = useState<string | null>(null);
   const rows = [...data.regions].sort((a, b) => a.forecastPct - b.forecastPct);
+  const counts: Record<'all' | StatusTone, number> = {
+    all: rows.length,
+    ok: rows.filter(r => r.badge.tone === 'ok').length,
+    warn: rows.filter(r => r.badge.tone === 'warn').length,
+    bad: rows.filter(r => r.badge.tone === 'bad').length,
+  };
+  const filtered = filter === 'all' ? rows : rows.filter(r => r.badge.tone === filter);
   return (
     <div className="glass-card overflow-hidden">
-      <SectionHead no="4.1" title="Зведена таблиця по регіонах" hint={`Автозбір з тижневих звітів РМ · ${data.regions.length} представництв`} />
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse min-w-[920px]">
-          <thead>
-            <tr className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-              {['Регіон', '% на дату', 'Мітка', 'Червоні бренди', 'Причина за стандартом', 'Дія на тиждень', 'Обіцянка→факт'].map((h, i) => (
-                <th key={h} className={`px-3.5 py-2.5 border-b border-[#e2e7ef] ${i === 1 ? 'text-right' : 'text-left'}`}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>{rows.map(r => <SummaryRow key={r.code} r={r} />)}</tbody>
-        </table>
+      <div className="px-4 py-2.5 border-b border-[#e2e7ef] flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-[13px] font-bold flex items-center">
+          <span className="font-mono text-[11px] font-bold text-white bg-emet-blue rounded px-1.5 py-0.5 mr-2">4.1</span>Зведена таблиця по регіонах
+        </h2>
+        <div className="flex items-center gap-1 flex-wrap">
+          {TONE_FILTER.map(f => (
+            <button key={f.key} type="button" onClick={() => setFilter(f.key)}
+              className={`text-[11px] font-bold rounded-lg px-2.5 py-1 border transition-colors ${filter === f.key ? filterActiveCls[f.key] : 'bg-white text-muted-foreground border-slate-200 hover:bg-slate-50'}`}>
+              {f.label} {counts[f.key]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="divide-y divide-[#f0f2f8]">
+        {filtered.map(r => (
+          <RegionRow key={r.code} r={r} open={openCode === r.code} onToggle={() => setOpenCode(o => (o === r.code ? null : r.code))} />
+        ))}
+        {filtered.length === 0 && <div className="p-6 text-[12px] text-muted-foreground text-center">немає регіонів з цією міткою</div>}
       </div>
     </div>
   );
@@ -229,7 +268,7 @@ function Promises({ data }: { data: RopReport }) {
   const done = reg.reduce((a, r) => a + r.doneCount, 0);
   const total = reg.reduce((a, r) => a + r.total, 0);
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-card overflow-hidden h-full">
       <SectionHead no="4.3" title="Реєстр обіцянок" hint={total > 0 ? `${total} обіцянок · ${done} виконано` : undefined} />
       {reg.length === 0
         ? <div className="p-6 text-[12px] text-muted-foreground text-center">за період обіцянок не було</div>
@@ -272,7 +311,7 @@ const planChip: Record<string, { cls: string; label: string }> = {
 function Planning({ data }: { data: RopReport }) {
   const inTime = data.regions.filter(r => r.plan.inTime).length;
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-card overflow-hidden h-full">
       <SectionHead no="4.4" title="Підсумки планування" hint="до 16:00 4-го роб. дня" />
       <div className="px-4 pt-3 pb-2 text-[11.5px] text-muted-foreground">{inTime} із {data.regions.length} регіонів узгодили план у термін.</div>
       <div>{data.regions.map(r => <PlanRow key={r.code} period={data.period} r={r} />)}</div>
