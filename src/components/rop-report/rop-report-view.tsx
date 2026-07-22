@@ -328,10 +328,18 @@ function RedZones({ data }: { data: RopReport }) {
 // ── 4.3 Реєстр обіцянок (по кліку — усі, вкл. виконані) ───────────────────────
 function PromiseItem({ p }: { p: RopReport['promiseRegister'][number]['promises'][number] }) {
   const [open, setOpen] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  // Кнопку показуємо ЛИШЕ коли текст реально обрізаний (вимір overflow у clamped-
+  // стані), а не за к-стю символів — інакше «розгорнути» нічого не робить.
+  useEffect(() => {
+    if (open) return;
+    const el = textRef.current;
+    setCanExpand(!!el && el.scrollHeight - el.clientHeight > 1);
+  }, [open, p.promiseText]);
   const icon = p.done === true
     ? <Check className="h-3.5 w-3.5 text-emerald-600" />
     : p.done === false ? <X className="h-3.5 w-3.5 text-rose-500" /> : <span className="block w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 ml-1" />;
-  const long = (p.promiseText?.length ?? 0) > 90;
   return (
     <div className="flex gap-2">
       <div className="shrink-0 mt-0.5">{icon}</div>
@@ -339,8 +347,8 @@ function PromiseItem({ p }: { p: RopReport['promiseRegister'][number]['promises'
         <div className="text-[11.5px] font-bold text-foreground/80 mb-0.5">{p.brand}</div>
         {/* Обіцянка як цитата з лівим бордером (як quote-box у паспорті регіону) */}
         <div className="border-l-2 border-slate-300 bg-slate-50 rounded-r-md px-2 py-1">
-          <p className={`text-[11.5px] text-muted-foreground leading-snug ${open ? '' : 'line-clamp-2'}`}>{p.promiseText || '—'}</p>
-          {long && <button type="button" onClick={() => setOpen(o => !o)} className="mt-0.5 text-[10px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
+          <p ref={textRef} className={`text-[11.5px] text-muted-foreground leading-snug ${open ? '' : 'line-clamp-2'}`}>{p.promiseText || '—'}</p>
+          {(canExpand || open) && <button type="button" onClick={() => setOpen(o => !o)} className="mt-0.5 text-[10px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
         </div>
         {p.done === false && <div className="text-[11px] text-rose-600 mt-0.5">{p.reason || 'причину не вказано'}</div>}
       </div>
