@@ -19,7 +19,8 @@ const badgeCls: Record<StatusTone, string> = {
   warn: 'bg-amber-500/12 border-amber-300/50 text-amber-700',
   bad: 'bg-rose-500/12 border-rose-300/50 text-rose-700',
 };
-const pct = (n: number) => `${Math.round(n)}%`;
+// % — з однією десятою (як `formatPct`/паспорт регіону), без округлення до цілого.
+const pct = (n: number) => `${n.toFixed(1)}%`;
 
 /** Українське склонение «менеджер». */
 function mgrWord(n: number): string {
