@@ -8,17 +8,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Check, ChevronDown, X } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
+import { SectionHeader } from '@/components/ui/section-header';
+import { PerfBadge } from '@/components/ui/perf-badge';
 import type { RopReport, RopRegionRow } from '@/lib/use-rop-report';
 import type { StatusTone } from '@/lib/status-badge';
 
 const toneText: Record<StatusTone, string> = { ok: 'text-emerald-600', warn: 'text-amber-600', bad: 'text-rose-600' };
 const toneIcon: Record<StatusTone, string> = { ok: 'text-emerald-500', warn: 'text-amber-500', bad: 'text-rose-500' };
 const toneAmbient: Record<StatusTone, 'good' | 'warn' | 'bad'> = { ok: 'good', warn: 'warn', bad: 'bad' };
-const badgeCls: Record<StatusTone, string> = {
-  ok: 'bg-emerald-500/12 border-emerald-300/50 text-emerald-700',
-  warn: 'bg-amber-500/12 border-amber-300/50 text-amber-700',
-  bad: 'bg-rose-500/12 border-rose-300/50 text-rose-700',
-};
 // % — з однією десятою (як `formatPct`/паспорт регіону), без округлення до цілого.
 const pct = (n: number) => `${n.toFixed(1)}%`;
 
@@ -88,18 +85,6 @@ function Hero({ data }: { data: RopReport }) {
         label="Обіцянки минулого звіту"
         value={<>{h.promisesDone}<span className="text-[18px] text-slate-400">/{h.promisesTotal}</span></>}
         caption={<span className="text-muted-foreground">виконано · {h.promisesTotal - h.promisesDone} не виконано (з причинами)</span>} />
-    </div>
-  );
-}
-
-// ── section header (як у звіті РМ) ───────────────────────────────────────────
-function SectionHead({ no, title, hint }: { no: string; title: string; hint?: string }) {
-  return (
-    <div className="px-4 py-2.5 border-b border-[#e2e7ef] flex items-center justify-between gap-3 flex-wrap">
-      <h2 className="text-[13px] font-bold flex items-center">
-        <span className="font-mono text-[11px] font-bold text-white bg-emet-blue rounded px-1.5 py-0.5 mr-2">{no}</span>{title}
-      </h2>
-      {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
     </div>
   );
 }
@@ -177,7 +162,7 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
           <div className="text-[10px] text-slate-400 flex items-center gap-1"><SubmissionDot r={r} />{r.managerCount} {mgrWord(r.managerCount)}</div>
         </div>
         <div className={`text-right font-mono font-extrabold text-[14px] ${toneText[r.badge.tone]}`}>{pct(r.pct)}</div>
-        <div><span className={`inline-block text-[9px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border ${badgeCls[r.badge.tone]}`}>{r.badge.label}</span></div>
+        <div><PerfBadge forecastPct={r.forecastPct} /></div>
         <div className="flex flex-wrap gap-1 items-center min-w-0">
           {r.redBrands.length === 0
             ? <span className="text-[10.5px] font-bold rounded px-2 py-0.5 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
@@ -228,19 +213,16 @@ function Summary({ data }: { data: RopReport }) {
   const filtered = filter === 'all' ? rows : rows.filter(r => r.badge.tone === filter);
   return (
     <div className="glass-card overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-[#e2e7ef] flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-[13px] font-bold flex items-center">
-          <span className="font-mono text-[11px] font-bold text-white bg-emet-blue rounded px-1.5 py-0.5 mr-2">4.1</span>Зведена таблиця по регіонах
-        </h2>
-        <div className="flex items-center gap-1 flex-wrap">
+      <SectionHeader no="4.1" title="Зведена таблиця по регіонах" hint={
+        <span className="flex items-center gap-1 flex-wrap">
           {TONE_FILTER.map(f => (
             <button key={f.key} type="button" onClick={() => setFilter(f.key)}
               className={`text-[11px] font-bold rounded-lg px-2.5 py-1 border transition-colors ${filter === f.key ? filterActiveCls[f.key] : 'bg-white text-muted-foreground border-slate-200 hover:bg-slate-50'}`}>
               {f.label} {counts[f.key]}
             </button>
           ))}
-        </div>
-      </div>
+        </span>
+      } />
       <div className="overflow-x-auto">
         <div className="min-w-[800px]">
           {/* шапка колонок */}
@@ -267,11 +249,11 @@ function Summary({ data }: { data: RopReport }) {
 // ── 4.2 Червоні зони (з % по регіонах) ───────────────────────────────────────
 function RedZones({ data }: { data: RopReport }) {
   if (data.redZones.length === 0) {
-    return <div className="glass-card overflow-hidden"><SectionHead no="4.2" title="Червоні зони по брендах" /><div className="p-6 text-[12px] text-muted-foreground text-center">немає червоних брендів за період</div></div>;
+    return <div className="glass-card overflow-hidden"><SectionHeader no="4.2" title="Червоні зони по брендах" /><div className="p-6 text-[12px] text-muted-foreground text-center">немає червоних брендів за період</div></div>;
   }
   return (
     <div className="glass-card overflow-hidden">
-      <SectionHead no="4.2" title="Червоні зони по брендах" hint={`Бренд у «відставанні» в 4+ регіонах → окремим пунктом на ${data.recipients.escalation}`} />
+      <SectionHeader no="4.2" title="Червоні зони по брендах" hint={`Бренд у «відставанні» в 4+ регіонах → окремим пунктом на ${data.recipients.escalation}`} />
       <div className="p-2">
         {data.redZones.map(z => (
           <div key={z.brand} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#f5f7fb]">
@@ -341,7 +323,7 @@ function Promises({ data }: { data: RopReport }) {
   const total = reg.reduce((a, r) => a + r.total, 0);
   return (
     <div className="glass-card overflow-hidden h-full">
-      <SectionHead no="4.3" title="Реєстр обіцянок" hint={total > 0 ? `${total} обіцянок · ${done} виконано` : undefined} />
+      <SectionHeader no="4.3" title="Реєстр обіцянок" hint={total > 0 ? `${total} обіцянок · ${done} виконано` : undefined} />
       {reg.length === 0
         ? <div className="p-6 text-[12px] text-muted-foreground text-center">за період обіцянок не було</div>
         : <div className="p-3 space-y-2">{reg.map(r => <PromiseRegionCard key={r.region} r={r} />)}</div>}
@@ -361,7 +343,7 @@ function Planning({ data }: { data: RopReport }) {
   const inTime = data.regions.filter(r => r.plan.inTime).length;
   return (
     <div className="glass-card overflow-hidden h-full">
-      <SectionHead no="4.4" title="Підсумки планування" hint="до 16:00 4-го роб. дня" />
+      <SectionHeader no="4.4" title="Підсумки планування" hint="до 16:00 4-го роб. дня" />
       <div className="px-4 pt-3 pb-2 text-[11.5px] text-muted-foreground">{inTime} із {data.regions.length} регіонів узгодили план у термін.</div>
       <div>{data.regions.map(r => <PlanRow key={r.code} period={data.period} r={r} />)}</div>
     </div>
