@@ -8,6 +8,7 @@ import {
   computeRopDeadline,
   workingDaysBetween,
   resolvePlanStatus,
+  reportSubmissionState,
   countByTone,
 } from '../src/lib/rop-report-aggregate';
 
@@ -156,6 +157,20 @@ test('resolvePlanStatus: узгоджено після дедлайну → late
   assert.equal(r.agreed, true);
   assert.equal(r.inTime, false);
   assert.equal(r.overdueWorkingDays, 2);
+});
+
+// ── reportSubmissionState (fix2: подача звіту ≠ узгодження плану) ─────────────
+test('reportSubmissionState: фіналізовано → submitted', () => {
+  assert.equal(reportSubmissionState(true, false), 'submitted');
+  assert.equal(reportSubmissionState(true, true), 'submitted');
+});
+
+test('reportSubmissionState: НЕ фіналізовано але є замітки → partial (не приглушуємо)', () => {
+  assert.equal(reportSubmissionState(false, true), 'partial');
+});
+
+test('reportSubmissionState: ні фіналізації, ні заміток → empty (звіт не подано)', () => {
+  assert.equal(reportSubmissionState(false, false), 'empty');
 });
 
 // ── countByTone ──────────────────────────────────────────────────────────────

@@ -23,7 +23,7 @@ import { getPassedWorkingDays, getWorkingDaysInMonth } from '@/lib/working-days'
 import { statusBadge, isRed } from '@/lib/status-badge';
 import {
   pickWorstBrand, rollupPromises, crossRegionRedZones, computeRopDeadline,
-  resolvePlanStatus, countByTone, type BrandLine, type PromiseLine,
+  resolvePlanStatus, reportSubmissionState, countByTone, type BrandLine, type PromiseLine,
 } from '@/lib/rop-report-aggregate';
 import { isRepresentativeRegionCode, REPORT_RECIPIENT, ESCALATION_RECIPIENT } from '@/lib/rop-report-config';
 import { readWeekNotes, type WeeklyNote } from '@/lib/weekly-notes-store';
@@ -90,6 +90,8 @@ export async function GET(request: NextRequest) {
   const thisLatest = indexLatest(thisNotes);
   const prevLatest = indexLatest(prevNotes);
   const finalizedReportRegions = new Set(weekStatuses.map(s => s.region_code));
+  // Регіони, де вже є замітки цього тижня (для стану 'partial' — заповнюється).
+  const regionsWithNotes = new Set(thisNotes.filter(n => n.text?.trim()).map(n => n.region_code));
 
   // ── фіналізація ПЛАНУ (4.4): period_summaries по всіх менеджерах регіонів ──
   const allLogins = [...new Set(allRegions.flatMap(r => r.managers.map(mm => (mm.login || '').toLowerCase()).filter(Boolean)))];
@@ -171,8 +173,12 @@ export async function GET(request: NextRequest) {
         ? { code: worstRes.worst.code, name: worstRes.worst.name, forecastPct: worstRes.worst.forecastPct, reason: worstRes.worst.reason, action: worstRes.worst.action }
         : null,
       extraRedCount: worstRes.extraRedCount,
+      // Червоні бренди з причина/дія — для розкриття «+N» у 4.1 (гірший показаний,
+      // решта за бейджем). Відсортовані за forecastPct (найгірший перший).
+      reds: worstRes.red.map(b => ({ code: b.code, name: b.name, forecastPct: b.forecastPct, reason: b.reason ?? null, action: b.action ?? null })),
       promise,
       reportFinalized: finalizedReportRegions.has(region.regionCode),
+      submission: reportSubmissionState(finalizedReportRegions.has(region.regionCode), regionsWithNotes.has(region.regionCode)),
       plan: {
         state: plan.state,
         agreed: plan.agreed,

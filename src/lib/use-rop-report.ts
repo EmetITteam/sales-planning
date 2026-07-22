@@ -13,6 +13,7 @@ export interface RopRegionRow {
   badge: { label: string; tone: StatusTone };
   redBrands: string[];
   worst: { code: string; name: string; forecastPct: number; reason?: string; action?: string } | null;
+  reds: Array<{ code: string; name: string; forecastPct: number; reason: string | null; action: string | null }>;
   extraRedCount: number;
   promise: {
     status: 'yes' | 'no' | 'none';
@@ -21,6 +22,7 @@ export interface RopRegionRow {
     doneCount: number;
   };
   reportFinalized: boolean;
+  submission: 'submitted' | 'partial' | 'empty';
   plan: {
     state: PlanState;
     agreed: boolean;

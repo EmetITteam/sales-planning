@@ -176,6 +176,25 @@ export function resolvePlanStatus(input: {
   };
 }
 
+// ── стан подачі тижневого звіту регіону ──────────────────────────────────────
+export type ReportSubmission = 'submitted' | 'partial' | 'empty';
+
+/**
+ * Стан подачі звіту регіону за тиждень:
+ *   'submitted' — звіт фіналізовано (weekly_report_status.finalized_at)
+ *   'partial'   — НЕ фіналізовано, але вже є замітки (причина/дія/обіцянки) →
+ *                 заповнюється, рядок НЕ приглушуємо
+ *   'empty'     — ні фіналізації, ні заміток → «звіт не подано», рядок приглушений
+ *
+ * ⚠️ Фіналізація звіту — рівня РЕГІОНУ (migration 056: РМ фіналізує на планёрці),
+ * НЕ per-менеджер. Тому «подано N з M мгр» не рахуємо з наявних даних.
+ */
+export function reportSubmissionState(finalized: boolean, hasNotes: boolean): ReportSubmission {
+  if (finalized) return 'submitted';
+  if (hasNotes) return 'partial';
+  return 'empty';
+}
+
 // ── hero: лічильники ─────────────────────────────────────────────────────────
 export function countByTone(forecastPcts: number[]): Record<StatusTone, number> {
   const r: Record<StatusTone, number> = { ok: 0, warn: 0, bad: 0 };
