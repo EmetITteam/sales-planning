@@ -12,6 +12,9 @@ import { getNthWorkingDay, isWorkingDay, assertHolidaysConfigured } from './work
 export interface BrandLine {
   code: string;
   name: string;
+  /** Виконання = факт/план (cumulative). ВІДОБРАЖАЄМО це — узгоджено з паспортом
+   *  регіону і зіставно з нормою-на-дату. Червоне визначаємо по темпу (forecastPct). */
+  pct: number;
   forecastPct: number;
   reason?: string;   // weekly_report_notes.reason (per бренд)
   action?: string;   // weekly_report_notes.action (per бренд)
@@ -81,8 +84,8 @@ export function rollupPromises(promises: PromiseLine[]): PromiseRollup {
 }
 
 // ── 4.2: червоні зони по брендах (крос-регіон) ───────────────────────────────
-export interface RegionRed { region: string; redBrands: Array<{ name: string; forecastPct: number }> }
-export interface ZoneRegion { region: string; forecastPct: number }
+export interface RegionRed { region: string; redBrands: Array<{ name: string; pct: number; forecastPct: number }> }
+export interface ZoneRegion { region: string; pct: number; forecastPct: number }
 export interface ZoneRow {
   brand: string;
   regions: ZoneRegion[];  // регіони де бренд червоний + його % (гірші перші)
@@ -100,7 +103,7 @@ export function crossRegionRedZones(regions: RegionRed[], escalateThreshold = 4)
   for (const r of regions) {
     for (const b of r.redBrands) {
       const arr = map.get(b.name) ?? [];
-      arr.push({ region: r.region, forecastPct: b.forecastPct });
+      arr.push({ region: r.region, pct: b.pct, forecastPct: b.forecastPct });
       map.set(b.name, arr);
     }
   }

@@ -124,6 +124,7 @@ export async function GET(request: NextRequest) {
       .map(s => ({
         code: s.segmentCode,
         name: s.segmentName,
+        pct: pctOf(s.factAmount, s.planAmount),
         forecastPct: s.planAmount > 0 ? calcForecastPercent(s.factAmount, s.planAmount, passedWD, totalWD) : 999,
         reason: thisLatest.get(`${region.regionCode}|${s.segmentCode}|reason`)?.text || undefined,
         action: thisLatest.get(`${region.regionCode}|${s.segmentCode}|action`)?.text || undefined,
@@ -174,12 +175,12 @@ export async function GET(request: NextRequest) {
       badge: { label: badge.label, tone: badge.tone },
       redBrands: redBrandNames,
       worst: worstRes.worst
-        ? { code: worstRes.worst.code, name: worstRes.worst.name, forecastPct: worstRes.worst.forecastPct, reason: worstRes.worst.reason, action: worstRes.worst.action }
+        ? { code: worstRes.worst.code, name: worstRes.worst.name, pct: worstRes.worst.pct, forecastPct: worstRes.worst.forecastPct, reason: worstRes.worst.reason, action: worstRes.worst.action }
         : null,
       extraRedCount: worstRes.extraRedCount,
       // Червоні бренди з причина/дія — для розкриття «+N» у 4.1 (гірший показаний,
       // решта за бейджем). Відсортовані за forecastPct (найгірший перший).
-      reds: worstRes.red.map(b => ({ code: b.code, name: b.name, forecastPct: b.forecastPct, reason: b.reason ?? null, action: b.action ?? null })),
+      reds: worstRes.red.map(b => ({ code: b.code, name: b.name, pct: b.pct, forecastPct: b.forecastPct, reason: b.reason ?? null, action: b.action ?? null })),
       promise,
       // Усі обіцянки регіону (виконані + ні) — для розкриття у 4.3 по кліку.
       promises: promiseLines.filter(p => p.hadPromise).map(p => ({ brand: p.brand, promiseText: p.promiseText || '', done: p.done, reason: p.reason ?? null })),
@@ -198,7 +199,7 @@ export async function GET(request: NextRequest) {
 
   // ── 4.2 червоні зони (крос-регіон) ──
   const redZones = crossRegionRedZones(
-    regionRows.map(r => ({ region: r.name, redBrands: r.reds.map(b => ({ name: b.name, forecastPct: b.forecastPct })) })),
+    regionRows.map(r => ({ region: r.name, redBrands: r.reds.map(b => ({ name: b.name, pct: b.pct, forecastPct: b.forecastPct })) })),
   );
 
   // ── hero ──

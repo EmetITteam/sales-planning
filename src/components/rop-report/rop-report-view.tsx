@@ -4,7 +4,7 @@
  * Зведений звіт РОП (Лист 4) — presentational. Дані з useRopReport. Стилі — у
  * мові системи (MetricCard hero, glass-card секції, статус-тинти, mono-числа).
  */
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Check, ChevronDown, X } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
@@ -125,26 +125,36 @@ function PromiseCell({ p }: { p: RopRegionRow['promise'] }) {
 // Міні-картка бренду у панелі: причина + дія. Повний текст, clamp лише через CSS.
 // «розгорнути» знімає clamp — текст на всю ширину картки (картка НЕ розтягується
 // на 2 колонки, лишається у своїй клітинці; напів-порожні картки — норм).
-function BrandDetailCard({ b, worst }: { b: { name: string; forecastPct: number; reason?: string | null; action?: string | null }; worst: boolean }) {
+function BrandDetailCard({ b, worst }: { b: { name: string; pct: number; forecastPct: number; reason?: string | null; action?: string | null }; worst: boolean }) {
   const [open, setOpen] = useState(false);
-  const long = (b.reason?.length ?? 0) > 90 || (b.action?.length ?? 0) > 90;
+  const [canExpand, setCanExpand] = useState(false);
+  const reasonRef = useRef<HTMLParagraphElement>(null);
+  const actionRef = useRef<HTMLParagraphElement>(null);
+  // Кнопку показуємо ЛИШЕ коли текст реально обрізається (не за к-стю символів):
+  // вимірюємо у згорнутому стані scrollHeight > clientHeight. Інакше кнопка нічого
+  // не робить (текст влазить у 2 рядки після прибирання переносів).
+  useEffect(() => {
+    if (open) return; // міряємо лише у clamped-стані
+    const overflows = (el: HTMLParagraphElement | null) => !!el && el.scrollHeight - el.clientHeight > 1;
+    setCanExpand(overflows(reasonRef.current) || overflows(actionRef.current));
+  }, [open, b.reason, b.action]);
   const clamp = open ? '' : 'line-clamp-2';
   return (
     <div className={`rounded-xl border p-3 ${worst ? 'border-rose-300/60 bg-rose-50/50' : 'border-slate-200 bg-white'}`}>
-      <div className="font-bold text-[13px] mb-2">{b.name}<span className="font-mono text-slate-400 font-semibold"> · {pct(b.forecastPct)}</span></div>
+      <div className="font-bold text-[13px] mb-2">{b.name}<span className="font-mono text-slate-400 font-semibold"> · {pct(b.pct)}</span></div>
       <div className="mb-2">
         <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Причина</div>
         {b.reason?.trim()
-          ? <p className={`text-[12px] text-muted-foreground leading-snug ${clamp}`}>{b.reason}</p>
+          ? <p ref={reasonRef} className={`text-[12px] text-muted-foreground leading-snug ${clamp}`}>{b.reason}</p>
           : <p className="text-[12px] italic text-muted-foreground/50">причину не внесено</p>}
       </div>
       <div>
         <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Дія</div>
         {b.action?.trim()
-          ? <p className={`text-[12px] text-muted-foreground leading-snug ${clamp}`}>{b.action}</p>
+          ? <p ref={actionRef} className={`text-[12px] text-muted-foreground leading-snug ${clamp}`}>{b.action}</p>
           : <p className="text-[12px] italic text-muted-foreground/50">дію не внесено</p>}
       </div>
-      {long && <button type="button" onClick={() => setOpen(o => !o)} className="mt-1.5 text-[10.5px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
+      {(canExpand || open) && <button type="button" onClick={() => setOpen(o => !o)} className="mt-1.5 text-[10.5px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
     </div>
   );
 }
@@ -270,7 +280,7 @@ function RedZones({ data }: { data: RopReport }) {
             </div>
             <div className="flex-1 text-[11px] text-muted-foreground/70 min-w-[160px] leading-relaxed">
               {z.regions.map((x, i) => (
-                <span key={i}>{i > 0 && <span className="text-slate-300"> · </span>}{x.region} <span className={`font-mono font-semibold ${x.forecastPct < 80 ? 'text-rose-500' : 'text-slate-500'}`}>{pct(x.forecastPct)}</span></span>
+                <span key={i}>{i > 0 && <span className="text-slate-300"> · </span>}{x.region} <span className={`font-mono font-semibold ${x.forecastPct < 80 ? 'text-rose-500' : 'text-slate-500'}`}>{pct(x.pct)}</span></span>
               ))}
             </div>
             <div className={`w-[100px] text-right font-mono font-extrabold text-[15px] shrink-0 ${z.escalate ? 'text-rose-600' : 'text-amber-600'}`}>

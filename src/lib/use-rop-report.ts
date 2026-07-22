@@ -12,8 +12,8 @@ export interface RopRegionRow {
   forecastPct: number;
   badge: { label: string; tone: StatusTone };
   redBrands: string[];
-  worst: { code: string; name: string; forecastPct: number; reason?: string; action?: string } | null;
-  reds: Array<{ code: string; name: string; forecastPct: number; reason: string | null; action: string | null }>;
+  worst: { code: string; name: string; pct: number; forecastPct: number; reason?: string; action?: string } | null;
+  reds: Array<{ code: string; name: string; pct: number; forecastPct: number; reason: string | null; action: string | null }>;
   extraRedCount: number;
   promise: {
     status: 'yes' | 'no' | 'none';
@@ -54,7 +54,7 @@ export interface RopReport {
     promisesTotal: number;
   };
   regions: RopRegionRow[];
-  redZones: Array<{ brand: string; regions: Array<{ region: string; forecastPct: number }>; count: number; escalate: boolean }>;
+  redZones: Array<{ brand: string; regions: Array<{ region: string; pct: number; forecastPct: number }>; count: number; escalate: boolean }>;
   promiseRegister: Array<{
     region: string;
     status: 'yes' | 'no' | 'none';
