@@ -22,7 +22,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { checkSystemLockForUser, systemLockedResponse } from '@/lib/system-lock';
-import { DIRECTOR_PROXY_LOGIN } from '@/lib/feature-flags';
+import { DIRECTOR_PROXY_LOGIN, isDirectorOverride } from '@/lib/feature-flags';
 import { resolveRegionOverrides } from '@/lib/region-access';
 
 /**
@@ -176,11 +176,13 @@ export async function POST(request: NextRequest) {
     // Multi-region RM (хардкод) АБО активний тимчасовий грант на регіон (read-only,
     // планёрки) — обидва дозволяють proxy-виклик getRegionData через директора.
     const isMultiRegionRM = !!(await resolveRegionOverrides(sessionLoginLower));
-    const adminNeedsProxy =
-      session.role === 'admin'
+    // admin + director-override (headofproduct/CPO) не закріплені за регіонами у
+    // 1С (getRegionData порожній) → проксіюємо ADMIN_PROXY_ACTIONS через директора.
+    const needsProxy =
+      (session.role === 'admin' || isDirectorOverride(sessionLoginLower))
       && ADMIN_PROXY_ACTIONS.has(action)
       && (!requestedLogin || requestedLogin === session.login);
-    if (adminNeedsProxy) {
+    if (needsProxy) {
       safePayload = { ...safePayload, login: DIRECTOR_PROXY_LOGIN };
     } else if (!requestedLogin) {
       safePayload = { ...safePayload, login: session.login };
