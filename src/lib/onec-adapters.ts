@@ -18,7 +18,7 @@ import type {
   OneCTraining,
   OneCManagerClientStats,
 } from './onec-types';
-import { ADMIN_LOGINS, MULTI_REGION_RM_HOME, isDirectorOverride } from './feature-flags';
+import { ADMIN_LOGINS, MULTI_REGION_RM_HOME, isDirectorOverride, NON_PLANNING_MANAGERS } from './feature-flags';
 import type {
   UserSession,
   Client1C,
@@ -295,6 +295,8 @@ export function adaptRegionData(r: GetRegionDataResponse): RegionDataResponse {
           // У інших регіонах де вона РМ її особисті дані ігноруємо — інакше
           // brand-сумі ламаються (Пашковська у NLV давала «Запл. 277%»).
           const login = (m.managerLogin || '').toLowerCase().trim();
+          // РОП/не-продавці (headofsd) — не менеджер регіону, прибираємо скрізь.
+          if (NON_PLANNING_MANAGERS.includes(login)) return false;
           const rmHome = MULTI_REGION_RM_HOME[login];
           if (rmHome && rmHome !== realCode) return false;
           const totalPlan = m.segments.reduce((a, s) => a + toNumber(s.planAmountUSD as number | string), 0);
