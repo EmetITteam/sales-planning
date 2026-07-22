@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Check, ChevronDown } from 'lucide-react';
+import { Loader2, Check, ChevronDown, X } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import type { RopReport, RopRegionRow } from '@/lib/use-rop-report';
 import type { StatusTone } from '@/lib/status-badge';
@@ -21,6 +21,17 @@ const badgeCls: Record<StatusTone, string> = {
 };
 const pct = (n: number) => `${Math.round(n)}%`;
 
+/** Українське склонение «менеджер». */
+function mgrWord(n: number): string {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'менеджер';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return 'менеджери';
+  return 'менеджерів';
+}
+
+// Єдина grid-сітка для шапки колонок і рядків 4.1 (вирівнювання по вертикалі).
+const COLS = 'grid grid-cols-[190px_60px_120px_1fr_200px_24px] items-center gap-3';
+
 export function RopReportView({ data }: { data: RopReport }) {
   return (
     <div className="space-y-4">
@@ -32,23 +43,6 @@ export function RopReportView({ data }: { data: RopReport }) {
         <Planning data={data} />
       </div>
     </div>
-  );
-}
-
-// ── clamp-текст з розгорнути/згорнути ────────────────────────────────────────
-function ClampText({ text, lines = 3, empty }: { text?: string | null; lines?: 2 | 3; empty: string }) {
-  const [open, setOpen] = useState(false);
-  if (!text || !text.trim()) return <span className="italic text-muted-foreground/50">{empty}</span>;
-  const long = text.length > 90;
-  return (
-    <>
-      <p className={`whitespace-pre-wrap ${open ? '' : lines === 2 ? 'line-clamp-2' : 'line-clamp-3'}`}>{text}</p>
-      {long && (
-        <button type="button" onClick={() => setOpen(o => !o)} className="mt-0.5 text-[10.5px] font-semibold text-emet-blue hover:underline">
-          {open ? 'згорнути' : 'розгорнути'}
-        </button>
-      )}
-    </>
   );
 }
 
@@ -106,19 +100,7 @@ function SectionHead({ no, title, hint }: { no: string; title: string; hint?: st
   );
 }
 
-// ── 4.1 Зведена таблиця ──────────────────────────────────────────────────────
-function PromiseCell({ p }: { p: RopRegionRow['promise'] }) {
-  if (p.status === 'yes') return <span className="inline-flex items-center h-6 px-2 rounded-full text-[11px] font-bold bg-emerald-500/12 text-emerald-700 border border-emerald-300/40">Так</span>;
-  if (p.status === 'none') return <span className="text-[11px] text-muted-foreground/50">—</span>;
-  const first = p.notDone[0];
-  return (
-    <span className="inline-flex items-center h-6 px-2 rounded-full text-[11px] font-bold bg-rose-500/12 text-rose-700 border border-rose-300/40 max-w-[200px] truncate" title={p.notDone.map(n => `${n.brand}: ${n.reason ?? ''}`).join(' · ')}>
-      Ні{first?.reason ? ` · ${first.reason}` : ''}
-    </span>
-  );
-}
-
-// Точка стану подачі звіту (region-level; per-manager фіналізації нема — Фаза 0).
+// ── 4.1 акордеон ─────────────────────────────────────────────────────────────
 function SubmissionDot({ r }: { r: RopRegionRow }) {
   const map = {
     submitted: ['bg-emerald-500', 'Звіт подано'],
@@ -129,24 +111,43 @@ function SubmissionDot({ r }: { r: RopRegionRow }) {
   return <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${cls}`} title={tip} />;
 }
 
-// Міні-картка бренду у розкритій панелі: причина + дія.
-function BrandDetailCard({ b, worst }: { b: { name: string; forecastPct: number; reason?: string | null; action?: string | null }; worst: boolean }) {
+function PromiseCell({ p }: { p: RopRegionRow['promise'] }) {
+  if (p.status === 'yes') return <span className="inline-flex items-center h-6 px-2 rounded-full text-[11px] font-bold bg-emerald-500/12 text-emerald-700 border border-emerald-300/40">Так</span>;
+  if (p.status === 'none') return <span className="block text-center text-[11px] text-muted-foreground/40">—</span>;
+  const first = p.notDone[0];
   return (
-    <div className={`rounded-xl border p-3 ${worst ? 'border-rose-300/60 bg-rose-50/50' : 'border-slate-200 bg-white'}`}>
+    <span className="inline-flex items-center h-6 px-2 rounded-full text-[11px] font-bold bg-rose-500/12 text-rose-700 border border-rose-300/40 max-w-full truncate" title={p.notDone.map(n => `${n.brand}: ${n.reason ?? ''}`).join(' · ')}>
+      Ні{first?.reason ? ` · ${first.reason}` : ''}
+    </span>
+  );
+}
+
+// Міні-картка бренду у панелі: причина + дія. Повний текст, clamp лише через CSS.
+// «розгорнути» знімає clamp І робить картку на 2 колонки.
+function BrandDetailCard({ b, worst }: { b: { name: string; forecastPct: number; reason?: string | null; action?: string | null }; worst: boolean }) {
+  const [open, setOpen] = useState(false);
+  const long = (b.reason?.length ?? 0) > 90 || (b.action?.length ?? 0) > 90;
+  const clamp = open ? '' : 'line-clamp-2';
+  return (
+    <div className={`rounded-xl border p-3 ${worst ? 'border-rose-300/60 bg-rose-50/50' : 'border-slate-200 bg-white'} ${open ? 'md:col-span-2' : ''}`}>
       <div className="font-bold text-[13px] mb-2">{b.name}<span className="font-mono text-slate-400 font-semibold"> · {pct(b.forecastPct)}</span></div>
       <div className="mb-2">
         <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Причина</div>
-        <div className="text-[12px] text-muted-foreground leading-snug"><ClampText text={b.reason} lines={2} empty="причину не внесено" /></div>
+        {b.reason?.trim()
+          ? <p className={`text-[12px] text-muted-foreground leading-snug whitespace-pre-wrap ${clamp}`}>{b.reason}</p>
+          : <p className="text-[12px] italic text-muted-foreground/50">причину не внесено</p>}
       </div>
       <div>
         <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Дія</div>
-        <div className="text-[12px] text-muted-foreground leading-snug"><ClampText text={b.action} lines={2} empty="дію не внесено" /></div>
+        {b.action?.trim()
+          ? <p className={`text-[12px] text-muted-foreground leading-snug whitespace-pre-wrap ${clamp}`}>{b.action}</p>
+          : <p className="text-[12px] italic text-muted-foreground/50">дію не внесено</p>}
       </div>
+      {long && <button type="button" onClick={() => setOpen(o => !o)} className="mt-1.5 text-[10.5px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
     </div>
   );
 }
 
-// Один рядок-акордеон регіону: згорнутий підсумок + розкрита панель брендів.
 function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onToggle: () => void }) {
   const router = useRouter();
   const muted = r.submission === 'empty';
@@ -155,26 +156,26 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
   const panelBrands = r.reds.length > 0 ? r.reds : (r.worst ? [r.worst] : []);
   return (
     <div className={muted ? 'opacity-55' : ''}>
-      <button type="button" onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[#f5f7fb] transition-colors">
-        <div className="w-[140px] shrink-0 min-w-0">
-          <div className="font-bold text-[13.5px] truncate">{r.name}</div>
-          <div className="text-[10.5px] text-slate-400 flex items-center gap-1"><SubmissionDot r={r} />{r.managerCount} мгр</div>
+      <button type="button" onClick={onToggle} className={`${COLS} w-full px-4 py-2.5 text-left hover:bg-[#f5f7fb] transition-colors`}>
+        <div className="min-w-0">
+          <div className="font-bold text-[13px] truncate">{r.name}</div>
+          <div className="text-[10px] text-slate-400 flex items-center gap-1"><SubmissionDot r={r} />{r.managerCount} {mgrWord(r.managerCount)}</div>
         </div>
-        <div className={`w-[46px] text-right font-mono font-extrabold text-[15px] shrink-0 ${toneText[r.badge.tone]}`}>{pct(r.pct)}</div>
-        <span className={`hidden sm:inline-block text-[9px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border shrink-0 ${badgeCls[r.badge.tone]}`}>{r.badge.label}</span>
-        <div className="flex-1 flex flex-wrap gap-1 items-center min-w-0">
+        <div className={`text-right font-mono font-extrabold text-[14px] ${toneText[r.badge.tone]}`}>{pct(r.pct)}</div>
+        <div><span className={`inline-block text-[9px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border ${badgeCls[r.badge.tone]}`}>{r.badge.label}</span></div>
+        <div className="flex flex-wrap gap-1 items-center min-w-0">
           {chips.length === 0
             ? <span className="text-[10.5px] font-bold rounded px-2 py-0.5 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
             : <>{chips.map(b => <span key={b} className="text-[10.5px] font-bold rounded px-1.5 py-0.5 border bg-rose-500/10 text-rose-700 border-rose-300/40 whitespace-nowrap">{b}</span>)}
                {extra > 0 && <span className="text-[10px] font-bold text-rose-600">+{extra}</span>}</>}
         </div>
-        <div className="hidden md:block w-[180px] shrink-0"><PromiseCell p={r.promise} /></div>
-        <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <div className="min-w-0"><PromiseCell p={r.promise} /></div>
+        <ChevronDown className={`h-4 w-4 text-slate-400 justify-self-end transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="px-4 pt-1 pb-4 bg-slate-50 border-t border-slate-100">
           {panelBrands.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-3 items-start">
               {panelBrands.map((b, i) => <BrandDetailCard key={b.code ?? String(i)} b={b} worst={i === 0} />)}
             </div>
           )}
@@ -226,17 +227,30 @@ function Summary({ data }: { data: RopReport }) {
           ))}
         </div>
       </div>
-      <div className="divide-y divide-[#f0f2f8]">
-        {filtered.map(r => (
-          <RegionRow key={r.code} r={r} open={openCode === r.code} onToggle={() => setOpenCode(o => (o === r.code ? null : r.code))} />
-        ))}
-        {filtered.length === 0 && <div className="p-6 text-[12px] text-muted-foreground text-center">немає регіонів з цією міткою</div>}
+      <div className="overflow-x-auto">
+        <div className="min-w-[800px]">
+          {/* шапка колонок */}
+          <div className={`${COLS} px-4 py-2 border-b border-[#e2e7ef] text-[10px] uppercase tracking-wider text-slate-400 font-bold`}>
+            <span>Регіон</span>
+            <span className="text-right">% на дату</span>
+            <span>Мітка</span>
+            <span>Червоні бренди</span>
+            <span>Обіцянка→факт</span>
+            <span />
+          </div>
+          <div className="divide-y divide-[#f0f2f8]">
+            {filtered.map(r => (
+              <RegionRow key={r.code} r={r} open={openCode === r.code} onToggle={() => setOpenCode(o => (o === r.code ? null : r.code))} />
+            ))}
+            {filtered.length === 0 && <div className="p-6 text-[12px] text-muted-foreground text-center">немає регіонів з цією міткою</div>}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-// ── 4.2 Червоні зони ─────────────────────────────────────────────────────────
+// ── 4.2 Червоні зони (з % по регіонах) ───────────────────────────────────────
 function RedZones({ data }: { data: RopReport }) {
   if (data.redZones.length === 0) {
     return <div className="glass-card overflow-hidden"><SectionHead no="4.2" title="Червоні зони по брендах" /><div className="p-6 text-[12px] text-muted-foreground text-center">немає червоних брендів за період</div></div>;
@@ -247,12 +261,16 @@ function RedZones({ data }: { data: RopReport }) {
       <div className="p-2">
         {data.redZones.map(z => (
           <div key={z.brand} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#f5f7fb]">
-            <div className="w-[120px] font-bold text-[13.5px] shrink-0">{z.brand}</div>
-            <div className="flex-1 h-6 bg-[#eef1f6] rounded-lg overflow-hidden min-w-[100px]">
+            <div className="w-[110px] font-bold text-[13.5px] shrink-0">{z.brand}</div>
+            <div className="w-[120px] h-6 bg-[#eef1f6] rounded-lg overflow-hidden shrink-0 hidden sm:block">
               <div className={`h-full rounded-lg ${z.escalate ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${(z.count / 8) * 100}%` }} />
             </div>
-            <div className="flex-[1.3] text-[11px] text-muted-foreground/60 min-w-[140px]">{z.regions.join(' · ')}</div>
-            <div className={`w-[110px] text-right font-mono font-extrabold text-[15px] shrink-0 ${z.escalate ? 'text-rose-600' : 'text-amber-600'}`}>
+            <div className="flex-1 text-[11px] text-muted-foreground/70 min-w-[160px] leading-relaxed">
+              {z.regions.map((x, i) => (
+                <span key={i}>{i > 0 && <span className="text-slate-300"> · </span>}{x.region} <span className={`font-mono font-semibold ${x.forecastPct < 80 ? 'text-rose-500' : 'text-slate-500'}`}>{pct(x.forecastPct)}</span></span>
+              ))}
+            </div>
+            <div className={`w-[100px] text-right font-mono font-extrabold text-[15px] shrink-0 ${z.escalate ? 'text-rose-600' : 'text-amber-600'}`}>
               {z.count}/8{z.escalate && <span className="ml-1.5 text-[10px] font-bold uppercase rounded px-1.5 py-0.5 bg-rose-500/12 border border-rose-300/40 whitespace-nowrap">→ {data.recipients.escalation}</span>}
             </div>
           </div>
@@ -262,7 +280,49 @@ function RedZones({ data }: { data: RopReport }) {
   );
 }
 
-// ── 4.3 Реєстр обіцянок (по регіону) ─────────────────────────────────────────
+// ── 4.3 Реєстр обіцянок (по кліку — усі, вкл. виконані) ───────────────────────
+function PromiseItem({ p }: { p: RopReport['promiseRegister'][number]['promises'][number] }) {
+  const [open, setOpen] = useState(false);
+  const icon = p.done === true
+    ? <Check className="h-3.5 w-3.5 text-emerald-600" />
+    : p.done === false ? <X className="h-3.5 w-3.5 text-rose-500" /> : <span className="block w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 ml-1" />;
+  const long = (p.promiseText?.length ?? 0) > 90;
+  return (
+    <div className="flex gap-2">
+      <div className="shrink-0 mt-0.5">{icon}</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11.5px] leading-snug">
+          <b className="text-foreground/70">{p.brand}</b>{' '}
+          <span className={`text-muted-foreground italic ${open ? '' : 'line-clamp-2'} inline`}>{p.promiseText || '—'}</span>
+        </div>
+        {long && <button type="button" onClick={() => setOpen(o => !o)} className="text-[10px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
+        {p.done === false && <div className="text-[11px] text-rose-600 mt-0.5">{p.reason || 'причину не вказано'}</div>}
+      </div>
+    </div>
+  );
+}
+
+function PromiseRegionCard({ r }: { r: RopReport['promiseRegister'][number] }) {
+  const [open, setOpen] = useState(false);
+  const notDone = r.promises.filter(p => p.done === false).length;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-[#f5f7fb]">
+        <span className="font-bold text-[13px]">{r.region}</span>
+        {r.status === 'yes' && <span className="text-[11px] font-bold text-emerald-700">усі виконані ({r.doneCount})</span>}
+        {r.status === 'no' && <span className="text-[11px] font-bold text-rose-700">не виконано: {notDone} з {r.total}</span>}
+        {r.status === 'none' && <span className="text-[11px] text-muted-foreground/60">не відмічено</span>}
+        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-3 pb-3 pt-2 space-y-2 border-t border-slate-100 bg-slate-50/60">
+          {r.promises.map((p, i) => <PromiseItem key={i} p={p} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Promises({ data }: { data: RopReport }) {
   const reg = data.promiseRegister;
   const done = reg.reduce((a, r) => a + r.doneCount, 0);
@@ -272,30 +332,7 @@ function Promises({ data }: { data: RopReport }) {
       <SectionHead no="4.3" title="Реєстр обіцянок" hint={total > 0 ? `${total} обіцянок · ${done} виконано` : undefined} />
       {reg.length === 0
         ? <div className="p-6 text-[12px] text-muted-foreground text-center">за період обіцянок не було</div>
-        : <div className="p-3 space-y-2.5">
-          {reg.map(r => (
-            <div key={r.region} className="rounded-xl border border-slate-200 bg-white p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-bold text-[13px]">{r.region}</span>
-                {r.status === 'yes' && <span className="text-[11px] font-bold text-emerald-700">усі виконані ({r.doneCount})</span>}
-                {r.status === 'no' && <span className="text-[11px] font-bold text-rose-700">не виконано: {r.notDone.length}</span>}
-                {r.status === 'none' && <span className="text-[11px] text-muted-foreground/60">не відмічено</span>}
-              </div>
-              {r.status === 'no' && (
-                <div className="space-y-2 mt-1.5">
-                  {r.notDone.map((n, i) => (
-                    <div key={i}>
-                      <div className="border-l-2 border-slate-300 pl-2 text-[11.5px] text-muted-foreground italic">
-                        <b className="not-italic text-foreground/60">{n.brand}</b> {n.promiseText ? <ClampText text={n.promiseText} lines={2} empty="" /> : ''}
-                      </div>
-                      <div className="text-[11.5px] text-rose-600 mt-0.5 pl-2">{n.reason || 'причину не вказано'}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>}
+        : <div className="p-3 space-y-2">{reg.map(r => <PromiseRegionCard key={r.region} r={r} />)}</div>}
     </div>
   );
 }
@@ -325,7 +362,7 @@ function PlanRow({ period, r }: { period: string; r: RopRegionRow }) {
   const [busy, setBusy] = useState(false);
   const [savedVal, setSavedVal] = useState(r.plan.lateReason ?? '');
   const dirty = val.trim() !== savedVal.trim();
-  const canEdit = r.plan.state !== 'in_time'; // причина потрібна лише де є проблема
+  const canEdit = r.plan.state !== 'in_time';
   const save = async () => {
     setBusy(true);
     try {

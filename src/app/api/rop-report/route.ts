@@ -177,6 +177,8 @@ export async function GET(request: NextRequest) {
       // решта за бейджем). Відсортовані за forecastPct (найгірший перший).
       reds: worstRes.red.map(b => ({ code: b.code, name: b.name, forecastPct: b.forecastPct, reason: b.reason ?? null, action: b.action ?? null })),
       promise,
+      // Усі обіцянки регіону (виконані + ні) — для розкриття у 4.3 по кліку.
+      promises: promiseLines.filter(p => p.hadPromise).map(p => ({ brand: p.brand, promiseText: p.promiseText || '', done: p.done, reason: p.reason ?? null })),
       reportFinalized: finalizedReportRegions.has(region.regionCode),
       submission: reportSubmissionState(finalizedReportRegions.has(region.regionCode), regionsWithNotes.has(region.regionCode)),
       plan: {
@@ -192,7 +194,7 @@ export async function GET(request: NextRequest) {
 
   // ── 4.2 червоні зони (крос-регіон) ──
   const redZones = crossRegionRedZones(
-    regionRows.map(r => ({ region: r.name, redBrands: r.redBrands })),
+    regionRows.map(r => ({ region: r.name, redBrands: r.reds.map(b => ({ name: b.name, forecastPct: b.forecastPct })) })),
   );
 
   // ── hero ──
@@ -212,7 +214,7 @@ export async function GET(request: NextRequest) {
   // ── 4.3 реєстр обіцянок (лише регіони, де були обіцянки) ──
   const promiseRegister = regionRows
     .filter(r => r.promise.total > 0)
-    .map(r => ({ region: r.name, status: r.promise.status, total: r.promise.total, doneCount: r.promise.doneCount, notDone: r.promise.notDone }));
+    .map(r => ({ region: r.name, status: r.promise.status, total: r.promise.total, doneCount: r.promise.doneCount, promises: r.promises }));
 
   return Response.json({
     period, week, prevWeek, deadline: deadline.toISOString(),

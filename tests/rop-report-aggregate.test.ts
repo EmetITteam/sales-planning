@@ -89,16 +89,18 @@ test('rollupPromises: обіцянки були, але жодна не відм
 });
 
 // ── crossRegionRedZones ──────────────────────────────────────────────────────
-test('crossRegionRedZones: бренд у 4 регіонах → escalate, сортування count desc', () => {
+test('crossRegionRedZones: бренд у 4 регіонах → escalate + % по регіонах (гірші перші)', () => {
   const rows = crossRegionRedZones([
-    { region: 'Одеса', redBrands: ['Ellanse', 'Vitaran'] },
-    { region: 'Дніпро', redBrands: ['Ellanse', 'Petaran'] },
-    { region: 'Харків', redBrands: ['Ellanse', 'Vitaran'] },
-    { region: 'Запоріжжя', redBrands: ['Ellanse'] },
+    { region: 'Одеса', redBrands: [{ name: 'Ellanse', forecastPct: 60 }, { name: 'Vitaran', forecastPct: 70 }] },
+    { region: 'Дніпро', redBrands: [{ name: 'Ellanse', forecastPct: 55 }, { name: 'Petaran', forecastPct: 66 }] },
+    { region: 'Харків', redBrands: [{ name: 'Ellanse', forecastPct: 72 }, { name: 'Vitaran', forecastPct: 65 }] },
+    { region: 'Запоріжжя', redBrands: [{ name: 'Ellanse', forecastPct: 50 }] },
   ]);
   assert.equal(rows[0].brand, 'Ellanse');
   assert.equal(rows[0].count, 4);
   assert.equal(rows[0].escalate, true);
+  assert.equal(rows[0].regions[0].region, 'Запоріжжя'); // гірший % перший
+  assert.equal(rows[0].regions[0].forecastPct, 50);
   const vitaran = rows.find(r => r.brand === 'Vitaran')!;
   assert.equal(vitaran.count, 2);
   assert.equal(vitaran.escalate, false);

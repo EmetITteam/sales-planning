@@ -23,6 +23,7 @@ export interface RopRegionRow {
   };
   reportFinalized: boolean;
   submission: 'submitted' | 'partial' | 'empty';
+  promises: Array<{ brand: string; promiseText: string; done: boolean | null; reason: string | null }>;
   plan: {
     state: PlanState;
     agreed: boolean;
@@ -53,13 +54,13 @@ export interface RopReport {
     promisesTotal: number;
   };
   regions: RopRegionRow[];
-  redZones: Array<{ brand: string; regions: string[]; count: number; escalate: boolean }>;
+  redZones: Array<{ brand: string; regions: Array<{ region: string; forecastPct: number }>; count: number; escalate: boolean }>;
   promiseRegister: Array<{
     region: string;
     status: 'yes' | 'no' | 'none';
     total: number;
     doneCount: number;
-    notDone: Array<{ brand: string; reason?: string; promiseText?: string }>;
+    promises: Array<{ brand: string; promiseText: string; done: boolean | null; reason: string | null }>;
   }>;
   meta: Record<string, unknown>;
 }

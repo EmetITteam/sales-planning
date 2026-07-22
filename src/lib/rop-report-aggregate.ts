@@ -81,29 +81,34 @@ export function rollupPromises(promises: PromiseLine[]): PromiseRollup {
 }
 
 // ── 4.2: червоні зони по брендах (крос-регіон) ───────────────────────────────
-export interface RegionRed { region: string; redBrands: string[] }
+export interface RegionRed { region: string; redBrands: Array<{ name: string; forecastPct: number }> }
+export interface ZoneRegion { region: string; forecastPct: number }
 export interface ZoneRow {
   brand: string;
-  regions: string[];
+  regions: ZoneRegion[];  // регіони де бренд червоний + його % (гірші перші)
   count: number;
-  escalate: boolean;   // count >= поріг → «→ CPO/CMO»
+  escalate: boolean;      // count >= поріг → «→ CPO/CMO»
 }
 
 /**
- * Скільки регіонів мають кожен бренд «червоним». count >= escalateThreshold (4)
- * → окремим пунктом на CPO/CMO (правило регламенту 4.2). Сортування: count desc.
+ * Скільки регіонів мають кожен бренд «червоним» + % бренда у кожному (для
+ * наочності). count >= escalateThreshold (4) → окремим пунктом на CPO/CMO
+ * (правило 4.2). Сортування брендів: count desc; регіонів усередині: % зростанням.
  */
 export function crossRegionRedZones(regions: RegionRed[], escalateThreshold = 4): ZoneRow[] {
-  const map = new Map<string, string[]>();
+  const map = new Map<string, ZoneRegion[]>();
   for (const r of regions) {
     for (const b of r.redBrands) {
-      const arr = map.get(b) ?? [];
-      arr.push(r.region);
-      map.set(b, arr);
+      const arr = map.get(b.name) ?? [];
+      arr.push({ region: r.region, forecastPct: b.forecastPct });
+      map.set(b.name, arr);
     }
   }
   const rows: ZoneRow[] = [...map.entries()].map(([brand, regs]) => ({
-    brand, regions: regs, count: regs.length, escalate: regs.length >= escalateThreshold,
+    brand,
+    regions: [...regs].sort((a, b) => a.forecastPct - b.forecastPct),
+    count: regs.length,
+    escalate: regs.length >= escalateThreshold,
   }));
   rows.sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
   return rows;
