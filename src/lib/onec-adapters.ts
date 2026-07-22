@@ -18,7 +18,7 @@ import type {
   OneCTraining,
   OneCManagerClientStats,
 } from './onec-types';
-import { ADMIN_LOGINS, MULTI_REGION_RM_HOME } from './feature-flags';
+import { ADMIN_LOGINS, MULTI_REGION_RM_HOME, isDirectorOverride } from './feature-flags';
 import type {
   UserSession,
   Client1C,
@@ -119,10 +119,13 @@ export function adaptLogin(r: LoginResponse): UserSession {
   // Override на нашому боці — список технічних адмінів у feature-flags.ts.
   // Тимчасово до моменту коли 1С підтримає роль adminа у своєму довіднику.
   const isAdmin = ADMIN_LOGINS.includes(login);
+  // director-override (напр. headofproduct/CPO): 1С не дає роль director → піднімаємо
+  // тут, дані проксіюються через sdu (див. /api/onec).
+  const role = isAdmin ? 'admin' : isDirectorOverride(login) ? 'director' : r.roleCode;
   return {
     login,
     fullName: r.fullName,
-    role: isAdmin ? 'admin' : r.roleCode,
+    role,
     region: r.region,
     regionCode: r.regionCode,
     managedUsers: (r.managedUsers ?? []).map(l => (l || '').toLowerCase().trim()),

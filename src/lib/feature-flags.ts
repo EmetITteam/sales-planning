@@ -44,6 +44,26 @@ export const FEATURES = {
 export const ADMIN_LOGINS: readonly string[] = ['itd@emet.in.ua'];
 
 /**
+ * Логіни які отримують role='director' через adaptLogin override — ПОВНЕ
+ * планування всіх представництв, як директор продажів.
+ *
+ * Кейс: 1С НЕ віддає їм роль 'director' (повертає manager/rm) і НЕ дає регіонів
+ * (getRegionData порожній). Тому: (1) роль піднімаємо тут, (2) дані для
+ * getRegionData/getClientsForPlanning/getTrainings проксіюємо через
+ * DIRECTOR_PROXY_LOGIN (як для admin — див. /api/onec ADMIN_PROXY_ACTIONS).
+ *
+ * ⚠️ Дає ПОВНІ director-повноваження (перегляд усіх регіонів). НЕ дає авторства
+ * коментарів до плану (canAuthorPlanComment гейтить окремо на sdu+admin).
+ *
+ * headofproduct (CPO) — узгоджено 2026-07-22: бачить повне планування продажів.
+ */
+export const DIRECTOR_OVERRIDE_LOGINS: readonly string[] = ['headofproduct@emet.in.ua'];
+export function isDirectorOverride(login: string | null | undefined): boolean {
+  if (!login) return false;
+  return DIRECTOR_OVERRIDE_LOGINS.includes(login.toLowerCase().trim());
+}
+
+/**
  * Blacklist логінів яким доступ повністю закритий незалежно від ролі/статусу.
  * Працює як hardcoded ban-list — простіше за per-user колонку у Supabase для
  * рідкісних випадків.
