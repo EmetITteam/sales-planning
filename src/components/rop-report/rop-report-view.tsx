@@ -135,13 +135,13 @@ function BrandDetailCard({ b, worst }: { b: { name: string; forecastPct: number;
       <div className="mb-2">
         <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Причина</div>
         {b.reason?.trim()
-          ? <p className={`text-[12px] text-muted-foreground leading-snug whitespace-pre-wrap ${clamp}`}>{b.reason}</p>
+          ? <p className={`text-[12px] text-muted-foreground leading-snug ${clamp}`}>{b.reason}</p>
           : <p className="text-[12px] italic text-muted-foreground/50">причину не внесено</p>}
       </div>
       <div>
         <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Дія</div>
         {b.action?.trim()
-          ? <p className={`text-[12px] text-muted-foreground leading-snug whitespace-pre-wrap ${clamp}`}>{b.action}</p>
+          ? <p className={`text-[12px] text-muted-foreground leading-snug ${clamp}`}>{b.action}</p>
           : <p className="text-[12px] italic text-muted-foreground/50">дію не внесено</p>}
       </div>
       {long && <button type="button" onClick={() => setOpen(o => !o)} className="mt-1.5 text-[10.5px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
