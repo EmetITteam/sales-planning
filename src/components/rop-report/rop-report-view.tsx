@@ -18,8 +18,6 @@ import type { StatusTone } from '@/lib/status-badge';
 const toneText: Record<StatusTone, string> = { ok: 'text-emerald-600', warn: 'text-amber-600', bad: 'text-rose-600' };
 const toneIcon: Record<StatusTone, string> = { ok: 'text-emerald-500', warn: 'text-amber-500', bad: 'text-rose-500' };
 const toneAmbient: Record<StatusTone, 'good' | 'warn' | 'bad'> = { ok: 'good', warn: 'warn', bad: 'bad' };
-// bg-версія toneText — для статус-рейок і міні-барів (та сама палітра, лише fill).
-const toneBar: Record<StatusTone, string> = { ok: 'bg-emerald-500', warn: 'bg-amber-500', bad: 'bg-rose-500' };
 // % — з однією десятою (як `formatPct`/паспорт регіону), без округлення до цілого.
 const pct = (n: number) => `${n.toFixed(1)}%`;
 
@@ -74,7 +72,7 @@ function Hero({ data }: { data: RopReport }) {
   const promisesUndone = h.promisesTotal - h.promisesDone;
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <MetricCard iconColor="text-emet-blue" valueSize="lg" ambient="accent"
+      <MetricCard iconColor={toneIcon[compTone]} valueSize="lg" ambient={compTone === 'ok' ? 'accent' : compTone === 'warn' ? 'warn' : 'bad'}
         label="Виконання представництв"
         value={<span className={toneText[compTone]}>{pct(h.companyPct)}</span>}
         caption={<span className="text-muted-foreground">норма — <b className="tabular-nums text-foreground/70">{pct(h.norm)}</b> · темп <b className="tabular-nums text-foreground/70">{pct(h.companyForecastPct)}</b></span>} />
@@ -97,18 +95,18 @@ function Hero({ data }: { data: RopReport }) {
         </p>
       </div>
 
-      <MetricCard iconColor={hasOverdue ? 'text-amber-500' : 'text-emerald-500'} valueSize="lg"
-        ambient={hasOverdue ? 'warn' : 'good'}
+      <MetricCard iconColor={hasOverdue ? 'text-amber-500' : 'text-emet-blue'} valueSize="lg"
+        ambient={hasOverdue ? 'warn' : undefined}
         label="План узгоджено в термін"
-        value={<span className={hasOverdue ? 'text-amber-600' : 'text-emerald-600'}>{h.planAgreedInTime}<span className="text-[18px] text-slate-400">/{h.planTotal}</span></span>}
+        value={<span className={hasOverdue ? 'text-amber-600' : 'text-slate-700'}>{h.planAgreedInTime}<span className="text-[18px] text-slate-400">/{h.planTotal}</span></span>}
         caption={hasOverdue
           ? <span className="text-muted-foreground">{h.overdueRegions.length} прострочив: <b className="text-foreground/70">{overdueNames}</b></span>
           : <span className="text-muted-foreground">усі регіони в термін</span>} />
 
-      <MetricCard iconColor={promisesUndone > 0 ? 'text-amber-500' : 'text-emerald-500'} valueSize="lg"
-        ambient={promisesUndone > 0 ? 'warn' : 'good'}
+      <MetricCard iconColor={promisesUndone > 0 ? 'text-amber-500' : 'text-emet-blue'} valueSize="lg"
+        ambient={promisesUndone > 0 ? 'warn' : undefined}
         label="Обіцянки минулого звіту"
-        value={<span className={promisesUndone > 0 ? 'text-amber-600' : 'text-emerald-600'}>{h.promisesDone}<span className="text-[18px] text-slate-400">/{h.promisesTotal}</span></span>}
+        value={<span className={promisesUndone > 0 ? 'text-amber-600' : 'text-slate-700'}>{h.promisesDone}<span className="text-[18px] text-slate-400">/{h.promisesTotal}</span></span>}
         caption={<span className="text-muted-foreground">виконано · {promisesUndone} не виконано (з причинами)</span>} />
     </div>
   );
@@ -127,8 +125,8 @@ function SubmissionDot({ r }: { r: RopRegionRow }) {
 
 function PromiseCell({ p }: { p: RopRegionRow['promise'] }) {
   if (p.status === 'yes') return (
-    <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[11px] font-bold bg-emerald-500/12 text-emerald-700 border border-emerald-300/40">
-      <Check className="h-3 w-3 shrink-0" />виконано
+    <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[11px] font-semibold text-slate-500">
+      <Check className="h-3 w-3 shrink-0 text-slate-400" />виконано
     </span>
   );
   if (p.status === 'none') return (
@@ -138,8 +136,8 @@ function PromiseCell({ p }: { p: RopRegionRow['promise'] }) {
   );
   const first = p.notDone[0];
   return (
-    <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[11px] font-bold bg-rose-500/12 text-rose-700 border border-rose-300/40 max-w-full truncate" title={p.notDone.map(n => `${n.brand}: ${n.reason ?? ''}`).join(' · ')}>
-      <X className="h-3 w-3 shrink-0" /><span className="truncate">не викон.{first?.reason ? ` · ${first.reason}` : ''}</span>
+    <span className="inline-flex items-center gap-1 h-6 max-w-full text-[11px] font-semibold text-rose-700 truncate" title={p.notDone.map(n => `${n.brand}: ${n.reason ?? ''}`).join(' · ')}>
+      <X className="h-3 w-3 shrink-0 text-rose-500" /><span className="truncate">не викон.{first?.reason ? ` · ${first.reason}` : ''}</span>
     </span>
   );
 }
@@ -163,7 +161,7 @@ function BrandDetailCard({ b, worst }: { b: { name: string; pct: number; forecas
   const clamp = open ? '' : 'line-clamp-2';
   // Розгорнута картка займає обидві колонки — щоб повний текст причини/дії мав місце.
   return (
-    <div className={`rounded-xl border p-3 ${open ? 'md:col-span-2' : ''} ${worst ? 'border-rose-300/60 bg-rose-50/50' : 'border-slate-200 bg-white'}`}>
+    <div className={`rounded-xl border bg-white p-3 ${open ? 'md:col-span-2' : ''} ${worst ? 'border-rose-200' : 'border-slate-200'}`}>
       <div className="font-bold text-[13px] mb-2">{b.name}<span className="font-mono text-slate-400 font-semibold"> · {pct(b.pct)}</span></div>
       <div className="mb-2">
         <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold mb-0.5">Причина</div>
@@ -186,36 +184,36 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
   const router = useRouter();
   const muted = r.submission === 'empty';
   const panelBrands = r.reds.length > 0 ? r.reds : (r.worst ? [r.worst] : []);
-  const worstName = r.worst?.name ?? null;
   const openRegion = (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/weekly-report?region=${r.code}`); };
   return (
     <div className={muted ? 'opacity-55' : ''}>
-      <div onClick={onToggle} className={`${COLS} relative w-full px-4 py-2.5 hover:bg-[#f5f7fb] transition-colors cursor-pointer`}>
-        {/* Статус-рейка зліва — колір мітки регіону (emerald/amber/rose) */}
-        <span className={`absolute left-0 top-0 bottom-0 w-[3px] ${toneBar[r.badge.tone]}`} aria-hidden />
+      <div onClick={onToggle} className={`${COLS} w-full px-5 py-4 hover:bg-[#f5f7fb] transition-colors cursor-pointer`}>
         <div className="min-w-0">
           {/* Клік по назві → повний звіт цього регіону (не розгортання) */}
           <button type="button" onClick={openRegion} className="block max-w-full text-left font-bold text-[13px] truncate hover:text-emet-blue hover:underline" title="Відкрити звіт регіону">{r.name}</button>
           <div className="text-[10px] text-slate-400 flex items-center gap-1"><SubmissionDot r={r} />{r.managerCount} {mgrWord(r.managerCount)}</div>
         </div>
         <div>
-          <div className={`text-right font-mono font-extrabold text-[14px] ${toneText[r.badge.tone]}`}>{pct(r.pct)}</div>
-          {/* Міні-бар виконання — ширина = % (cap 100), колір за міткою */}
+          {/* % — нейтральний (мітка нижче — єдиний носій кольору) */}
+          <div className="text-right font-mono font-extrabold text-[16px] text-slate-800">{pct(r.pct)}</div>
+          {/* Міні-бар виконання — ширина = % (cap 100), нейтральний */}
           <div className="mt-1 h-1 rounded-full bg-[#e2e7ef] overflow-hidden">
-            <div className={`h-full rounded-full ${toneBar[r.badge.tone]}`} style={{ width: `${Math.min(100, Math.max(0, r.pct))}%` }} />
+            <div className="h-full rounded-full bg-slate-300" style={{ width: `${Math.min(100, Math.max(0, r.pct))}%` }} />
           </div>
         </div>
         <div><PerfBadge forecastPct={r.forecastPct} /></div>
         <div className="flex flex-wrap gap-1 items-center min-w-0">
-          {r.redBrands.length === 0
+          {r.reds.length === 0
             ? <span className="text-[10.5px] font-bold rounded px-2 py-0.5 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
-            : r.redBrands.map(b => {
-                // Найгірший бренд — насичений (filled) чіп; решта — м'який тинт /12.
-                const isWorst = b === worstName;
-                return (
-                  <span key={b} className={`text-[10.5px] font-bold rounded px-1.5 py-0.5 border whitespace-nowrap ${isWorst ? 'bg-rose-500 text-white border-rose-500' : 'bg-rose-500/12 text-rose-700 border-rose-300/40'}`}>{b}</span>
-                );
-              })}
+            : <>
+                {r.reds.slice(0, 4).map((b, i) => (
+                  // Найгірший (reds[0]) — темніший текст; решта — сірі. Без заливки/кольору.
+                  <span key={b.code} className={`text-[10.5px] font-bold rounded px-1.5 py-0.5 border border-slate-200 bg-white whitespace-nowrap ${i === 0 ? 'text-slate-900' : 'text-slate-600'}`}>
+                    {b.name} <span className="font-mono font-semibold text-slate-400">· {pct(b.pct)}</span>
+                  </span>
+                ))}
+                {r.reds.length > 4 && <span className="text-[10.5px] font-bold text-slate-400">+{r.reds.length - 4}</span>}
+              </>}
         </div>
         <div className="min-w-0"><PromiseCell p={r.promise} /></div>
         <ChevronDown className={`h-4 w-4 text-slate-400 justify-self-end transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -305,21 +303,37 @@ function RedZones({ data }: { data: RopReport }) {
       <SectionHeader no="4.2" title="Червоні зони по брендах" hint={`Бренд у «відставанні» в 4+ регіонах → окремим пунктом на ${data.recipients.escalation}`} />
       <div className="p-2">
         {data.redZones.map(z => (
-          <div key={z.brand} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#f5f7fb]">
-            <div className="w-[110px] font-bold text-[13.5px] shrink-0">{z.brand}</div>
-            <div className="w-[120px] h-6 bg-[#eef1f6] rounded-lg overflow-hidden shrink-0 hidden sm:block">
-              <div className={`h-full rounded-lg ${z.escalate ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${(z.count / 8) * 100}%` }} />
-            </div>
-            <div className="flex-1 text-[11px] text-muted-foreground/70 min-w-[160px] leading-relaxed">
-              {z.regions.map((x, i) => (
-                <span key={i}>{i > 0 && <span className="text-slate-300"> · </span>}{x.region} <span className={`font-mono font-semibold ${x.pct < 50 ? 'text-rose-500' : 'text-slate-500'}`}>{pct(x.pct)}</span></span>
-              ))}
-            </div>
-            <div className={`w-[100px] text-right font-mono font-extrabold text-[15px] shrink-0 ${z.escalate ? 'text-rose-600' : 'text-amber-600'}`}>
-              {z.count}/8{z.escalate && <span className="ml-1.5 text-[10px] font-bold uppercase rounded px-1.5 py-0.5 bg-rose-500/12 border border-rose-300/40 whitespace-nowrap">→ {data.recipients.escalation}</span>}
-            </div>
-          </div>
+          <RedZoneRow key={z.brand} z={z} escalation={data.recipients.escalation} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Один рядок червоної зони: бренд · тонкий бар (ЄДИНИЙ носій кольору рядка:
+ * rose при ескалації 4+, amber при 1–3) · перелік регіонів (нейтральний, 5 + «+N»)
+ * · лічильник N/8 (нейтральний) + бейдж ескалації лише при 4+.
+ */
+function RedZoneRow({ z, escalation }: { z: RopReport['redZones'][number]; escalation: string }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? z.regions : z.regions.slice(0, 5);
+  const rest = z.regions.length - shown.length;
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#f5f7fb]">
+      <div className="w-[110px] font-bold text-[13.5px] shrink-0">{z.brand}</div>
+      <div className="w-[120px] h-2.5 bg-[#eef1f6] rounded-full overflow-hidden shrink-0 hidden sm:block">
+        <div className={`h-full rounded-full ${z.escalate ? 'bg-rose-500' : 'bg-amber-400'}`} style={{ width: `${(z.count / 8) * 100}%` }} />
+      </div>
+      <div className="flex-1 text-[11px] min-w-[160px] leading-relaxed">
+        {shown.map((x, i) => (
+          <span key={i}>{i > 0 && <span className="text-slate-300"> · </span>}<span className="text-slate-400">{x.region}</span> <span className="font-mono font-semibold text-slate-500">{pct(x.pct)}</span></span>
+        ))}
+        {rest > 0 && <button type="button" onClick={() => setShowAll(true)} className="ml-1.5 font-semibold text-slate-400 hover:text-slate-600">+{rest}</button>}
+        {showAll && z.regions.length > 5 && <button type="button" onClick={() => setShowAll(false)} className="ml-1.5 font-semibold text-slate-400 hover:text-slate-600">згорнути</button>}
+      </div>
+      <div className="w-[100px] text-right font-mono font-extrabold text-[15px] shrink-0 text-slate-700">
+        {z.count}/8{z.escalate && <span className="ml-1.5 text-[10px] font-bold uppercase rounded px-1.5 py-0.5 bg-white border border-rose-200 text-rose-700 whitespace-nowrap">→ {escalation}</span>}
       </div>
     </div>
   );
@@ -338,7 +352,7 @@ function PromiseItem({ p }: { p: RopReport['promiseRegister'][number]['promises'
     setCanExpand(!!el && el.scrollHeight - el.clientHeight > 1);
   }, [open, p.promiseText]);
   const icon = p.done === true
-    ? <Check className="h-3.5 w-3.5 text-emerald-600" />
+    ? <Check className="h-3.5 w-3.5 text-slate-400" />
     : p.done === false ? <X className="h-3.5 w-3.5 text-rose-500" /> : <span className="block w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 ml-1" />;
   return (
     <div className="flex gap-2">
@@ -346,11 +360,11 @@ function PromiseItem({ p }: { p: RopReport['promiseRegister'][number]['promises'
       <div className="min-w-0 flex-1">
         <div className="text-[11.5px] font-bold text-foreground/80 mb-0.5">{p.brand}</div>
         {/* Обіцянка як цитата з лівим бордером (як quote-box у паспорті регіону) */}
-        <div className="border-l-2 border-slate-300 bg-slate-50 rounded-r-md px-2 py-1">
-          <p ref={textRef} className={`text-[11.5px] text-muted-foreground leading-snug ${open ? '' : 'line-clamp-2'}`}>{p.promiseText || '—'}</p>
+        <div className="border-l-2 border-slate-200 bg-slate-50 rounded-r-md px-2 py-1">
+          <p ref={textRef} className={`text-[11.5px] text-slate-600 leading-snug ${open ? '' : 'line-clamp-2'}`}>{p.promiseText || '—'}</p>
           {(canExpand || open) && <button type="button" onClick={() => setOpen(o => !o)} className="mt-0.5 text-[10px] font-semibold text-emet-blue hover:underline">{open ? 'згорнути' : 'розгорнути'}</button>}
         </div>
-        {p.done === false && <div className="text-[11px] text-rose-600 mt-0.5">{p.reason || 'причину не вказано'}</div>}
+        {p.done === false && <div className="text-[11px] text-rose-700 mt-0.5">{p.reason || 'причину не вказано'}</div>}
       </div>
     </div>
   );
@@ -366,7 +380,7 @@ function PromiseRegionCard({ r }: { r: RopReport['promiseRegister'][number] }) {
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-[#f5f7fb]">
         <span className="font-bold text-[13px]">{r.region}</span>
-        {r.status === 'yes' && <span className={`${promiseChip} bg-emerald-500/12 text-emerald-700 border-emerald-300/40`}><Check className="h-3 w-3 shrink-0" />усі виконані ({r.doneCount})</span>}
+        {r.status === 'yes' && <span className={`${promiseChip} bg-slate-100 text-slate-500 border-slate-200`}><Check className="h-3 w-3 shrink-0 text-slate-400" />усі виконані ({r.doneCount})</span>}
         {r.status === 'no' && <span className={`${promiseChip} bg-rose-500/12 text-rose-700 border-rose-300/40`}><X className="h-3 w-3 shrink-0" />не виконано {notDone} з {r.total}</span>}
         {r.status === 'none' && <span className={`${promiseChip} bg-slate-100 text-slate-500 border-slate-200`}><Minus className="h-3 w-3 shrink-0" />не відмічено</span>}
         <ChevronDown className={`h-3.5 w-3.5 text-slate-400 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -396,7 +410,7 @@ function Promises({ data }: { data: RopReport }) {
 
 // ── 4.4 Підсумки планування (одна строка/регіон) ─────────────────────────────
 const planChip: Record<string, { cls: string; label: string }> = {
-  in_time: { cls: 'bg-emerald-500/12 text-emerald-700 border-emerald-300/40', label: 'в термін' },
+  in_time: { cls: 'bg-slate-100 text-slate-500 border-slate-200', label: 'в термін' },
   late: { cls: 'bg-rose-500/12 text-rose-700 border-rose-300/40', label: '' },
   draft: { cls: 'bg-amber-500/12 text-amber-700 border-amber-300/40', label: 'чернетка' },
   not_started: { cls: 'bg-slate-100 text-slate-500 border-slate-200', label: 'не розпочато' },
@@ -440,6 +454,7 @@ function PlanRow({ period, r }: { period: string; r: RopRegionRow }) {
     <div className="px-4 py-2 border-t border-[#f0f2f8] flex items-center gap-2 flex-wrap">
       <span className="font-bold text-[12px] w-[78px] shrink-0">{r.name}</span>
       <span className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-lg px-2.5 py-1 border shrink-0 ${c.cls}`}>
+        {r.plan.state === 'in_time' && <Check className="h-3 w-3 shrink-0 text-slate-400" />}
         {r.plan.state === 'late' ? `+${r.plan.overdueWorkingDays} дні` : c.label}
       </span>
       {canEdit && (
