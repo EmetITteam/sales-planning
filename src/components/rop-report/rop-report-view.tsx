@@ -55,7 +55,7 @@ function Hero({ data }: { data: RopReport }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <MetricCard iconColor={toneIcon[compTone]} valueSize="lg" ambient={toneAmbient[compTone]}
-        label="Виконання компанії"
+        label="Виконання представництв"
         value={<span className={toneText[compTone]}>{pct(h.companyPct)}</span>}
         caption={<span className="text-muted-foreground">норма — <b className="tabular-nums text-foreground/70">{pct(h.norm)}</b> · темп <b className="tabular-nums text-foreground/70">{pct(h.companyForecastPct)}</b></span>} />
 
@@ -64,14 +64,17 @@ function Hero({ data }: { data: RopReport }) {
           <span className="w-1.5 h-1.5 rounded-full bg-emet-blue text-emet-blue shadow-[0_0_6px_currentColor]" />
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Регіони за міткою</p>
         </div>
-        <div className="flex gap-1.5 flex-1 items-center">
+        <div className="flex items-center flex-1 divide-x divide-slate-200/60">
           {(['ok', 'warn', 'bad'] as StatusTone[]).map(t => (
-            <span key={t} className={`flex-1 text-center rounded-lg py-1.5 border ${badgeCls[t]}`}>
-              <span className="block text-[20px] font-extrabold tabular-nums leading-none mb-1">{h.regionsByTone[t]}</span>
-              <span className="text-[10px] font-bold">{t === 'ok' ? 'в плані' : t === 'warn' ? 'ризик' : 'відстав.'}</span>
-            </span>
+            <div key={t} className="flex-1 text-center px-1">
+              <span className={`block text-[24px] font-extrabold tabular-nums leading-none mb-1 ${toneText[t]}`}>{h.regionsByTone[t]}</span>
+              <span className="text-[10px] font-bold text-muted-foreground">{t === 'ok' ? 'в плані' : t === 'warn' ? 'ризик' : 'відстав.'}</span>
+            </div>
           ))}
         </div>
+        <p className="text-[10px] text-muted-foreground/70 leading-snug">
+          Мітка за темпом прогнозу: <b className="text-emerald-600">≥100%</b> в плані · <b className="text-amber-600">80–99%</b> ризик · <b className="text-rose-600">&lt;80%</b> відставання
+        </p>
       </div>
 
       <MetricCard iconColor="text-emerald-500" valueSize="lg"
