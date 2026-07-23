@@ -50,13 +50,10 @@ function mgrWord(n: number): string {
 // базовій лінії; висота картки плаває по контенту (1-2 ряди чипів — не фіксована).
 const COLS = 'grid grid-cols-[190px_60px_120px_minmax(0,1fr)_200px_24px] items-start gap-3';
 
-export function RopReportView({ data, canFinalize }: { data: RopReport; canFinalize: boolean }) {
-  const { mutate } = useSWRConfig();
-  const refresh = () => mutate((k: unknown) => typeof k === 'string' && k.startsWith('rop-report|'));
+export function RopReportView({ data }: { data: RopReport }) {
   const finalized = !!data.finalization.finalizedAt;
   return (
     <div className="space-y-4">
-      <FinalizeBar data={data} canFinalize={canFinalize} refresh={refresh} />
       <Hero data={data} />
       <Summary data={data} />
       <RedZones data={data} />
@@ -69,8 +66,11 @@ export function RopReportView({ data, canFinalize }: { data: RopReport; canFinal
   );
 }
 
-// ── Панель фіналізації (здати зведений звіт / пере-відкрити) ──────────────────
-function FinalizeBar({ data, canFinalize, refresh }: { data: RopReport; canFinalize: boolean; refresh: () => void }) {
+// ── Sticky-смуга фіналізації (здати зведений звіт / пере-відкрити) ────────────
+// Рендериться в page ПОЗА <main> (сусід хедера) — тільки прямі нащадки body
+// стабільно тримають sticky у цьому застосунку (body/html мають overflow-x).
+export function RopFinalizeToolbar({ data, canFinalize }: { data: RopReport; canFinalize: boolean }) {
+  const { mutate } = useSWRConfig();
   const finalized = !!data.finalization.finalizedAt;
   const [busy, setBusy] = useState(false);
   const act = async (method: 'POST' | 'DELETE') => {
@@ -81,31 +81,33 @@ function FinalizeBar({ data, canFinalize, refresh }: { data: RopReport; canFinal
         method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
         body: JSON.stringify({ period: data.period, week: data.week }),
       });
-      refresh();
+      mutate((k: unknown) => typeof k === 'string' && k.startsWith('rop-report|'));
     } finally { setBusy(false); }
   };
   const when = (() => { try { return data.finalization.finalizedAt ? new Date(data.finalization.finalizedAt).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''; } catch { return ''; } })();
   return (
-    <div className={`glass-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap sticky top-[56px] z-30 ${finalized ? 'bg-emerald-50/80' : 'bg-white/80'} backdrop-blur-md`}>
-      {finalized ? (
-        <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-700">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Зведений звіт здано · {when}
-          <span className="text-[11px] font-normal text-muted-foreground">{data.finalization.finalizedBy}</span>
-        </span>
-      ) : (
-        <span className="text-[13px] text-muted-foreground">Звіт за тиждень <b className="text-foreground/80">{data.week}</b> ще не здано.</span>
-      )}
-      {canFinalize && (finalized ? (
-        <button type="button" onClick={() => act('DELETE')} disabled={busy}
-          className="h-8 px-3 rounded-lg text-[12px] font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 shrink-0">
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin inline" /> : 'Пере-відкрити'}
-        </button>
-      ) : (
-        <button type="button" onClick={() => act('POST')} disabled={busy}
-          className="h-8 px-4 rounded-lg text-[12px] font-bold text-white bg-emet-blue disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0">
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Здати зведений звіт
-        </button>
-      ))}
+    <div className={`sticky top-[56px] z-40 backdrop-blur-xl border-b border-white/50 shadow-[0_4px_16px_rgba(6,42,61,0.05)] ${finalized ? 'bg-emerald-50/75' : 'bg-white/70'}`}>
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+        {finalized ? (
+          <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-700 min-w-0">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" /> Зведений звіт здано · {when}
+            <span className="text-[11px] font-normal text-muted-foreground truncate">{data.finalization.finalizedBy}</span>
+          </span>
+        ) : (
+          <span className="text-[13px] text-muted-foreground">Звіт за тиждень <b className="text-foreground/80">{data.week}</b> ще не здано.</span>
+        )}
+        {canFinalize && (finalized ? (
+          <button type="button" onClick={() => act('DELETE')} disabled={busy}
+            className="h-8 px-3 rounded-lg text-[12px] font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 shrink-0">
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin inline" /> : 'Пере-відкрити'}
+          </button>
+        ) : (
+          <button type="button" onClick={() => act('POST')} disabled={busy}
+            className="h-8 px-4 rounded-lg text-[12px] font-bold text-white bg-emet-blue disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Здати зведений звіт
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

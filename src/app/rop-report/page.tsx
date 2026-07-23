@@ -14,7 +14,7 @@ import { useAppStore } from '@/lib/store';
 import { canViewRopReport, canFinalizeRopReport } from '@/lib/feature-flags';
 import { REPORT_RECIPIENT } from '@/lib/rop-report-config';
 import { useRopReport } from '@/lib/use-rop-report';
-import { RopReportView } from '@/components/rop-report/rop-report-view';
+import { RopReportView, RopFinalizeToolbar } from '@/components/rop-report/rop-report-view';
 
 export default function RopReportPage() {
   const router = useRouter();
@@ -33,6 +33,9 @@ export default function RopReportPage() {
   return (
     <>
       <AppHeader />
+      {/* Sticky-смуга фіналізації — сусід хедера (поза main), щоб надійно
+          триматись при скролі. Тільки коли є дані звіту. */}
+      {data && data.regions.length > 0 && <RopFinalizeToolbar data={data} canFinalize={canFinalizeRopReport(user)} />}
       <main className="p-4 md:p-6 max-w-6xl mx-auto w-full min-w-0 space-y-4">
         {/* Шапка */}
         <div className="flex items-end justify-between gap-3 flex-wrap">
@@ -61,7 +64,7 @@ export default function RopReportPage() {
         {loading && !data && <div className="glass-card p-10 text-center text-[13px] text-muted-foreground">Збираю звіт по 8 представництвах…</div>}
         {error && !data && <div className="glass-card p-8 text-center text-[13px] text-rose-600">Не вдалося завантажити звіт: {error}</div>}
         {data && data.regions.length === 0 && !loading && <div className="glass-card p-10 text-center text-[13px] text-muted-foreground">немає даних за період</div>}
-        {data && data.regions.length > 0 && <RopReportView data={data} canFinalize={canFinalizeRopReport(user)} />}
+        {data && data.regions.length > 0 && <RopReportView data={data} />}
       </main>
     </>
   );
