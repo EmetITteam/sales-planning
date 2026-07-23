@@ -454,8 +454,8 @@ function PlanRow({ period, r }: { period: string; r: RopRegionRow }) {
       if (res.ok) setSavedVal(val.trim());
     } finally { setBusy(false); }
   };
+  // Компактна однорядкова картка: регіон | статус | інпут | Зберегти
   return (
-    {/* Компактна однорядкова картка: регіон | статус | інпут | Зберегти */}
     <div className="bg-white rounded-xl border border-slate-200/60 shadow-[0_4px_14px_rgba(6,42,61,0.04)] hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)] hover:border-slate-300 transition-all px-4 py-3 grid grid-cols-[140px_100px_1fr_auto] items-center gap-3">
       <span className="font-bold text-[12px] truncate">{r.name}</span>
       <span className={`justify-self-start inline-flex items-center gap-1 text-[11px] font-bold rounded-lg px-2.5 py-1 border ${c.cls}`}>
