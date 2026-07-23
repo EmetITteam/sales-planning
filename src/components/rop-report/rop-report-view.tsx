@@ -7,11 +7,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSWRConfig } from 'swr';
 import { useRouter } from 'next/navigation';
-import { Loader2, Check, ChevronDown, X, Plus, Pencil, Trash2, Minus, Inbox, ShieldCheck, Lightbulb, type LucideIcon } from 'lucide-react';
+import { Loader2, Check, ChevronDown, X, Minus, Inbox, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PerfBadge } from '@/components/ui/perf-badge';
-import type { RopReport, RopRegionRow, MarketSignal } from '@/lib/use-rop-report';
+import type { RopReport, RopRegionRow } from '@/lib/use-rop-report';
 import type { StatusTone } from '@/lib/status-badge';
 
 const toneText: Record<StatusTone, string> = { ok: 'text-emerald-600', warn: 'text-amber-600', bad: 'text-rose-600' };
@@ -478,126 +478,65 @@ function PlanRow({ period, r }: { period: string; r: RopRegionRow }) {
   );
 }
 
-// ── 4.5 Ринкові сигнали (РОП вводить вручну) ─────────────────────────────────
-// Регламент (макет rop-report.html): текст сигналу · джерело · кому (→ CPO/CMO) ·
-// дедлайн. Без пріоритету/статусу (migration 064).
+// ── 4.5 Ринкові сигнали — 3 текстові поля per період (заповнює РОП) ───────────
+const MARKET_FIELDS: Array<{ key: 'failures' | 'drivers' | 'other'; label: string; placeholder: string }> = [
+  { key: 'failures', label: 'Причини невиконання показників по ТМ',
+    placeholder: 'Вказати причини невиконання показників по червоним ТМ, що повторюються у 3+ регіонів.' },
+  { key: 'drivers', label: 'Драйвери виконання по ТМ',
+    placeholder: 'Вказати драйвери виконання по зеленим ТМ, що повторюються у 3+ регіонів.' },
+  { key: 'other', label: 'Інші сигнали ринку',
+    placeholder: 'Вказати важливу інформацію ринку отриману від регіону (дії конкурента, зміна попиту, дефіцит у конкурента, новинка у конкурента, тощо).' },
+];
+
 function MarketSignals({ data }: { data: RopReport }) {
   const { mutate } = useSWRConfig();
   const refresh = () => mutate((k: unknown) => typeof k === 'string' && k.startsWith('rop-report|'));
-  // null = форма закрита; {} = нова; {..signal} = редагування наявної.
-  const [form, setForm] = useState<Partial<MarketSignal> | null>(null);
-  const signals = data.marketSignals;
   return (
     <div className="glass-card overflow-hidden">
-      <SectionHeader no="4.5" title="Ринкові сигнали"
-        hint={
-          <span className="flex items-center gap-2">
-            {signals.length > 0 && <span className="text-[11px] text-muted-foreground">{signals.length}</span>}
-            <button type="button" onClick={() => setForm({})}
-              className="inline-flex items-center gap-1 text-[11px] font-bold rounded-lg px-2.5 py-1 border border-emet-blue/25 text-emet-blue bg-emet-blue/10 hover:bg-emet-blue/15 transition-colors">
-              <Plus className="h-3.5 w-3.5" /> Додати
-            </button>
-          </span>
-        } />
-      {/* Шпаргалка РОП — що фіксувати у сигналах ринку */}
-      <div className="px-4 py-3 border-b border-[#e2e7ef] bg-slate-50/60">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
-          <Lightbulb className="h-3.5 w-3.5" />Що фіксувати
-        </p>
-        <ol className="text-[11.5px] text-muted-foreground leading-relaxed space-y-1 list-decimal list-outside pl-4 marker:text-slate-400 marker:font-semibold">
-          <li>Причини невиконання показників по <b className="text-rose-700">червоним ТМ</b>, що повторюються у 3+ регіонів.</li>
-          <li>Драйвери виконання по <b className="text-emerald-700">зеленим ТМ</b>, що повторюються у 3+ регіонів.</li>
-          <li>Інші сигнали ринку — важлива інформація від регіону: дії конкурента, зміна попиту, дефіцит / новинка у конкурента, тощо.</li>
-        </ol>
+      <SectionHeader no="4.5" title="Ринкові сигнали" />
+      <div className="p-4 space-y-4">
+        {MARKET_FIELDS.map(f => (
+          <MarketNoteField key={f.key} period={data.period} field={f.key} label={f.label}
+            placeholder={f.placeholder} value={data.marketNotes[f.key]} onSaved={refresh} />
+        ))}
       </div>
-      {form && <SignalForm period={data.period} initial={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); refresh(); }} />}
-      {signals.length === 0 && !form
-        ? <EmptyState icon={Inbox} text="ринкових сигналів за період немає" />
-        : <div className="divide-y divide-[#f0f2f8]">{signals.map(s => <SignalRow key={s.id} s={s} onEdit={() => setForm(s)} onChanged={refresh} />)}</div>}
     </div>
   );
 }
 
-/** Дедлайн прострочено (< сьогодні) → підсвічуємо. */
-function isOverdue(deadline: string | null): boolean {
-  if (!deadline) return false;
-  return deadline < new Date().toISOString().slice(0, 10);
-}
-
-function SignalRow({ s, onEdit, onChanged }: { s: MarketSignal; onEdit: () => void; onChanged: () => void }) {
+/** Одне текстове поле 4.5 (лейбл + textarea з підказкою + Зберегти при зміні). */
+function MarketNoteField({ period, field, label, placeholder, value, onSaved }: {
+  period: string; field: string; label: string; placeholder: string; value: string; onSaved: () => void;
+}) {
+  const [text, setText] = useState(value);
+  const [saved, setSaved] = useState(value);
   const [busy, setBusy] = useState(false);
-  const overdue = isOverdue(s.deadline);
-  const del = async () => {
-    if (!confirm('Видалити сигнал?')) return;
+  useEffect(() => { setText(value); setSaved(value); }, [value]);
+  const dirty = text.trim() !== saved.trim();
+  const save = async () => {
     setBusy(true);
     try {
-      await fetch(`/api/rop-report/signals?id=${encodeURIComponent(s.id)}`, { method: 'DELETE', credentials: 'same-origin' });
-      onChanged();
+      const res = await fetch('/api/rop-report/signals', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ period, field, note: text.trim() }),
+      });
+      if (res.ok) { setSaved(text.trim()); onSaved(); }
     } finally { setBusy(false); }
   };
   return (
-    <div className="px-4 py-3 flex items-start gap-3 hover:bg-[#f5f7fb]">
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-semibold text-foreground/90 leading-snug">{s.signal}</p>
-        <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          {s.source && <span>Джерело: <b className="text-foreground/70">{s.source}</b></span>}
-          {s.deadline && <span className={overdue ? 'text-rose-600 font-bold' : ''}>· Дедлайн: {s.deadline}{overdue ? ' (прострочено)' : ''}</span>}
-        </div>
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <label className="text-[12px] font-bold text-foreground/80">{label}</label>
+        {dirty && (
+          <button type="button" onClick={save} disabled={busy}
+            className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold text-white bg-emet-blue disabled:opacity-50 shrink-0">
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Зберегти
+          </button>
+        )}
       </div>
-      {s.recipient && <span className="shrink-0 text-[12px] font-bold text-emet-blue mt-0.5 whitespace-nowrap">→ {s.recipient}</span>}
-      <div className="flex items-center gap-1 shrink-0">
-        <button type="button" onClick={onEdit} disabled={busy} title="Редагувати" className="p-1.5 rounded-lg text-slate-400 hover:text-emet-blue hover:bg-white disabled:opacity-50"><Pencil className="h-3.5 w-3.5" /></button>
-        <button type="button" onClick={del} disabled={busy} title="Видалити" className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white disabled:opacity-50">{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}</button>
-      </div>
-    </div>
-  );
-}
-
-function SignalForm({ period, initial, onClose, onSaved }: {
-  period: string; initial: Partial<MarketSignal>; onClose: () => void; onSaved: () => void;
-}) {
-  const [signal, setSignal] = useState(initial.signal ?? '');
-  const [source, setSource] = useState(initial.source ?? '');
-  const [recipient, setRecipient] = useState(initial.recipient ?? '');
-  const [deadline, setDeadline] = useState(initial.deadline ?? '');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const isEdit = !!initial.id;
-  const inputCls = 'h-9 rounded-lg border border-[rgba(6,42,61,0.15)] bg-white px-2.5 text-[12.5px] focus:outline-none focus:ring-2 focus:ring-emet-blue/30';
-
-  const save = async () => {
-    if (!signal.trim()) { setErr('Опишіть сигнал'); return; }
-    setBusy(true); setErr(null);
-    const payload = { period, id: initial.id, signal: signal.trim(), source, recipient, deadline: deadline || null };
-    try {
-      const res = await fetch('/api/rop-report/signals', {
-        method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) onSaved();
-      else setErr((await res.json().catch(() => ({})))?.error || 'Не вдалося зберегти');
-    } catch { setErr('Мережна помилка'); }
-    finally { setBusy(false); }
-  };
-
-  return (
-    <div className="px-4 py-3 border-b border-[#e2e7ef] bg-slate-50/60 space-y-2">
-      <textarea value={signal} onChange={e => setSignal(e.target.value)} autoFocus rows={2} maxLength={1000}
-        placeholder="Сигнал: що відбувається на ринку (дії конкурента, зміна попиту, регуляторика, дефіцит…)"
-        className="w-full rounded-lg border border-[rgba(6,42,61,0.15)] bg-white px-2.5 py-2 text-[12.5px] resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        <input value={source} onChange={e => setSource(e.target.value)} maxLength={300} placeholder="Джерело (регіон/и)" className={inputCls} />
-        <input value={recipient} onChange={e => setRecipient(e.target.value)} maxLength={300} placeholder="Кому (→ CPO / CMO)" className={inputCls} />
-        <input type="date" value={deadline ?? ''} onChange={e => setDeadline(e.target.value)} className={inputCls} title="Дедлайн реакції" />
-      </div>
-      {err && <p className="text-[12px] text-rose-600">{err}</p>}
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={save} disabled={busy}
-          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[12.5px] font-bold text-white bg-emet-blue disabled:opacity-50">
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{isEdit ? 'Зберегти' : 'Додати'}
-        </button>
-        <button type="button" onClick={onClose} disabled={busy} className="h-9 px-3 rounded-lg text-[12.5px] font-medium text-muted-foreground hover:text-foreground">Скасувати</button>
-      </div>
+      <textarea value={text} onChange={e => setText(e.target.value)} rows={3} maxLength={4000}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white px-3 py-2.5 text-[13px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30 placeholder:text-slate-400" />
     </div>
   );
 }

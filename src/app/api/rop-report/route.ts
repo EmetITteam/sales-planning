@@ -29,7 +29,7 @@ import { isRepresentativeRegionCode, REPORT_RECIPIENT, ESCALATION_RECIPIENT } fr
 import { readWeekNotes, type WeeklyNote } from '@/lib/weekly-notes-store';
 import { listWeekStatuses } from '@/lib/weekly-report-status-store';
 import { readRopMeta } from '@/lib/rop-report-meta-store';
-import { listMarketSignals } from '@/lib/market-signals-store';
+import { readRopMarketNotes } from '@/lib/rop-market-notes-store';
 
 export const maxDuration = 60;
 
@@ -82,12 +82,12 @@ export async function GET(request: NextRequest) {
   const deadline = computeRopDeadline(period);
 
   // ── замітки цього + минулого тижня (по всіх регіонах, 2 запити) ──
-  const [thisNotes, prevNotes, weekStatuses, lateReasons, marketSignals] = await Promise.all([
+  const [thisNotes, prevNotes, weekStatuses, lateReasons, marketNotes] = await Promise.all([
     readWeekNotes(week),
     prevWeek ? readWeekNotes(prevWeek) : Promise.resolve([] as WeeklyNote[]),
     listWeekStatuses(week),
     readRopMeta(period),
-    listMarketSignals(period),
+    readRopMarketNotes(period),
   ]);
   const thisLatest = indexLatest(thisNotes);
   const prevLatest = indexLatest(prevNotes);
@@ -242,7 +242,7 @@ export async function GET(request: NextRequest) {
     regions: regionRows,      // 4.1
     redZones,                 // 4.2
     promiseRegister,          // 4.3
-    marketSignals,            // 4.5
+    marketNotes,              // 4.5 (3 поля: failures/drivers/other)
     meta: {
       regionCount: regionRows.length,
       logins: allLogins.length,
