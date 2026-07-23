@@ -1,0 +1,335 @@
+[
+  {
+    "id": "19313e21-71af-47e7-ac9e-dbb21419f9f4",
+    "user_login": "sm.vinnitsa@emet.in.ua",
+    "type": "plan_director_comment",
+    "title": "План на переробку · Petaran",
+    "message": "тестовій комментарий",
+    "link": "/?brand=PETARAN",
+    "meta": {
+      "action": "comment_unfinalize",
+      "periodId": 20260731,
+      "authorName": "Амосова Олександра Сергіївна",
+      "authorLogin": "sdu@emet.in.ua",
+      "segmentCode": "PETARAN"
+    },
+    "read_at": "2026-07-07T08:39:07.833+00:00",
+    "created_at": "2026-07-07T08:37:46.832292+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "1a34e0b7-791f-48db-900d-ee81585ed2d7",
+    "user_login": "itd@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "Новий коментар у рекламації #27",
+    "message": "Евгения Малькова: тест уведомления",
+    "link": "/claims/27",
+    "meta": {
+      "claimId": "27",
+      "commentId": "1178153"
+    },
+    "read_at": "2026-06-10T13:39:40.791+00:00",
+    "created_at": "2026-06-10T13:39:31.793416+00:00",
+    "dedup_key": "bitrix:claim:27:comment:1178153"
+  },
+  {
+    "id": "27e964cb-b37c-49bd-bf52-adc44fe40f05",
+    "user_login": "itd@emet.in.ua",
+    "type": "client_verified",
+    "title": "Клієнт «ТЕСТ verify 3» верифіковано",
+    "message": null,
+    "link": "/clients?focus=000023418",
+    "meta": {
+      "stageId": "DT1048_10:UC_119I4U",
+      "bitrixItemId": 1,
+      "verificationId": 1
+    },
+    "read_at": "2026-06-12T11:00:52.384+00:00",
+    "created_at": "2026-06-12T11:00:03.227733+00:00",
+    "dedup_key": "bitrix:verification:1:verified"
+  },
+  {
+    "id": "30eabe27-edd1-446c-85bd-bc1231ed7c44",
+    "user_login": "itd@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "[SIMULATE] Тест #18",
+    "message": "Симуляція webhook event",
+    "link": "/claims/18",
+    "meta": {},
+    "read_at": "2026-06-10T13:37:04.353+00:00",
+    "created_at": "2026-06-10T13:32:53.976532+00:00",
+    "dedup_key": "simulate:18:1781098373"
+  },
+  {
+    "id": "32c37ae2-71c0-425a-837e-72c9a107ce32",
+    "user_login": "itd@emet.in.ua",
+    "type": "system",
+    "title": "🧪 Тест колокольчика",
+    "message": "Manual test з /api/sp_notif_test",
+    "link": "/claims",
+    "meta": {},
+    "read_at": "2026-06-10T13:22:49.002+00:00",
+    "created_at": "2026-06-10T13:20:20.891975+00:00",
+    "dedup_key": "test:itd@emet.in.ua:1781097620"
+  },
+  {
+    "id": "4bc6fcf7-b008-4ecd-b031-47f7c9efc8f7",
+    "user_login": "sm.dnepr3@emet.in.ua",
+    "type": "plan_director_comment",
+    "title": "План на переробку · Ellanse",
+    "message": "Тестовый комментарий",
+    "link": "/?brand=ELLANSE",
+    "meta": {
+      "action": "comment_unfinalize",
+      "periodId": 20260731,
+      "authorName": "Амосова Олександра Сергіївна",
+      "authorLogin": "sdu@emet.in.ua",
+      "segmentCode": "ELLANSE"
+    },
+    "read_at": "2026-07-07T07:49:49.429+00:00",
+    "created_at": "2026-07-07T07:49:20.853014+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "4d3b1927-0865-4b0b-b628-d794919d6e60",
+    "user_login": "sm.dnepr3@emet.in.ua",
+    "type": "plan_director_comment",
+    "title": "План на переробку · Petaran",
+    "message": "Тестовый комментарий, ничего с ним делать не надо)",
+    "link": "/",
+    "meta": {
+      "action": "comment_unfinalize",
+      "periodId": 20260731,
+      "authorName": "Амосова Олександра Сергіївна",
+      "authorLogin": "sdu@emet.in.ua",
+      "segmentCode": "PETARAN"
+    },
+    "read_at": "2026-07-07T07:00:11.346+00:00",
+    "created_at": "2026-07-07T06:59:51.199761+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "63066f5e-da52-4156-ab2e-bd2a0e580003",
+    "user_login": "itd@emet.in.ua",
+    "type": "plan_comment_resolved",
+    "title": "Виконано · Petaran",
+    "message": "Фещенко Анна позначив ваш коментар виконаним",
+    "link": "/",
+    "meta": {
+      "commentId": 6,
+      "segmentCode": "PETARAN",
+      "managerLogin": "sm.dnepr3@emet.in.ua"
+    },
+    "read_at": "2026-07-07T08:22:48.926+00:00",
+    "created_at": "2026-07-07T08:22:33.680472+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "6cfdf425-b1d6-4ea1-8fc3-7c297f0ef094",
+    "user_login": "itd@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "Новий коментар у рекламації #18",
+    "message": "Евгения Малькова: тест итоговый",
+    "link": "/claims/18",
+    "meta": {
+      "claimId": "18",
+      "commentId": "1178136"
+    },
+    "read_at": "2026-06-10T13:34:15.575+00:00",
+    "created_at": "2026-06-10T13:33:20.002064+00:00",
+    "dedup_key": "bitrix:claim:18:comment:1178136"
+  },
+  {
+    "id": "7697b6e1-7517-4201-89e1-0865cc211651",
+    "user_login": "sdu@emet.in.ua",
+    "type": "plan_comment_resolved",
+    "title": "Виконано · Petaran",
+    "message": "Претолюк (Фиголь) Ілона Володимирівна позначив ваш коментар виконаним",
+    "link": "/",
+    "meta": {
+      "commentId": 7,
+      "segmentCode": "PETARAN",
+      "managerLogin": "sm.vinnitsa@emet.in.ua"
+    },
+    "read_at": "2026-07-07T08:40:07.047+00:00",
+    "created_at": "2026-07-07T08:39:40.14355+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "86af6b22-e579-4cfb-87fb-97b7a6087ec9",
+    "user_login": "itd@emet.in.ua",
+    "type": "plan_comment_resolved",
+    "title": "Виконано · Petaran",
+    "message": "Фещенко Анна позначив ваш коментар виконаним",
+    "link": "/",
+    "meta": {
+      "commentId": 5,
+      "segmentCode": "PETARAN",
+      "managerLogin": "sm.dnepr3@emet.in.ua"
+    },
+    "read_at": "2026-07-07T08:06:21.763+00:00",
+    "created_at": "2026-07-07T08:05:51.055191+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "8b98a1f7-b0c4-4384-86e1-2c3411c19faf",
+    "user_login": "sm.dnepr3@emet.in.ua",
+    "type": "plan_director_comment",
+    "title": "План на переробку · Petaran",
+    "message": "Тестовый комментарий",
+    "link": "/?brand=PETARAN",
+    "meta": {
+      "action": "comment_unfinalize",
+      "periodId": 20260731,
+      "authorName": "Малькова Евгения Андреевна",
+      "authorLogin": "itd@emet.in.ua",
+      "segmentCode": "PETARAN"
+    },
+    "read_at": "2026-07-07T08:02:26.171+00:00",
+    "created_at": "2026-07-07T08:01:48.937433+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "99af2061-cf12-4e77-88f3-373d7af08c6e",
+    "user_login": "itd@emet.in.ua",
+    "type": "client_rejected",
+    "title": "Клієнт «Тест загрузки файлов» відхилено",
+    "message": null,
+    "link": "/clients?focus=000023420",
+    "meta": {
+      "stageId": "DT1048_10:UC_OE18M6",
+      "bitrixItemId": 4,
+      "verificationId": 3
+    },
+    "read_at": "2026-06-26T06:16:31.707+00:00",
+    "created_at": "2026-06-24T10:44:06.27983+00:00",
+    "dedup_key": "bitrix:verification:3:rejected"
+  },
+  {
+    "id": "be38e05a-f9cd-4478-89ea-65bc550e478b",
+    "user_login": "sm.dnepr3@emet.in.ua",
+    "type": "plan_director_comment",
+    "title": "План на переробку · Petaran",
+    "message": "Тестовый комментарий",
+    "link": "/?brand=PETARAN",
+    "meta": {
+      "action": "comment_unfinalize",
+      "periodId": 20260731,
+      "authorName": "Малькова Евгения Андреевна",
+      "authorLogin": "itd@emet.in.ua",
+      "segmentCode": "PETARAN"
+    },
+    "read_at": "2026-07-07T08:22:02.755+00:00",
+    "created_at": "2026-07-07T08:20:25.437978+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "bfe752dd-68d7-44fc-accd-7d82b5ab0bd9",
+    "user_login": "sm.kiev8@emet.in.ua",
+    "type": "client_clarification",
+    "title": "Уточнення по клієнту «Віа Дерм»",
+    "message": null,
+    "link": "/clients?focus=000023482",
+    "meta": {
+      "stageId": "DT1048_10:CLIENT",
+      "bitrixItemId": 5,
+      "verificationId": 4
+    },
+    "read_at": null,
+    "created_at": "2026-06-24T07:44:12.064484+00:00",
+    "dedup_key": "bitrix:verification:4:clarification"
+  },
+  {
+    "id": "cea60015-95b5-4593-ad92-0552ba6df9af",
+    "user_login": "sdu@emet.in.ua",
+    "type": "plan_comment_resolved",
+    "title": "Виконано · Petaran",
+    "message": "Фещенко Анна позначив ваш коментар виконаним",
+    "link": "/",
+    "meta": {
+      "commentId": 3,
+      "segmentCode": "PETARAN",
+      "managerLogin": "sm.dnepr3@emet.in.ua"
+    },
+    "read_at": "2026-07-07T07:50:45.064+00:00",
+    "created_at": "2026-07-07T07:50:24.007096+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "e6a7cea6-98ba-4741-a3da-3058d013a3e0",
+    "user_login": "sdu@emet.in.ua",
+    "type": "plan_comment_resolved",
+    "title": "Виконано · Ellanse",
+    "message": "Фещенко Анна позначив ваш коментар виконаним",
+    "link": "/",
+    "meta": {
+      "commentId": 4,
+      "segmentCode": "ELLANSE",
+      "managerLogin": "sm.dnepr3@emet.in.ua"
+    },
+    "read_at": "2026-07-07T07:50:45.064+00:00",
+    "created_at": "2026-07-07T07:50:28.455015+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "e7f859d0-a5df-44ea-810a-ced275a4f8d4",
+    "user_login": "headofsd@emet.in.ua",
+    "type": "weekly_report_finalized",
+    "title": "РМ здав тижневий звіт · KYV",
+    "message": "Регіон KYV фіналізував тижневий звіт за 2026-07-19.",
+    "link": "/weekly-report?region=KYV",
+    "meta": {
+      "by": "sm.kiev6@emet.in.ua",
+      "week": "2026-07-19",
+      "region": "KYV"
+    },
+    "read_at": null,
+    "created_at": "2026-07-23T13:23:31.237384+00:00",
+    "dedup_key": null
+  },
+  {
+    "id": "e92fff5f-517d-489c-98e8-c1840aa4b14c",
+    "user_login": "itd@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "Новий коментар у рекламації #18",
+    "message": "Евгения Малькова: Малькова Евгения Андреевна (Менеджер):Тест ответа сообщений итоговая версия",
+    "link": "/claims/18",
+    "meta": {
+      "claimId": "18",
+      "commentId": "1178142"
+    },
+    "read_at": "2026-06-10T13:37:04.353+00:00",
+    "created_at": "2026-06-10T13:34:31.859928+00:00",
+    "dedup_key": "bitrix:claim:18:comment:1178142"
+  },
+  {
+    "id": "ec0521a0-45fd-469e-a5ae-10d5be61e999",
+    "user_login": "sm.kiev6@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "Новий коментар у рекламації #1",
+    "message": "Наталья Полонская: Зробіть клієнтці заміну. У тій, яку заберете, треба обережно розкрутити дозатор і щільніше надіти трубочку. Зробіть це самостійно або передайте адміністратору. Якщо дозатор усе одно не працюватиме, передавайте її на ОС, будь ласка, разом із поверненням термобоксу.",
+    "link": "/claims/1",
+    "meta": {
+      "claimId": "1",
+      "commentId": "1189728"
+    },
+    "read_at": "2026-07-16T12:17:43.071+00:00",
+    "created_at": "2026-07-09T12:49:52.477259+00:00",
+    "dedup_key": "bitrix:claim:1:comment:1189728"
+  },
+  {
+    "id": "ef2aa196-ccc0-449a-8b1a-5ad7fb8f9169",
+    "user_login": "sm.kiev8@emet.in.ua",
+    "type": "claim_new_comment",
+    "title": "Новий коментар у рекламації #2",
+    "message": "Наталья Полонская: Замініть клієнтові упаковку Колагену, повернену розформуйте, та оформіть списання фактично пошкоджених шотів, будь ласка.",
+    "link": "/claims/2",
+    "meta": {
+      "claimId": "2",
+      "commentId": "1195356"
+    },
+    "read_at": null,
+    "created_at": "2026-07-21T09:32:03.570255+00:00",
+    "dedup_key": "bitrix:claim:2:comment:1195356"
+  }
+]
