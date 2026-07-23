@@ -115,8 +115,11 @@
     -moz-osx-font-smoothing: grayscale;
     /* Глобально блокуємо горизонтальний скрол. Glass-blob-и (fixed, з
        негативними left/right -80…-120px) інакше виштовхують body на
-       мобілці і користувач їздить пальцем у порожні поля. */
-    overflow-x: hidden;
+       мобілці і користувач їздить пальцем у порожні поля.
+       ⚠️ clip (НЕ hidden): hidden робить body скрол-контейнером і ламає
+       position:sticky у всіх нащадках; clip ріже так само, але контейнер
+       не створює → sticky-панелі (напр. смуга фіналізації /rop-report) живі. */
+    overflow-x: clip;
     /* touch-action: pan-y вимикає pinch-zoom на webkit, де Apple ігнорує
        maximum-scale у Next.js viewport API. pan-y лишає вертикальний
        scroll, прибирає двопалцевий жест. */
@@ -124,7 +127,7 @@
   }
   html {
     @apply font-sans;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 }
 

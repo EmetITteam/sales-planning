@@ -86,8 +86,8 @@ export function RopFinalizeToolbar({ data, canFinalize }: { data: RopReport; can
   };
   const when = (() => { try { return data.finalization.finalizedAt ? new Date(data.finalization.finalizedAt).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''; } catch { return ''; } })();
   return (
-    <div className={`sticky top-[56px] z-40 backdrop-blur-xl border-b border-white/50 shadow-[0_4px_16px_rgba(6,42,61,0.05)] ${finalized ? 'bg-emerald-50/75' : 'bg-white/70'}`}>
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+    <div className={`sticky top-[56px] z-40 backdrop-blur-xl backdrop-saturate-150 border-b shadow-[0_4px_20px_rgba(6,42,61,0.05)] ${finalized ? 'bg-emerald-50/70 border-emerald-200/50' : 'bg-white/55 border-white/50'}`}>
+      <div className="max-w-6xl mx-auto px-3 sm:px-5 py-2 flex items-center justify-between gap-3 flex-wrap">
         {finalized ? (
           <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-700 min-w-0">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" /> Зведений звіт здано · {when}
