@@ -45,7 +45,9 @@ function mgrWord(n: number): string {
 }
 
 // Єдина grid-сітка для шапки колонок і рядків 4.1 (вирівнювання по вертикалі).
-const COLS = 'grid grid-cols-[190px_60px_120px_1fr_200px_24px] items-center gap-3';
+// Колонка чипів = minmax(0,1fr) — контент не виштовхує колонку за межі (чипи
+// переносяться всередині своєї колонки, не налізають на «Обіцянку»).
+const COLS = 'grid grid-cols-[190px_60px_120px_minmax(0,1fr)_200px_24px] items-center gap-3';
 
 export function RopReportView({ data }: { data: RopReport }) {
   return (
@@ -190,7 +192,7 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
   const openRegion = (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/weekly-report?region=${r.code}`); };
   return (
     <div className={muted ? 'opacity-55' : ''}>
-      <div onClick={onToggle} className={`${COLS} w-full px-5 py-4 hover:bg-[#f5f7fb] transition-colors cursor-pointer`}>
+      <div onClick={onToggle} className={`${COLS} w-full px-5 py-3 min-h-[100px] hover:bg-[#f5f7fb] transition-colors cursor-pointer`}>
         <div className="min-w-0">
           {/* Клік по назві → повний звіт цього регіону (не розгортання) */}
           <button type="button" onClick={openRegion} className="block max-w-full text-left font-bold text-[13px] truncate hover:text-emet-blue hover:underline" title="Відкрити звіт регіону">{r.name}</button>
@@ -205,19 +207,17 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
           </div>
         </div>
         <div><PerfBadge forecastPct={r.forecastPct} /></div>
-        <div className="flex gap-1 items-center min-w-0">
+        <div className="flex flex-wrap content-center items-center gap-x-1.5 gap-y-1.5 min-w-0 max-h-[46px] overflow-hidden">
           {r.reds.length === 0
             ? <span className="text-[10.5px] font-bold rounded px-2 py-0.5 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
-            : <>
-                {/* Нейтральні чипи, макс 4 + «+N» (решта — у панелі), завжди в один рядок.
-                    Єдине червоне — % найгіршого бренду (reds[0]). */}
-                {r.reds.slice(0, 4).map((b, i) => (
-                  <span key={b.code} className="text-[10.5px] font-bold rounded px-1.5 py-0.5 border border-slate-200 bg-white text-slate-700 whitespace-nowrap shrink-0">
-                    {b.name} <span className={`font-mono font-semibold ${i === 0 ? 'text-rose-600' : 'text-slate-500'}`}>· {pct(b.pct)}</span>
-                  </span>
-                ))}
-                {r.reds.length > 4 && <span className="text-[10.5px] font-bold text-slate-400 shrink-0">+{r.reds.length - 4}</span>}
-              </>}
+            : r.reds.map((b, i) => (
+                // Усі чипи; перенос на 2-й ряд у межах колонки (без «+N»). Нейтральні,
+                // єдине червоне — % найгіршого (reds[0]). 3-й ряд кліпається
+                // (max-h) — приховані бренди видно у розкритій панелі.
+                <span key={b.code} className="text-[10.5px] font-bold rounded px-1.5 py-0.5 border border-slate-200 bg-white text-slate-700 whitespace-nowrap shrink-0">
+                  {b.name} <span className={`font-mono font-semibold ${i === 0 ? 'text-rose-600' : 'text-slate-500'}`}>· {pct(b.pct)}</span>
+                </span>
+              ))}
         </div>
         <div className="min-w-0"><PromiseCell p={r.promise} /></div>
         <ChevronDown className={`h-4 w-4 text-slate-400 justify-self-end transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -277,7 +277,7 @@ function Summary({ data }: { data: RopReport }) {
       <div className="overflow-x-auto">
         <div className="min-w-[800px]">
           {/* шапка колонок */}
-          <div className={`${COLS} px-4 py-2 border-b border-[#e2e7ef] text-[10px] uppercase tracking-wider text-slate-400 font-bold`}>
+          <div className={`${COLS} px-5 py-2 border-b border-[#e2e7ef] text-[10px] uppercase tracking-wider text-slate-400 font-bold`}>
             <span>Регіон</span>
             <span className="text-right">% на дату</span>
             <span>Мітка</span>
