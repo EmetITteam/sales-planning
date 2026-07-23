@@ -13,10 +13,11 @@
 import { detectPromoTriggerBrand } from './strategic-kpi/sales-classifier';
 
 export interface InsightRow {
-  brand: string;      // sales.brand
+  brand: string;      // sales.brand (бренд ТОВАРУ рядка)
   discount: string;   // повод
   client_code: string;
   sum_usd: number;
+  is_gift?: boolean;  // подарунковий рядок ($0). Фокус часто стоїть саме на ньому.
 }
 
 export interface PromoOut { name: string; clients: number; sum: number; pct: number }
@@ -86,18 +87,31 @@ export function aggregateBrandInsights(rows: InsightRow[]): Record<string, Brand
   const get = (seg: string): Acc => (acc[seg] ??= { buyers: new Set(), focus: new Set(), focusSum: 0, promo: new Map() });
 
   for (const r of rows) {
-    const seg = brandToSegment(r.brand);
-    const a = get(seg);
-    a.buyers.add(r.client_code);
     const d = (r.discount ?? '').trim();
-    if (FOCUS_RE.test(d)) {
-      a.focus.add(r.client_code);
-      a.focusSum += Number(r.sum_usd) || 0;
-    } else if (isRealPromo(d)) {
-      let p = a.promo.get(d);
-      if (!p) { p = { cl: new Set(), sum: 0 }; a.promo.set(d, p); }
-      p.cl.add(r.client_code);
-      p.sum += Number(r.sum_usd) || 0;
+    const isFocus = FOCUS_RE.test(d);
+
+    // ФОКУС — атрибуція по бренду-ТРИГЕРУ поводу (як Стратегія: detectPromoTriggerBrand),
+    // а НЕ по бренду товару рядка. Бо повод «Фокус: …PETARAN 2шт+Подарок VITARAN Tox Eye»
+    // фізично стоїть на подарунковому Tox Eye ($0, brand=Vitaran) — але фокус це PETARAN.
+    // Тому включаємо і подарункові рядки (їх у промо/покупці НЕ рахуємо).
+    if (isFocus) {
+      const fbrand = detectPromoTriggerBrand(d) ?? r.brand;
+      const fa = get(brandToSegment(fbrand));
+      fa.focus.add(r.client_code);
+      fa.focusSum += Number(r.sum_usd) || 0;
+    }
+
+    // ПОКУПКИ / ТОП-АКЦІЇ — лише реальні рядки (не подарунок, розпізнаний бренд).
+    if (!r.is_gift && r.brand !== 'НЕ_МАПНУТО') {
+      const a = get(brandToSegment(r.brand));
+      a.buyers.add(r.client_code);
+      // Топ-акції — не-фокусні знижкові поводи (фокус рахується окремо, вище).
+      if (!isFocus && isRealPromo(d)) {
+        let p = a.promo.get(d);
+        if (!p) { p = { cl: new Set(), sum: 0 }; a.promo.set(d, p); }
+        p.cl.add(r.client_code);
+        p.sum += Number(r.sum_usd) || 0;
+      }
     }
   }
 

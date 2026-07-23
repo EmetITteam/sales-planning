@@ -212,9 +212,10 @@ export default function WeeklyReportPage() {
     [region],
   );
 
-  // Інсайти по брендах (топ-3 акції + купили по фокусу) — скоуп по ростеру
-  // регіону (allLogins), той самий, що воронка категорій → числа збігаються.
-  const { insights: brandInsights } = useBrandInsights(effectiveCode, allLogins, periodKey, asOfIso);
+  // Інсайти по брендах (топ-3 акції + купили по фокусу) — ФАКТ по ПІДРОЗДІЛУ
+  // (region.regionName → division). Резерв НЕ прибираємо (це факт). allLogins —
+  // лише для планової к-сті фокус-учасників (focus_participants).
+  const { insights: brandInsights } = useBrandInsights(effectiveCode, region?.regionName ?? null, allLogins, periodKey, asOfIso);
 
   const { data: planAgg } = usePlanningAggregate(
     currentPeriod.id,
