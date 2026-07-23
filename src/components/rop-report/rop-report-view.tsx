@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSWRConfig } from 'swr';
 import { useRouter } from 'next/navigation';
-import { Loader2, Check, ChevronDown, X, Plus, Pencil, Trash2, Minus, Inbox, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Loader2, Check, ChevronDown, X, Plus, Pencil, Trash2, Minus, Inbox, ShieldCheck, Lightbulb, type LucideIcon } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PerfBadge } from '@/components/ui/perf-badge';
@@ -499,6 +499,17 @@ function MarketSignals({ data }: { data: RopReport }) {
             </button>
           </span>
         } />
+      {/* Шпаргалка РОП — що фіксувати у сигналах ринку */}
+      <div className="px-4 py-3 border-b border-[#e2e7ef] bg-slate-50/60">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+          <Lightbulb className="h-3.5 w-3.5" />Що фіксувати
+        </p>
+        <ol className="text-[11.5px] text-muted-foreground leading-relaxed space-y-1 list-decimal list-outside pl-4 marker:text-slate-400 marker:font-semibold">
+          <li>Причини невиконання показників по <b className="text-rose-700">червоним ТМ</b>, що повторюються у 3+ регіонів.</li>
+          <li>Драйвери виконання по <b className="text-emerald-700">зеленим ТМ</b>, що повторюються у 3+ регіонів.</li>
+          <li>Інші сигнали ринку — важлива інформація від регіону: дії конкурента, зміна попиту, дефіцит / новинка у конкурента, тощо.</li>
+        </ol>
+      </div>
       {form && <SignalForm period={data.period} initial={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); refresh(); }} />}
       {signals.length === 0 && !form
         ? <EmptyState icon={Inbox} text="ринкових сигналів за період немає" />
