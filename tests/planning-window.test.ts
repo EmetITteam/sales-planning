@@ -19,19 +19,28 @@ test('майбутній місяць — заблоковано', () => {
   assert.equal(r.reason, 'future-month');
 });
 
-test('поточний місяць, день 3 з 5 — дозволено (within window)', () => {
+// Травень 2026: 1(пт)=РД1 · 2,3(сб,нд)=вихід · 4(пн)=РД2 · 5=РД3 · 6=РД4 · 7=РД5 · 8=РД6.
+// Вікно 5 РОБОЧИХ днів → відкрито до 7 травня включно (не 5, як було з календарними).
+test('поточний місяць, робочий день у вікні (03.05, вихідний перед РД) — дозволено', () => {
   const r = canPlanForMonth('mgr', '2026-05-01', new Date('2026-05-03T10:00:00Z'), settings5, []);
   assert.equal(r.allowed, true);
   assert.equal(r.reason, 'within-window');
 });
 
-test('поточний місяць, день 5 з 5 — дозволено (last day)', () => {
-  const r = canPlanForMonth('mgr', '2026-05-01', new Date('2026-05-05T23:00:00Z'), settings5, []);
+test('поточний місяць, 06.05 (РД4, календарно >5 але у вікні роб. днів) — дозволено', () => {
+  // Раніше з календарними днями це було б заблоковано (день 6 > 5); тепер відкрито.
+  const r = canPlanForMonth('mgr', '2026-05-01', new Date('2026-05-06T10:00:00Z'), settings5, []);
+  assert.equal(r.allowed, true);
+  assert.equal(r.reason, 'within-window');
+});
+
+test('поточний місяць, 07.05 (5-й робочий день — останній у вікні) — дозволено', () => {
+  const r = canPlanForMonth('mgr', '2026-05-01', new Date('2026-05-07T23:00:00Z'), settings5, []);
   assert.equal(r.allowed, true);
 });
 
-test('поточний місяць, день 6 з 5 — заблоковано (outside window)', () => {
-  const r = canPlanForMonth('mgr', '2026-05-01', new Date('2026-05-06T10:00:00Z'), settings5, []);
+test('поточний місяць, 08.05 (РД6, після вікна) — заблоковано (outside window)', () => {
+  const r = canPlanForMonth('mgr', '2026-05-01', new Date('2026-05-08T10:00:00Z'), settings5, []);
   assert.equal(r.allowed, false);
   assert.equal(r.reason, 'outside-window');
 });

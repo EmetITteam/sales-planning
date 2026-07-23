@@ -4,8 +4,9 @@
  * Правила (Пакет А Етап 3, 2026-05-13):
  *   1. Минулий місяць → завжди заблоковано (admin обходить)
  *   2. Майбутній місяць → завжди заблоковано (поки що, до окремого рішення)
- *   3. Поточний місяць → дозволено перші N днів (settings.window_days),
- *      далі заблоковано
+ *   3. Поточний місяць → дозволено перші N РОБОЧИХ днів (settings.window_days),
+ *      тобто до кінця N-го робочого дня місяця; далі заблоковано
+ *      (вихідні/свята у вікно не «з'їдають» дні — рахуються лише робочі)
  *   4. Per-user / global locks перевизначають window_days:
  *      - user-allow → дозволено навіть поза window
  *      - user-block → заборонено навіть у window
@@ -14,6 +15,8 @@
  * Priority (від найвищого до найнижчого):
  *   user-allow → user-block → global-block → window_days check
  */
+
+import { getNthWorkingDay } from './working-days';
 
 export type LockScope = 'global' | 'user';
 export type LockType = 'block' | 'allow';
@@ -116,18 +119,25 @@ export function canPlanForMonth(
       message: 'Планування зараз закрите для всіх менеджерів.',
     };
   }
-  // Priority 4: window_days check (UTC date номер дня місяця).
+  // Priority 4: window check — перші N РОБОЧИХ днів місяця (не календарних).
+  // Відкрито доки сьогодні ≤ дата N-го робочого дня (вихідні/свята не рахуються;
+  // якщо N > робочих днів місяця — getNthWorkingDay клемпить на останній роб. день).
+  const y = today.getUTCFullYear();
+  const m = today.getUTCMonth();
   const dayOfMonth = today.getUTCDate();
-  if (dayOfMonth <= settings.window_days) {
+  // .getDate() (не getUTCDate): getNthWorkingDay будує дату локально new Date(y,m,day),
+  // тож .getDate() повертає задумане число дня у будь-якому TZ (на Vercel UTC — те саме).
+  const nthWorkingDom = getNthWorkingDay(y, m, settings.window_days).getDate();
+  if (dayOfMonth <= nthWorkingDom) {
     return {
       allowed: true,
       reason: 'within-window',
-      message: `Планування відкрите (день ${dayOfMonth} з ${settings.window_days}).`,
+      message: `Планування відкрите (перші ${settings.window_days} роб. днів місяця, до ${nthWorkingDom}-го числа).`,
     };
   }
   return {
     allowed: false,
     reason: 'outside-window',
-    message: `Планування закрите. Вікно — перші ${settings.window_days} днів місяця.`,
+    message: `Планування закрите. Вікно — перші ${settings.window_days} робочих днів місяця (до ${nthWorkingDom}-го числа).`,
   };
 }

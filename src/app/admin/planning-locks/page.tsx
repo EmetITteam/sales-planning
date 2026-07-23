@@ -156,12 +156,12 @@ export default function AdminPlanningLocksPage() {
             <h2 className="text-[14px] font-bold">Графік планування</h2>
           </div>
           <p className="text-[12px] text-muted-foreground mb-4">
-            Скільки перших днів місяця менеджери можуть редагувати плани. Поза цим вікном — лише адмін
+            Скільки перших <b>робочих</b> днів місяця менеджери можуть редагувати плани (вихідні/свята не рахуються). Поза цим вікном — лише адмін
             (або менеджери з персональним allow-локом).
           </p>
           <div className="flex items-end gap-3">
             <div className="flex-1 max-w-[200px]">
-              <label className="block text-[11px] font-medium text-muted-foreground mb-1">Днів місяця</label>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1">Робочих днів</label>
               <Input
                 type="number" min={1} max={31}
                 value={windowDaysDraft ?? ''}
