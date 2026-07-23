@@ -190,8 +190,8 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
   const panelBrands = r.reds.length > 0 ? r.reds : (r.worst ? [r.worst] : []);
   const openRegion = (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/weekly-report?region=${r.code}`); };
   return (
-    <div className={muted ? 'opacity-55' : ''}>
-      <div onClick={onToggle} className={`${COLS} w-full px-5 py-3 min-h-[100px] hover:bg-[#f5f7fb] transition-colors cursor-pointer`}>
+    <div className={`bg-white rounded-xl border border-slate-200/60 shadow-[0_4px_14px_rgba(6,42,61,0.04)] hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)] hover:border-slate-300 transition-all overflow-hidden ${muted ? 'opacity-55' : ''}`}>
+      <div onClick={onToggle} className={`${COLS} w-full px-5 py-4 min-h-[100px] cursor-pointer`}>
         <div className="min-w-0">
           {/* Клік по назві → повний звіт цього регіону (не розгортання) */}
           <button type="button" onClick={openRegion} className="block max-w-full text-left font-bold text-[13px] truncate hover:text-emet-blue hover:underline" title="Відкрити звіт регіону">{r.name}</button>
@@ -273,10 +273,10 @@ function Summary({ data }: { data: RopReport }) {
           ))}
         </span>
       } />
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px]">
-          {/* шапка колонок */}
-          <div className={`${COLS} px-5 py-2 border-b border-[#e2e7ef] text-[10px] uppercase tracking-wider text-slate-400 font-bold`}>
+      <div className="bg-slate-50/60 overflow-x-auto">
+        <div className="min-w-[800px] p-3">
+          {/* шапка колонок — px-5 збігається з внутрішнім px-5 карток (1px бордер — допустимий зсув) */}
+          <div className={`${COLS} px-5 py-2 text-[10px] uppercase tracking-wider text-slate-400 font-bold`}>
             <span>Регіон</span>
             <span className="text-right">% на дату</span>
             <span>Мітка</span>
@@ -284,7 +284,7 @@ function Summary({ data }: { data: RopReport }) {
             <span>Обіцянка→факт</span>
             <span />
           </div>
-          <div className="divide-y divide-[#f0f2f8]">
+          <div className="space-y-3">
             {filtered.map(r => (
               <RegionRow key={r.code} r={r} open={openCode === r.code} onToggle={() => setOpenCode(o => (o === r.code ? null : r.code))} />
             ))}
@@ -378,12 +378,14 @@ function PromiseRegionCard({ r }: { r: RopReport['promiseRegister'][number] }) {
   const notDone = r.promises.filter(p => p.done === false).length;
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-[#f5f7fb]">
-        <span className="font-bold text-[13px]">{r.region}</span>
-        {r.status === 'yes' && <span className={`${promiseChip} bg-emerald-500/12 text-emerald-700 border-emerald-300/40`}><Check className="h-3 w-3 shrink-0" />усі виконані ({r.doneCount})</span>}
-        {r.status === 'no' && <span className={`${promiseChip} bg-rose-500/12 text-rose-700 border-rose-300/40`}><X className="h-3 w-3 shrink-0" />не виконано {notDone} з {r.total}</span>}
-        {r.status === 'none' && <span className={`${promiseChip} bg-slate-100 text-slate-500 border-slate-200`}><Minus className="h-3 w-3 shrink-0" />не відмічено</span>}
-        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full grid grid-cols-[140px_1fr_28px] items-center gap-3 px-3 py-3.5 text-left hover:bg-[#f5f7fb]">
+        <span className="font-bold text-[13px] truncate">{r.region}</span>
+        <span className="justify-self-start">
+          {r.status === 'yes' && <span className={`${promiseChip} bg-emerald-500/12 text-emerald-700 border-emerald-300/40`}><Check className="h-3 w-3 shrink-0" />усі виконані ({r.doneCount})</span>}
+          {r.status === 'no' && <span className={`${promiseChip} bg-rose-500/12 text-rose-700 border-rose-300/40`}><X className="h-3 w-3 shrink-0" />не виконано {notDone} з {r.total}</span>}
+          {r.status === 'none' && <span className={`${promiseChip} bg-slate-100 text-slate-500 border-slate-200`}><Minus className="h-3 w-3 shrink-0" />не відмічено</span>}
+        </span>
+        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 justify-self-end shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="px-3 pb-3 pt-2 space-y-2 border-t border-slate-100 bg-slate-50/60">
@@ -425,7 +427,7 @@ function Planning({ data }: { data: RopReport }) {
         ? <EmptyState icon={Inbox} text="немає регіонів для планування за період" />
         : <>
             <div className="px-4 pt-3 pb-2 text-[11.5px] text-muted-foreground">{inTime} із {data.regions.length} регіонів узгодили план у термін.</div>
-            <div>{data.regions.map(r => <PlanRow key={r.code} period={data.period} r={r} />)}</div>
+            <div className="bg-slate-50/60 p-3 space-y-2.5">{data.regions.map(r => <PlanRow key={r.code} period={data.period} r={r} />)}</div>
           </>}
     </div>
   );
@@ -451,25 +453,27 @@ function PlanRow({ period, r }: { period: string; r: RopRegionRow }) {
     } finally { setBusy(false); }
   };
   return (
-    <div className="px-4 py-2 border-t border-[#f0f2f8] flex items-center gap-2 flex-wrap">
-      <span className="font-bold text-[12px] w-[78px] shrink-0">{r.name}</span>
-      <span className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-lg px-2.5 py-1 border shrink-0 ${c.cls}`}>
+    <div className="bg-white rounded-xl border border-slate-200/60 shadow-[0_4px_14px_rgba(6,42,61,0.04)] hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)] hover:border-slate-300 transition-all px-4 py-3 grid grid-cols-[110px_120px_1fr] items-center gap-3">
+      <span className="font-bold text-[12px] truncate">{r.name}</span>
+      <span className={`justify-self-start inline-flex items-center gap-1 text-[11px] font-bold rounded-lg px-2.5 py-1 border ${c.cls}`}>
         {r.plan.state === 'in_time' && <Check className="h-3 w-3 shrink-0 text-slate-400" />}
         {r.plan.state === 'late' ? `+${r.plan.overdueWorkingDays} дні` : c.label}
       </span>
-      {canEdit && (
-        <>
-          <input value={val} onChange={e => setVal(e.target.value)} disabled={busy} maxLength={300}
-            placeholder="причина затримки…"
-            className="flex-1 min-w-[140px] h-8 rounded-lg border border-[rgba(6,42,61,0.15)] bg-white px-2.5 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-emet-blue/30 disabled:opacity-50" />
-          {dirty && (
-            <button type="button" onClick={save} disabled={busy}
-              className="h-8 px-3 rounded-lg text-[11px] font-bold text-white bg-emet-blue disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0">
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Зберегти
-            </button>
-          )}
-        </>
-      )}
+      <div className="min-w-0">
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <input value={val} onChange={e => setVal(e.target.value)} disabled={busy} maxLength={300}
+              placeholder="причина затримки…"
+              className="flex-1 min-w-0 h-8 rounded-lg border border-[rgba(6,42,61,0.15)] bg-white px-2.5 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-emet-blue/30 disabled:opacity-50" />
+            {dirty && (
+              <button type="button" onClick={save} disabled={busy}
+                className="h-8 px-3 rounded-lg text-[11px] font-bold text-white bg-emet-blue disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0">
+                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Зберегти
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
