@@ -225,16 +225,16 @@ export function canManageRegionAccess(login: string | null | undefined): boolean
 const ROP_LOGINS: readonly string[] = ['headofsd@emet.in.ua'];
 
 /**
- * Хто бачить ЗВЕДЕНИЙ ЗВІТ РОП (Лист 4, усі 8 представництв): РОП + директор
- * продажів (CSO) + strategic-логіни (CEO/owner/CMO/headofproduct) + admin.
- * ⚠️ РМ і звичайний менеджер — НІ (на відміну від Тижневого звіту). Перевірка
- * на сервері у /api/rop-report, не лише приховування в UI.
+ * Хто бачить ЗВЕДЕНИЙ ЗВІТ РОП (Лист 4, усі 8 представництв): ТІЛЬКИ РОП Мігашко
+ * (headofsd) + будь-хто з роллю director (CSO та director-override) + admin.
+ * ⚠️ Strategic-логіни (CEO/owner/CMO) БІЛЬШЕ НЕ мають доступу (узгоджено з ITD).
+ * РМ і звичайний менеджер — НІ. Перевірка на сервері у /api/rop-report.
  */
 export function canViewRopReport(user: { login: string; role: string } | null | undefined): boolean {
   if (!user) return false;
   if (user.role === 'director' || user.role === 'admin') return true;
   const l = user.login.toLowerCase().trim();
-  return isStrategicKpiLogin(l) || ROP_LOGINS.includes(l);
+  return ROP_LOGINS.includes(l); // Мігашко (headofsd) — окремо, якщо роль не director
 }
 
 /**
