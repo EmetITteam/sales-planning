@@ -45,8 +45,13 @@ export default function RopReportPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <PeriodFilter />
-            <button type="button" disabled title="у розробці"
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-bold text-white bg-emet-blue opacity-40 cursor-not-allowed">
+            <button type="button"
+              onClick={() => {
+                const qs = new URLSearchParams({ period });
+                if (week) qs.set('week', week);
+                window.location.href = `/api/rop-report/xlsx?${qs.toString()}`;
+              }}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-bold text-white bg-emet-blue hover:opacity-90 transition-opacity">
               <Download className="h-3.5 w-3.5" />Експорт .xlsx
             </button>
           </div>

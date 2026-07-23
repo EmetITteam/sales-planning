@@ -1,18 +1,17 @@
 /**
- * GET /api/rop-report?period=YYYY-MM[&week=YYYY-MM-DD]
+ * GET /api/rop-report/xlsx?period=YYYY-MM[&week=YYYY-MM-DD]
  *
- * Зведений звіт РОП (Лист 4) — усі 8 представництв в одному об'єкті. СЕРВЕРНА
- * агрегація ПОВЕРХ існуючих розрахунків (див. lib/rop-report-build). Логіка збірки
- * винесена у buildRopReport щоб переиспользувати з xlsx-експорту.
+ * Експорт Зведеного звіту РОП (Лист 4) у xlsx (стиль EMET). Ті самі дані, що і
+ * /api/rop-report (buildRopReport), рендер у книгу через lib/rop-report-xlsx.
  *
- * Доступ: РОП / директор (CSO) / strategic (CEO/CMO/owner) / admin. РМ і менеджер
- * — 403 (перевірка на сервері, не лише приховування в UI).
+ * Доступ: РОП / директор (CSO) / strategic / admin — як і сам звіт.
  */
 import { NextRequest } from 'next/server';
 import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { canViewRopReport } from '@/lib/feature-flags';
 import { buildRopReport } from '@/lib/rop-report-build';
+import { buildRopWorkbook } from '@/lib/rop-report-xlsx';
 
 export const maxDuration = 60;
 
@@ -28,5 +27,14 @@ export async function GET(request: NextRequest) {
   const week = sp.get('week');
 
   const r = await buildRopReport(period, week, session.login);
-  return r.ok ? Response.json(r.data) : Response.json({ error: r.error }, { status: r.status });
+  if (!r.ok) return Response.json({ error: r.error }, { status: r.status });
+
+  const wb = buildRopWorkbook(r.data);
+  const buf = await wb.xlsx.writeBuffer();
+  return new Response(buf, {
+    headers: {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="rop-report-${period}.xlsx"`,
+    },
+  });
 }
