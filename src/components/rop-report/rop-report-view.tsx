@@ -46,7 +46,9 @@ function mgrWord(n: number): string {
 // Єдина grid-сітка для шапки колонок і рядків 4.1 (вирівнювання по вертикалі).
 // Колонка чипів = minmax(0,1fr) — контент не виштовхує колонку за межі (чипи
 // переносяться всередині своєї колонки, не налізають на «Обіцянку»).
-const COLS = 'grid grid-cols-[190px_60px_120px_minmax(0,1fr)_200px_24px] items-center gap-3';
+// items-start: перші рядки всіх колонок (назва, %, мітка, 1-й ряд чипів) на одній
+// базовій лінії; висота картки плаває по контенту (1-2 ряди чипів — не фіксована).
+const COLS = 'grid grid-cols-[190px_60px_120px_minmax(0,1fr)_200px_24px] items-start gap-3';
 
 export function RopReportView({ data }: { data: RopReport }) {
   return (
@@ -191,7 +193,7 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
   const openRegion = (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/weekly-report?region=${r.code}`); };
   return (
     <div className={`bg-white rounded-xl border border-slate-200/60 shadow-[0_4px_14px_rgba(6,42,61,0.04)] hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)] hover:border-slate-300 transition-all overflow-hidden ${muted ? 'opacity-55' : ''}`}>
-      <div onClick={onToggle} className={`${COLS} w-full px-5 py-4 min-h-[100px] cursor-pointer`}>
+      <div onClick={onToggle} className={`${COLS} w-full px-5 py-4 cursor-pointer`}>
         <div className="min-w-0">
           {/* Клік по назві → повний звіт цього регіону (не розгортання) */}
           <button type="button" onClick={openRegion} className="block max-w-full text-left font-bold text-[13px] truncate hover:text-emet-blue hover:underline" title="Відкрити звіт регіону">{r.name}</button>
@@ -206,15 +208,15 @@ function RegionRow({ r, open, onToggle }: { r: RopRegionRow; open: boolean; onTo
           </div>
         </div>
         <div><PerfBadge forecastPct={r.forecastPct} /></div>
-        <div className="flex flex-wrap content-center items-center gap-x-1.5 gap-y-1.5 min-w-0 max-h-[46px] overflow-hidden">
+        {/* Чипи: h-7, перенос на новий ряд, БЕЗ обмеження висоти/overflow (не
+            підрізаємо верхню грань). Картка росте по к-сті рядів чипів. */}
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5 min-w-0">
           {r.reds.length === 0
-            ? <span className="text-[10.5px] font-bold rounded px-2 py-0.5 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
+            ? <span className="inline-flex items-center h-7 text-[10.5px] font-bold rounded-md px-2 border bg-[#f5f7fb] text-slate-400 border-[#e8ecf5]">— чисто</span>
             : r.reds.map((b, i) => (
-                // Усі чипи; перенос на 2-й ряд у межах колонки (без «+N»). Нейтральні,
-                // єдине червоне — % найгіршого (reds[0]). 3-й ряд кліпається
-                // (max-h) — приховані бренди видно у розкритій панелі.
-                <span key={b.code} className="text-[10.5px] font-bold rounded px-1.5 py-0.5 border border-slate-200 bg-white text-slate-700 whitespace-nowrap shrink-0">
-                  {b.name} <span className={`font-mono font-semibold ${i === 0 ? 'text-rose-600' : 'text-slate-500'}`}>· {pct(b.pct)}</span>
+                // Усі чипи. Нейтральні; єдине червоне — % найгіршого (reds[0]).
+                <span key={b.code} className="inline-flex items-center h-7 text-[10.5px] font-bold rounded-md px-2 border border-slate-200 bg-white text-slate-700 whitespace-nowrap shrink-0">
+                  {b.name} <span className={`font-mono font-semibold ml-1 ${i === 0 ? 'text-rose-600' : 'text-slate-500'}`}>· {pct(b.pct)}</span>
                 </span>
               ))}
         </div>
@@ -427,7 +429,7 @@ function Planning({ data }: { data: RopReport }) {
         ? <EmptyState icon={Inbox} text="немає регіонів для планування за період" />
         : <>
             <div className="px-4 pt-3 pb-2 text-[11.5px] text-muted-foreground">{inTime} із {data.regions.length} регіонів узгодили план у термін.</div>
-            <div className="bg-slate-50/60 p-3 space-y-2.5">{data.regions.map(r => <PlanRow key={r.code} period={data.period} r={r} />)}</div>
+            <div className="bg-slate-50/60 p-3 space-y-2">{data.regions.map(r => <PlanRow key={r.code} period={data.period} r={r} />)}</div>
           </>}
     </div>
   );
@@ -453,27 +455,24 @@ function PlanRow({ period, r }: { period: string; r: RopRegionRow }) {
     } finally { setBusy(false); }
   };
   return (
-    <div className="bg-white rounded-xl border border-slate-200/60 shadow-[0_4px_14px_rgba(6,42,61,0.04)] hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)] hover:border-slate-300 transition-all px-4 py-3 grid grid-cols-[110px_120px_1fr] items-center gap-3">
+    {/* Компактна однорядкова картка: регіон | статус | інпут | Зберегти */}
+    <div className="bg-white rounded-xl border border-slate-200/60 shadow-[0_4px_14px_rgba(6,42,61,0.04)] hover:shadow-[0_8px_30px_rgba(6,42,61,0.06)] hover:border-slate-300 transition-all px-4 py-3 grid grid-cols-[140px_100px_1fr_auto] items-center gap-3">
       <span className="font-bold text-[12px] truncate">{r.name}</span>
       <span className={`justify-self-start inline-flex items-center gap-1 text-[11px] font-bold rounded-lg px-2.5 py-1 border ${c.cls}`}>
         {r.plan.state === 'in_time' && <Check className="h-3 w-3 shrink-0 text-slate-400" />}
         {r.plan.state === 'late' ? `+${r.plan.overdueWorkingDays} дні` : c.label}
       </span>
-      <div className="min-w-0">
-        {canEdit && (
-          <div className="flex items-center gap-2">
-            <input value={val} onChange={e => setVal(e.target.value)} disabled={busy} maxLength={300}
-              placeholder="причина затримки…"
-              className="flex-1 min-w-0 h-8 rounded-lg border border-[rgba(6,42,61,0.15)] bg-white px-2.5 text-[11.5px] focus:outline-none focus:ring-2 focus:ring-emet-blue/30 disabled:opacity-50" />
-            {dirty && (
-              <button type="button" onClick={save} disabled={busy}
-                className="h-8 px-3 rounded-lg text-[11px] font-bold text-white bg-emet-blue disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0">
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Зберегти
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      {canEdit
+        ? <input value={val} onChange={e => setVal(e.target.value)} disabled={busy} maxLength={300}
+            placeholder="причина затримки…"
+            className="w-full min-w-0 h-9 rounded-lg border border-[rgba(6,42,61,0.15)] bg-white px-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-emet-blue/30 disabled:opacity-50" />
+        : <span />}
+      {canEdit && dirty
+        ? <button type="button" onClick={save} disabled={busy}
+            className="h-9 px-3 rounded-lg text-[11px] font-bold text-white bg-emet-blue disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0">
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}Зберегти
+          </button>
+        : <span />}
     </div>
   );
 }
