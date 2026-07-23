@@ -1,21 +1,19 @@
 /**
  * Ринкові сигнали Зведеного звіту РОП (market_signals) — список per період.
  * Секція 4.5 Регламенту. Server-side (service_role); доступ гейтить роут.
+ *
+ * Поля за регламентом (макет rop-report.html): текст сигналу · джерело · кому
+ * (→ CPO/CMO) · дедлайн. Пріоритет/статус НЕ використовуємо (migration 064).
  */
 import { supabase } from './supabase';
-
-export type SignalPriority = 'high' | 'medium' | 'low';
-export type SignalStatus = 'new' | 'in_progress' | 'closed';
 
 export interface MarketSignal {
   id: string;
   period: string;
   signal: string;
   source: string | null;
-  recipient: string | null;
-  deadline: string | null;   // 'YYYY-MM-DD'
-  priority: SignalPriority;
-  status: SignalStatus;
+  recipient: string | null;   // «кому» — адресат ескалації (→ CPO/CMO)
+  deadline: string | null;    // 'YYYY-MM-DD'
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -26,14 +24,12 @@ export interface SignalInput {
   source?: string | null;
   recipient?: string | null;
   deadline?: string | null;
-  priority?: SignalPriority;
-  status?: SignalStatus;
 }
 
-/** Усі сигнали за період (пріоритет desc, потім найновіші). */
+/** Усі сигнали за період (найновіші перші). */
 export async function listMarketSignals(period: string): Promise<MarketSignal[]> {
   const { data, error } = await supabase.from('market_signals')
-    .select('id,period,signal,source,recipient,deadline,priority,status,created_by,created_at,updated_at')
+    .select('id,period,signal,source,recipient,deadline,created_by,created_at,updated_at')
     .eq('period', period)
     .order('created_at', { ascending: false });
   if (error) throw new Error(`listMarketSignals: ${error.message}`);
@@ -48,8 +44,6 @@ export async function addMarketSignal(period: string, input: SignalInput, byLogi
     source: input.source ?? null,
     recipient: input.recipient ?? null,
     deadline: input.deadline || null,
-    priority: input.priority ?? 'medium',
-    status: input.status ?? 'new',
     created_by: byLogin,
   }]).select('*');
   if (error) throw new Error(`addMarketSignal: ${error.message}`);
@@ -61,7 +55,7 @@ export async function addMarketSignal(period: string, input: SignalInput, byLogi
 /** Оновити сигнал (часткове). */
 export async function updateMarketSignal(id: string, patch: Partial<SignalInput>): Promise<void> {
   const upd: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  for (const k of ['signal', 'source', 'recipient', 'deadline', 'priority', 'status'] as const) {
+  for (const k of ['signal', 'source', 'recipient', 'deadline'] as const) {
     if (patch[k] !== undefined) upd[k] = k === 'deadline' ? (patch[k] || null) : patch[k];
   }
   const { error } = await supabase.from('market_signals').update(upd).eq('id', id);

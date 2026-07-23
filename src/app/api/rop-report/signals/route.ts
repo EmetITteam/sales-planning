@@ -10,12 +10,8 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { canViewRopReport } from '@/lib/feature-flags';
 import {
-  addMarketSignal, updateMarketSignal, deleteMarketSignal,
-  type SignalInput, type SignalPriority, type SignalStatus,
+  addMarketSignal, updateMarketSignal, deleteMarketSignal, type SignalInput,
 } from '@/lib/market-signals-store';
-
-const PRIORITIES: SignalPriority[] = ['high', 'medium', 'low'];
-const STATUSES: SignalStatus[] = ['new', 'in_progress', 'closed'];
 
 async function guard(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -26,19 +22,15 @@ async function guard(request: NextRequest) {
   return { session };
 }
 
-/** Нормалізуємо вхідні поля сигналу (обрізаємо, валідуємо enum). */
+/** Нормалізуємо вхідні поля сигналу (обрізаємо). */
 function parseInput(body: Record<string, unknown>): SignalInput {
   const str = (v: unknown, max: number) => (v == null ? undefined : String(v).slice(0, max));
-  const priority = PRIORITIES.includes(body.priority as SignalPriority) ? (body.priority as SignalPriority) : undefined;
-  const status = STATUSES.includes(body.status as SignalStatus) ? (body.status as SignalStatus) : undefined;
   const deadline = body.deadline ? String(body.deadline).slice(0, 10) : null;
   return {
     signal: str(body.signal, 1000) ?? '',
     source: str(body.source, 300) ?? null,
     recipient: str(body.recipient, 300) ?? null,
     deadline: /^\d{4}-\d{2}-\d{2}$/.test(deadline ?? '') ? deadline : null,
-    priority,
-    status,
   };
 }
 
@@ -73,8 +65,6 @@ export async function PATCH(request: NextRequest) {
   if ('source' in body) patch.source = input.source;
   if ('recipient' in body) patch.recipient = input.recipient;
   if ('deadline' in body) patch.deadline = input.deadline;
-  if ('priority' in body && input.priority) patch.priority = input.priority;
-  if ('status' in body && input.status) patch.status = input.status;
   try {
     await updateMarketSignal(id, patch);
     return Response.json({ ok: true });
