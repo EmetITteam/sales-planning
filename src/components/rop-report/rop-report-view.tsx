@@ -86,7 +86,7 @@ function FinalizeBar({ data, canFinalize, refresh }: { data: RopReport; canFinal
   };
   const when = (() => { try { return data.finalization.finalizedAt ? new Date(data.finalization.finalizedAt).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''; } catch { return ''; } })();
   return (
-    <div className={`glass-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap ${finalized ? 'bg-emerald-50/50' : ''}`}>
+    <div className={`glass-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap sticky top-[56px] z-30 ${finalized ? 'bg-emerald-50/80' : 'bg-white/80'} backdrop-blur-md`}>
       {finalized ? (
         <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-700">
           <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Зведений звіт здано · {when}
