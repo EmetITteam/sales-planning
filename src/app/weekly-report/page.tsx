@@ -290,7 +290,6 @@ export default function WeeklyReportPage() {
   const prevFact = aggregate?.totalPrevMonthFact ?? 0;
   const pct1 = pctOf(totalFact, totalPlan);                                   // №1
   const pct3 = calcForecastPercent(totalFact, totalPlan, passedWD, totalWD);  // №3
-  const delta7 = totalFact - prevFact;                                        // №7 $(±)
 
   // === Розрив НА СЬОГОДНІ (а не за весь місяць) ===
   // Норма-на-дату = план × пройдені_роб.дні / усі_роб.дні. Розрив = норма − факт.
@@ -306,6 +305,12 @@ export default function WeeklyReportPage() {
       .reduce((s, c) => s + aggregatedPlan[c].plannedSumFinalized, 0);
   }, [aggregatedPlan]);
   const plannedPct = pctOf(plannedFinalized, totalPlan); // №4 регіону
+
+  // №7 Динаміка vs минулий місяць: ЗАПЛАНОВАНЕ (фінал.) цього місяця − ФАКТ
+  // минулого (та сама логіка, що у регіон-плануванні, brand-row.tsx). Forward-
+  // looking: «план цього місяця сильніший/слабший за минулий факт на $X».
+  // Fallback на поточний факт, якщо план ще не складено (plannedFinalized=0).
+  const delta7 = (plannedFinalized > 0 ? plannedFinalized : totalFact) - prevFact;
 
   // По брендах (№2 %+мітка): тільки сегменти з планом або фактом.
   // (без ручного useMemo — React Compiler мемоізує сам.)
