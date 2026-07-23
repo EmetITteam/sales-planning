@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     for (let from = 0; ; from += PAGE) {
       const res = await supabase
         .from('sales')
-        .select('brand,discount,client_code,sum_usd,is_gift')
+        .select('brand,discount,client_code,sum_usd,is_gift,doc_id')
         .eq('division', division)
         .gte('sale_date', b.from)
         .lt('sale_date', upper)

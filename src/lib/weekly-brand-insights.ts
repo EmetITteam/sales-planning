@@ -18,6 +18,7 @@ export interface InsightRow {
   client_code: string;
   sum_usd: number;
   is_gift?: boolean;  // подарунковий рядок ($0). Фокус часто стоїть саме на ньому.
+  doc_id?: string;    // документ — для «схлопування» $0-акцій з покупками того ж доку.
 }
 
 export interface PromoOut { name: string; clients: number; sum: number; pct: number }
@@ -81,10 +82,23 @@ function isRealPromo(discount: string): boolean {
  * @returns map SEGMENT-код → BrandInsight
  */
 export function aggregateBrandInsights(rows: InsightRow[]): Record<string, BrandInsight> {
-  // seg → { buyers:Set, focus:Set, focusSum, promo: Map<name,{cl:Set,sum}> }
-  interface Acc { buyers: Set<string>; focus: Set<string>; focusSum: number; promo: Map<string, { cl: Set<string>; sum: number }> }
+  // «СХЛОПУВАННЯ» (як Стратегія, promos.ts DocSums): $0 gift/free-рядок акції треба
+  // рахувати не по його нулю, а по РЕАЛЬНИХ покупках trigger-товару в ТОМУ Ж
+  // документі. Приклад: «4 продукта по цене 3-х» стоїть на безкоштовному 4-му
+  // товарі ($0), а 3 оплачені ($189) — під «VitaranCosm −10%» у тому ж doc.
+  // docSum: реальна сума покупок сегменту per документ (без подарунків).
+  const docSum = new Map<string, number>(); // `${doc_id}|${seg}` → сума
+  for (const r of rows) {
+    if (r.is_gift || r.brand === 'НЕ_МАПНУТО' || !r.doc_id) continue;
+    const k = `${r.doc_id}|${brandToSegment(r.brand)}`;
+    docSum.set(k, (docSum.get(k) ?? 0) + (Number(r.sum_usd) || 0));
+  }
+  const sumOfDocs = (docKeys: Set<string>) => { let s = 0; for (const k of docKeys) s += docSum.get(k) ?? 0; return s; };
+
+  // seg → набори клієнтів/документів (сума рахується через docSum наприкінці).
+  interface Acc { buyers: Set<string>; focus: Set<string>; focusDocs: Set<string>; promo: Map<string, { cl: Set<string>; docs: Set<string> }> }
   const acc: Record<string, Acc> = {};
-  const get = (seg: string): Acc => (acc[seg] ??= { buyers: new Set(), focus: new Set(), focusSum: 0, promo: new Map() });
+  const get = (seg: string): Acc => (acc[seg] ??= { buyers: new Set(), focus: new Set(), focusDocs: new Set(), promo: new Map() });
 
   for (const r of rows) {
     const d = (r.discount ?? '').trim();
@@ -93,24 +107,25 @@ export function aggregateBrandInsights(rows: InsightRow[]): Record<string, Brand
     // ФОКУС — атрибуція по бренду-ТРИГЕРУ поводу (як Стратегія: detectPromoTriggerBrand),
     // а НЕ по бренду товару рядка. Бо повод «Фокус: …PETARAN 2шт+Подарок VITARAN Tox Eye»
     // фізично стоїть на подарунковому Tox Eye ($0, brand=Vitaran) — але фокус це PETARAN.
-    // Тому включаємо і подарункові рядки (їх у промо/покупці НЕ рахуємо).
+    // Сума фокусу — теж по покупках trigger-сегменту у тих самих документах (docSum).
     if (isFocus) {
-      const fbrand = detectPromoTriggerBrand(d) ?? r.brand;
-      const fa = get(brandToSegment(fbrand));
+      const fseg = brandToSegment(detectPromoTriggerBrand(d) ?? r.brand);
+      const fa = get(fseg);
       fa.focus.add(r.client_code);
-      fa.focusSum += Number(r.sum_usd) || 0;
+      if (r.doc_id) fa.focusDocs.add(`${r.doc_id}|${fseg}`);
     }
 
     // ПОКУПКИ / ТОП-АКЦІЇ — лише реальні рядки (не подарунок, розпізнаний бренд).
     if (!r.is_gift && r.brand !== 'НЕ_МАПНУТО') {
-      const a = get(brandToSegment(r.brand));
+      const seg = brandToSegment(r.brand);
+      const a = get(seg);
       a.buyers.add(r.client_code);
       // Топ-акції — не-фокусні знижкові поводи (фокус рахується окремо, вище).
       if (!isFocus && isRealPromo(d)) {
         let p = a.promo.get(d);
-        if (!p) { p = { cl: new Set(), sum: 0 }; a.promo.set(d, p); }
+        if (!p) { p = { cl: new Set(), docs: new Set() }; a.promo.set(d, p); }
         p.cl.add(r.client_code);
-        p.sum += Number(r.sum_usd) || 0;
+        if (r.doc_id) p.docs.add(`${r.doc_id}|${seg}`);
       }
     }
   }
@@ -119,10 +134,10 @@ export function aggregateBrandInsights(rows: InsightRow[]): Record<string, Brand
   for (const [seg, a] of Object.entries(acc)) {
     const totalBuyers = a.buyers.size;
     const topPromos: PromoOut[] = [...a.promo.entries()]
-      .map(([name, v]) => ({ name, clients: v.cl.size, sum: Math.round(v.sum), pct: totalBuyers > 0 ? Math.round((v.cl.size / totalBuyers) * 1000) / 10 : 0 }))
+      .map(([name, v]) => ({ name, clients: v.cl.size, sum: Math.round(sumOfDocs(v.docs)), pct: totalBuyers > 0 ? Math.round((v.cl.size / totalBuyers) * 1000) / 10 : 0 }))
       .sort((x, y) => y.clients - x.clients)
       .slice(0, 3);
-    out[seg] = { totalBuyers, focusParticipants: 0, focusBought: a.focus.size, focusSum: Math.round(a.focusSum), topPromos };
+    out[seg] = { totalBuyers, focusParticipants: 0, focusBought: a.focus.size, focusSum: Math.round(sumOfDocs(a.focusDocs)), topPromos };
   }
   return out;
 }
