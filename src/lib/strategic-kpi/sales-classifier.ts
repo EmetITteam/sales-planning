@@ -33,7 +33,9 @@ export const BRAND_RULES: Array<[string, RegExp]> = [
   ['Neuronox', /Neuronox|Ботулотоксин/i],
   ['Petaran', /PETARAN/i],
   ['Ellanse', /ELLANSE/i],
-  ['Vitaran', /HP\s*CELL\s*VITARAN|VITARAN\s*(?:i\b|Tox|Whitening|Cosm|а\s*ассор)/i],
+  // VITARAN Cosmetics (Cosm) — це група «Інші ТМ» у 1С (Exosome/Centella), НЕ
+  // ін'єкційний Vitaran. Тому `Cosm` тут НЕ ловимо (див. правило 'Інші ТМ' нижче).
+  ['Vitaran', /HP\s*CELL\s*VITARAN|VITARAN\s*(?:i\b|Tox|Whitening|а\s*ассор)/i],
   ['EXOXE', /\bEXOXE\b(?!-)/i],
   ['Neuramis', /NEURAMIS/i],
   ['IUSE SB', /IUSE.*Skin\s*Booster|Skin\s*Booster/i],
@@ -41,6 +43,12 @@ export const BRAND_RULES: Array<[string, RegExp]> = [
   ['IUSE Coll.', /IUSE.*Collagen|Marine\s*Collagen/i],
   ['ESSE', /\.?ESSE\b|C5\.ESSE|SkinTrial|Skin\s*Trial|Gift\s*set\s*2026|ESSE\s*(?:Gel|Cream|Serum|Emulsion|Tonic|Cleanser|Skin|Dry|Set|Bakuchiol|Biome|Concealer|tube|Sensitive)/i],
   ['БАД', /MAGNOX|Дієтична\s*добавк|Диетическая\s*добавк|БАД/i],
+  // Бренд «Vitaran Cosmetics» = група «01. VITARAN Cosmetics» у 1С-номенклатурі:
+  // Exosome-PDRN (Azulene/Dual/NMN/Triple One) + PURE CENTELLA. Це ОКРЕМИЙ бренд
+  // (НЕ ін'єкційний Vitaran). Сегмент для відображення — «Інші ТМ» (OTHER), разом
+  // з брендом БАД. У STRATEGIC_BRANDS «Vitaran Cosmetics» НЕМА → у Стратегію не
+  // потрапляє (а БАД — потрапляє, він у списку).
+  ['Vitaran Cosmetics', /Exosome-PDRN|PURE\s*CENTELLA/i],
 ];
 
 export function detectBrand(product: string): string | null {
@@ -50,10 +58,10 @@ export function detectBrand(product: string): string | null {
   return null;
 }
 
-// Товари яких повністю ІГНОРУЄМО (розхідники, косметика без бренду).
+// Товари яких повністю ІГНОРУЄМО (розхідники, консумативи, тестери).
+// ⚠️ Exosome-PDRN / PURE CENTELLA БІЛЬШЕ НЕ тут — це реальні товари бренду
+// «Vitaran Cosmetics» (сегмент «Інші ТМ»), класифікуються вище у BRAND_RULES.
 const IGNORE_PATTERNS: RegExp[] = [
-  /Exosome-PDRN/i,
-  /PURE\s*CENTELLA/i,
   /Холодоагент/i,
   /Канюл/i,
   /\bГолк\b|Screw\s*Needles/i,

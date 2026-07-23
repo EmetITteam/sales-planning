@@ -57,7 +57,11 @@ export function brandToSegment(brand: string): string {
     case 'IUSE SB':
     case 'IUSE hair':
     case 'IUSE Coll.': return 'IUSE';
-    default: return 'OTHER'; // БАД та інше
+    // Сегмент «Інші ТМ» (OTHER) = бренди «Vitaran Cosmetics» (Exosome/Centella)
+    // + «БАД» (Магнокс). Обидва рол-апляться в один сегмент відображення.
+    case 'Vitaran Cosmetics':
+    case 'БАД': return 'OTHER';
+    default: return 'OTHER'; // інше нерозпізнане
   }
 }
 

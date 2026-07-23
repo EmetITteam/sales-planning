@@ -43,6 +43,18 @@ test('detectBrand — ESSE / БАД / EXOXE', () => {
   assert.equal(detectBrand('EXOXE 2ml'), 'EXOXE');
 });
 
+test('detectBrand — Vitaran Cosmetics (Exosome/Centella), НЕ ignored і НЕ Vitaran', () => {
+  // Група «01. VITARAN Cosmetics» у 1С = бренд «Vitaran Cosmetics», сегмент «Інші ТМ».
+  assert.equal(detectBrand('Exosome-PDRN Azulene Serum, 50ml'), 'Vitaran Cosmetics');
+  assert.equal(detectBrand('Exosome-PDRN NMN Cream, 50ml'), 'Vitaran Cosmetics');
+  assert.equal(detectBrand('PURE CENTELLA MADE CREAM / 30 g'), 'Vitaran Cosmetics');
+  // Ін'єкційний Vitaran лишається окремо.
+  assert.equal(detectBrand('HP CELL VITARAN i'), 'Vitaran');
+  // Більше не ігноруються (це реальні товари, не консумативи).
+  assert.equal(isIgnoredProduct('Exosome-PDRN Azulene Serum'), false);
+  assert.equal(isIgnoredProduct('PURE CENTELLA MADE CREAM'), false);
+});
+
 test('detectBrand — невідомий товар → null', () => {
   assert.equal(detectBrand('Канюля 25G 50mm'), null);
   assert.equal(detectBrand('Якийсь невідомий товар'), null);
