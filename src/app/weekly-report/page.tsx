@@ -23,6 +23,7 @@ import { useAppStore } from '@/lib/store';
 import { AppHeader } from '@/components/layout/app-header';
 import { PeriodFilter } from '@/components/layout/period-filter';
 import { MetricCard } from '@/components/dashboard/metric-card';
+import { SectionHeader } from '@/components/ui/section-header';
 import { useOneCData } from '@/lib/use-onec-data';
 import { adaptRegionData, mapSegmentCode } from '@/lib/onec-adapters';
 import { aggregateRegion, aggregateManagers } from '@/lib/region-aggregates';
@@ -146,6 +147,12 @@ export default function WeeklyReportPage() {
 
   // Регіон за замовчуванням — Дніпро (якщо доступний), інакше перший дозволений.
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  // Пред-вибір регіону з ?region=CODE (перехід зі Зведеного звіту РОП по кліку на
+  // назву регіону). Клієнтський read window.location — без useSearchParams/Suspense.
+  useEffect(() => {
+    const r = new URLSearchParams(window.location.search).get('region');
+    if (r) setSelectedCode(r);
+  }, []);
   const defaultCode = useMemo(() => {
     const d = regions.find(r => /дніпро|днепр/i.test(r.regionName));
     return d?.regionCode ?? regions[0]?.regionCode ?? null;
@@ -205,9 +212,10 @@ export default function WeeklyReportPage() {
     [region],
   );
 
-  // Інсайти по брендах (топ-3 акції + купили по фокусу) — скоуп по ростеру
-  // регіону (allLogins), той самий, що воронка категорій → числа збігаються.
-  const { insights: brandInsights } = useBrandInsights(effectiveCode, allLogins, periodKey, asOfIso);
+  // Інсайти по брендах (топ-3 акції + купили по фокусу) — ФАКТ по ПІДРОЗДІЛУ
+  // (region.regionName → division). Резерв НЕ прибираємо (це факт). allLogins —
+  // лише для планової к-сті фокус-учасників (focus_participants).
+  const { insights: brandInsights } = useBrandInsights(effectiveCode, region?.regionName ?? null, allLogins, periodKey, asOfIso);
 
   const { data: planAgg } = usePlanningAggregate(
     currentPeriod.id,
@@ -470,13 +478,11 @@ export default function WeeklyReportPage() {
 
             {/* №2 По брендах: % + мітка */}
             <div className="glass-card overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[13px] font-bold">По брендах · % + мітка</h2>
-                  <span className="text-[11px] text-muted-foreground">{brandRows.length} брендів</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Під брендом — клієнти по категоріях: <b>заплановано → купили</b>.</p>
-              </div>
+              <SectionHeader
+                title="По брендах · % + мітка"
+                hint={`${brandRows.length} брендів`}
+                desc={<>Під брендом — клієнти по категоріях: <b>заплановано → купили</b>.</>}
+              />
               <div className="bg-slate-100 p-3 md:p-4 space-y-5">
                 {brandRows.map(b => (
                   <WeeklyBrandCard
@@ -496,10 +502,10 @@ export default function WeeklyReportPage() {
 
             {/* №6 Розріз по менеджерах (розрив = тригер подвійних візитів) */}
             <div className="glass-card overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[#e2e7ef]">
-                <h2 className="text-[13px] font-bold">Розріз по менеджерах · розрив = тригер подвійних візитів</h2>
-                <p className="text-[11px] text-muted-foreground mt-0.5">«Розрив зараз» = норма на дату ({Math.round(pace * 100)}% плану) − факт. «в плані» = факт ≥ норми.</p>
-              </div>
+              <SectionHeader
+                title="Розріз по менеджерах · розрив = тригер подвійних візитів"
+                desc={<>«Розрив зараз» = норма на дату ({Math.round(pace * 100)}% плану) − факт. «в плані» = факт ≥ норми.</>}
+              />
               <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_80px_1fr] gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-[#f0f2f8]">
                 <span>Менеджер</span><span className="text-right">План міс.</span><span className="text-right">Факт</span><span className="text-right">%</span><span className="text-right">Розрив зараз</span>
               </div>

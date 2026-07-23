@@ -1,0 +1,63 @@
+'use client';
+
+/**
+ * /rop-report — Зведений звіт РОП → CSO/CMO (Лист 4). Усі 8 представництв.
+ * Доступ: РОП/CSO/strategic/admin (canViewRopReport). РМ — редирект на '/'
+ * (плюс серверний 403 у /api/rop-report).
+ */
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Download } from 'lucide-react';
+import { AppHeader } from '@/components/layout/app-header';
+import { PeriodFilter } from '@/components/layout/period-filter';
+import { useAppStore } from '@/lib/store';
+import { canViewRopReport } from '@/lib/feature-flags';
+import { REPORT_RECIPIENT } from '@/lib/rop-report-config';
+import { useRopReport } from '@/lib/use-rop-report';
+import { RopReportView } from '@/components/rop-report/rop-report-view';
+
+export default function RopReportPage() {
+  const router = useRouter();
+  const user = useAppStore(s => s.user);
+  const currentPeriod = useAppStore(s => s.currentPeriod);
+  const allowed = canViewRopReport(user);
+  useEffect(() => { if (user && !allowed) router.replace('/'); }, [user, allowed, router]);
+
+  // Той самий фільтр періоду/тижня, що звіт РМ і планування (стор currentPeriod).
+  const period = currentPeriod.month.slice(0, 7);
+  const week = currentPeriod.weekEnd;
+  const { data, loading, error } = useRopReport(allowed ? period : null, week);
+
+  if (!user || !allowed) return null;
+
+  return (
+    <>
+      <AppHeader />
+      <main className="p-4 md:p-6 max-w-6xl mx-auto w-full min-w-0 space-y-4">
+        {/* Шапка */}
+        <div className="flex items-end justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-emet-blue">Нарада відділу продажів</div>
+            <h1 className="text-[22px] md:text-[26px] font-extrabold tracking-tight leading-tight">Зведений звіт РОП → {REPORT_RECIPIENT}</h1>
+            <p className="text-[12px] text-muted-foreground mt-0.5">
+              {data ? <>дата звіту <b>нд {data.week.slice(8)}.{data.week.slice(5, 7)}</b> · наростаючим підсумком · подання <b>щовівторка до 10:00</b></> : 'завантаження…'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <PeriodFilter />
+            <button type="button" disabled title="у розробці"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-bold text-white bg-emet-blue opacity-40 cursor-not-allowed">
+              <Download className="h-3.5 w-3.5" />Експорт .xlsx
+            </button>
+          </div>
+        </div>
+
+        {/* Контент */}
+        {loading && !data && <div className="glass-card p-10 text-center text-[13px] text-muted-foreground">Збираю звіт по 8 представництвах…</div>}
+        {error && !data && <div className="glass-card p-8 text-center text-[13px] text-rose-600">Не вдалося завантажити звіт: {error}</div>}
+        {data && data.regions.length === 0 && !loading && <div className="glass-card p-10 text-center text-[13px] text-muted-foreground">немає даних за період</div>}
+        {data && data.regions.length > 0 && <RopReportView data={data} />}
+      </main>
+    </>
+  );
+}

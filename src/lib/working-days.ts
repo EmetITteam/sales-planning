@@ -45,12 +45,50 @@ function isHoliday(d: Date): boolean {
   return holidays ? holidays.has(dateKey(d)) : false;
 }
 
+/**
+ * Чи заповнені свята для року. Реальний рік України ЗАВЖДИ має свята (мінімум
+ * 24.08 День Незалежності + 25.12 Різдво), тому ПОРОЖНІЙ або ВІДСУТНІЙ набір =
+ * «не заповнено» (напр. 2027 — placeholder). Використовується щоб не рахувати
+ * робочі дні мовчки лише як пн-пт, коли свята ще не внесені.
+ */
+export function isHolidayYearConfigured(year: number): boolean {
+  const set = HOLIDAYS_BY_YEAR[year];
+  return !!set && set.size > 0;
+}
+
+/**
+ * Guard: кидає помилку, якщо свята року не заповнені. Викликати ПЕРЕД
+ * розрахунками, де неточність критична (дедлайни звіту РОП «16:00 4-го роб.
+ * дня»). Без цього рік без свят дав би НЕПРАВИЛЬНИЙ дедлайн (лише пн-пт).
+ */
+export function assertHolidaysConfigured(year: number): void {
+  if (!isHolidayYearConfigured(year)) {
+    throw new Error(
+      `working-days: свята ${year} не заповнені у HOLIDAYS_BY_YEAR — розрахунок ` +
+      `робочих днів був би неточним (лише пн-пт). Внесіть свята ${year} перед використанням.`,
+    );
+  }
+}
+
+// Warn ОДИН раз на рік у розрахункових функціях — щоб «мовчазний» пн-пт-режим
+// був видимий у логах, але не ламав дашборди (на відміну від assert-guard).
+const warnedYears = new Set<number>();
+function warnIfHolidaysMissing(year: number): void {
+  if (isHolidayYearConfigured(year) || warnedYears.has(year)) return;
+  warnedYears.add(year);
+  console.warn(
+    `[working-days] свята ${year} не заповнені — робочі дні рахуються лише як ` +
+    `пн-пт (без свят). Заповніть HOLIDAYS_BY_YEAR[${year}].`,
+  );
+}
+
 export function isWorkingDay(d: Date): boolean {
   return !isWeekend(d) && !isHoliday(d);
 }
 
 /** Кількість робочих днів у місяці. month: 0-11 (як у Date) */
 export function getWorkingDaysInMonth(year: number, month: number): number {
+  warnIfHolidaysMissing(year);
   const lastDay = new Date(year, month + 1, 0).getDate();
   let count = 0;
   for (let day = 1; day <= lastDay; day++) {
@@ -65,6 +103,7 @@ export function getWorkingDaysInMonth(year: number, month: number): number {
  * Якщо asOfDate > останнього числа місяця — повертає всі робочі дні місяця.
  */
 export function getPassedWorkingDays(year: number, month: number, asOfDate: Date): number {
+  warnIfHolidaysMissing(year);
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 0);
   if (asOfDate < monthStart) return 0;
@@ -83,6 +122,7 @@ export function getPassedWorkingDays(year: number, month: number, asOfDate: Date
  * Використовується для порівняння з минулим місяцем на той же N-й робочий день.
  */
 export function getNthWorkingDay(year: number, month: number, n: number): Date {
+  warnIfHolidaysMissing(year);
   const lastDay = new Date(year, month + 1, 0).getDate();
   let count = 0;
   let lastWorkingDay = new Date(year, month, 1);

@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { WeeklyNotesApi } from '@/lib/use-weekly-notes';
 import type { BrandInsight, PromoOut } from '@/lib/weekly-brand-insights';
 import { pctOf, formatUSD, formatPct } from '@/lib/format';
+import { PerfBadge } from '@/components/ui/perf-badge';
+import { StatChip } from '@/components/ui/stat-chip';
 
 export interface BrandRow {
   code: string;
@@ -46,12 +48,6 @@ interface Props {
 /** Колір % — за планом бренду: у плані (темп ≥100) зелений, інакше червоний. */
 function planColor(forecastPct: number): string {
   return forecastPct >= 100 ? 'text-emerald-600' : 'text-rose-600';
-}
-/** Бейдж статусу за прогнозом-темпом: ≥100 В ПЛАНІ · 80–99 РИЗИК · <80 ВІДСТАВАННЯ. */
-function statusBadge(forecastPct: number): { label: string; cls: string } {
-  if (forecastPct >= 100) return { label: 'В ПЛАНІ', cls: 'bg-emerald-500/12 border-emerald-300/50 text-emerald-700' };
-  if (forecastPct >= 80) return { label: 'РИЗИК', cls: 'bg-amber-500/12 border-amber-300/50 text-amber-700' };
-  return { label: 'ВІДСТАВАННЯ', cls: 'bg-rose-500/12 border-rose-300/50 text-rose-700' };
 }
 function Amt({ children }: { children: React.ReactNode }) {
   return <span className="amount">{children}</span>;
@@ -85,7 +81,6 @@ export function WeeklyBrandCard({ b, cats, pace, planSeg, notes, prevNotes, prev
 
 // ── Зона 1: ШАПКА ─────────────────────────────────────────────────────────────
 function BrandCardHeader({ b, brandBuyers, prevWeekPct }: { b: BrandRow; brandBuyers: number; prevWeekPct?: number }) {
-  const badge = statusBadge(b.forecastPct);
   return (
     <div className="px-4 pt-3 pb-1.5 flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
       <div className="min-w-0">
@@ -101,7 +96,7 @@ function BrandCardHeader({ b, brandBuyers, prevWeekPct }: { b: BrandRow; brandBu
           <StatCol label="Викон.">
             <span className="flex items-center gap-2">
               <span className={`font-bold tabular-nums text-[16px] md:text-[18px] leading-none ${planColor(b.forecastPct)}`}>{formatPct(b.pct)}</span>
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
+              <PerfBadge forecastPct={b.forecastPct} />
             </span>
           </StatCol>
         </div>
@@ -145,9 +140,9 @@ function BrandCardMetrics({ b, cats, plannedSum, expectedPct, insight }: {
     <div className="px-4 pb-2.5 space-y-1.5 text-[10.5px] text-muted-foreground">
       {/* Ряд 1 — метрики-чіпи */}
       <div className="flex flex-wrap items-center gap-1.5">
-        <Chip dot="amber">Прогноз (темп) <b className="text-amber-600">{formatPct(b.forecastPct)}</b></Chip>
-        {b.plan > 0 && <Chip dot="blue">Заплановано <b className="text-emet-blue">{formatPct(expectedPct)}</b> · <Amt><span className="font-semibold text-foreground/70">{formatUSD(plannedSum)}</span></Amt></Chip>}
-        <Chip>Мин. міс. <Amt><span className="font-semibold text-foreground/70">{formatUSD(b.prevFact)}</span></Amt> / {b.prevPct.toFixed(1)}%</Chip>
+        <StatChip dot="amber">Прогноз (темп) <b className="text-amber-600">{formatPct(b.forecastPct)}</b></StatChip>
+        {b.plan > 0 && <StatChip dot="blue">Заплановано <b className="text-emet-blue">{formatPct(expectedPct)}</b> · <Amt><span className="font-semibold text-foreground/70">{formatUSD(plannedSum)}</span></Amt></StatChip>}
+        <StatChip>Мин. міс. <Amt><span className="font-semibold text-foreground/70">{formatUSD(b.prevFact)}</span></Amt> / {b.prevPct.toFixed(1)}%</StatChip>
       </div>
 
       {/* Ряд 2 — воронка клієнтів (міні-бари) */}
@@ -173,16 +168,6 @@ function BrandCardMetrics({ b, cats, plannedSum, expectedPct, insight }: {
         </div>
       )}
     </div>
-  );
-}
-
-function Chip({ dot, children }: { dot?: 'amber' | 'blue'; children: React.ReactNode }) {
-  const dotCls = dot === 'amber' ? 'bg-amber-500' : dot === 'blue' ? 'bg-emet-blue' : '';
-  return (
-    <span className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-[#f5f7fb] border border-[#e8ecf5]">
-      {dot && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotCls}`} />}
-      <span>{children}</span>
-    </span>
   );
 }
 
