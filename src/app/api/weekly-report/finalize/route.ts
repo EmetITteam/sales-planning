@@ -14,8 +14,10 @@
  */
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/session';
+import { supabase } from '@/lib/supabase';
 import { allowedForRegion, seesAllReports } from '@/lib/weekly-report-access';
 import { finalizeReport, unfinalizeReport, getReportStatus, listWeekStatuses } from '@/lib/weekly-report-status-store';
+import { ROP_NOTIFY_LOGIN } from '@/lib/feature-flags';
 
 interface Body { region_code?: string; week_key?: string }
 
@@ -58,6 +60,19 @@ export async function POST(request: NextRequest) {
   if (!(await allowedForRegion(session, region))) return Response.json({ error: 'Forbidden' }, { status: 403 });
   try {
     const status = await finalizeReport(region, week, session.login);
+    // Нотіф РОПу (Мигашко) у колокольчик — «РМ здав тижневий звіт регіону».
+    try {
+      await supabase.from('notifications').insert([{
+        user_login: ROP_NOTIFY_LOGIN,
+        type: 'weekly_report_finalized',
+        title: `РМ здав тижневий звіт · ${region}`,
+        message: `Регіон ${region} фіналізував тижневий звіт за ${week}.`,
+        link: `/weekly-report?region=${region}`,
+        meta: { region, week, by: session.login },
+      }]);
+    } catch (e) {
+      console.warn('[weekly-report/finalize] notification insert failed:', (e as Error).message);
+    }
     return Response.json({ status });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 500 });

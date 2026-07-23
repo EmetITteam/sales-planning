@@ -17,6 +17,8 @@ export const NOTIFICATION_TYPES = [
   'client_clarification', // КЦ запитує уточнення (стадія «На уточненні»)
   'plan_director_comment', // Коментар директора по продажах до плану менеджера (по бренду)
   'plan_comment_resolved', // Менеджер позначив коментар директора «Виконано»
+  'weekly_report_finalized', // РМ здав тижневий звіт регіону → РОПу
+  'rop_report_finalized', // РОП здав зведений звіт → CSO і CMO
   'system', // Системне повідомлення від адміна
 ] as const;
 

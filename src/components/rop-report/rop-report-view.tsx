@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSWRConfig } from 'swr';
 import { useRouter } from 'next/navigation';
-import { Loader2, Check, ChevronDown, X, Minus, Inbox, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Loader2, Check, CheckCircle2, ChevronDown, X, Minus, Inbox, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PerfBadge } from '@/components/ui/perf-badge';
@@ -50,17 +50,62 @@ function mgrWord(n: number): string {
 // базовій лінії; висота картки плаває по контенту (1-2 ряди чипів — не фіксована).
 const COLS = 'grid grid-cols-[190px_60px_120px_minmax(0,1fr)_200px_24px] items-start gap-3';
 
-export function RopReportView({ data }: { data: RopReport }) {
+export function RopReportView({ data, canFinalize }: { data: RopReport; canFinalize: boolean }) {
+  const { mutate } = useSWRConfig();
+  const refresh = () => mutate((k: unknown) => typeof k === 'string' && k.startsWith('rop-report|'));
+  const finalized = !!data.finalization.finalizedAt;
   return (
     <div className="space-y-4">
+      <FinalizeBar data={data} canFinalize={canFinalize} refresh={refresh} />
       <Hero data={data} />
       <Summary data={data} />
       <RedZones data={data} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         <Promises data={data} />
-        <Planning data={data} />
+        <Planning data={data} finalized={finalized} />
       </div>
-      <MarketSignals data={data} />
+      <MarketSignals data={data} finalized={finalized} />
+    </div>
+  );
+}
+
+// ── Панель фіналізації (здати зведений звіт / пере-відкрити) ──────────────────
+function FinalizeBar({ data, canFinalize, refresh }: { data: RopReport; canFinalize: boolean; refresh: () => void }) {
+  const finalized = !!data.finalization.finalizedAt;
+  const [busy, setBusy] = useState(false);
+  const act = async (method: 'POST' | 'DELETE') => {
+    if (method === 'DELETE' && !confirm('Пере-відкрити звіт цього тижня для редагування?')) return;
+    setBusy(true);
+    try {
+      await fetch('/api/rop-report/finalize', {
+        method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ period: data.period, week: data.week }),
+      });
+      refresh();
+    } finally { setBusy(false); }
+  };
+  const when = (() => { try { return data.finalization.finalizedAt ? new Date(data.finalization.finalizedAt).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''; } catch { return ''; } })();
+  return (
+    <div className={`glass-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap ${finalized ? 'bg-emerald-50/50' : ''}`}>
+      {finalized ? (
+        <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Зведений звіт здано · {when}
+          <span className="text-[11px] font-normal text-muted-foreground">{data.finalization.finalizedBy}</span>
+        </span>
+      ) : (
+        <span className="text-[13px] text-muted-foreground">Звіт за тиждень <b className="text-foreground/80">{data.week}</b> ще не здано.</span>
+      )}
+      {canFinalize && (finalized ? (
+        <button type="button" onClick={() => act('DELETE')} disabled={busy}
+          className="h-8 px-3 rounded-lg text-[12px] font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 shrink-0">
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin inline" /> : 'Пере-відкрити'}
+        </button>
+      ) : (
+        <button type="button" onClick={() => act('POST')} disabled={busy}
+          className="h-8 px-4 rounded-lg text-[12px] font-bold text-white bg-emet-blue disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Здати зведений звіт
+        </button>
+      ))}
     </div>
   );
 }
@@ -420,7 +465,7 @@ const planChip: Record<string, { cls: string; label: string }> = {
   not_started: { cls: 'bg-slate-100 text-slate-500 border-slate-200', label: 'не розпочато' },
 };
 
-function Planning({ data }: { data: RopReport }) {
+function Planning({ data, finalized }: { data: RopReport; finalized: boolean }) {
   const inTime = data.regions.filter(r => r.plan.inTime).length;
   return (
     <div className="glass-card overflow-hidden h-full">
@@ -429,27 +474,27 @@ function Planning({ data }: { data: RopReport }) {
         ? <EmptyState icon={Inbox} text="немає регіонів для планування за період" />
         : <>
             <div className="px-4 pt-3 pb-2 text-[11.5px] text-muted-foreground">{inTime} із {data.regions.length} регіонів узгодили план у термін.</div>
-            <div className="bg-slate-50/60 p-3 space-y-2">{data.regions.map(r => <PlanRow key={r.code} period={data.period} r={r} />)}</div>
+            <div className="bg-slate-50/60 p-3 space-y-2">{data.regions.map(r => <PlanRow key={r.code} period={data.period} week={data.week} r={r} finalized={finalized} />)}</div>
           </>}
     </div>
   );
 }
 
-function PlanRow({ period, r }: { period: string; r: RopRegionRow }) {
+function PlanRow({ period, week, r, finalized }: { period: string; week: string; r: RopRegionRow; finalized: boolean }) {
   const c = planChip[r.plan.state];
   const [val, setVal] = useState(r.plan.lateReason ?? '');
   const [busy, setBusy] = useState(false);
   const [savedVal, setSavedVal] = useState(r.plan.lateReason ?? '');
   const dirty = val.trim() !== savedVal.trim();
   // Поле «причина затримки» — лише для проблемних рядків (late/draft), не для
-  // «в термін» і не для «не розпочато» (там причини затримки ще нема).
-  const canEdit = r.plan.state !== 'in_time' && r.plan.state !== 'not_started';
+  // «в термін»/«не розпочато», і НЕ коли звіт тижня фіналізовано (лок).
+  const canEdit = !finalized && r.plan.state !== 'in_time' && r.plan.state !== 'not_started';
   const save = async () => {
     setBusy(true);
     try {
       const res = await fetch('/api/rop-report/late-reason', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-        body: JSON.stringify({ period, regionCode: r.code, reason: val.trim() }),
+        body: JSON.stringify({ period, week, regionCode: r.code, reason: val.trim() }),
       });
       if (res.ok) setSavedVal(val.trim());
     } finally { setBusy(false); }
@@ -487,7 +532,7 @@ const MARKET_FIELDS: Array<{ key: 'failures' | 'drivers' | 'other'; label: strin
     placeholder: 'Вказати важливу інформацію ринку отриману від регіону (дії конкурента, зміна попиту, дефіцит у конкурента, новинка у конкурента, тощо).' },
 ];
 
-function MarketSignals({ data }: { data: RopReport }) {
+function MarketSignals({ data, finalized }: { data: RopReport; finalized: boolean }) {
   const { mutate } = useSWRConfig();
   const refresh = () => mutate((k: unknown) => typeof k === 'string' && k.startsWith('rop-report|'));
   return (
@@ -495,29 +540,30 @@ function MarketSignals({ data }: { data: RopReport }) {
       <SectionHeader no="4.5" title="Ринкові сигнали" />
       <div className="p-4 space-y-4">
         {MARKET_FIELDS.map(f => (
-          <MarketNoteField key={f.key} period={data.period} field={f.key} label={f.label}
-            placeholder={f.placeholder} value={data.marketNotes[f.key]} onSaved={refresh} />
+          <MarketNoteField key={f.key} period={data.period} week={data.week} field={f.key} label={f.label}
+            placeholder={f.placeholder} value={data.marketNotes[f.key]} finalized={finalized} onSaved={refresh} />
         ))}
       </div>
     </div>
   );
 }
 
-/** Одне текстове поле 4.5 (лейбл + textarea з підказкою + Зберегти при зміні). */
-function MarketNoteField({ period, field, label, placeholder, value, onSaved }: {
-  period: string; field: string; label: string; placeholder: string; value: string; onSaved: () => void;
+/** Одне текстове поле 4.5 (лейбл + textarea з підказкою + Зберегти при зміні).
+ *  Коли звіт тижня фіналізовано — read-only (лок). */
+function MarketNoteField({ period, week, field, label, placeholder, value, finalized, onSaved }: {
+  period: string; week: string; field: string; label: string; placeholder: string; value: string; finalized: boolean; onSaved: () => void;
 }) {
   const [text, setText] = useState(value);
   const [saved, setSaved] = useState(value);
   const [busy, setBusy] = useState(false);
   useEffect(() => { setText(value); setSaved(value); }, [value]);
-  const dirty = text.trim() !== saved.trim();
+  const dirty = !finalized && text.trim() !== saved.trim();
   const save = async () => {
     setBusy(true);
     try {
       const res = await fetch('/api/rop-report/signals', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-        body: JSON.stringify({ period, field, note: text.trim() }),
+        body: JSON.stringify({ period, week, field, note: text.trim() }),
       });
       if (res.ok) { setSaved(text.trim()); onSaved(); }
     } finally { setBusy(false); }
@@ -534,8 +580,8 @@ function MarketNoteField({ period, field, label, placeholder, value, onSaved }: 
         )}
       </div>
       <textarea value={text} onChange={e => setText(e.target.value)} rows={3} maxLength={4000}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-[rgba(6,42,61,0.15)] bg-white px-3 py-2.5 text-[13px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30 placeholder:text-slate-400" />
+        placeholder={placeholder} readOnly={finalized}
+        className={`w-full rounded-xl border border-[rgba(6,42,61,0.15)] px-3 py-2.5 text-[13px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-emet-blue/30 placeholder:text-slate-400 ${finalized ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`} />
     </div>
   );
 }

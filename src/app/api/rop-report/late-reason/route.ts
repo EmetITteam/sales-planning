@@ -8,6 +8,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { canViewRopReport } from '@/lib/feature-flags';
 import { upsertLateReason } from '@/lib/rop-report-meta-store';
+import { isRopWeekFinalized } from '@/lib/rop-report-finalization-store';
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -19,10 +20,15 @@ export async function POST(request: NextRequest) {
   let body;
   try { body = await request.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const period = String(body?.period ?? '');
+  const week = String(body?.week ?? '');
   const regionCode = String(body?.regionCode ?? '');
   const reason = String(body?.reason ?? '').slice(0, 300);
   if (!/^\d{4}-\d{2}$/.test(period) || !regionCode) {
     return Response.json({ error: 'period (YYYY-MM) + regionCode required' }, { status: 400 });
+  }
+  // Лок: тиждень фіналізовано → редагування заборонено.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(week) && await isRopWeekFinalized(period, week)) {
+    return Response.json({ error: 'Звіт цього тижня фіналізовано — редагування заблоковано.' }, { status: 423 });
   }
   try {
     await upsertLateReason(period, regionCode, reason, session.login);

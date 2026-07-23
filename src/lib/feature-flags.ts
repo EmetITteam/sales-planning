@@ -237,6 +237,21 @@ export function canViewRopReport(user: { login: string; role: string } | null | 
   return ROP_LOGINS.includes(l); // Мігашко (headofsd) — окремо, якщо роль не director
 }
 
+// ── Адресати нотифікацій звіту РОП ────────────────────────────────────────────
+export const CSO_LOGIN = DIRECTOR_PROXY_LOGIN;   // sdu@emet.in.ua — Директор продажу (CSO)
+export const CMO_LOGIN = 'cmo@emet.in.ua';       // маркетинг-директор (CMO)
+export const ROP_NOTIFY_LOGIN = 'headofsd@emet.in.ua'; // Мігашко (РОП) — отримує нотіф від РМ
+
+/**
+ * Хто може ФІНАЛІЗУВАТИ (здати/пере-відкрити) Зведений звіт РОП: сам РОП
+ * (headofsd) + admin. Директори/страт лише переглядають і ОТРИМУЮТЬ його.
+ */
+export function canFinalizeRopReport(user: { login: string; role: string } | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  return ROP_LOGINS.includes(user.login.toLowerCase().trim());
+}
+
 /**
  * Хто бачить «Тижневий звіт»: директор/admin/страт/огляд — усі регіони; РМ —
  * свій; менеджер з активним грантом — регіон гранту. Звичайний менеджер — ні.

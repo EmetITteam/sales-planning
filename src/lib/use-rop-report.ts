@@ -66,6 +66,7 @@ export interface RopReport {
     promises: Array<{ brand: string; promiseText: string; done: boolean | null; reason: string | null }>;
   }>;
   marketNotes: RopMarketNotes;     // 4.5 (3 поля: failures/drivers/other)
+  finalization: { finalizedAt: string | null; finalizedBy: string | null };
   meta: Record<string, unknown>;
 }
 

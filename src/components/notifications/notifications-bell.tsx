@@ -240,6 +240,8 @@ const TONE_BY_TYPE: Record<string, { dot: string }> = {
   client_rejected: { dot: 'bg-rose-500' },
   client_clarification: { dot: 'bg-amber-500' },
   plan_director_comment: { dot: 'bg-amber-600' },
+  weekly_report_finalized: { dot: 'bg-emet-blue' },
+  rop_report_finalized: { dot: 'bg-emerald-500' },
   system: { dot: 'bg-slate-500' },
 };
 

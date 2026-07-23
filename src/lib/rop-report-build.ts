@@ -24,6 +24,7 @@ import { readWeekNotes, type WeeklyNote } from '@/lib/weekly-notes-store';
 import { listWeekStatuses } from '@/lib/weekly-report-status-store';
 import { readRopMeta } from '@/lib/rop-report-meta-store';
 import { readRopMarketNotes } from '@/lib/rop-market-notes-store';
+import { readRopFinalization } from '@/lib/rop-report-finalization-store';
 import type { RopReport } from '@/lib/use-rop-report';
 
 /** Latest-версія замітки (append-only): notes DESC by created_at → перша виграє. */
@@ -79,12 +80,13 @@ export async function buildRopReport(
   const deadline = computeRopDeadline(period);
 
   // ── замітки цього + минулого тижня (по всіх регіонах, 2 запити) ──
-  const [thisNotes, prevNotes, weekStatuses, lateReasons, marketNotes] = await Promise.all([
+  const [thisNotes, prevNotes, weekStatuses, lateReasons, marketNotes, finalization] = await Promise.all([
     readWeekNotes(week),
     prevWeek ? readWeekNotes(prevWeek) : Promise.resolve([] as WeeklyNote[]),
     listWeekStatuses(week),
     readRopMeta(period),
     readRopMarketNotes(period),
+    readRopFinalization(period, week),
   ]);
   const thisLatest = indexLatest(thisNotes);
   const prevLatest = indexLatest(prevNotes);
@@ -240,6 +242,7 @@ export async function buildRopReport(
     redZones,                 // 4.2
     promiseRegister,          // 4.3
     marketNotes,              // 4.5 (3 поля: failures/drivers/other)
+    finalization: { finalizedAt: finalization.finalized_at, finalizedBy: finalization.finalized_by },
     meta: {
       regionCount: regionRows.length,
       logins: allLogins.length,

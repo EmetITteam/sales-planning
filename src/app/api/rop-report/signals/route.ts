@@ -8,6 +8,7 @@ import { validateApiRequest } from '@/lib/api-auth';
 import { getSession } from '@/lib/session';
 import { canViewRopReport } from '@/lib/feature-flags';
 import { upsertRopMarketNote, MARKET_NOTE_FIELDS, type MarketNoteField } from '@/lib/rop-market-notes-store';
+import { isRopWeekFinalized } from '@/lib/rop-report-finalization-store';
 
 export async function POST(request: NextRequest) {
   const auth = validateApiRequest(request);
@@ -19,10 +20,16 @@ export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const period = String(body?.period ?? '');
+  const week = String(body?.week ?? '');
   const field = String(body?.field ?? '') as MarketNoteField;
   const note = String(body?.note ?? '').slice(0, 4000);
   if (!/^\d{4}-\d{2}$/.test(period)) return Response.json({ error: 'period (YYYY-MM) required' }, { status: 400 });
   if (!MARKET_NOTE_FIELDS.includes(field)) return Response.json({ error: 'field must be failures|drivers|other' }, { status: 400 });
+
+  // Лок: якщо звіт цього тижня фіналізовано — редагування заборонено (тільки перегляд).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(week) && await isRopWeekFinalized(period, week)) {
+    return Response.json({ error: 'Звіт цього тижня фіналізовано — редагування заблоковано.' }, { status: 423 });
+  }
 
   try {
     await upsertRopMarketNote(period, field, note, session.login);

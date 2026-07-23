@@ -11,7 +11,7 @@ import { Download } from 'lucide-react';
 import { AppHeader } from '@/components/layout/app-header';
 import { PeriodFilter } from '@/components/layout/period-filter';
 import { useAppStore } from '@/lib/store';
-import { canViewRopReport } from '@/lib/feature-flags';
+import { canViewRopReport, canFinalizeRopReport } from '@/lib/feature-flags';
 import { REPORT_RECIPIENT } from '@/lib/rop-report-config';
 import { useRopReport } from '@/lib/use-rop-report';
 import { RopReportView } from '@/components/rop-report/rop-report-view';
@@ -61,7 +61,7 @@ export default function RopReportPage() {
         {loading && !data && <div className="glass-card p-10 text-center text-[13px] text-muted-foreground">Збираю звіт по 8 представництвах…</div>}
         {error && !data && <div className="glass-card p-8 text-center text-[13px] text-rose-600">Не вдалося завантажити звіт: {error}</div>}
         {data && data.regions.length === 0 && !loading && <div className="glass-card p-10 text-center text-[13px] text-muted-foreground">немає даних за період</div>}
-        {data && data.regions.length > 0 && <RopReportView data={data} />}
+        {data && data.regions.length > 0 && <RopReportView data={data} canFinalize={canFinalizeRopReport(user)} />}
       </main>
     </>
   );
