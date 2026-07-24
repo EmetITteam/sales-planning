@@ -1,0 +1,209 @@
+[
+  {
+    "id": 1,
+    "client_id_1c": "000011018",
+    "author_login": "itd@emet.in.ua",
+    "author_name": "Малькова Евгения Андреевна",
+    "comment": "Тестовый комментарий.",
+    "created_at": "2026-06-11T12:39:45.264497+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 2,
+    "client_id_1c": "000011018",
+    "author_login": "itd@emet.in.ua",
+    "author_name": "Малькова Евгения Андреевна",
+    "comment": "ещё один тестовый комментарий",
+    "created_at": "2026-06-11T12:39:55.150648+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 3,
+    "client_id_1c": "000001533",
+    "author_login": "sm.kiev6@emet.in.ua",
+    "author_name": "Свідзинська Юлія Ігорівна",
+    "comment": "11.06 зацікавив вітаран",
+    "created_at": "2026-06-12T09:12:08.158516+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 4,
+    "client_id_1c": "000002740",
+    "author_login": "sm.kiev2@emet.in.ua",
+    "author_name": "Кравченко Катерина",
+    "comment": "Виїхала за кордон, працює в Будапешті",
+    "created_at": "2026-06-12T13:09:05.23915+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 5,
+    "client_id_1c": "000000901",
+    "author_login": "sm.zp@emet.in.ua",
+    "author_name": "Бакумова Аліна Євгеніївна",
+    "comment": "Выехала из страны",
+    "created_at": "2026-06-17T13:07:47.285752+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 6,
+    "client_id_1c": "000010282",
+    "author_login": "sm.zp@emet.in.ua",
+    "author_name": "Бакумова Аліна Євгеніївна",
+    "comment": "Выехала из страны",
+    "created_at": "2026-06-17T13:08:08.880698+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 7,
+    "client_id_1c": "000003502",
+    "author_login": "sm.zp@emet.in.ua",
+    "author_name": "Бакумова Аліна Євгеніївна",
+    "comment": "Не Бере слухавку",
+    "created_at": "2026-06-17T13:09:35.220271+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 8,
+    "client_id_1c": "000008143",
+    "author_login": "sm.zp@emet.in.ua",
+    "author_name": "Бакумова Аліна Євгеніївна",
+    "comment": "Не косметолог, брала для себе",
+    "created_at": "2026-06-17T13:10:11.142783+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 9,
+    "client_id_1c": "000012737",
+    "author_login": "sm.zp@emet.in.ua",
+    "author_name": "Бакумова Аліна Євгеніївна",
+    "comment": "Не дійсний телефон, відключений",
+    "created_at": "2026-06-17T13:11:04.290069+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 10,
+    "client_id_1c": "000007859",
+    "author_login": "sm.zp@emet.in.ua",
+    "author_name": "Бакумова Аліна Євгеніївна",
+    "comment": "На пенсіі",
+    "created_at": "2026-06-17T13:11:22.985096+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 11,
+    "client_id_1c": "000014838",
+    "author_login": "sm.zp@emet.in.ua",
+    "author_name": "Бакумова Аліна Євгеніївна",
+    "comment": "Виїхала з краіни",
+    "created_at": "2026-06-17T13:12:00.513658+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 12,
+    "client_id_1c": "000001451",
+    "author_login": "sm.kiev6@emet.in.ua",
+    "author_name": "Свідзинська Юлія Ігорівна",
+    "comment": "Экзосоми своі,та колаген , У нас навіть є полімолочка,гіалуронка,колаген та гідроксіапатіт в одному препараті) . не хоче нічого , каже все є .",
+    "created_at": "2026-06-18T13:06:56.863394+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 13,
+    "client_id_1c": "000015816",
+    "author_login": "sm.kiev6@emet.in.ua",
+    "author_name": "Свідзинська Юлія Ігорівна",
+    "comment": "Я зараз працюю в клініці, тож не займаюсь закупками препарату, а Нейронокс для себе та друзів беру)",
+    "created_at": "2026-06-18T13:34:09.678889+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 14,
+    "client_id_1c": "000022654",
+    "author_login": "sm.kiev2@emet.in.ua",
+    "author_name": "Кравченко Катерина",
+    "comment": "У відпустці до серпня, поки надсилати в телеграм інформацію",
+    "created_at": "2026-06-22T13:22:17.513356+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 15,
+    "client_id_1c": "000009259",
+    "author_login": "admin.nikolaev@emet.in.ua",
+    "author_name": "Лопушанская Светлана",
+    "comment": "в пошуках косметолога в салон - 15.07.26",
+    "created_at": "2026-07-16T07:16:12.471658+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 16,
+    "client_id_1c": "000003481",
+    "author_login": "sm.kiev6@emet.in.ua",
+    "author_name": "Свідзинська Юлія Ігорівна",
+    "comment": "цікавилась елансе, з полімолочкою мало працює , тільки шия, декольте. відправила інфо. вайтенінг не побачили резутатат , такий як очікували",
+    "created_at": "2026-07-16T09:34:26.962193+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 17,
+    "client_id_1c": "000023530",
+    "author_login": "sm.kiev6@emet.in.ua",
+    "author_name": "Свідзинська Юлія Ігорівна",
+    "comment": "купила нейраміс за 800 грн на філлер шоп",
+    "created_at": "2026-07-16T10:49:40.024443+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 18,
+    "client_id_1c": "000023599",
+    "author_login": "sm.kiev6@emet.in.ua",
+    "author_name": "Свідзинська Юлія Ігорівна",
+    "comment": "шукала нейронокс ( якщо будут питання буду звязуватись, не контактна",
+    "created_at": "2026-07-16T10:55:53.162936+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 19,
+    "client_id_1c": "000010812",
+    "author_login": "sm.kiev6@emet.in.ua",
+    "author_name": "Свідзинська Юлія Ігорівна",
+    "comment": "косметику ні, токсин інший бере",
+    "created_at": "2026-07-16T12:19:49.729651+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 20,
+    "client_id_1c": "000021084",
+    "author_login": "admin.nikolaev@emet.in.ua",
+    "author_name": "Лопушанская Светлана",
+    "comment": "В Німеччині, інколи буває в Україні, продовжувати інформувати",
+    "created_at": "2026-07-16T13:29:55.048887+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 21,
+    "client_id_1c": "000003435",
+    "author_login": "admin.nikolaev@emet.in.ua",
+    "author_name": "Лопушанская Светлана",
+    "comment": "Німеччина, тимчасово не працює",
+    "created_at": "2026-07-16T13:33:21.334097+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 22,
+    "client_id_1c": "000006221",
+    "author_login": "admin.nikolaev@emet.in.ua",
+    "author_name": "Лопушанская Светлана",
+    "comment": "зараз не займається косметологією",
+    "created_at": "2026-07-17T10:11:09.664191+00:00",
+    "deleted_at": null
+  },
+  {
+    "id": 23,
+    "client_id_1c": "000011152",
+    "author_login": "admin.nikolaev@emet.in.ua",
+    "author_name": "Лопушанская Светлана",
+    "comment": "у декретній відпустці, майже не працює",
+    "created_at": "2026-07-17T15:19:38.408747+00:00",
+    "deleted_at": null
+  }
+]

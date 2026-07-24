@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "client_id_1c": "000023418",
+    "bitrix_item_id": 1,
+    "manager_login": "itd@emet.in.ua",
+    "client_name": "ТЕСТ verify 3",
+    "status": "verified",
+    "rejection_reason": null,
+    "created_at": "2026-06-12T09:50:30.426806+00:00",
+    "completed_at": "2026-06-12T11:00:03.036+00:00",
+    "updated_at": "2026-06-12T11:00:03.036+00:00"
+  },
+  {
+    "id": 2,
+    "client_id_1c": "000023419",
+    "bitrix_item_id": 3,
+    "manager_login": "itd@emet.in.ua",
+    "client_name": "Тест битрикс уведомление",
+    "status": "pending",
+    "rejection_reason": null,
+    "created_at": "2026-06-12T11:19:03.39285+00:00",
+    "completed_at": null,
+    "updated_at": "2026-06-12T11:19:03.39285+00:00"
+  },
+  {
+    "id": 3,
+    "client_id_1c": "000023420",
+    "bitrix_item_id": 4,
+    "manager_login": "itd@emet.in.ua",
+    "client_name": "Тест загрузки файлов",
+    "status": "rejected",
+    "rejection_reason": null,
+    "created_at": "2026-06-12T11:59:50.864316+00:00",
+    "completed_at": "2026-06-24T10:44:05.904+00:00",
+    "updated_at": "2026-06-24T10:44:05.904+00:00"
+  },
+  {
+    "id": 4,
+    "client_id_1c": "000023482",
+    "bitrix_item_id": 5,
+    "manager_login": "sm.kiev8@emet.in.ua",
+    "client_name": "Віа Дерм",
+    "status": "clarification",
+    "rejection_reason": null,
+    "created_at": "2026-06-23T14:58:47.084625+00:00",
+    "completed_at": null,
+    "updated_at": "2026-06-24T07:44:11.566+00:00"
+  },
+  {
+    "id": 5,
+    "client_id_1c": "000023653",
+    "bitrix_item_id": 6,
+    "manager_login": "admin.nikolaev@emet.in.ua",
+    "client_name": "Висоцька Єлизавета Максимівна",
+    "status": "verified",
+    "rejection_reason": null,
+    "created_at": "2026-07-23T14:14:17.446513+00:00",
+    "completed_at": "2026-07-24T07:08:28.431+00:00",
+    "updated_at": "2026-07-24T07:08:28.431+00:00"
+  }
+]
